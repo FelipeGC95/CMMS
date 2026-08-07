@@ -159,3 +159,5 @@ Si al hacer `pull` o `merge` aparece un conflicto:
 - Nunca subas contraseñas, tokens ni archivos secretos (usa `.gitignore`).
 - Antes de subir, ejecuta un `git pull` para evitar conflictos innecesarios.
 - Usa Pull Requests para revisar el código entre todos antes de fusionar a `main`.
+
+ https://www.youtube.com/watch?v=9oVfhupb77w
