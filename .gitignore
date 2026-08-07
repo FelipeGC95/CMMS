@@ -1,0 +1,25 @@
+# IDE
+.idea/
+.vscode/
+
+# Claude Code
+.claude/
+
+# Capturas / temporales
+img.png
+*.log
+*.tmp
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+*.egg-info/
+.pytest_cache/
+
+# OS
+Thumbs.db
+Desktop.ini
+.DS_Store
