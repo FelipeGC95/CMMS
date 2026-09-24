@@ -1,11 +1,12 @@
 """Settings de GALBUST CMMS.
 
-Un solo archivo configurado por variables de entorno. En desarrollo usa SQLite;
-producción usará PostgreSQL (ver docs/04_arquitectura.md).
+Un solo archivo configurado por variables de entorno (ver docs/04_arquitectura.md).
 """
 
 import os
 from pathlib import Path
+
+import dj_database_url
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -66,11 +67,13 @@ TEMPLATES = [
     },
 ]
 
+# PostgreSQL vía DATABASE_URL (CI, staging, producción); SQLite solo para la demo local.
 DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
-    }
+    "default": dj_database_url.config(
+        default=f"sqlite:///{BASE_DIR / 'db.sqlite3'}",
+        conn_max_age=60,
+        conn_health_checks=True,
+    )
 }
 
 AUTH_USER_MODEL = "accounts.User"
@@ -118,3 +121,5 @@ if not DEBUG:
     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
     SECURE_CONTENT_TYPE_NOSNIFF = True
     SECURE_REFERRER_POLICY = "same-origin"
+    # HSTS preload se activa cuando el dominio definitivo esté estable (docs/04 §5).
+    SILENCED_SYSTEM_CHECKS = ["security.W021"]

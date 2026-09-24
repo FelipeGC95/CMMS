@@ -2,3 +2,5 @@
 django>=5.2,<5.3
 segno>=1.6
 uuid-utils>=0.9
+dj-database-url>=2.2
+psycopg[binary]>=3.2
