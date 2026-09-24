@@ -1,0 +1,27 @@
+GALBUST — Kit de marca v1.0
+================================
+
+/svg   Archivos vectoriales (editables, escalan sin perder calidad).
+       Usar siempre que se pueda: web, impresión, presentaciones.
+/png   Mapas de bits con fondo transparente, listos para pegar.
+galbust-favicon.ico   Favicon multi-tamaño para el sitio web.
+GALBUST-manual-de-marca.pdf   Colores, tipografía y reglas de uso.
+
+Qué archivo usar
+----------------
+Web / firma de correo ....... galbust-horizontal-color.svg
+Fondo azul u oscuro ......... galbust-horizontal-negativo.svg
+Impresión a 1 tinta ......... galbust-horizontal-monocromo.svg
+Espacios cuadrados .......... galbust-vertical-color.svg
+Avatar, app, redes .......... galbust-app-icon-1024.png
+Favicon ..................... galbust-favicon.ico
+
+Colores
+-------
+Azul profundo   #0B2E4F   RGB 11 46 79
+Cian señal      #12B3C8   RGB 18 179 200
+Tinta           #111318   RGB 17 19 24
+Niebla          #F4F7FA   RGB 244 247 250
+
+Tipografía: Poppins (Medium para el logotipo, Regular para texto).
+Descarga gratuita en Google Fonts.

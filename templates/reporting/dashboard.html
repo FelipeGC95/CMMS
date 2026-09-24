@@ -1,0 +1,76 @@
+{% extends "base.html" %}{% load i18n ui %}
+{% block title %}{% translate "Inicio" %}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>{% blocktranslate with name=user.short_name %}Hola, {{ name }}{% endblocktranslate %}</h1>
+    <p class="muted">{{ organization.name }} · {% translate "últimos 30 días" %}</p>
+  </div>
+  <a class="btn btn--primary btn--lg" href="{% url 'asset_list' %}?report=1">{% icon 'megaphone' %}{% translate "Avisar falla" %}</a>
+</div>
+
+{% if my_work_orders %}
+<section class="card mb-4" aria-labelledby="mine-title">
+  <div class="card__header"><h2 id="mine-title">{% translate "Mis OT abiertas" %}</h2><a href="{% url 'work_order_list' %}?scope=mine">{% translate "Ver todas" %}</a></div>
+  <ul class="list">{% for wo in my_work_orders %}{% include "work/_wo_item.html" %}{% endfor %}</ul>
+</section>
+{% endif %}
+
+<section class="grid grid--kpi" aria-label="{% translate 'Indicadores' %}">
+  <div class="card kpi">
+    <span class="kpi__label">{% translate "Disponibilidad" %}</span>
+    <span class="kpi__value">{{ kpis.availability_pct|pct }}<span class="kpi__unit">%</span></span>
+    <span class="kpi__hint">{% translate "Tiempo operativo / tiempo calendario" %}</span>
+  </div>
+  <div class="card kpi">
+    <span class="kpi__label">MTBF</span>
+    <span class="kpi__value">{{ kpis.mtbf_hours|hours:0 }}<span class="kpi__unit">h</span></span>
+    <span class="kpi__hint">{% blocktranslate count n=kpis.failures %}Tiempo medio entre fallas · {{ n }} falla{% plural %}Tiempo medio entre fallas · {{ n }} fallas{% endblocktranslate %}</span>
+  </div>
+  <div class="card kpi">
+    <span class="kpi__label">MTTR</span>
+    <span class="kpi__value">{{ kpis.mttr_hours|hours }}<span class="kpi__unit">h</span></span>
+    <span class="kpi__hint">{% translate "Tiempo medio de reparación" %}</span>
+  </div>
+  <div class="card kpi">
+    <span class="kpi__label">{% translate "Cumplimiento preventivo" %}</span>
+    <span class="kpi__value">{{ kpis.preventive_compliance_pct|pct }}<span class="kpi__unit">%</span></span>
+    <span class="kpi__hint">{% translate "OT preventivas cerradas a tiempo" %}</span>
+  </div>
+  <a class="card kpi kpi--link {% if kpis.stopped_assets %}kpi--alert{% endif %}" href="{% url 'asset_list' %}?status=stopped">
+    <span class="kpi__label">{% translate "Equipos detenidos" %}</span>
+    <span class="kpi__value">{{ kpis.stopped_assets }}</span>
+    <span class="kpi__hint">{% translate "Detenidos o en mantención" %}</span>
+  </a>
+  <a class="card kpi kpi--link {% if kpis.overdue_work_orders %}kpi--alert{% endif %}" href="{% url 'work_order_list' %}?scope=overdue">
+    <span class="kpi__label">{% translate "OT vencidas" %}</span>
+    <span class="kpi__value">{{ kpis.overdue_work_orders }}</span>
+    <span class="kpi__hint">{% blocktranslate with n=kpis.open_work_orders %}de {{ n }} abiertas{% endblocktranslate %}</span>
+  </a>
+</section>
+
+<div class="grid grid--2 mt-4">
+  <section class="card" aria-labelledby="prio-title">
+    <div class="card__header"><h2 id="prio-title">{% translate "OT prioritarias" %}</h2><a href="{% url 'work_order_list' %}">{% translate "Ver backlog" %}</a></div>
+    {% if priority_work_orders %}
+    <ul class="list">{% for wo in priority_work_orders %}{% include "work/_wo_item.html" %}{% endfor %}</ul>
+    {% else %}<p class="empty">{% translate "No hay OT abiertas." %}</p>{% endif %}
+  </section>
+  <section class="card" aria-labelledby="down-title">
+    <div class="card__header"><h2 id="down-title">{% translate "Equipos fuera de servicio" %}</h2></div>
+    {% if down_assets %}
+    <ul class="list">
+      {% for asset in down_assets %}
+      <li>
+        <div class="list__main">
+          <a class="list__title" href="{% url 'asset_detail' asset.pk %}"><span class="mono">{{ asset.code }}</span> {{ asset.name }}</a>
+          <span class="list__meta">{{ asset.location|default:"" }}</span>
+        </div>
+        {% status_badge asset %}
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}<p class="empty">{% icon 'check' %} {% translate "Todos los equipos operativos." %}</p>{% endif %}
+  </section>
+</div>
+{% endblock %}

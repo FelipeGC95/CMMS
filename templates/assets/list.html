@@ -1,0 +1,47 @@
+{% extends "base.html" %}{% load i18n ui %}
+{% block title %}{% translate "Activos" %}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>{% if request.GET.report %}{% translate "¿Qué equipo falla?" %}{% else %}{% translate "Activos" %}{% endif %}</h1>
+    <p class="muted">{% if request.GET.report %}{% translate "Elige el equipo o escanea su código QR con la cámara." %}{% else %}{% blocktranslate count n=page.paginator.count %}{{ n }} activo{% plural %}{{ n }} activos{% endblocktranslate %}{% endif %}</p>
+  </div>
+  {% if not request.GET.report %}<a class="btn btn--ghost" href="{% url 'asset_labels' %}">{% icon 'print' %}{% translate "Imprimir etiquetas QR" %}</a>{% endif %}
+</div>
+
+<form class="search-bar" method="get" role="search">
+  {% if request.GET.report %}<input type="hidden" name="report" value="1">{% endif %}
+  <label class="visually-hidden" for="q">{% translate "Buscar" %}</label>
+  <input class="input" type="search" id="q" name="q" value="{{ search }}" placeholder="{% translate 'Buscar por código o nombre' %}">
+  <label class="visually-hidden" for="status">{% translate "Estado" %}</label>
+  <select class="input input--narrow" id="status" name="status">
+    <option value="">{% translate "Todos los estados" %}</option>
+    {% for value, label in statuses %}<option value="{{ value }}" {% if value == status %}selected{% endif %}>{{ label }}</option>{% endfor %}
+  </select>
+  <button class="btn btn--secondary" type="submit">{% translate "Buscar" %}</button>
+</form>
+
+<div class="card card--flush">
+  {% if page.object_list %}
+  <table class="table">
+    <thead><tr><th>{% translate "Código" %}</th><th>{% translate "Nombre" %}</th><th>{% translate "Clase" %}</th><th>{% translate "Ubicación" %}</th><th>{% translate "Criticidad" %}</th><th>{% translate "Estado" %}</th>{% if request.GET.report %}<th><span class="visually-hidden">{% translate "Acción" %}</span></th>{% endif %}</tr></thead>
+    <tbody>
+      {% for asset in page.object_list %}
+      <tr>
+        <td class="mono">{{ asset.code }}</td>
+        <td><a href="{% url 'asset_detail' asset.pk %}">{{ asset.name }}</a></td>
+        <td data-label="{% translate 'Clase' %}">{{ asset.asset_class }}</td>
+        <td data-label="{% translate 'Ubicación' %}">{{ asset.location|default:"—" }}</td>
+        <td data-label="{% translate 'Criticidad' %}">{{ asset.criticality }}</td>
+        <td>{% status_badge asset %}</td>
+        {% if request.GET.report %}<td><a class="btn btn--primary" href="{% url 'asset_report' asset.pk %}">{% icon 'megaphone' %}{% translate "Avisar" %}</a></td>{% endif %}
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="empty">{% translate "No hay activos que coincidan." %}</p>
+  {% endif %}
+</div>
+{% include "_pagination.html" %}
+{% endblock %}

@@ -1,0 +1,29 @@
+{% load i18n ui %}<li class="check-item {% if item.result %}check-item--{{ item.result }}{% endif %}" id="item-{{ item.pk }}">
+  <div class="check-item__text"><span class="check-item__num">{{ item.order }}.</span><span>{{ item.text }}{% if item.required %}<span class="visually-hidden"> ({% translate "obligatorio" %})</span>{% endif %}</span></div>
+  {% if error %}<div class="alert alert--error" role="alert">{% icon 'stop' %}<span>{{ error }}</span></div>{% endif %}
+  {% if can_execute %}
+  <form method="post" action="{% url 'checklist_answer' item.work_order_id item.pk %}"
+        hx-post="{% url 'checklist_answer' item.work_order_id item.pk %}" hx-target="#item-{{ item.pk }}" hx-swap="outerHTML">
+    {% csrf_token %}
+    {% if item.item_type == "measurement" %}
+      <div class="measure">
+        <label class="visually-hidden" for="v-{{ item.pk }}">{% translate "Valor medido" %}</label>
+        <input class="input num" id="v-{{ item.pk }}" type="number" step="any" inputmode="decimal" name="value_number" value="{{ item.value_number|default_if_none:'' }}" required>
+        <span class="muted">{{ item.unit }}</span>
+        <button class="btn btn--secondary btn--lg" type="submit">{% translate "Guardar" %}</button>
+      </div>
+      <p class="help muted">{% translate "Rango aceptable" %}: <span class="num">{{ item.min_value|default_if_none:"—"|floatformat:"-3" }} – {{ item.max_value|default_if_none:"—"|floatformat:"-3" }}</span> {{ item.unit }}
+        {% if item.result == "not_ok" %}<span class="badge badge--error">{% icon 'stop' %}{% translate "Fuera de rango" %}</span>{% elif item.result == "ok" %}<span class="badge badge--success">{% icon 'check' %}{% translate "En rango" %}</span>{% endif %}</p>
+    {% else %}
+      <div class="segmented" role="group" aria-label="{% translate 'Resultado' %}">
+        <button type="submit" name="result" value="ok" class="is-ok" aria-pressed="{% if item.result == 'ok' %}true{% else %}false{% endif %}">{% icon 'check' %}OK</button>
+        <button type="submit" name="result" value="not_ok" class="is-not_ok" aria-pressed="{% if item.result == 'not_ok' %}true{% else %}false{% endif %}">{% icon 'x' %}{% translate "No OK" %}</button>
+        <button type="submit" name="result" value="na" class="is-na" aria-pressed="{% if item.result == 'na' %}true{% else %}false{% endif %}">{% icon 'dot' %}N.A.</button>
+      </div>
+    {% endif %}
+  </form>
+  {% else %}
+    {% if item.result %}<span class="badge badge--{% if item.result == 'ok' %}success{% elif item.result == 'not_ok' %}error{% else %}neutral{% endif %}">{% if item.result == 'ok' %}{% icon 'check' %}{% elif item.result == 'not_ok' %}{% icon 'x' %}{% else %}{% icon 'dot' %}{% endif %}{{ item.get_result_display }}{% if item.value_number is not None %} · {{ item.value_number|floatformat:"-3" }} {{ item.unit }}{% endif %}</span>
+    {% else %}<span class="muted">{% translate "Sin respuesta" %}</span>{% endif %}
+  {% endif %}
+</li>

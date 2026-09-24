@@ -1,0 +1,38 @@
+"""Matriz rol → permisos (ADR-013). Se verifica en servicios y vistas."""
+
+from enum import StrEnum
+
+from .models import Membership
+
+Role = Membership.Role
+
+
+class Perm(StrEnum):
+    ASSET_MANAGE = "asset.manage"
+    PLAN_MANAGE = "plan.manage"
+    WORK_ORDER_MANAGE = "work_order.manage"  # crear, asignar, cancelar, aprobar
+    WORK_ORDER_EXECUTE = "work_order.execute"  # iniciar, checklist, completar
+    REQUEST_CREATE = "request.create"  # avisar falla / pedir trabajo
+
+
+ROLE_PERMISSIONS: dict[str, frozenset[Perm]] = {
+    Role.ADMIN: frozenset(Perm),
+    Role.PLANNER: frozenset(Perm),
+    Role.SUPERVISOR: frozenset({Perm.WORK_ORDER_MANAGE, Perm.WORK_ORDER_EXECUTE, Perm.REQUEST_CREATE}),
+    Role.TECHNICIAN: frozenset({Perm.WORK_ORDER_EXECUTE, Perm.REQUEST_CREATE}),
+    Role.VIEWER: frozenset({Perm.REQUEST_CREATE}),
+    Role.EXTERNAL: frozenset({Perm.REQUEST_CREATE}),
+}
+
+
+class PermissionDeniedError(PermissionError):
+    pass
+
+
+def has_perm(membership, perm: Perm) -> bool:
+    return membership is not None and perm in ROLE_PERMISSIONS.get(membership.role, ())
+
+
+def require_perm(membership, perm: Perm) -> None:
+    if not has_perm(membership, perm):
+        raise PermissionDeniedError(perm)

@@ -1,0 +1,7 @@
+{% load ui %}<li>
+  <div class="list__main">
+    <a class="list__title" href="{% url 'work_order_detail' wo.pk %}"><span class="mono">{{ wo.code }}</span> {{ wo.title }}</a>
+    <span class="list__meta">{{ wo.asset.code }} · {{ wo.asset.name }}{% if wo.due_on %} · {% icon 'calendar' %} {{ wo.due_on|date:"d M" }}{% endif %}</span>
+  </div>
+  <div class="row">{% if wo.priority <= 2 %}{% priority_badge wo %}{% endif %}{% status_badge wo %}</div>
+</li>

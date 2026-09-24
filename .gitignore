@@ -23,3 +23,10 @@ env/
 Thumbs.db
 Desktop.ini
 .DS_Store
+
+# Django
+db.sqlite3
+media/
+staticfiles/
+.env
+.ruff_cache/

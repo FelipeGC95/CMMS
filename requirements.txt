@@ -1,0 +1,4 @@
+# Mientras no se use uv (ver CLAUDE.md): pip install -r requirements-dev.txt
+django>=5.2,<5.3
+segno>=1.6
+uuid-utils>=0.9

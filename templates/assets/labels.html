@@ -1,0 +1,20 @@
+{% extends "base.html" %}{% load i18n ui %}
+{% block title %}{% translate "Etiquetas QR" %}{% endblock %}
+{% block content %}
+<div class="page-header no-print">
+  <div>
+    <h1>{% translate "Etiquetas QR" %}</h1>
+    <p class="muted">{% translate "Imprime con Ctrl+P y recorta por la línea punteada." %}</p>
+  </div>
+</div>
+<div class="labels">
+  {% for asset, svg in labels %}
+  <div class="label">
+    <div class="label__org">{{ organization.name }}</div>
+    {{ svg }}
+    <div class="label__code">{{ asset.code }}</div>
+    <div class="label__name">{{ asset.name }}</div>
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}

@@ -1,0 +1,90 @@
+"""Indicadores básicos (KPI-01). Definiciones en docs/02_requisitos.md."""
+
+import datetime
+from dataclasses import dataclass
+
+from django.utils import timezone
+
+from apps.assets.models import Asset, AssetStatusPeriod
+from apps.maintenance.models import PlanAssignment
+from apps.work.models import FailureEvent, WorkOrder
+from apps.work.selectors import OPEN_STATUSES
+
+DOWN_STATUSES = (Asset.Status.STOPPED, Asset.Status.IN_MAINTENANCE)
+
+
+@dataclass
+class Kpis:
+    availability_pct: float | None
+    mttr_hours: float | None
+    mtbf_hours: float | None
+    preventive_compliance_pct: float | None
+    failures: int
+    open_work_orders: int
+    overdue_work_orders: int
+    stopped_assets: int
+    upcoming_preventives: int
+
+
+def _overlap_seconds(start, end, window_start, window_end) -> float:
+    start, end = max(start, window_start), min(end, window_end)
+    return max((end - start).total_seconds(), 0.0)
+
+
+def dashboard_kpis(*, days: int = 30, now=None) -> Kpis:
+    now = now or timezone.now()
+    window_start = now - datetime.timedelta(days=days)
+    today = timezone.localdate(now)
+
+    assets = Asset.objects.filter(is_active=True).exclude(status=Asset.Status.RETIRED)
+    asset_count = assets.count()
+    window_seconds = days * 86400
+
+    downtime = sum(
+        _overlap_seconds(p.started_at, p.ended_at or now, window_start, now)
+        for p in AssetStatusPeriod.objects.filter(status__in=DOWN_STATUSES, started_at__lt=now)
+        .exclude(ended_at__lt=window_start)
+        .only("started_at", "ended_at")
+    )
+    availability = 100 * (1 - downtime / (asset_count * window_seconds)) if asset_count else None
+
+    failures = list(
+        FailureEvent.objects.filter(impact=FailureEvent.Impact.TOTAL_STOP, started_at__gte=window_start).only(
+            "started_at", "ended_at"
+        )
+    )
+    repaired = [f for f in failures if f.ended_at]
+    mttr = (
+        sum((f.ended_at - f.started_at).total_seconds() for f in repaired) / len(repaired) / 3600
+        if repaired
+        else None
+    )
+    mtbf = (asset_count * window_seconds - downtime) / len(failures) / 3600 if failures else None
+
+    due_preventives = WorkOrder.objects.filter(
+        work_type=WorkOrder.Type.PREVENTIVE,
+        due_on__gte=window_start.date(),
+        due_on__lt=today,
+    ).exclude(status=WorkOrder.Status.CANCELLED)
+    due_count = due_preventives.count()
+    on_time = sum(
+        1
+        for wo in due_preventives.only("due_on", "completed_at")
+        if wo.completed_at and timezone.localdate(wo.completed_at) <= wo.due_on
+    )
+    compliance = 100 * on_time / due_count if due_count else None
+
+    open_qs = WorkOrder.objects.filter(status__in=OPEN_STATUSES)
+    return Kpis(
+        availability_pct=availability,
+        mttr_hours=mttr,
+        mtbf_hours=mtbf,
+        preventive_compliance_pct=compliance,
+        failures=len(failures),
+        open_work_orders=open_qs.count(),
+        overdue_work_orders=open_qs.filter(due_on__lt=today).count(),
+        stopped_assets=assets.filter(status__in=DOWN_STATUSES).count(),
+        upcoming_preventives=PlanAssignment.objects.filter(
+            is_active=True, next_due_on__lte=today + datetime.timedelta(days=7)
+        ).count(),
+    )

@@ -1,0 +1,59 @@
+{% extends "base.html" %}{% load i18n ui %}
+{% block title %}{{ asset.code }}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <p class="muted mono">{{ asset.code }}</p>
+    <h1>{{ asset.name }}</h1>
+    <div class="row">{% status_badge asset %}<span class="badge badge--neutral">{% translate "Criticidad" %} {{ asset.criticality }}</span></div>
+  </div>
+  <a class="btn btn--primary btn--lg" href="{% url 'asset_report' asset.pk %}">{% icon 'megaphone' %}{% translate "Avisar falla" %}</a>
+</div>
+
+<div class="grid grid--2">
+  <section class="card" aria-labelledby="data-title">
+    <h2 id="data-title">{% translate "Ficha" %}</h2>
+    <dl class="dl">
+      <dt>{% translate "Clase" %}</dt><dd>{{ asset.asset_class }}</dd>
+      <dt>{% translate "Ubicación" %}</dt><dd>{{ asset.location|default:"—" }}</dd>
+      {% if asset.parent %}<dt>{% translate "Parte de" %}</dt><dd><a href="{% url 'asset_detail' asset.parent.pk %}">{{ asset.parent }}</a></dd>{% endif %}
+      <dt>{% translate "Fabricante" %}</dt><dd>{{ asset.manufacturer|default:"—" }}</dd>
+      <dt>{% translate "Modelo" %}</dt><dd>{{ asset.model|default:"—" }}</dd>
+      <dt>{% translate "N.º de serie" %}</dt><dd class="mono">{{ asset.serial_number|default:"—" }}</dd>
+      <dt>{% translate "Año" %}</dt><dd>{{ asset.year|default:"—" }}</dd>
+    </dl>
+  </section>
+  <section class="card" aria-labelledby="qr-title">
+    <h2 id="qr-title">{% translate "Código QR" %}</h2>
+    <div class="row">
+      <div class="qr">{{ qr_svg }}</div>
+      <p class="muted">{% translate "Pega esta etiqueta en el equipo. Al escanearla con la cámara del celular se abre directamente el aviso de falla." %}</p>
+    </div>
+  </section>
+</div>
+
+<div class="grid grid--2 mt-4">
+  <section class="card" aria-labelledby="open-title">
+    <h2 id="open-title">{% translate "OT abiertas" %}</h2>
+    {% if open_work_orders %}<ul class="list">{% for wo in open_work_orders %}{% include "work/_wo_item.html" %}{% endfor %}</ul>
+    {% else %}<p class="muted">{% translate "Sin OT abiertas." %}</p>{% endif %}
+  </section>
+  <section class="card" aria-labelledby="plans-title">
+    <h2 id="plans-title">{% translate "Planes preventivos" %}</h2>
+    {% if plans %}
+    <ul class="list">
+      {% for a in plans %}
+      <li><div class="list__main"><span class="list__title">{{ a.plan.name }}</span><span class="list__meta">{% blocktranslate with d=a.plan.interval_days %}Cada {{ d }} días{% endblocktranslate %}{% if a.last_done_on %} · {% translate "última" %} {{ a.last_done_on|date:"d M Y" }}{% endif %}</span></div>
+      <span class="badge badge--info">{% icon 'calendar' %}{{ a.next_due_on|date:"d M" }}</span></li>
+      {% endfor %}
+    </ul>
+    {% else %}<p class="muted">{% translate "Sin planes asignados." %}</p>{% endif %}
+  </section>
+</div>
+
+<section class="card mt-4" aria-labelledby="hist-title">
+  <h2 id="hist-title">{% translate "Historial" %}</h2>
+  {% if history %}<ul class="list">{% for wo in history %}{% include "work/_wo_item.html" %}{% endfor %}</ul>
+  {% else %}<p class="muted">{% translate "Aún no hay trabajos cerrados." %}</p>{% endif %}
+</section>
+{% endblock %}

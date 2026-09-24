@@ -1,0 +1,6 @@
+{% load ui %}{% for message in messages %}
+<div class="alert alert--{% if message.tags == 'error' %}error{% elif message.tags == 'warning' %}warning{% elif message.tags == 'success' %}success{% else %}info{% endif %}" role="{% if message.tags == 'error' %}alert{% else %}status{% endif %}">
+  {% if message.tags == 'error' %}{% icon 'stop' %}{% elif message.tags == 'success' %}{% icon 'check' %}{% else %}{% icon 'info' %}{% endif %}
+  <span>{{ message }}</span>
+</div>
+{% endfor %}

@@ -1,0 +1,105 @@
+/* GALBUST CMMS — design tokens. Única fuente de colores, fuentes, radios y espacios.
+   Ver docs/06_sistema_de_diseno.md. Toda combinación nueva va a tests/ui/test_contrast.py. */
+
+@font-face { font-family: "Poppins"; font-weight: 400; font-display: swap; src: url("../fonts/poppins-latin-400-normal.woff2") format("woff2"); }
+@font-face { font-family: "Poppins"; font-weight: 500; font-display: swap; src: url("../fonts/poppins-latin-500-normal.woff2") format("woff2"); }
+@font-face { font-family: "Poppins"; font-weight: 600; font-display: swap; src: url("../fonts/poppins-latin-600-normal.woff2") format("woff2"); }
+@font-face { font-family: "Inter"; font-weight: 400; font-display: swap; src: url("../fonts/inter-latin-400-normal.woff2") format("woff2"); }
+@font-face { font-family: "Inter"; font-weight: 500; font-display: swap; src: url("../fonts/inter-latin-500-normal.woff2") format("woff2"); }
+@font-face { font-family: "Inter"; font-weight: 600; font-display: swap; src: url("../fonts/inter-latin-600-normal.woff2") format("woff2"); }
+@font-face { font-family: "JetBrains Mono"; font-weight: 400; font-display: swap; src: url("../fonts/jetbrains-mono-latin-400-normal.woff2") format("woff2"); }
+
+:root {
+  /* Primitivos del manual de marca */
+  --galbust-blue: #0B2E4F;
+  --galbust-cyan: #12B3C8;
+  --galbust-ink: #111318;
+  --galbust-mist: #F4F7FA;
+
+  /* Semánticos — modo claro */
+  --color-bg: #F4F7FA;
+  --color-surface: #FFFFFF;
+  --color-surface-sunken: #EEF2F6;
+  --color-text: #111318;
+  --color-text-muted: #475569;
+  --color-text-brand: #0B2E4F;
+  --color-link: #0E7C8C;
+  --color-accent-text: #0E7C8C;
+  --color-border: #D9E1EA;
+  --color-border-strong: #64748B;
+  --color-focus: #0E7C8C;
+
+  --color-nav-bg: #0B2E4F;
+  --color-nav-text: #FFFFFF;
+  --color-nav-active: #12B3C8;
+  --color-nav-divider: rgb(255 255 255 / 0.3);
+  --color-nav-control-border: rgb(255 255 255 / 0.6);
+
+  --color-action-bg: #12B3C8;
+  --color-action-text: #0B2E4F;
+  --color-action-bg-hover: #3FC6D8;
+  --color-secondary-bg: #0B2E4F;
+  --color-secondary-text: #FFFFFF;
+  --color-secondary-border: #0B2E4F;
+  --color-danger-bg: #B91C1C;
+  --color-danger-text: #FFFFFF;
+
+  /* Estados: no sobrescribibles por la organización */
+  --color-success: #15803D;  --color-success-bg: #DCFCE7;
+  --color-warning: #B45309;  --color-warning-bg: #FEF3C7;
+  --color-error: #B91C1C;    --color-error-bg: #FEE2E2;
+  --color-info: #0E7C8C;     --color-info-bg: #F0FAFC;
+  --color-neutral: #475569;  --color-neutral-bg: #EEF2F6;
+
+  /* Tipografía */
+  --font-brand: "Poppins", system-ui, sans-serif;
+  --font-body: "Poppins", system-ui, sans-serif;
+  --font-ui: "Inter", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-md: 1rem;
+  --text-lg: 1.25rem;
+  --text-xl: 1.5rem;
+  --text-2xl: 2rem;
+
+  /* Espaciado, radios, sombras */
+  --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px;
+  --space-5: 24px; --space-6: 32px; --space-7: 48px;
+  --radius-sm: 6px; --radius-md: 10px; --radius-lg: 16px; --radius-pill: 999px;
+  --touch-target: 48px;
+  --shadow-sm: 0 1px 2px rgb(11 46 79 / 0.08), 0 1px 3px rgb(11 46 79 / 0.06);
+  --shadow-md: 0 4px 12px rgb(11 46 79 / 0.12);
+  --duration-fast: 120ms;
+  --logo-height: 28px;
+  --content-max: 1200px;
+  /* El QR y las etiquetas impresas van siempre sobre blanco para escanear bien. */
+  --color-qr-bg: #FFFFFF;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-bg: #071E34;
+    --color-surface: #0B2E4F;
+    --color-surface-sunken: #0A2743;
+    --color-text: #F4F7FA;
+    --color-text-muted: #A9BCCF;
+    --color-text-brand: #F4F7FA;
+    --color-link: #12B3C8;
+    --color-accent-text: #12B3C8;
+    --color-border: #1E4468;
+    --color-border-strong: #5B7EA0;
+    --color-focus: #12B3C8;
+    --color-nav-bg: #071E34;
+    --color-secondary-bg: transparent;
+    --color-secondary-text: #F4F7FA;
+    --color-secondary-border: #F4F7FA;
+    --color-success: #4ADE80;  --color-success-bg: #0F3B2A;
+    --color-warning: #FBBF24;  --color-warning-bg: #3D2E0A;
+    --color-error: #FCA5A5;    --color-error-bg: #4A1D24;
+    --color-info: #5FD4E3;     --color-info-bg: #0A3A4A;
+    --color-neutral: #A9BCCF;  --color-neutral-bg: #123A5E;
+    --shadow-sm: none;
+    --shadow-md: 0 4px 12px rgb(0 0 0 / 0.4);
+  }
+}

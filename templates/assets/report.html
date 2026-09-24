@@ -1,0 +1,31 @@
+{% extends "base.html" %}{% load i18n ui %}
+{% block title %}{% translate "Avisar falla" %}{% endblock %}
+{% block content %}
+<div class="narrow">
+  <p class="muted mono">{{ asset.code }}</p>
+  <h1>{% blocktranslate with name=asset.name %}Avisar falla en {{ name }}{% endblocktranslate %}</h1>
+  <div class="row mb-4">{% status_badge asset %}<span class="muted">{{ asset.location|default:"" }}</span></div>
+
+  <form class="card" method="post" enctype="multipart/form-data" novalidate>
+    {% csrf_token %}
+    {{ form.client_uuid }}
+    {% for error in form.non_field_errors %}<div class="alert alert--error" role="alert">{% icon 'stop' %}<span>{{ error }}</span></div>{% endfor %}
+    <div class="field">
+      <label for="{{ form.description.id_for_label }}">{{ form.description.label }}</label>
+      {{ form.description }}
+      {% for error in form.description.errors %}<span class="error">{% icon 'stop' %}{{ error }}</span>{% endfor %}
+    </div>
+    <div class="field field--check">
+      {{ form.asset_stopped }}
+      <label for="{{ form.asset_stopped.id_for_label }}">{{ form.asset_stopped.label }}</label>
+    </div>
+    <div class="field">
+      <label for="{{ form.photo.id_for_label }}">{% icon 'camera' %} {{ form.photo.label }}</label>
+      {{ form.photo }}
+      {% for error in form.photo.errors %}<span class="error">{% icon 'stop' %}{{ error }}</span>{% endfor %}
+    </div>
+    <button class="btn btn--primary btn--lg btn--block" type="submit">{% icon 'megaphone' %}{% translate "Enviar aviso" %}</button>
+    <p class="help muted mt-2">{% translate "Se creará una orden de trabajo correctiva y se avisará a mantención." %}</p>
+  </form>
+</div>
+{% endblock %}

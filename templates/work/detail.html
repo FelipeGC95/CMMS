@@ -1,0 +1,88 @@
+{% extends "base.html" %}{% load i18n ui %}
+{% block title %}{{ wo.code }}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <p class="muted mono">{{ wo.code }} · {{ wo.get_work_type_display }}</p>
+    <h1>{{ wo.title }}</h1>
+    <div class="row" id="wo-status" hx-get="{% url 'work_order_detail' wo.pk %}" hx-trigger="checklist-changed from:body" hx-select="#wo-status" hx-swap="outerHTML">
+      {% status_badge wo %}{% priority_badge wo %}
+      {% if wo.due_on %}<span class="badge badge--neutral">{% icon 'calendar' %}{% translate "Límite" %} {{ wo.due_on|date:"d M Y" }}</span>{% endif %}
+    </div>
+  </div>
+  {% if transitions %}
+  <form method="post" action="{% url 'work_order_transition' wo.pk %}" class="row">
+    {% csrf_token %}
+    {% for value, label in transitions %}
+    <button class="btn {% if value == 'cancelled' %}btn--ghost{% elif value == 'in_progress' %}btn--primary{% else %}btn--secondary{% endif %}" name="to" value="{{ value }}" type="submit">
+      {% if value == 'in_progress' %}{% icon 'play' %}{% translate "Iniciar" %}{% elif value == 'cancelled' %}{% translate "Cancelar OT" %}{% elif value == 'closed' %}{% icon 'check' %}{% translate "Aprobar cierre" %}{% else %}{{ label }}{% endif %}
+    </button>
+    {% endfor %}
+  </form>
+  {% endif %}
+</div>
+
+<div class="grid grid--2">
+  <section class="card" aria-labelledby="data-title">
+    <h2 id="data-title">{% translate "Detalle" %}</h2>
+    <dl class="dl">
+      <dt>{% translate "Activo" %}</dt><dd><a href="{% url 'asset_detail' wo.asset.pk %}"><span class="mono">{{ wo.asset.code }}</span> {{ wo.asset.name }}</a></dd>
+      <dt>{% translate "Ubicación" %}</dt><dd>{{ wo.asset.location|default:"—" }}</dd>
+      <dt>{% translate "Responsable" %}</dt><dd>{{ wo.assigned_to|default:"—" }}</dd>
+      {% if wo.estimated_minutes %}<dt>{% translate "Estimación" %}</dt><dd class="num">{{ wo.estimated_minutes }} min</dd>{% endif %}
+      {% if wo.request %}<dt>{% translate "Avisado por" %}</dt><dd>{{ wo.request.requested_by|default:"—" }} · {{ wo.request.created_at|date:"d M H:i" }}</dd>{% endif %}
+      {% if wo.completion_notes %}<dt>{% translate "Cierre" %}</dt><dd>{{ wo.completion_notes|linebreaksbr }}</dd>{% endif %}
+    </dl>
+    {% if wo.description %}<p class="mt-4">{{ wo.description|linebreaksbr }}</p>{% endif %}
+    {% if wo.attachments.all %}
+    <div class="row mt-4">
+      {% for a in wo.attachments.all %}
+        {% if a.content_type|slice:":6" == "image/" %}
+        <a href="{% url 'attachment' a.pk %}"><img class="thumb" src="{% url 'attachment' a.pk %}" alt="{% translate 'Foto adjunta' %}"></a>
+        {% else %}<a class="btn btn--ghost" href="{% url 'attachment' a.pk %}">{{ a.filename }}</a>{% endif %}
+      {% endfor %}
+    </div>
+    {% endif %}
+  </section>
+
+  <section class="card" aria-labelledby="hist-title">
+    <h2 id="hist-title">{% translate "Registro" %}</h2>
+    <ol class="timeline">
+      {% for t in wo.transitions.all %}
+      <li><strong>{% if t.from_status %}{{ t.to_status|status_label }}{% else %}{% translate "Creada" %}{% endif %}</strong> · {{ t.created_at|date:"d M H:i" }}{% if t.by %} · {{ t.by }}{% endif %}{% if t.comment %}<br><span class="muted">{{ t.comment }}</span>{% endif %}</li>
+      {% endfor %}
+      {% for l in wo.labor.all %}<li>{% icon 'clock' %} {{ l.user }} · <span class="num">{{ l.minutes }}</span> min</li>{% endfor %}
+    </ol>
+  </section>
+</div>
+
+{% if wo.checklist.all %}
+<section class="mt-4" aria-labelledby="cl-title">
+  <h2 id="cl-title">{% translate "Checklist" %}</h2>
+  <ul class="checklist">
+    {% for item in wo.checklist.all %}{% include "work/_checklist_item.html" %}{% endfor %}
+  </ul>
+</section>
+{% endif %}
+
+{% if can_execute %}
+<section class="card mt-4" aria-labelledby="done-title" id="complete-section" hx-get="{% url 'work_order_detail' wo.pk %}" hx-trigger="checklist-changed from:body" hx-select="#complete-section" hx-swap="outerHTML">
+  <h2 id="done-title">{% translate "Terminar trabajo" %}</h2>
+  {% if pending_required %}
+  <div class="alert alert--warning" role="status">{% icon 'alert' %}<span>{% blocktranslate count n=pending_required %}Falta {{ n }} ítem obligatorio del checklist.{% plural %}Faltan {{ n }} ítems obligatorios del checklist.{% endblocktranslate %}</span></div>
+  {% endif %}
+  <form method="post" action="{% url 'work_order_complete' wo.pk %}">
+    {% csrf_token %}
+    {% for error in complete_form.non_field_errors %}<div class="alert alert--error" role="alert">{% icon 'stop' %}<span>{{ error }}</span></div>{% endfor %}
+    {% for field in complete_form %}
+    <div class="field">
+      <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+      {{ field }}
+      {% for error in field.errors %}<span class="error">{% icon 'stop' %}{{ error }}</span>{% endfor %}
+    </div>
+    {% endfor %}
+    <button class="btn btn--primary btn--lg btn--block" type="submit" {% if pending_required %}disabled{% endif %}>{% icon 'check' %}{% translate "Completar OT" %}</button>
+  </form>
+</section>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,29 @@
+[project]
+name = "galbust-cmms"
+version = "0.1.0"
+description = "GALBUST CMMS — CMMS SaaS multi-empresa para pymes productivas"
+requires-python = ">=3.11"
+dependencies = [
+    "django>=5.2,<5.3",
+    "segno>=1.6",
+    "uuid-utils>=0.9",
+]
+
+[dependency-groups]
+dev = ["pytest>=8", "pytest-django>=4.9", "ruff>=0.6"]
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "config.settings"
+python_files = ["test_*.py"]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 110
+target-version = "py311"
+extend-exclude = ["**/migrations/*"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "DJ"]
+
+[tool.ruff.lint.per-file-ignores]
+"apps/ui/templatetags/ui.py" = ["E501"]  # trazados SVG de íconos

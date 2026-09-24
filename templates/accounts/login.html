@@ -1,0 +1,41 @@
+{% load static i18n ui %}<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>{% translate "Ingresar" %} · GALBUST CMMS</title>
+  <link rel="icon" href="{% static 'brand/galbust-favicon.ico' %}">
+  <link rel="stylesheet" href="{% static 'css/tokens.css' %}">
+  <link rel="stylesheet" href="{% static 'css/components.css' %}">
+</head>
+<body>
+  <main class="auth">
+    <div class="auth__card">
+      <div class="auth__logo">
+        <img src="{% static 'brand/galbust-vertical-negativo.svg' %}" alt="GALBUST">
+        <span class="auth__product">CMMS</span>
+      </div>
+      <div class="card">
+        <h1>{% translate "Ingresar" %}</h1>
+        {% if form.errors %}
+        <div class="alert alert--error" role="alert">{% icon 'stop' %}<span>{% translate "Correo o contraseña incorrectos." %}</span></div>
+        {% endif %}
+        <form method="post">
+          {% csrf_token %}
+          <input type="hidden" name="next" value="{{ next }}">
+          <div class="field">
+            <label for="id_username">{% translate "Correo" %}</label>
+            <input type="email" name="username" id="id_username" autocomplete="email" required autofocus value="{{ form.username.value|default:'' }}">
+          </div>
+          <div class="field">
+            <label for="id_password">{% translate "Contraseña" %}</label>
+            <input type="password" name="password" id="id_password" autocomplete="current-password" required>
+          </div>
+          <button class="btn btn--primary btn--lg btn--block" type="submit">{% translate "Ingresar" %}</button>
+        </form>
+      </div>
+    </div>
+  </main>
+</body>
+</html>

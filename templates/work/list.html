@@ -1,0 +1,31 @@
+{% extends "base.html" %}{% load i18n ui %}
+{% block title %}{% translate "Órdenes de trabajo" %}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>{% translate "Órdenes de trabajo" %}</h1>
+    <p class="muted">{% blocktranslate count n=page.paginator.count %}{{ n }} OT{% plural %}{{ n }} OT{% endblocktranslate %}</p>
+  </div>
+</div>
+
+<nav class="chips" aria-label="{% translate 'Filtro' %}">
+  {% for value, label in scopes %}
+  <a class="chip" href="?scope={{ value }}{% if work_type %}&type={{ work_type }}{% endif %}" {% if value == scope %}aria-current="true"{% endif %}>{{ label }}</a>
+  {% endfor %}
+</nav>
+<nav class="chips" aria-label="{% translate 'Tipo' %}">
+  <a class="chip" href="?scope={{ scope }}" {% if not work_type %}aria-current="true"{% endif %}>{% translate "Todos los tipos" %}</a>
+  {% for value, label in types %}
+  <a class="chip" href="?scope={{ scope }}&type={{ value }}" {% if value == work_type %}aria-current="true"{% endif %}>{{ label }}</a>
+  {% endfor %}
+</nav>
+
+<div class="card">
+  {% if page.object_list %}
+  <ul class="list">{% for wo in page.object_list %}{% include "work/_wo_item.html" %}{% endfor %}</ul>
+  {% else %}
+  <p class="empty">{% icon 'check' %} {% translate "No hay OT en esta vista." %}</p>
+  {% endif %}
+</div>
+{% include "_pagination.html" %}
+{% endblock %}

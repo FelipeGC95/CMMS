@@ -1,0 +1,411 @@
+"""Datos de demostración: una pyme de alimentos ficticia y una segunda organización.
+
+Uso: python manage.py seed_demo [--reset]
+"""
+
+import datetime
+import random
+from decimal import Decimal
+
+from django.contrib.auth.models import Permission
+from django.core.management import call_command
+from django.core.management.base import BaseCommand
+from django.db import transaction
+from django.utils import timezone
+
+from apps.accounts.models import Membership, User
+from apps.assets.models import Asset, AssetClass, AssetStatusPeriod
+from apps.core.tenancy import tenant_context
+from apps.maintenance.models import ItemType, MaintenancePlan, PlanTaskItem
+from apps.maintenance.services import assign_plan, generate_due_work_orders
+from apps.organizations.models import Location, Organization
+from apps.work.models import FailureCode, FailureEvent, WorkOrder
+from apps.work.services import answer_checklist_item, complete_work_order, create_work_order
+
+PASSWORD = "demo-galbust-2026"
+
+LOCATIONS = [
+    ("PLT", "Planta Osorno", None, Location.Kind.SITE),
+    ("ENV", "Línea de envasado", "PLT", Location.Kind.LINE),
+    ("CAL", "Sala de calderas", "PLT", Location.Kind.AREA),
+    ("FRI", "Cámaras de frío", "PLT", Location.Kind.AREA),
+    ("BOD", "Bodega y despacho", "PLT", Location.Kind.AREA),
+]
+
+CLASSES = [
+    ("GRH", "Grúa horquilla"),
+    ("CMP", "Compresor de aire"),
+    ("CAL", "Caldera"),
+    ("ENV", "Envasadora"),
+    ("FRI", "Equipo de frío"),
+    ("VEH", "Vehículo liviano"),
+    ("GEN", "Grupo electrógeno"),
+]
+
+ASSETS = [
+    # código, nombre, clase, ubicación, criticidad, fabricante, modelo, año
+    ("GRH-01", "Grúa horquilla eléctrica 2,5 t", "GRH", "BOD", "B", "Toyota", "8FBE25", 2019),
+    ("GRH-02", "Grúa horquilla GLP 3 t", "GRH", "BOD", "B", "Hyster", "H3.0FT", 2017),
+    ("CMP-01", "Compresor de tornillo 30 HP", "CMP", "ENV", "A", "Atlas Copco", "GA22", 2018),
+    ("CMP-02", "Compresor de respaldo 15 HP", "CMP", "ENV", "C", "Kaeser", "SM 15", 2014),
+    ("CAL-01", "Caldera a gas 1.500 kg/h", "CAL", "CAL", "A", "Loos", "UT-L 12", 2016),
+    ("ENV-01", "Envasadora vertical línea 1", "ENV", "ENV", "A", "Ulma", "VTI 250", 2020),
+    ("ENV-02", "Envasadora vertical línea 2", "ENV", "ENV", "A", "Ulma", "VTI 250", 2021),
+    ("ENV-03", "Selladora de bandejas", "ENV", "ENV", "B", "Multivac", "T 200", 2015),
+    ("FRI-01", "Unidad condensadora cámara 1", "FRI", "FRI", "A", "Bitzer", "LH84E", 2018),
+    ("FRI-02", "Unidad condensadora cámara 2", "FRI", "FRI", "A", "Bitzer", "LH84E", 2018),
+    ("VEH-01", "Camioneta de reparto", "VEH", "BOD", "C", "Toyota", "Hilux 2.4", 2022),
+    ("GEN-01", "Grupo electrógeno 200 kVA", "GEN", "PLT", "B", "Cummins", "C200 D5", 2013),
+]
+
+PLANS = [
+    (
+        "PM-GRH-SEM",
+        "Inspección semanal grúa horquilla",
+        "GRH",
+        7,
+        30,
+        [
+            ("Revisar nivel de batería / GLP", ItemType.CHECK),
+            ("Probar frenos de servicio y estacionamiento", ItemType.CHECK),
+            ("Revisar cadenas y horquillas (fisuras, desgaste)", ItemType.CHECK),
+            ("Probar bocina, luces y alarma de retroceso", ItemType.CHECK),
+            ("Presión de neumáticos", ItemType.MEASUREMENT, "psi", 90, 110),
+        ],
+    ),
+    (
+        "PM-CMP-MEN",
+        "Mantención mensual compresor",
+        "CMP",
+        30,
+        90,
+        [
+            ("Purgar condensado del estanque", ItemType.CHECK),
+            ("Limpiar filtro de aspiración", ItemType.CHECK),
+            ("Nivel de aceite", ItemType.CHECK),
+            ("Temperatura de descarga", ItemType.MEASUREMENT, "°C", 70, 95),
+            ("Presión de trabajo", ItemType.MEASUREMENT, "bar", 6.5, 8),
+        ],
+    ),
+    (
+        "PM-CAL-TRI",
+        "Revisión trimestral caldera",
+        "CAL",
+        90,
+        240,
+        [
+            ("Probar válvulas de seguridad", ItemType.CHECK),
+            ("Revisar quemador y electrodos", ItemType.CHECK),
+            ("Purga de fondo", ItemType.CHECK),
+            ("Presión de vapor", ItemType.MEASUREMENT, "bar", 6, 9),
+        ],
+    ),
+    (
+        "PM-ENV-QUI",
+        "Mantención quincenal envasadora",
+        "ENV",
+        14,
+        60,
+        [
+            ("Limpiar mordazas de sellado", ItemType.CHECK),
+            ("Revisar teflón de mordazas", ItemType.CHECK),
+            ("Lubricar guías y cadenas", ItemType.CHECK),
+            ("Temperatura de sellado vertical", ItemType.MEASUREMENT, "°C", 140, 170),
+        ],
+    ),
+    (
+        "PM-FRI-MEN",
+        "Mantención mensual equipo de frío",
+        "FRI",
+        30,
+        90,
+        [
+            ("Limpiar condensador", ItemType.CHECK),
+            ("Revisar fugas (visual y detector)", ItemType.CHECK),
+            ("Temperatura de cámara", ItemType.MEASUREMENT, "°C", -22, -16),
+        ],
+    ),
+    (
+        "PM-GEN-MEN",
+        "Prueba mensual grupo electrógeno",
+        "GEN",
+        30,
+        45,
+        [
+            ("Nivel de combustible y aceite", ItemType.CHECK),
+            ("Arranque y marcha en vacío 15 min", ItemType.CHECK),
+            ("Voltaje de salida", ItemType.MEASUREMENT, "V", 370, 400),
+        ],
+    ),
+]
+
+FAILURE_CODES = [
+    ("mode", "BRD", "Falla total / no funciona"),
+    ("mode", "ELP", "Fuga externa de fluido"),
+    ("mode", "VIB", "Vibración anormal"),
+    ("mode", "OHE", "Sobrecalentamiento"),
+    ("mode", "ERO", "Operación errática"),
+    ("mode", "NOI", "Ruido anormal"),
+    ("cause", "DES", "Desgaste"),
+    ("cause", "LUB", "Falta de lubricación"),
+    ("cause", "ELE", "Falla eléctrica / control"),
+    ("cause", "OPE", "Error de operación"),
+    ("cause", "MAT", "Falla de material / componente"),
+    ("cause", "SUC", "Suciedad / contaminación"),
+]
+
+HISTORY_FAILURES = [
+    # activo, hace N días, horas detenido, descripción, modo, causa
+    ("ENV-01", 26, 5.5, "Mordaza vertical no sella, bolsas abiertas", "ERO", "DES"),
+    ("CMP-01", 21, 3.0, "Compresor se detiene por alta temperatura", "OHE", "SUC"),
+    ("FRI-02", 17, 7.0, "Cámara 2 no baja de -12 °C", "BRD", "ELE"),
+    ("ENV-02", 12, 2.0, "Film se corta en el formador", "ERO", "OPE"),
+    ("GRH-02", 9, 4.5, "Fuga de aceite hidráulico en cilindro de elevación", "ELP", "MAT"),
+    ("ENV-01", 6, 3.5, "Ruido fuerte en motor de arrastre", "NOI", "LUB"),
+    ("CAL-01", 3, 2.5, "Quemador no enciende en la mañana", "BRD", "ELE"),
+]
+
+
+class Command(BaseCommand):
+    help = "Carga datos de demostración (organizaciones, usuarios, activos, planes, OT)."
+
+    def add_arguments(self, parser):
+        parser.add_argument("--reset", action="store_true", help="Vacía TODA la base antes (solo demo).")
+
+    def handle(self, *args, reset=False, **options):
+        random.seed(42)
+        if reset:
+            # Base de demo: se vacía completa. (El borrado de una organización real es X-04.)
+            call_command("flush", interactive=False, verbosity=0)
+        if Organization.objects.filter(slug="alimentos-del-sur").exists():
+            self.stdout.write("Los datos demo ya existen. Usa --reset para recrearlos.")
+            return
+
+        with transaction.atomic():
+            platform = self._user("plataforma@galbust.cl", "Equipo GALBUST", superuser=True)
+            org = Organization.objects.create(name="Alimentos del Sur SpA", slug="alimentos-del-sur")
+            admin = self._user("jefe@demo.cl", "Carolina Muñoz", staff=True)
+            tech = self._user("tecnico@demo.cl", "Jorge Soto")
+            tech2 = self._user("tecnico2@demo.cl", "Marcelo Ríos")
+            operator = self._user("operador@demo.cl", "Paula Vera")
+            members = {
+                "admin": Membership.objects.create(user=admin, organization=org, role="admin"),
+                "tech": Membership.objects.create(user=tech, organization=org, role="technician"),
+                "tech2": Membership.objects.create(user=tech2, organization=org, role="technician"),
+                "operator": Membership.objects.create(user=operator, organization=org, role="viewer"),
+            }
+            Membership.objects.create(user=platform, organization=org, role="admin")
+            with tenant_context(org):
+                self._seed_main(org, members)
+
+            other = Organization.objects.create(name="Maestranza Norte Ltda.", slug="maestranza-norte")
+            Membership.objects.create(user=admin, organization=other, role="viewer")
+            with tenant_context(other):
+                cls = AssetClass.objects.create(code="TOR", name="Torno CNC")
+                Asset.objects.create(
+                    code="TOR-01", name="Torno CNC Haas ST-20", asset_class=cls, criticality="A"
+                )
+
+        self.stdout.write(self.style.SUCCESS("Datos demo cargados."))
+        self.stdout.write(f"Contraseña de todos los usuarios: {PASSWORD}")
+        for email, role in [
+            ("jefe@demo.cl", "jefe de mantención (admin, 2 organizaciones)"),
+            ("tecnico@demo.cl", "técnico"),
+            ("operador@demo.cl", "operador (solo avisa fallas)"),
+            ("plataforma@galbust.cl", "superadmin de plataforma"),
+        ]:
+            self.stdout.write(f"  {email:24} {role}")
+
+    def _user(self, email, name, staff=False, superuser=False):
+        user = User.objects.filter(email=email).first()
+        if user is None:
+            user = User.objects.create_user(
+                email, PASSWORD, full_name=name, is_staff=staff or superuser, is_superuser=superuser
+            )
+        if staff and not superuser:
+            # El admin de la organización configura desde el admin de Django (solo su tenant).
+            user.user_permissions.set(
+                Permission.objects.filter(
+                    content_type__app_label__in=["assets", "maintenance", "work", "organizations"]
+                ).exclude(content_type__model="organization")
+            )
+        return user
+
+    def _seed_main(self, org, members):
+        now = timezone.now()
+        today = timezone.localdate()
+        history_start = today - datetime.timedelta(days=35)
+        admin, tech = members["admin"], members["tech"]
+
+        locations = {}
+        for code, name, parent, kind in LOCATIONS:
+            locations[code] = Location.objects.create(
+                code=code, name=name, kind=kind, parent=locations.get(parent)
+            )
+        classes = {code: AssetClass.objects.create(code=code, name=name) for code, name in CLASSES}
+        assets = {}
+        for code, name, cls, loc, crit, maker, model, year in ASSETS:
+            assets[code] = Asset.objects.create(
+                code=code,
+                name=name,
+                asset_class=classes[cls],
+                location=locations[loc],
+                criticality=crit,
+                manufacturer=maker,
+                model=model,
+                year=year,
+                serial_number=f"{maker[:3].upper()}-{random.randint(100000, 999999)}",
+            )
+            AssetStatusPeriod.objects.create(
+                asset=assets[code], status="operational", started_at=now - datetime.timedelta(days=60)
+            )
+        codes = {}
+        for kind, code, name in FAILURE_CODES:
+            codes[code] = FailureCode.objects.create(kind=kind, code=code, name=name)
+
+        # Planes y asignaciones con vencimientos repartidos (algunos atrasados).
+        for code, name, cls, interval, minutes, items in PLANS:
+            plan = MaintenancePlan.objects.create(
+                code=code,
+                name=name,
+                asset_class=classes[cls],
+                interval_days=interval,
+                estimated_minutes=minutes,
+            )
+            for i, item in enumerate(items, start=1):
+                text, item_type, *rng = item
+                PlanTaskItem.objects.create(
+                    plan=plan,
+                    order=i,
+                    text=text,
+                    item_type=item_type,
+                    unit=rng[0] if rng else "",
+                    min_value=Decimal(str(rng[1])) if rng else None,
+                    max_value=Decimal(str(rng[2])) if rng else None,
+                )
+            for asset in (a for a in assets.values() if a.asset_class_id == classes[cls].id):
+                first_due = history_start + datetime.timedelta(days=random.randint(0, min(interval, 60) - 1))
+                assign_plan(plan=plan, asset=asset, starts_on=first_due)
+
+        self._simulate_preventive_history(history_start, today, tech)
+
+        # Fallas históricas reparadas.
+        for asset_code, days_ago, hours_down, text, mode, cause in HISTORY_FAILURES:
+            started = now - datetime.timedelta(days=days_ago, hours=random.randint(1, 8))
+            self._historic_failure(
+                assets[asset_code], started, hours_down, text, codes[mode], codes[cause], members
+            )
+
+        # Situación actual: un equipo crítico detenido y una solicitud nueva.
+        from apps.work.services import report_failure, transition
+
+        stopped = report_failure(
+            membership=members["operator"],
+            asset=assets["FRI-01"],
+            description=(
+                "Cámara 1 con alarma de alta temperatura (-8 °C)\n"
+                "El compresor parte y se detiene a los pocos segundos."
+            ),
+            asset_stopped=True,
+        )
+        transition(work_order=stopped.work_order, to_status="in_progress", membership=members["tech2"])
+        report_failure(
+            membership=members["operator"],
+            asset=assets["GRH-01"],
+            description="Alarma de retroceso no suena",
+            asset_stopped=False,
+        )
+        create_work_order(
+            work_type=WorkOrder.Type.IMPROVEMENT,
+            title="Instalar protección en transmisión de envasadora 3",
+            asset=assets["ENV-03"],
+            priority=WorkOrder.Priority.NORMAL,
+            due_on=today + datetime.timedelta(days=10),
+            estimated_minutes=180,
+            by=admin.user,
+        )
+
+        # Preventivos vigentes (próximos 14 días y atrasados).
+        generate_due_work_orders(today=today)
+
+    def _simulate_preventive_history(self, start, today, tech):
+        """Recorre los días pasados: genera las OT y cierra la mayoría a tiempo."""
+        delays = {}
+        day = start
+        while day < today:
+            generate_due_work_orders(today=day, horizon_days=0)
+            due = WorkOrder.objects.filter(
+                work_type=WorkOrder.Type.PREVENTIVE, status="planned", due_on__lte=day
+            )
+            for wo in due:
+                delay = delays.setdefault(wo.pk, random.choice([0, 0, 0, 0, 0, 1, 3, 6]))
+                if day >= wo.due_on + datetime.timedelta(days=delay):
+                    self._run_checklist(wo, tech)
+                    complete_work_order(
+                        work_order=wo, membership=tech, labor_minutes=wo.estimated_minutes or 60
+                    )
+                    self._backdate(wo, day)
+            day += datetime.timedelta(days=1)
+
+    def _run_checklist(self, wo, membership):
+        for item in wo.checklist.all():
+            if item.item_type == ItemType.MEASUREMENT:
+                lo, hi = float(item.min_value), float(item.max_value)
+                value = round(random.uniform(lo, hi), 1)
+                answer_checklist_item(item=item, membership=membership, value_number=value)
+            else:
+                answer_checklist_item(item=item, membership=membership, result="ok")
+
+    def _backdate(self, wo, done_on):
+        """Mueve las fechas de la OT al pasado (solo datos demo)."""
+        moment = timezone.make_aware(datetime.datetime.combine(done_on, datetime.time(11, 0)))
+        WorkOrder.objects.filter(pk=wo.pk).update(
+            started_at=moment - datetime.timedelta(hours=1),
+            completed_at=moment,
+            closed_at=moment,
+            created_at=moment - datetime.timedelta(days=3),
+        )
+        wo.transitions.update(created_at=moment)
+        if wo.plan_assignment_id:
+            from apps.maintenance.services import register_completion
+
+            wo.plan_assignment.refresh_from_db()
+            register_completion(assignment=wo.plan_assignment, completed_on=done_on)
+
+    def _historic_failure(self, asset, started, hours_down, text, mode, cause, members):
+        from apps.work.services import report_failure
+
+        request = report_failure(
+            membership=members["operator"], asset=asset, description=text, asset_stopped=True
+        )
+        wo = request.work_order
+        complete_work_order(
+            work_order=wo,
+            membership=members["tech"],
+            labor_minutes=int(hours_down * 60 * 0.8),
+            notes="Reparado y probado en operación.",
+            failure_mode=mode,
+            failure_cause=cause,
+        )
+        ended = started + datetime.timedelta(hours=hours_down)
+        FailureEvent.objects.filter(work_order=wo).update(started_at=started, ended_at=ended)
+        periods = list(AssetStatusPeriod.objects.filter(asset=asset).order_by("-started_at")[:3])
+        # Últimos 3 períodos: detenido → en mantención → operativo; se ajustan a la fecha real.
+        operational, maintenance, stopped = periods
+        repair_start = started + datetime.timedelta(hours=hours_down * 0.3)
+        AssetStatusPeriod.objects.filter(pk=stopped.pk).update(started_at=started, ended_at=repair_start)
+        AssetStatusPeriod.objects.filter(pk=maintenance.pk).update(started_at=repair_start, ended_at=ended)
+        AssetStatusPeriod.objects.filter(pk=operational.pk).update(started_at=ended)
+        prev = (
+            AssetStatusPeriod.objects.filter(asset=asset, ended_at__isnull=False)
+            .exclude(pk__in=[stopped.pk, maintenance.pk])
+            .order_by("-started_at")
+            .first()
+        )
+        if prev:
+            AssetStatusPeriod.objects.filter(pk=prev.pk).update(ended_at=started)
+        WorkOrder.objects.filter(pk=wo.pk).update(
+            created_at=started, started_at=repair_start, completed_at=ended, closed_at=ended
+        )
+        wo.transitions.update(created_at=ended)
+        request.__class__.objects.filter(pk=request.pk).update(created_at=started)

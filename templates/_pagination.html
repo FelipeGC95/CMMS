@@ -1,0 +1,7 @@
+{% load i18n %}{% if page.has_other_pages %}
+<nav class="pagination" aria-label="{% translate 'Paginación' %}">
+  {% if page.has_previous %}<a class="btn btn--ghost" href="?{% for k, v in request.GET.items %}{% if k != 'page' %}{{ k }}={{ v|urlencode }}&{% endif %}{% endfor %}page={{ page.previous_page_number }}">{% translate "Anterior" %}</a>{% endif %}
+  <span class="muted num">{{ page.number }} / {{ page.paginator.num_pages }}</span>
+  {% if page.has_next %}<a class="btn btn--ghost" href="?{% for k, v in request.GET.items %}{% if k != 'page' %}{{ k }}={{ v|urlencode }}&{% endif %}{% endfor %}page={{ page.next_page_number }}">{% translate "Siguiente" %}</a>{% endif %}
+</nav>
+{% endif %}

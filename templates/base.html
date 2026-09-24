@@ -1,0 +1,72 @@
+{% load static i18n ui %}<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <meta name="theme-color" content="#0B2E4F">
+  <title>{% block title %}{% endblock %} · GALBUST CMMS</title>
+  <link rel="icon" href="{% static 'brand/galbust-favicon.ico' %}">
+  <link rel="apple-touch-icon" href="{% static 'brand/galbust-app-icon-180.png' %}">
+  <link rel="preload" href="{% static 'fonts/poppins-latin-500-normal.woff2' %}" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="{% static 'css/tokens.css' %}">
+  <link rel="stylesheet" href="{% static 'css/components.css' %}">
+  <script src="{% static 'vendor/htmx.min.js' %}" defer></script>
+  <script src="{% static 'js/app.js' %}" defer></script>
+</head>
+<body hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
+  <a class="skip-link" href="#main">{% translate "Saltar al contenido" %}</a>
+  {% if user.is_authenticated %}
+  <header class="navbar">
+    <div class="navbar__inner">
+      <a class="brand" href="{% url 'dashboard' %}" aria-label="GALBUST CMMS, inicio">
+        <img class="brand__logo--full" src="{% static 'brand/galbust-horizontal-negativo.svg' %}" alt="GALBUST" width="118" height="28">
+        <img class="brand__logo--iso" src="{% static 'brand/galbust-isotipo-blanco.svg' %}" alt="GALBUST" width="28" height="28">
+        <span class="brand__product">CMMS</span>
+      </a>
+      <nav class="navbar__links" aria-label="{% translate 'Principal' %}">
+        <a href="{% url 'dashboard' %}" {% nav_current '/' %}>{% translate "Inicio" %}</a>
+        <a href="{% url 'work_order_list' %}" {% nav_current '/work-orders/' %}>{% translate "Órdenes de trabajo" %}</a>
+        <a href="{% url 'asset_list' %}" {% nav_current '/assets/' %}>{% translate "Activos" %}</a>
+        {% if user.is_staff %}<a href="{% url 'admin:index' %}">{% translate "Configuración" %}</a>{% endif %}
+      </nav>
+      <div class="navbar__right">
+        {% if memberships|length > 1 %}
+        <form method="post" action="{% url 'switch_organization' %}" class="org-switch">
+          {% csrf_token %}
+          <label class="visually-hidden" for="org-select">{% translate "Organización" %}</label>
+          <select id="org-select" name="organization">
+            {% for m in memberships %}
+            <option value="{{ m.organization_id }}" {% if m.organization_id == organization.id %}selected{% endif %}>{{ m.organization.name }}</option>
+            {% endfor %}
+          </select>
+          <button class="btn-nav" type="submit">{% translate "Cambiar" %}</button>
+        </form>
+        {% elif organization %}
+        <span class="navbar__user">{{ organization.name }}</span>
+        {% endif %}
+        <span class="navbar__user">{{ user.short_name }}{% if membership %} · {{ membership.get_role_display }}{% endif %}</span>
+        <form method="post" action="{% url 'logout' %}">
+          {% csrf_token %}
+          <button class="btn-nav" type="submit">{% translate "Salir" %}</button>
+        </form>
+      </div>
+    </div>
+  </header>
+  {% endif %}
+
+  <main id="main">
+    {% include "_messages.html" %}
+    {% block content %}{% endblock %}
+    <p class="footer">GALBUST CMMS · {% translate "con tecnología de" %} GALBUST</p>
+  </main>
+
+  {% if user.is_authenticated %}
+  <nav class="bottom-nav" aria-label="{% translate 'Navegación móvil' %}">
+    <a href="{% url 'dashboard' %}" {% nav_current '/' %}>{% icon 'home' %}{% translate "Inicio" %}</a>
+    <a href="{% url 'work_order_list' %}?scope=mine" {% nav_current '/work-orders/' %}>{% icon 'list' %}{% translate "Mis OT" %}</a>
+    <a href="{% url 'asset_list' %}" {% nav_current '/assets/' %}>{% icon 'box' %}{% translate "Activos" %}</a>
+  </nav>
+  {% endif %}
+</body>
+</html>

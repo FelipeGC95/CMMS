@@ -1,0 +1,9 @@
+{% extends "base.html" %}{% load i18n %}
+{% block title %}{% translate "Sin organización" %}{% endblock %}
+{% block content %}
+<div class="card empty">
+  <h1>{% translate "Tu usuario no pertenece a ninguna organización activa" %}</h1>
+  <p>{% translate "Pide a tu administrador que te invite." %}</p>
+  {% if user.is_superuser %}<a class="btn btn--secondary" href="{% url 'admin:index' %}">{% translate "Ir a la administración de plataforma" %}</a>{% endif %}
+</div>
+{% endblock %}
