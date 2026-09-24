@@ -127,8 +127,11 @@ Los tokens de estado **no son sobrescribibles** por la organización.
 
 ### 3.4 Semánticos — modo oscuro
 
-Se aplican con `[data-theme="dark"]` en `<html>`, o con
-`@media (prefers-color-scheme: dark)` si el usuario eligió "Sistema".
+Se aplican con `:root[data-theme="dark"]`. `static/js/theme.js` se carga
+en `<head>` sin `defer` y fija `data-theme` antes de pintar según la
+preferencia del dispositivo (Sistema / Claro / Oscuro, botón en la barra
+superior); "Sistema" sigue a `prefers-color-scheme`. Sin JavaScript la
+interfaz queda en modo claro.
 
 | Token | Valor | Nota |
 |---|---|---|

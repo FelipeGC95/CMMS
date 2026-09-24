@@ -60,7 +60,14 @@ svg[aria-hidden="true"], svg[role="img"] { width: 1.1em; height: 1.1em; vertical
   border-radius: var(--radius-md); padding: var(--space-1) var(--space-2); font: inherit; min-height: 36px;
 }
 .navbar select option { color: var(--galbust-ink); }
-.btn-nav { cursor: pointer; }
+.btn-nav { cursor: pointer; white-space: nowrap; }
+.navbar__links a, .navbar__user { white-space: nowrap; }
+.org-switch { display: flex; align-items: center; gap: var(--space-1); }
+.org-switch select { max-width: 220px; }
+@media (max-width: 1200px) {
+  .navbar__user, .navbar .theme-toggle__label { display: none; }
+}
+.theme-toggle { display: inline-flex; align-items: center; gap: var(--space-1); }
 
 main { max-width: var(--content-max); margin: 0 auto; padding: var(--space-5) var(--space-4) 96px; }
 .page-header { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: var(--space-3); margin-bottom: var(--space-5); }
@@ -75,13 +82,15 @@ main { max-width: var(--content-max); margin: 0 auto; padding: var(--space-5) va
 .bottom-nav { display: none; }
 .footer { text-align: center; font-size: var(--text-xs); color: var(--color-text-muted); padding: var(--space-5) 0; }
 
-@media (max-width: 720px) {
+/* Navegación compacta en móviles y tablets (uso en terreno). */
+@media (max-width: 1100px) {
   .brand .brand__logo--full, .brand__product, .navbar__links { display: none; }
   .brand .brand__logo--iso { display: block; }
   .navbar__user, .org-switch .btn-nav { display: none; }
   .navbar__inner { gap: var(--space-2); }
   .navbar__right { min-width: 0; gap: var(--space-2); }
-  .org-switch select { max-width: 45vw; }
+  .org-switch select { max-width: 40vw; }
+  .navbar .theme-toggle__label { display: none; }
   .bottom-nav {
     display: grid; grid-template-columns: repeat(3, 1fr);
     position: fixed; bottom: 0; left: 0; right: 0; z-index: 20;
@@ -236,6 +245,8 @@ main { max-width: var(--content-max); margin: 0 auto; padding: var(--space-5) va
 .qr { background: var(--color-qr-bg); display: inline-block; padding: var(--space-2); border-radius: var(--radius-md); line-height: 0; }
 .empty { text-align: center; padding: var(--space-6) var(--space-4); color: var(--color-text-muted); }
 .thumb { width: 96px; height: 96px; object-fit: cover; border-radius: var(--radius-md); border: 1px solid var(--color-border); }
+.swatch { display: inline-block; width: 44px; height: 24px; border-radius: var(--radius-sm); border: 1px solid var(--color-border-strong); vertical-align: middle; }
+.ds-scroll { overflow-x: auto; }
 .empty img { width: 40px; opacity: 0.5; margin-bottom: var(--space-2); }
 
 /* ---------- Login ---------- */

@@ -4,11 +4,12 @@ Toda combinación nueva de texto/fondo o control/fondo se agrega a CONTRAST_PAIR
 """
 
 import re
-from pathlib import Path
 
 import pytest
 
-TOKENS = Path(__file__).resolve().parents[2] / "static" / "css" / "tokens.css"
+from apps.ui.tokens import TOKENS_PATH as TOKENS
+from apps.ui.tokens import color_tokens
+
 TEXT, UI = 4.5, 3.0
 
 # (texto o control, fondo, mínimo)
@@ -41,20 +42,15 @@ CONTRAST_PAIRS = [
     ("--color-text-muted", "--color-surface-sunken", TEXT),
 ]
 
-DECL = re.compile(r"(--[\w-]+)\s*:\s*(#[0-9A-Fa-f]{6}|transparent)\s*;")
-
 
 def _parse():
-    css = TOKENS.read_text(encoding="utf-8")
-    light_block, _, dark_block = css.partition("@media (prefers-color-scheme: dark)")
-    light = dict(DECL.findall(light_block))
-    dark = {**light, **dict(DECL.findall(dark_block))}
+    themes = {theme: dict(values) for theme, values in color_tokens().items()}
     # Un fondo transparente se ve sobre la superficie.
-    for theme in (light, dark):
+    for theme in themes.values():
         for key, value in theme.items():
             if value == "transparent":
                 theme[key] = theme["--color-surface"]
-    return {"light": light, "dark": dark}
+    return themes
 
 
 def _luminance(hex_color):
@@ -81,6 +77,7 @@ def test_token_contrast(theme, fg, bg, minimum):
 
 def test_brand_rules():
     light = THEMES["light"]
+    assert THEMES["dark"]["--color-bg"] != light["--color-bg"], "no se encontró el bloque de modo oscuro"
     # Nunca texto blanco sobre cian (2,5:1) ni cian como texto sobre claro.
     assert contrast("#FFFFFF", light["--color-action-bg"]) < TEXT
     assert light["--color-link"].upper() != "#12B3C8"

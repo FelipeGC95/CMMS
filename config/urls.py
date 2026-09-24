@@ -6,6 +6,7 @@ from django.urls import path
 from apps.accounts.views import switch_organization
 from apps.assets import views as asset_views
 from apps.reporting.views import dashboard
+from apps.ui.views import design_system_css_view, design_system_view
 from apps.work import views as work_views
 
 admin.site.site_header = "GALBUST CMMS · Administración"
@@ -49,5 +50,7 @@ urlpatterns = [
         name="checklist_answer",
     ),
     path("files/<uuid:pk>/", work_views.attachment_view, name="attachment"),
+    path("design-system/", design_system_view, name="design_system"),
+    path("design-system/swatches.css", design_system_css_view, name="design_system_css"),
     path("admin/", admin.site.urls),
 ]

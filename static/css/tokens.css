@@ -77,29 +77,30 @@
   --color-qr-bg: #FFFFFF;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --color-bg: #071E34;
-    --color-surface: #0B2E4F;
-    --color-surface-sunken: #0A2743;
-    --color-text: #F4F7FA;
-    --color-text-muted: #A9BCCF;
-    --color-text-brand: #F4F7FA;
-    --color-link: #12B3C8;
-    --color-accent-text: #12B3C8;
-    --color-border: #1E4468;
-    --color-border-strong: #5B7EA0;
-    --color-focus: #12B3C8;
-    --color-nav-bg: #071E34;
-    --color-secondary-bg: transparent;
-    --color-secondary-text: #F4F7FA;
-    --color-secondary-border: #F4F7FA;
-    --color-success: #4ADE80;  --color-success-bg: #0F3B2A;
-    --color-warning: #FBBF24;  --color-warning-bg: #3D2E0A;
-    --color-error: #FCA5A5;    --color-error-bg: #4A1D24;
-    --color-info: #5FD4E3;     --color-info-bg: #0A3A4A;
-    --color-neutral: #A9BCCF;  --color-neutral-bg: #123A5E;
-    --shadow-sm: none;
-    --shadow-md: 0 4px 12px rgb(0 0 0 / 0.4);
-  }
+/* Modo oscuro. static/js/theme.js fija data-theme antes de pintar según la
+   preferencia del usuario ("Sistema" sigue a prefers-color-scheme). */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --color-bg: #071E34;
+  --color-surface: #0B2E4F;
+  --color-surface-sunken: #0A2743;
+  --color-text: #F4F7FA;
+  --color-text-muted: #A9BCCF;
+  --color-text-brand: #F4F7FA;
+  --color-link: #12B3C8;
+  --color-accent-text: #12B3C8;
+  --color-border: #1E4468;
+  --color-border-strong: #5B7EA0;
+  --color-focus: #12B3C8;
+  --color-nav-bg: #071E34;
+  --color-secondary-bg: transparent;
+  --color-secondary-text: #F4F7FA;
+  --color-secondary-border: #F4F7FA;
+  --color-success: #4ADE80;  --color-success-bg: #0F3B2A;
+  --color-warning: #FBBF24;  --color-warning-bg: #3D2E0A;
+  --color-error: #FCA5A5;    --color-error-bg: #4A1D24;
+  --color-info: #5FD4E3;     --color-info-bg: #0A3A4A;
+  --color-neutral: #A9BCCF;  --color-neutral-bg: #123A5E;
+  --shadow-sm: none;
+  --shadow-md: 0 4px 12px rgb(0 0 0 / 0.4);
 }

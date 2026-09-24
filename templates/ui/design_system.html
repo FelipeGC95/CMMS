@@ -1,0 +1,126 @@
+{% extends "base.html" %}{% load static i18n ui %}
+{% block title %}{% translate "Sistema de diseño" %}{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% url 'design_system_css' %}">{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>{% translate "Sistema de diseño" %}</h1>
+    <p class="muted">{% translate "Tokens y componentes base. Cambia el tema en la barra superior para revisar ambos modos." %}</p>
+  </div>
+  {% include "_theme_button.html" with extra_class="btn btn--ghost" %}
+</div>
+
+<section class="card mb-4" aria-labelledby="ds-colors">
+  <h2 id="ds-colors">{% translate "Colores" %}</h2>
+  <p class="muted">{% translate "Los componentes usan solo tokens semánticos. Contraste AA verificado por tests/ui/test_contrast.py." %}</p>
+  <div class="card--flush ds-scroll">
+    <table class="table">
+      <thead><tr><th>{% translate "Muestra" %}</th><th>Token</th><th>{% translate "Claro" %}</th><th>{% translate "Oscuro" %}</th></tr></thead>
+      <tbody>
+        {% for name, light, dark in colors %}
+        <tr><td><span class="swatch" data-token="{{ name }}"></span></td><td class="mono">{{ name }}</td><td class="mono" data-label="{% translate 'Claro' %}">{{ light }}</td><td class="mono" data-label="{% translate 'Oscuro' %}">{{ dark }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="card mb-4" aria-labelledby="ds-type">
+  <h2 id="ds-type">{% translate "Tipografía" %}</h2>
+  <h1>Poppins Medium · {% translate "Título de página" %}</h1>
+  <h2>Poppins Medium · {% translate "Título de tarjeta" %}</h2>
+  <p>Poppins Regular · {% translate "Texto corrido para descripciones y ayudas. La mantención preventiva evita detenciones." %}</p>
+  <p class="num">Inter tabular · 1.234,5 h · 98,7 % · 12.000 km</p>
+  <p class="mono">JetBrains Mono · OT-C-00042 · CMP-01 · 7,2 bar</p>
+</section>
+
+<section class="card mb-4" aria-labelledby="ds-buttons">
+  <h2 id="ds-buttons">{% translate "Botones" %}</h2>
+  <div class="row mb-4">
+    <button class="btn btn--primary" type="button">{% translate "Primario" %}</button>
+    <button class="btn btn--secondary" type="button">{% translate "Secundario" %}</button>
+    <button class="btn btn--ghost" type="button">{% translate "Fantasma" %}</button>
+    <button class="btn btn--danger" type="button">{% translate "Destructivo" %}</button>
+    <button class="btn btn--primary" type="button" disabled>{% translate "Deshabilitado" %}</button>
+  </div>
+  <div class="row">
+    <button class="btn btn--primary btn--lg" type="button">{% icon 'megaphone' %}{% translate "Grande (técnico, 48 px)" %}</button>
+    <button class="btn btn--secondary btn--lg" type="button">{% icon 'play' %}{% translate "Iniciar" %}</button>
+  </div>
+</section>
+
+<section class="card mb-4" aria-labelledby="ds-badges">
+  <h2 id="ds-badges">{% translate "Estados" %}</h2>
+  <p class="muted">{% translate "Siempre ícono + texto; nunca solo color." %}</p>
+  <h3>{% translate "Activos" %}</h3>
+  <div class="row mb-4">{% for a in asset_statuses %}{% status_badge a %}{% endfor %}</div>
+  <h3>{% translate "Órdenes de trabajo" %}</h3>
+  <div class="row mb-4">{% for w in work_order_statuses %}{% status_badge w %}{% endfor %}</div>
+  <h3>{% translate "Prioridad" %}</h3>
+  <div class="row mb-4">{% for w in priorities %}{% priority_badge w %}{% endfor %}</div>
+  <h3>{% translate "Alertas" %}</h3>
+  <div class="alert alert--success" role="status">{% icon 'check' %}<span>{% translate "Aviso enviado. Se creó la OT-C-00042." %}</span></div>
+  <div class="alert alert--warning" role="status">{% icon 'alert' %}<span>{% translate "Faltan 2 ítems obligatorios del checklist." %}</span></div>
+  <div class="alert alert--error" role="alert">{% icon 'stop' %}<span>{% translate "Transición no permitida." %}</span></div>
+  <div class="alert alert--info" role="status">{% icon 'info' %}<span>{% translate "La OT se generó automáticamente desde el plan." %}</span></div>
+</section>
+
+<div class="grid grid--2 mb-4">
+  <section class="card" aria-labelledby="ds-forms">
+    <h2 id="ds-forms">{% translate "Formularios" %}</h2>
+    <div class="field">
+      <label for="ds-text">{% translate "Descripción" %}</label>
+      <input type="text" id="ds-text" value="{% translate 'Pierde aceite por el costado' %}">
+      <span class="help">{% translate "Texto de ayuda." %}</span>
+    </div>
+    <div class="field">
+      <label for="ds-num">{% translate "Presión" %}</label>
+      <input type="number" id="ds-num" class="num" value="9.2" aria-describedby="ds-num-err">
+      <span class="error" id="ds-num-err">{% icon 'stop' %}{% translate "Fuera de rango (6,5 – 8 bar)." %}</span>
+    </div>
+    <div class="field">
+      <label for="ds-select">{% translate "Estado" %}</label>
+      <select id="ds-select"><option>{% translate "Operativo" %}</option><option>{% translate "Detenido" %}</option></select>
+    </div>
+    <div class="field field--check"><input type="checkbox" id="ds-check" checked><label for="ds-check">{% translate "El equipo está detenido" %}</label></div>
+  </section>
+
+  <section aria-labelledby="ds-checklist">
+    <h2 id="ds-checklist">{% translate "Checklist (vista de técnico)" %}</h2>
+    <ul class="checklist">
+      <li class="check-item check-item--ok">
+        <div class="check-item__text"><span class="check-item__num">1.</span><span>{% translate "Purgar condensado del estanque" %}</span></div>
+        <div class="segmented" role="group" aria-label="{% translate 'Resultado' %}">
+          <button type="button" class="is-ok" aria-pressed="true">{% icon 'check' %}OK</button>
+          <button type="button" class="is-not_ok" aria-pressed="false">{% icon 'x' %}{% translate "No OK" %}</button>
+          <button type="button" class="is-na" aria-pressed="false">{% icon 'dot' %}N.A.</button>
+        </div>
+      </li>
+      <li class="check-item check-item--not_ok">
+        <div class="check-item__text"><span class="check-item__num">2.</span><span>{% translate "Presión de trabajo" %}</span></div>
+        <div class="measure"><input class="input num" type="number" value="9.2" aria-label="{% translate 'Valor medido' %}"><span class="muted">bar</span><button class="btn btn--secondary btn--lg" type="button">{% translate "Guardar" %}</button></div>
+        <p class="help muted">{% translate "Rango aceptable" %}: <span class="num">6,5 – 8</span> bar <span class="badge badge--error">{% icon 'stop' %}{% translate "Fuera de rango" %}</span></p>
+      </li>
+    </ul>
+  </section>
+</div>
+
+<section class="grid grid--kpi mb-4" aria-label="{% translate 'Tarjetas KPI' %}">
+  <div class="card kpi"><span class="kpi__label">{% translate "Disponibilidad" %}</span><span class="kpi__value">98,4<span class="kpi__unit">%</span></span><span class="kpi__hint">{% translate "Tiempo operativo / tiempo calendario" %}</span></div>
+  <div class="card kpi"><span class="kpi__label">MTTR</span><span class="kpi__value">3,5<span class="kpi__unit">h</span></span><span class="kpi__hint">{% translate "Tiempo medio de reparación" %}</span></div>
+  <div class="card kpi kpi--alert"><span class="kpi__label">{% translate "OT vencidas" %}</span><span class="kpi__value">4</span><span class="kpi__hint">{% translate "de 18 abiertas" %}</span></div>
+</section>
+
+<section class="card mb-4" aria-labelledby="ds-lists">
+  <h2 id="ds-lists">{% translate "Filtros, listas y estado vacío" %}</h2>
+  <nav class="chips" aria-label="{% translate 'Ejemplo de filtro' %}">
+    <a class="chip" href="#ds-lists" aria-current="true">{% translate "Abiertas" %}</a>
+    <a class="chip" href="#ds-lists">{% translate "Vencidas" %}</a>
+    <a class="chip" href="#ds-lists">{% translate "Cerradas" %}</a>
+  </nav>
+  <ul class="list mb-4">
+    <li><div class="list__main"><span class="list__title"><span class="mono">OT-P-00012</span> {% translate "Mantención mensual compresor" %}</span><span class="list__meta">CMP-01 · {% icon 'calendar' %} 30 Sep</span></div><span class="badge badge--neutral">{% icon 'dot' %}{% translate "Planificada" %}</span></li>
+  </ul>
+  <p class="empty">{% icon 'check' %} {% translate "No hay OT en esta vista." %}</p>
+</section>
+{% endblock %}

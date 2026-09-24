@@ -3,16 +3,17 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="color-scheme" content="light dark">
   <meta name="theme-color" content="#0B2E4F">
   <title>{% block title %}{% endblock %} · GALBUST CMMS</title>
   <link rel="icon" href="{% static 'brand/galbust-favicon.ico' %}">
   <link rel="apple-touch-icon" href="{% static 'brand/galbust-app-icon-180.png' %}">
   <link rel="preload" href="{% static 'fonts/poppins-latin-500-normal.woff2' %}" as="font" type="font/woff2" crossorigin>
+  <script src="{% static 'js/theme.js' %}"></script>
   <link rel="stylesheet" href="{% static 'css/tokens.css' %}">
   <link rel="stylesheet" href="{% static 'css/components.css' %}">
   <script src="{% static 'vendor/htmx.min.js' %}" defer></script>
   <script src="{% static 'js/app.js' %}" defer></script>
+  {% block extra_head %}{% endblock %}
 </head>
 <body hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
   <a class="skip-link" href="#main">{% translate "Saltar al contenido" %}</a>
@@ -46,6 +47,7 @@
         <span class="navbar__user">{{ organization.name }}</span>
         {% endif %}
         <span class="navbar__user">{{ user.short_name }}{% if membership %} · {{ membership.get_role_display }}{% endif %}</span>
+        {% include "_theme_button.html" %}
         <form method="post" action="{% url 'logout' %}">
           {% csrf_token %}
           <button class="btn-nav" type="submit">{% translate "Salir" %}</button>
@@ -58,7 +60,7 @@
   <main id="main">
     {% include "_messages.html" %}
     {% block content %}{% endblock %}
-    <p class="footer">GALBUST CMMS · {% translate "con tecnología de" %} GALBUST</p>
+    <p class="footer">GALBUST CMMS · {% translate "con tecnología de" %} GALBUST{% if user.is_staff %} · <a href="{% url 'design_system' %}">{% translate "Sistema de diseño" %}</a>{% endif %}</p>
   </main>
 
   {% if user.is_authenticated %}

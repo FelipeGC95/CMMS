@@ -1,0 +1,4 @@
+{% load i18n ui %}<button type="button" class="{{ extra_class|default:'btn-nav' }} theme-toggle" data-theme-cycle
+  data-label-prefix="{% translate 'Tema' %}" data-label-system="{% translate 'Sistema' %}"
+  data-label-light="{% translate 'Claro' %}" data-label-dark="{% translate 'Oscuro' %}"
+  aria-label="{% translate 'Tema' %}: {% translate 'Sistema' %}">{% icon 'contrast' %}<span class="theme-toggle__label" data-theme-label>{% translate "Sistema" %}</span></button>
