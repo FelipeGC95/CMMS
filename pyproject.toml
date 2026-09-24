@@ -20,6 +20,8 @@ dev = ["pytest>=8", "pytest-django>=4.9", "ruff>=0.6"]
 DJANGO_SETTINGS_MODULE = "config.settings"
 python_files = ["test_*.py"]
 addopts = "-q"
+# whitenoise avisa que STATIC_ROOT no existe: en tests no se corre collectstatic.
+filterwarnings = ["ignore:No directory at:UserWarning"]
 
 [tool.ruff]
 line-length = 110
