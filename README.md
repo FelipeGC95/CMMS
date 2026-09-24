@@ -65,6 +65,18 @@ En producción lo ejecutará una tarea programada diaria.
    los indicadores se actualizan. Configuración en `/admin/` y el paso
    siguiente (piloto con sus datos, carga asistida desde Excel).
 
+## Base de datos
+
+Sin configuración usa SQLite (`db.sqlite3`). Para PostgreSQL define
+`DATABASE_URL`, por ejemplo
+`postgres://usuario:clave@localhost:5432/cmms`.
+
+## Sistema de diseño
+
+Con sesión iniciada, `/design-system/` muestra todos los tokens y
+componentes. El botón de tema de la barra superior alterna Sistema / Claro /
+Oscuro.
+
 ## Tests y calidad
 
 ```powershell
@@ -74,5 +86,6 @@ En producción lo ejecutará una tarea programada diaria.
 ```
 
 La suite incluye aislamiento entre organizaciones (`tests/isolation/`),
-reglas de OT y preventivos, KPIs con valores conocidos y contraste WCAG AA de
-los tokens de diseño.
+permisos por rol, reglas de OT y preventivos, KPIs con valores conocidos,
+consultas sin N+1 y contraste WCAG AA de los tokens de diseño. GitHub Actions
+la corre en cada push contra PostgreSQL 16.

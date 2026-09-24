@@ -16,9 +16,10 @@ Objetivo: Python 3.13 · Django 5.2 LTS · PostgreSQL 16+ · htmx + Alpine.js ·
 DRF + drf-spectacular · django-allauth · Procrastinate · django-storages (R2) ·
 uv · ruff · pytest. Sin Node, Redis, Celery ni frameworks CSS.
 
-**Estado actual (v0.1 demo):** Python 3.11 + venv/pip, SQLite local, htmx
-(sin Alpine aún), login de Django. Postgres, allauth, DRF, Procrastinate y R2
-entran en F0 (ver docs/05_roadmap.md). El código no debe depender de SQLite.
+**Estado actual:** Python 3.11 + venv/pip, htmx (sin Alpine aún), login de
+Django. Base de datos por `DATABASE_URL` (SQLite local si no está definida;
+el CI corre sobre PostgreSQL 16, así que el código no debe depender de
+SQLite). allauth, DRF, Procrastinate y R2 entran en F0/MVP (docs/05_roadmap.md).
 
 ## Comandos
 
@@ -108,12 +109,12 @@ plan preventivo = `maintenance_plan` · OT = `work_order` · solicitud =
 
 ## Tests
 
-- pytest + factory_boy; `tests/isolation/`, `tests/permissions/` y los tests
-  de cada app.
+- pytest; `tests/isolation/`, `tests/permissions/`, `tests/ui/` y
+  `tests/test_query_counts.py` (toda lista nueva se agrega ahí).
 - Tests de servicios con base de datos real (Postgres), no mocks del ORM.
 - KPIs probados con fixtures de resultado conocido.
 - Consultas acotadas con `django_assert_max_num_queries` en listas.
-- No se hace merge con CI en rojo.
+- No se hace merge con CI en rojo (`.github/workflows/ci.yml`).
 
 ## Git
 
