@@ -68,7 +68,7 @@ En producción lo ejecutará una tarea programada diaria.
 ## Publicar en internet
 
 Ver [docs/operacion/render.md](docs/operacion/render.md): el ambiente de
-demostración se crea en Render desde [`render.yaml`](render.yaml).
+demostración se crea gratis en Render desde [`render.yaml`](render.yaml).
 
 ## Base de datos
 

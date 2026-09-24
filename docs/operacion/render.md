@@ -1,13 +1,22 @@
-# Despliegue en Render (ambiente de demostración)
+# Despliegue en Render (demo en plan gratuito)
 
 Todo el ambiente está descrito en [`render.yaml`](../../render.yaml) (un
-*Blueprint*): servidor web, base PostgreSQL 16, disco para fotos y tarea
-diaria de preventivos. Render lo crea con unos pocos clics y vuelve a
-desplegar solo cada vez que se sube un cambio a `main`.
+*Blueprint*): un servidor web y una base PostgreSQL 16, ambos en el **plan
+gratuito**. Render vuelve a desplegar solo cada vez que se sube un cambio a
+`main`.
 
-**Costo aproximado:** ~USD 15/mes (web starter ~7, Postgres basic-256mb ~6,
-disco 1 GB ~0,25, cron ~1). Verifica los precios en la pantalla de
-confirmación antes de aceptar.
+## Qué implica el plan gratis
+
+| Limitación | Efecto en la demo | Cómo se resuelve |
+|---|---|---|
+| El servidor se duerme tras 15 min sin visitas | La primera visita tarda ~1 minuto | Abre la demo unos minutos antes de presentarla |
+| La base gratuita vence a los 30 días | Render la elimina (avisa antes por correo) | Recrearla (ver abajo); los datos demo se cargan solos |
+| Sin disco persistente | Las fotos subidas se pierden al dormir o redesplegar | Aceptable en una demo en vivo |
+| Sin tareas programadas | — | Los preventivos del día se generan en cada arranque |
+
+Al arrancar (y al despertar), el servidor ejecuta en orden: migraciones →
+`seed_demo` (solo si la base está vacía) → generación de preventivos →
+gunicorn.
 
 ## Antes de empezar
 
@@ -19,38 +28,52 @@ confirmación antes de aceptar.
 
 ## Pasos
 
-1. Crea una cuenta en <https://render.com> con **Sign in with GitHub**.
-2. Agrega una tarjeta de pago en *Account Settings → Billing* (los planes
-   usados son pagados).
-3. En el panel: **New → Blueprint**.
-4. **Connect GitHub** y da acceso al repositorio `FelipeGC95/CMMS` (puedes
+1. Crea una cuenta en <https://render.com> con **Sign in with GitHub**. No
+   hace falta tarjeta.
+2. En el panel: **New → Blueprint**.
+3. **Connect GitHub** y da acceso al repositorio `FelipeGC95/CMMS` (puedes
    limitarlo solo a ese repositorio).
-5. Elige el repositorio. Render lee `render.yaml` y muestra lo que va a crear:
-   `cmms-db`, `galbust-cmms`, `galbust-cmms-preventivos` y el grupo
-   `cmms-shared`.
-6. Ponle un nombre al Blueprint (ej. `galbust-cmms-demo`) y, cuando lo pida,
+4. Elige el repositorio. Render lee `render.yaml` y muestra lo que va a crear:
+   `cmms-db` y `galbust-cmms`, ambos *Free*.
+5. Ponle un nombre al Blueprint (ej. `galbust-cmms-demo`) y, cuando lo pida,
    ingresa `DEMO_PASSWORD`.
-7. **Apply / Deploy Blueprint.** El primer despliegue tarda 5–10 minutos:
-   crea la base, instala dependencias, aplica migraciones y carga los datos
-   demo.
-8. Abre el servicio **galbust-cmms**: la URL aparece arriba, del tipo
+6. **Apply / Deploy Blueprint.** El primer despliegue tarda 5–10 minutos.
+7. Abre el servicio **galbust-cmms**: la URL aparece arriba, del tipo
    `https://galbust-cmms.onrender.com` (o con un sufijo si el nombre estaba
    tomado).
-9. Entra con `jefe@demo.cl` y tu `DEMO_PASSWORD`.
+8. Entra con `jefe@demo.cl` y tu `DEMO_PASSWORD`.
 
-## Después del primer despliegue
+## Uso habitual
 
 - **Etiquetas QR:** imprímelas desde la URL de Render; así el celular las
-  abre desde cualquier red, sin depender del Wi‑Fi del PC.
-- **Actualizaciones:** cada push o merge a `main` despliega solo. Las
-  migraciones corren antes de cambiar la versión (`preDeployCommand`).
-- **Reiniciar los datos demo:** en el servicio → *Shell* ejecuta
-  `python manage.py seed_demo --reset`. ⚠️ Borra **toda** la base.
-- **Preventivos:** el cron `galbust-cmms-preventivos` corre todos los días a
-  las 09:00 UTC; para probarlo ahora usa *Trigger Run*.
-- **Logs y errores:** pestaña *Logs* de cada servicio.
-- **Respaldos:** Postgres pagado incluye recuperación a un punto en el tiempo
-  (ver pestaña *Recovery* de `cmms-db`).
+  abre desde cualquier red.
+- **Actualizaciones:** cada push o merge a `main` despliega solo.
+- **Logs y errores:** pestaña *Logs* del servicio.
+- **Reiniciar los datos demo** (por ejemplo, antes de otra presentación):
+  recrea la base como se explica en la sección siguiente.
+
+## Cuando la base gratuita vence (cada 30 días)
+
+1. En Render abre `cmms-db` → *Settings → Delete Database*.
+2. Abre el Blueprint → **Manual Sync**: Render vuelve a crear `cmms-db` y
+   conecta el servicio.
+3. En `galbust-cmms` → **Manual Deploy → Deploy latest commit**. Al arrancar,
+   `seed_demo` recarga los datos de ejemplo.
+
+## Pasar al plan pagado (piloto con datos reales)
+
+Aproximadamente USD 15/mes. En `render.yaml`:
+
+- `databases[0].plan: basic-256mb` (permanente, con recuperación a un punto
+  en el tiempo).
+- Servicio web `plan: starter`, un `disk` en `/var/data` con
+  `MEDIA_ROOT=/var/data/media`, y mover `migrate` a `preDeployCommand`.
+- Un servicio `type: cron` con `python manage.py
+  generate_preventive_work_orders` todos los días.
+- Quitar `seed_demo` del arranque.
+
+Antes de cargar datos reales faltan además MFA, auditoría, respaldos
+probados y archivos en R2 (MVP‑1 en [05_roadmap.md](../05_roadmap.md)).
 
 ## Dominio propio (opcional)
 
@@ -58,13 +81,3 @@ Servicio → *Settings → Custom Domains → Add*, por ejemplo
 `cmms.galbust.cl`. Render indica el registro DNS (CNAME) que debes crear
 donde administras el dominio; el certificado HTTPS es automático. Agrega el
 dominio también en la variable `DJANGO_ALLOWED_HOSTS` del servicio.
-
-## Limitaciones de este ambiente
-
-- Es un ambiente de demostración: usuarios y datos ficticios, sin MFA ni
-  respaldos probados. No cargues datos reales de clientes todavía (ver
-  MVP‑1 en [05_roadmap.md](../05_roadmap.md)).
-- Las fotos van a un disco de Render (1 GB). En el MVP pasan a Cloudflare R2
-  (ADR-014).
-- El disco impide despliegues sin corte: cada deploy tiene unos segundos de
-  indisponibilidad.
