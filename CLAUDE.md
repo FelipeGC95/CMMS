@@ -29,7 +29,7 @@ python -m venv .venv; .venv\Scripts\python -m pip install -r requirements-dev.tx
 .venv\Scripts\python manage.py runserver 0.0.0.0:8000
 .venv\Scripts\python manage.py generate_preventive_work_orders
 .venv\Scripts\python -m pytest
-.venv\Scriptsuff check . ; .venv\Scriptsuff format .
+.venv\Scripts\ruff check . ; .venv\Scripts\ruff format .
 .venv\Scripts\python manage.py makemigrations --check --dry-run
 ```
 
