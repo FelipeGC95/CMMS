@@ -1,0 +1,68 @@
+# Blueprint de Render: ambiente de demostración/staging de GALBUST CMMS.
+# Render → New → Blueprint → este repositorio. Ver docs/operacion/render.md.
+# Precios aproximados (verificar al crear): web starter ~USD 7, disco 1 GB
+# ~USD 0,25, Postgres basic-256mb ~USD 6, cron ~USD 1 → ~USD 15/mes.
+
+databases:
+  - name: cmms-db
+    plan: basic-256mb
+    region: ohio
+    postgresMajorVersion: "16"
+    databaseName: cmms
+    user: cmms
+
+envVarGroups:
+  - name: cmms-shared
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.13.7"
+      - key: DJANGO_DEBUG
+        value: "0"
+
+services:
+  - type: web
+    name: galbust-cmms
+    runtime: python
+    plan: starter
+    region: ohio
+    branch: main
+    buildCommand: pip install -r requirements.txt && python manage.py collectstatic --noinput
+    # migrate + datos demo (seed_demo no hace nada si ya existen).
+    preDeployCommand: python manage.py migrate --noinput && python manage.py seed_demo
+    startCommand: gunicorn config.wsgi:application --workers 2 --timeout 60 --access-logfile -
+    healthCheckPath: /healthz
+    disk:
+      name: cmms-media
+      mountPath: /var/data
+      sizeGB: 1
+    envVars:
+      - fromGroup: cmms-shared
+      - key: DATABASE_URL
+        fromDatabase:
+          name: cmms-db
+          property: connectionString
+      - key: DJANGO_SECRET_KEY
+        generateValue: true
+      - key: MEDIA_ROOT
+        value: /var/data/media
+      - key: DEMO_PASSWORD
+        sync: false # Render la pide al crear el Blueprint; no queda en el repo.
+
+  # Genera las OT preventivas todos los días a las 09:00 UTC (05:00–06:00 en Chile).
+  - type: cron
+    name: galbust-cmms-preventivos
+    runtime: python
+    plan: starter
+    region: ohio
+    branch: main
+    schedule: "0 9 * * *"
+    buildCommand: pip install -r requirements.txt
+    startCommand: python manage.py generate_preventive_work_orders
+    envVars:
+      - fromGroup: cmms-shared
+      - key: DATABASE_URL
+        fromDatabase:
+          name: cmms-db
+          property: connectionString
+      - key: DJANGO_SECRET_KEY
+        generateValue: true

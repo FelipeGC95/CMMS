@@ -4,6 +4,7 @@ Uso: python manage.py seed_demo [--reset]
 """
 
 import datetime
+import os
 import random
 from decimal import Decimal
 
@@ -22,7 +23,8 @@ from apps.organizations.models import Location, Organization
 from apps.work.models import FailureCode, FailureEvent, WorkOrder
 from apps.work.services import answer_checklist_item, complete_work_order, create_work_order
 
-PASSWORD = "demo-galbust-2026"
+# En ambientes publicados se define DEMO_PASSWORD (la de por defecto está en el repo).
+PASSWORD = os.environ.get("DEMO_PASSWORD") or "demo-galbust-2026"
 
 LOCATIONS = [
     ("PLT", "Planta Osorno", None, Location.Kind.SITE),
@@ -207,7 +209,8 @@ class Command(BaseCommand):
                 )
 
         self.stdout.write(self.style.SUCCESS("Datos demo cargados."))
-        self.stdout.write(f"Contraseña de todos los usuarios: {PASSWORD}")
+        if not os.environ.get("DEMO_PASSWORD"):
+            self.stdout.write(f"Contraseña de todos los usuarios: {PASSWORD}")
         for email, role in [
             ("jefe@demo.cl", "jefe de mantención (admin, 2 organizaciones)"),
             ("tecnico@demo.cl", "técnico"),

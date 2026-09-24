@@ -65,6 +65,11 @@ En producción lo ejecutará una tarea programada diaria.
    los indicadores se actualizan. Configuración en `/admin/` y el paso
    siguiente (piloto con sus datos, carga asistida desde Excel).
 
+## Publicar en internet
+
+Ver [docs/operacion/render.md](docs/operacion/render.md): el ambiente de
+demostración se crea en Render desde [`render.yaml`](render.yaml).
+
 ## Base de datos
 
 Sin configuración usa SQLite (`db.sqlite3`). Para PostgreSQL define

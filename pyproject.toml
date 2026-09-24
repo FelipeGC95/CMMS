@@ -7,6 +7,8 @@ dependencies = [
     "django>=5.2,<5.3",
     "dj-database-url>=2.2",
     "psycopg[binary]>=3.2",
+    "gunicorn>=23",
+    "whitenoise>=6.7",
     "segno>=1.6",
     "uuid-utils>=0.9",
 ]
