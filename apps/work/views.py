@@ -11,7 +11,14 @@ from apps.accounts.models import Membership
 from apps.accounts.permissions import Perm, PermissionDeniedError, has_perm
 from apps.core.decorators import membership_required
 
-from .forms import CompleteWorkOrderForm, LaborForm, OtherCostForm, PartUsageForm, WorkOrderFilterForm
+from .forms import (
+    CompleteWorkOrderForm,
+    LaborForm,
+    OtherCostForm,
+    PartUsageForm,
+    WorkOrderCreateForm,
+    WorkOrderFilterForm,
+)
 from .models import Attachment, OtherCost, PartUsage, WorkOrder, WorkOrderChecklistItem
 from .selectors import (
     open_requests_for_asset,
@@ -30,6 +37,7 @@ from .services import (
     allowed_transitions,
     answer_checklist_item,
     complete_work_order,
+    create_work_order,
     log_labor,
     merge_request,
     reject_request,
@@ -91,6 +99,17 @@ def work_order_list_view(request):
             "filter_form": filter_form,
         },
     )
+
+
+@membership_required(perm=Perm.WORK_ORDER_MANAGE)
+def work_order_create_view(request):
+    membership = request.membership
+    form = WorkOrderCreateForm(request.POST or None, membership=membership)
+    if request.method == "POST" and form.is_valid():
+        work_order = create_work_order(by=request.user, **form.cleaned_data)
+        messages.success(request, _("%(code)s creada.") % {"code": work_order.code})
+        return redirect("work_order_detail", pk=work_order.pk)
+    return render(request, "work/create.html", {"form": form})
 
 
 def _complete_form(work_order, data=None):
