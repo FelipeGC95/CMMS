@@ -110,3 +110,78 @@ class AssetStatusPeriod(TenantModel):
             ),
         ]
         indexes = [models.Index(fields=["organization", "asset", "started_at"])]
+
+
+class MeterKind(models.TextChoices):
+    HOURS = "hours", _("Horómetro (h)")
+    KM = "km", _("Odómetro (km)")
+    CYCLES = "cycles", _("Ciclos")
+    OTHER = "other", _("Otro")
+
+
+METER_DEFAULT_UNITS = {MeterKind.HOURS: "h", MeterKind.KM: "km", MeterKind.CYCLES: "ciclos"}
+
+
+class Meter(TenantModel):
+    """Medidor de uso de un activo (AST-07)."""
+
+    asset = models.ForeignKey(Asset, on_delete=models.CASCADE, related_name="meters")
+    kind = models.CharField(_("tipo"), max_length=10, choices=MeterKind.choices)
+    unit = models.CharField(_("unidad"), max_length=20, blank=True)
+    name = models.CharField(_("nombre"), max_length=80, blank=True)
+    is_cumulative = models.BooleanField(_("acumulativo"), default=True)
+    current_value = models.DecimalField(
+        _("lectura actual"), max_digits=14, decimal_places=3, null=True, blank=True, editable=False
+    )
+    current_read_at = models.DateTimeField(null=True, blank=True, editable=False)
+    # Uso diario promedio (últimos 30 días): proyecta vencimientos por uso.
+    avg_daily_usage = models.DecimalField(
+        max_digits=14, decimal_places=3, null=True, blank=True, editable=False
+    )
+    is_active = models.BooleanField(_("activo"), default=True)
+
+    class Meta:
+        verbose_name = _("medidor")
+        verbose_name_plural = _("medidores")
+        ordering = ["kind"]
+        constraints = [
+            models.UniqueConstraint(fields=["asset", "kind", "name"], name="uniq_meter_per_asset"),
+        ]
+
+    def __str__(self):
+        return f"{self.name or self.get_kind_display()} · {self.asset.code}"
+
+    def save(self, *args, **kwargs):
+        if not self.unit:
+            self.unit = METER_DEFAULT_UNITS.get(self.kind, "")
+        super().save(*args, **kwargs)
+
+
+class MeterReading(TenantModel):
+    class Source(models.TextChoices):
+        MANUAL = "manual", _("Manual")
+        IMPORT = "import", _("Importación")
+        API = "api", _("API")
+        WORK_ORDER = "work_order", _("Cierre de OT")
+
+    meter = models.ForeignKey(Meter, on_delete=models.CASCADE, related_name="readings")
+    value = models.DecimalField(_("lectura"), max_digits=14, decimal_places=3)
+    read_at = models.DateTimeField(_("fecha de lectura"))
+    source = models.CharField(max_length=20, choices=Source.choices, default=Source.MANUAL)
+    is_reset = models.BooleanField(_("reinicio o cambio de medidor"), default=False)
+    work_order = models.ForeignKey(
+        "work.WorkOrder", on_delete=models.SET_NULL, null=True, blank=True, related_name="+"
+    )
+    created_by = models.ForeignKey(
+        "accounts.User", on_delete=models.SET_NULL, null=True, blank=True, related_name="+"
+    )
+    client_uuid = models.UUIDField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-read_at"]
+        indexes = [models.Index(fields=["meter", "-read_at"])]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["organization", "client_uuid"], name="uniq_meter_reading_client_uuid"
+            ),
+        ]

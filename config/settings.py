@@ -30,6 +30,8 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "allauth",
+    "allauth.account",
     "apps.core",
     "apps.organizations",
     "apps.accounts",
@@ -37,6 +39,7 @@ INSTALLED_APPS = [
     "apps.maintenance",
     "apps.work",
     "apps.reporting",
+    "apps.audit",
     "apps.ui",
 ]
 
@@ -48,6 +51,8 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "apps.audit.middleware.AuditContextMiddleware",
+    "allauth.account.middleware.AccountMiddleware",
     "apps.core.middleware.TenantMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
@@ -82,6 +87,15 @@ DATABASES = {
 }
 
 AUTH_USER_MODEL = "accounts.User"
+AUTHENTICATION_BACKENDS = [
+    "django.contrib.auth.backends.ModelBackend",
+    "allauth.account.auth_backends.AuthenticationBackend",
+]
+# Argon2 primero; las claves PBKDF2 existentes se migran solas al iniciar sesión.
+PASSWORD_HASHERS = [
+    "django.contrib.auth.hashers.Argon2PasswordHasher",
+    "django.contrib.auth.hashers.PBKDF2PasswordHasher",
+]
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
     {
@@ -91,9 +105,43 @@ AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
     {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
 ]
-LOGIN_URL = "login"
+LOGIN_URL = "account_login"
 LOGIN_REDIRECT_URL = "dashboard"
-LOGOUT_REDIRECT_URL = "login"
+LOGOUT_REDIRECT_URL = "account_login"
+
+# django-allauth (ADR-006): login por correo, sin nombre de usuario, correo verificado.
+ACCOUNT_ADAPTER = "apps.accounts.adapter.AccountAdapter"
+ACCOUNT_USER_MODEL_USERNAME_FIELD = None
+ACCOUNT_LOGIN_METHODS = {"email"}
+ACCOUNT_SIGNUP_FIELDS = ["email*", "password1*"]
+ACCOUNT_UNIQUE_EMAIL = True
+ACCOUNT_CHANGE_EMAIL = True
+ACCOUNT_EMAIL_VERIFICATION = os.environ.get("ACCOUNT_EMAIL_VERIFICATION", "mandatory")
+ACCOUNT_LOGIN_ON_EMAIL_CONFIRMATION = True
+ACCOUNT_LOGIN_ON_PASSWORD_RESET = True
+ACCOUNT_EMAIL_SUBJECT_PREFIX = "[GALBUST CMMS] "
+ACCOUNT_DEFAULT_HTTP_PROTOCOL = "http" if DEBUG else "https"
+# Límites de intentos por defecto de allauth (login, reinicio de clave) sobre el caché.
+# Caché en la base de datos: compartido entre workers de gunicorn (LocMem es por proceso).
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.db.DatabaseCache",
+        "LOCATION": "django_cache",
+    }
+}
+
+# Auditoría (X-01): cantidad de proxies de confianza delante de la app. Con N > 0
+# la IP del cliente es X-Forwarded-For[-N]; con 0 se usa REMOTE_ADDR.
+AUDIT_TRUSTED_PROXIES = int(os.environ.get("AUDIT_TRUSTED_PROXIES", "0"))
+
+# Correo: consola en local; en producción SMTP del proveedor (Postmark o Brevo, docs/04).
+EMAIL_BACKEND = os.environ.get("EMAIL_BACKEND", "django.core.mail.backends.console.EmailBackend")
+EMAIL_HOST = os.environ.get("EMAIL_HOST", "localhost")
+EMAIL_PORT = int(os.environ.get("EMAIL_PORT", "587"))
+EMAIL_HOST_USER = os.environ.get("EMAIL_HOST_USER", "")
+EMAIL_HOST_PASSWORD = os.environ.get("EMAIL_HOST_PASSWORD", "")
+EMAIL_USE_TLS = env_bool("EMAIL_USE_TLS", True)
+DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL", "GALBUST CMMS <no-reply@galbust.cl>")
 
 # Idioma fuente de la interfaz: español de Chile.
 LANGUAGE_CODE = "es-cl"

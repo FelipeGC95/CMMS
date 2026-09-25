@@ -38,16 +38,37 @@ sin API, auditoría, notificaciones, medidores, versionado de planes ni
 importación Excel; archivos en disco local (servidos solo tras verificar la
 organización) en vez de R2; sin CI ni despliegue.
 
+## Hecho después de la v0.1
+
+- **Medidores y preventivos por uso (AST-07, PM-02, parte de PM-04/05):**
+  horómetro/odómetro por activo, lecturas con validación (no retroceder
+  salvo reinicio, aviso si > 24 h/día), uso diario promedio, planes por
+  calendario, por uso o mixtos (lo que ocurra primero), OT generada al
+  registrar la lectura que alcanza el umbral y reprogramación desde la
+  lectura de cierre.
+
+- **Versiones de planes (PM-01..04, ADR-016):** borrador → publicar, versiones
+  inmutables, repuestos y herramientas previstos, modo fijo o flotante,
+  tolerancia, recálculo de vencimientos al cambiar la frecuencia y OT con
+  la versión con que se generó. Pendiente: absorción de planes (PM-05 CA3)
+  y pantallas propias fuera del admin.
+
 ## F0 · Fundaciones (4 semanas)
 
 Parte de F0 ya existe gracias a la v0.1 (tenancy, estructura de apps, tokens),
 por lo que se estima en ~3 semanas.
 
-**Avance (2026-09-24):** hechos 0.2 y 0.4 completos; de 0.1, GitHub Actions
-con PostgreSQL 16 (Python 3.11 y 3.13), ruff, chequeo de migraciones y
-`check --deploy`, y soporte de `DATABASE_URL`. Además: tests de permisos por
-rol y de cantidad de consultas. Pendiente: uv y pre-commit (0.1), allauth y
-Plan (0.3), despliegue (0.5, requiere cuentas de Render, Cloudflare y Sentry).
+**Avance (2026-09-24):** hechos 0.1 a 0.4: GitHub Actions
+con PostgreSQL 16 (Python 3.11 y 3.13), uv (`uv.lock`, CI con
+`uv sync --locked`), pre-commit (ruff, lock, `requirements*.txt` exportados
+para Render y migraciones), chequeo de migraciones y `check --deploy`, y
+soporte de `DATABASE_URL`. Además: tests de permisos por rol y de cantidad de
+consultas. 0.3: django-allauth con login por correo, verificación obligatoria,
+recuperación y cambio de contraseña (el admin entra por el mismo login),
+Argon2, registro cerrado hasta ORG-02, catálogo `Plan` (cupos provisionales,
+se hacen cumplir en ORG-10), estado y fin de prueba en `Organization` y última
+organización recordada al iniciar sesión (ORG-07). Pendiente: despliegue
+(0.5, requiere cuentas de Render, Cloudflare, Sentry y el proveedor de correo).
 
 | # | Entregable | Sem. |
 |---|---|---|

@@ -8,6 +8,7 @@
     <div class="row" id="wo-status" hx-get="{% url 'work_order_detail' wo.pk %}" hx-trigger="checklist-changed from:body" hx-select="#wo-status" hx-swap="outerHTML">
       {% status_badge wo %}{% priority_badge wo %}
       {% if wo.due_on %}<span class="badge badge--neutral">{% icon 'calendar' %}{% translate "Límite" %} {{ wo.due_on|date:"d M Y" }}</span>{% endif %}
+      {% if wo.due_meter_value is not None %}<span class="badge badge--neutral">{% icon 'clock' %}{% translate "Vence a" %} {{ wo.due_meter_value|num }} {{ wo.plan_assignment.meter.unit }}</span>{% endif %}
     </div>
   </div>
   {% if transitions %}
@@ -31,6 +32,7 @@
       <dt>{% translate "Responsable" %}</dt><dd>{{ wo.assigned_to|default:"—" }}</dd>
       {% if wo.estimated_minutes %}<dt>{% translate "Estimación" %}</dt><dd class="num">{{ wo.estimated_minutes }} min</dd>{% endif %}
       {% if wo.request %}<dt>{% translate "Avisado por" %}</dt><dd>{{ wo.request.requested_by|default:"—" }} · {{ wo.request.created_at|date:"d M H:i" }}</dd>{% endif %}
+      {% if wo.meter_value_at_completion is not None %}<dt>{% translate "Lectura al cerrar" %}</dt><dd class="num">{{ wo.meter_value_at_completion|num }}</dd>{% endif %}
       {% if wo.completion_notes %}<dt>{% translate "Cierre" %}</dt><dd>{{ wo.completion_notes|linebreaksbr }}</dd>{% endif %}
     </dl>
     {% if wo.description %}<p class="mt-4">{{ wo.description|linebreaksbr }}</p>{% endif %}
@@ -78,6 +80,7 @@
     <div class="field">
       <label for="{{ field.id_for_label }}">{{ field.label }}</label>
       {{ field }}
+      {% if field.help_text %}<span class="help">{{ field.help_text }}</span>{% endif %}
       {% for error in field.errors %}<span class="error">{% icon 'stop' %}{{ error }}</span>{% endfor %}
     </div>
     {% endfor %}

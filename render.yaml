@@ -43,5 +43,13 @@ services:
           property: connectionString
       - key: DJANGO_SECRET_KEY
         generateValue: true
+      # Render pone un proxy delante y agrega la IP real del cliente al final de
+      # X-Forwarded-For: la auditoría toma ese último valor (X-01).
+      - key: AUDIT_TRUSTED_PROXIES
+        value: "1"
+      # Sin proveedor de correo aún: se pide verificar pero no se bloquea el acceso.
+      # Al configurar SMTP (EMAIL_BACKEND, EMAIL_HOST…) se quita y queda obligatoria.
+      - key: ACCOUNT_EMAIL_VERIFICATION
+        value: optional
       - key: DEMO_PASSWORD
         sync: false # Render la pide al crear el Blueprint; no queda en el repo.

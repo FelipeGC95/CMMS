@@ -15,11 +15,14 @@ from django.db import transaction
 from django.utils import timezone
 
 from apps.accounts.models import Membership, User
-from apps.assets.models import Asset, AssetClass, AssetStatusPeriod
+from apps.accounts.services import create_user
+from apps.assets.models import Asset, AssetClass, AssetStatusPeriod, Meter, MeterKind
+from apps.assets.services import record_meter_reading
 from apps.core.tenancy import tenant_context
-from apps.maintenance.models import ItemType, MaintenancePlan, PlanTaskItem
-from apps.maintenance.services import assign_plan, generate_due_work_orders
-from apps.organizations.models import Location, Organization
+from apps.maintenance.models import ItemType
+from apps.maintenance.services import assign_plan, create_plan, generate_due_work_orders
+from apps.organizations.models import Location, Organization, Plan
+from apps.organizations.plans import ensure_default_plans
 from apps.work.models import FailureCode, FailureEvent, WorkOrder
 from apps.work.services import answer_checklist_item, complete_work_order, create_work_order
 
@@ -141,6 +144,55 @@ PLANS = [
     ),
 ]
 
+# Medidores: activo, tipo, lectura hace 35 días, uso diario promedio.
+METERS = [
+    ("GRH-01", MeterKind.HOURS, 4200, 6.5),
+    ("GRH-02", MeterKind.HOURS, 8730, 7.5),
+    ("CMP-01", MeterKind.HOURS, 21000, 16),
+    ("CMP-02", MeterKind.HOURS, 9500, 2),
+    ("GEN-01", MeterKind.HOURS, 1830, 0.4),
+    ("VEH-01", MeterKind.KM, 48500, 140),
+]
+
+# Planes por uso (se asignan después del historial): código, nombre, clase,
+# medidor, intervalo, días (mixto) o None, minutos, ítems, {activo: faltante}.
+METER_PLANS = [
+    (
+        "PM-GRH-250",
+        "Mantención 250 h grúa horquilla",
+        "GRH",
+        MeterKind.HOURS,
+        250,
+        None,
+        120,
+        [
+            ("Cambiar aceite de motor / reductor", ItemType.CHECK),
+            ("Cambiar filtros de aceite y aire", ItemType.CHECK),
+            ("Revisar nivel de aceite hidráulico", ItemType.CHECK),
+            ("Engrasar mástil y pivotes", ItemType.CHECK),
+            ("Holgura de cadenas de elevación", ItemType.MEASUREMENT, "mm", 0, 3),
+        ],
+        # Faltante para el vencimiento: GRH-02 ya está por vencer, GRH-01 no.
+        {"GRH-01": 170, "GRH-02": 12},
+    ),
+    (
+        "PM-VEH-10K",
+        "Mantención 10.000 km camioneta",
+        "VEH",
+        MeterKind.KM,
+        10000,
+        180,
+        150,
+        [
+            ("Cambiar aceite y filtro de motor", ItemType.CHECK),
+            ("Revisar pastillas y discos de freno", ItemType.CHECK),
+            ("Rotar neumáticos", ItemType.CHECK),
+            ("Profundidad de dibujo de neumáticos", ItemType.MEASUREMENT, "mm", 1.6, 12),
+        ],
+        {"VEH-01": 1200},
+    ),
+]
+
 FAILURE_CODES = [
     ("mode", "BRD", "Falla total / no funciona"),
     ("mode", "ELP", "Fuga externa de fluido"),
@@ -180,12 +232,20 @@ class Command(BaseCommand):
             # Base de demo: se vacía completa. (El borrado de una organización real es X-04.)
             call_command("flush", interactive=False, verbosity=0)
         if Organization.objects.filter(slug="alimentos-del-sur").exists():
+            # Render corre seed_demo en cada arranque: los permisos del admin se ponen al
+            # día aunque los datos ya existan (modelos nuevos como versiones o auditoría).
+            if admin := User.objects.filter(email="jefe@demo.cl").first():
+                self._grant_admin_permissions(admin)
             self.stdout.write("Los datos demo ya existen. Usa --reset para recrearlos.")
             return
 
         with transaction.atomic():
+            ensure_default_plans(Plan)  # `--reset` vacía también el catálogo de planes
+            pro = Plan.objects.get(code="pro")
             platform = self._user("plataforma@galbust.cl", "Equipo GALBUST", superuser=True)
-            org = Organization.objects.create(name="Alimentos del Sur SpA", slug="alimentos-del-sur")
+            org = Organization.objects.create(
+                name="Alimentos del Sur SpA", slug="alimentos-del-sur", plan=pro
+            )
             admin = self._user("jefe@demo.cl", "Carolina Muñoz", staff=True)
             tech = self._user("tecnico@demo.cl", "Jorge Soto")
             tech2 = self._user("tecnico2@demo.cl", "Marcelo Ríos")
@@ -200,7 +260,13 @@ class Command(BaseCommand):
             with tenant_context(org):
                 self._seed_main(org, members)
 
-            other = Organization.objects.create(name="Maestranza Norte Ltda.", slug="maestranza-norte")
+            other = Organization.objects.create(
+                name="Maestranza Norte Ltda.",
+                slug="maestranza-norte",
+                plan=Plan.objects.get(code="trial"),
+                status=Organization.Status.TRIAL,
+                trial_ends_at=timezone.now() + datetime.timedelta(days=30),
+            )
             Membership.objects.create(user=admin, organization=other, role="viewer")
             with tenant_context(other):
                 cls = AssetClass.objects.create(code="TOR", name="Torno CNC")
@@ -222,17 +288,28 @@ class Command(BaseCommand):
     def _user(self, email, name, staff=False, superuser=False):
         user = User.objects.filter(email=email).first()
         if user is None:
-            user = User.objects.create_user(
-                email, PASSWORD, full_name=name, is_staff=staff or superuser, is_superuser=superuser
+            # Correo ya verificado: los usuarios demo no reciben el correo de verificación.
+            user = create_user(
+                email=email,
+                password=PASSWORD,
+                full_name=name,
+                email_verified=True,
+                is_staff=staff or superuser,
+                is_superuser=superuser,
             )
         if staff and not superuser:
-            # El admin de la organización configura desde el admin de Django (solo su tenant).
-            user.user_permissions.set(
-                Permission.objects.filter(
-                    content_type__app_label__in=["assets", "maintenance", "work", "organizations"]
-                ).exclude(content_type__model="organization")
-            )
+            self._grant_admin_permissions(user)
         return user
+
+    def _grant_admin_permissions(self, user):
+        # El admin de la organización configura desde el admin de Django (solo su tenant)
+        # y consulta la auditoría, que es de solo lectura.
+        user.user_permissions.set(
+            Permission.objects.filter(
+                content_type__app_label__in=["assets", "maintenance", "work", "organizations"]
+            ).exclude(content_type__model__in=["organization", "plan"])
+            | Permission.objects.filter(content_type__app_label="audit", codename__startswith="view_")
+        )
 
     def _seed_main(self, org, members):
         now = timezone.now()
@@ -268,29 +345,21 @@ class Command(BaseCommand):
 
         # Planes y asignaciones con vencimientos repartidos (algunos atrasados).
         for code, name, cls, interval, minutes, items in PLANS:
-            plan = MaintenancePlan.objects.create(
+            plan = create_plan(
                 code=code,
                 name=name,
                 asset_class=classes[cls],
                 interval_days=interval,
                 estimated_minutes=minutes,
+                items=self._items(items),
             )
-            for i, item in enumerate(items, start=1):
-                text, item_type, *rng = item
-                PlanTaskItem.objects.create(
-                    plan=plan,
-                    order=i,
-                    text=text,
-                    item_type=item_type,
-                    unit=rng[0] if rng else "",
-                    min_value=Decimal(str(rng[1])) if rng else None,
-                    max_value=Decimal(str(rng[2])) if rng else None,
-                )
             for asset in (a for a in assets.values() if a.asset_class_id == classes[cls].id):
                 first_due = history_start + datetime.timedelta(days=random.randint(0, min(interval, 60) - 1))
                 assign_plan(plan=plan, asset=asset, starts_on=first_due)
 
+        self._seed_meters(assets, now)
         self._simulate_preventive_history(history_start, today, tech)
+        self._seed_meter_plans(assets, classes)
 
         # Fallas históricas reparadas.
         for asset_code, days_ago, hours_down, text, mode, cause in HISTORY_FAILURES:
@@ -330,6 +399,53 @@ class Command(BaseCommand):
 
         # Preventivos vigentes (próximos 14 días y atrasados).
         generate_due_work_orders(today=today)
+
+    def _seed_meters(self, assets, now):
+        """Lecturas semanales de las últimas 5 semanas, con algo de variación."""
+        for code, kind, start_value, per_day in METERS:
+            meter = Meter.objects.create(asset=assets[code], kind=kind)
+            value = Decimal(start_value)
+            for weeks_ago in range(5, -1, -1):
+                if weeks_ago < 5:
+                    value += Decimal(str(round(per_day * 7 * random.uniform(0.8, 1.2), 1)))
+                read_at = now - datetime.timedelta(days=weeks_ago * 7, hours=random.randint(1, 6))
+                record_meter_reading(meter=meter, value=value, read_at=read_at, generate_work_orders=False)
+
+    def _seed_meter_plans(self, assets, classes):
+        for code, name, cls, kind, interval, days, minutes, items, remaining in METER_PLANS:
+            plan = create_plan(
+                code=code,
+                name=name,
+                asset_class=classes[cls],
+                meter_kind=kind,
+                meter_interval=Decimal(interval),
+                interval_days=days,
+                estimated_minutes=minutes,
+                items=self._items(items),
+            )
+            for asset_code, left in remaining.items():
+                meter = assets[asset_code].meters.get(kind=kind)
+                assign_plan(
+                    plan=plan,
+                    asset=assets[asset_code],
+                    meter=meter,
+                    next_due_meter_value=meter.current_value + left,
+                )
+
+    def _items(self, items):
+        """Ítems del checklist en el formato de create_plan: (texto, tipo[, unidad, mín, máx])."""
+        result = []
+        for text, item_type, *rng in items:
+            result.append(
+                {
+                    "text": text,
+                    "item_type": item_type,
+                    "unit": rng[0] if rng else "",
+                    "min_value": Decimal(str(rng[1])) if rng else None,
+                    "max_value": Decimal(str(rng[2])) if rng else None,
+                }
+            )
+        return result
 
     def _simulate_preventive_history(self, start, today, tech):
         """Recorre los días pasados: genera las OT y cierra la mayoría a tiempo."""

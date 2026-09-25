@@ -68,7 +68,7 @@ def test_kpis_with_known_values(in_a):
         due_on=timezone.localdate() - datetime.timedelta(days=2),
     )
 
-    kpis = dashboard_kpis(days=30, now=now)
+    kpis = dashboard_kpis(membership=in_a.admin, days=30, now=now)
     window_h = 30 * 24
     assert round(kpis.availability_pct, 4) == round(100 * (1 - 6 / window_h), 4)
     assert kpis.mttr_hours == 6

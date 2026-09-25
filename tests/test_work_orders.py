@@ -5,6 +5,7 @@ from django.urls import reverse
 
 from apps.accounts.permissions import PermissionDeniedError
 from apps.assets.models import Asset, AssetStatusPeriod
+from apps.maintenance.services import publish_version, start_draft
 from apps.work.models import FailureEvent, WorkOrder
 from apps.work.services import (
     WorkOrderError,
@@ -100,8 +101,12 @@ def test_checklist_snapshot_measurement_and_required_items(in_a):
         work_type="preventive", title="x", asset=in_a.asset, checklist=in_a.plan.items.all()
     )
     check, measure = wo.checklist.all()
-    # Cambiar el plan no altera la OT ya generada.
-    in_a.plan.items.filter(order=1).update(text="Otro texto")
+    # Publicar una versión nueva del plan no altera la OT ya generada.
+    draft = start_draft(plan=in_a.plan)
+    item = draft.items.get(order=1)
+    item.text = "Otro texto"
+    item.save()
+    publish_version(version=draft)
     check.refresh_from_db()
     assert check.text == "Purgar"
 

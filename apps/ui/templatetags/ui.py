@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from django import template
 from django.utils.html import format_html
 from django.utils.safestring import mark_safe
@@ -117,3 +119,12 @@ def status_label(value):
         return WorkOrder.Status(value).label
     except ValueError:
         return value
+
+
+@register.filter
+def num(value):
+    """Número con separador de miles y coma decimal (es-CL), sin ceros sobrantes."""
+    if value is None or value == "":
+        return "—"
+    text = f"{Decimal(value):,.3f}".rstrip("0").rstrip(".")
+    return text.replace(",", " ").replace(".", ",").replace(" ", ".")

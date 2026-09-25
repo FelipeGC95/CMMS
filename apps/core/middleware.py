@@ -33,6 +33,9 @@ class TenantMiddleware:
             request.memberships = memberships
             if memberships:
                 wanted = request.session.get(SESSION_KEY)
+                if wanted is None and request.user.last_organization_id:
+                    # Sesión nueva: se abre la última organización usada (ORG-07).
+                    wanted = str(request.user.last_organization_id)
                 membership = next(
                     (m for m in memberships if str(m.organization_id) == wanted),
                     memberships[0],

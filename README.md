@@ -10,15 +10,19 @@ Documentación de diseño en [docs/](docs/) · convenciones en [CLAUDE.md](CLAUD
 
 ## Levantar la demo (Windows, PowerShell)
 
-Requisitos: Python 3.11 o superior.
+Requisitos: [uv](https://docs.astral.sh/uv/)
+(`winget install astral-sh.uv`); uv descarga Python si hace falta.
 
 ```powershell
-python -m venv .venv
-.venv\Scripts\python -m pip install -r requirements-dev.txt
-.venv\Scripts\python manage.py migrate
-.venv\Scripts\python manage.py seed_demo          # --reset para recrear desde cero
-.venv\Scripts\python manage.py runserver 0.0.0.0:8000
+uv sync
+uv run python manage.py migrate
+uv run python manage.py seed_demo          # --reset para recrear desde cero
+uv run python manage.py runserver 0.0.0.0:8000
 ```
+
+Sin uv también funciona con pip: `python -m venv .venv` y
+`.venv\Scripts\python -m pip install -r requirements-dev.txt` (archivo
+generado desde `uv.lock`, mismas versiones).
 
 Abre <http://localhost:8000>. Contraseña de todos los usuarios demo:
 `demo-galbust-2026`.
@@ -42,7 +46,7 @@ Abre <http://localhost:8000>. Contraseña de todos los usuarios demo:
 ### Generar los preventivos del día
 
 ```powershell
-.venv\Scripts\python manage.py generate_preventive_work_orders
+uv run python manage.py generate_preventive_work_orders
 ```
 
 En producción lo ejecutará una tarea programada diaria.
@@ -70,6 +74,17 @@ En producción lo ejecutará una tarea programada diaria.
 Ver [docs/operacion/render.md](docs/operacion/render.md): el ambiente de
 demostración se crea gratis en Render desde [`render.yaml`](render.yaml).
 
+## Usuarios y correo
+
+El acceso usa django-allauth: se entra con correo y contraseña, y el correo
+debe estar verificado (los usuarios demo ya lo están). No hay registro
+público; los usuarios se crean en `/admin/` como superadmin y al primer
+ingreso reciben el enlace de verificación. En local los correos se imprimen
+en la consola de `runserver`; en producción se configura SMTP con
+`EMAIL_BACKEND`, `EMAIL_HOST`, `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD` y
+`DEFAULT_FROM_EMAIL`. `ACCOUNT_EMAIL_VERIFICATION=optional` permite entrar
+sin verificar mientras no haya correo configurado.
+
 ## Base de datos
 
 Sin configuración usa SQLite (`db.sqlite3`). Para PostgreSQL define
@@ -85,9 +100,10 @@ Oscuro.
 ## Tests y calidad
 
 ```powershell
-.venv\Scripts\python -m pytest
-.venv\Scripts\ruff check .
-.venv\Scripts\ruff format --check .
+uv run pre-commit install      # una vez: ruff, lock y migraciones en cada commit
+uv run pytest
+uv run ruff check .
+uv run ruff format --check .
 ```
 
 La suite incluye aislamiento entre organizaciones (`tests/isolation/`),

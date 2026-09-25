@@ -1,4 +1,4 @@
-{% load static i18n ui %}<!doctype html>
+{% load static i18n ui accounts_tags %}<!doctype html>
 <html lang="es">
 <head>
   <meta charset="utf-8">
@@ -29,6 +29,7 @@
         <a href="{% url 'dashboard' %}" {% nav_current '/' %}>{% translate "Inicio" %}</a>
         <a href="{% url 'work_order_list' %}" {% nav_current '/work-orders/' %}>{% translate "Órdenes de trabajo" %}</a>
         <a href="{% url 'asset_list' %}" {% nav_current '/assets/' %}>{% translate "Activos" %}</a>
+        {% if membership|can:"team.manage" %}<a href="{% url 'team' %}" {% nav_current '/team/' %}>{% translate "Equipo" %}</a>{% endif %}
         {% if user.is_staff %}<a href="{% url 'admin:index' %}">{% translate "Configuración" %}</a>{% endif %}
       </nav>
       <div class="navbar__right">
@@ -46,9 +47,9 @@
         {% elif organization %}
         <span class="navbar__user">{{ organization.name }}</span>
         {% endif %}
-        <span class="navbar__user">{{ user.short_name }}{% if membership %} · {{ membership.get_role_display }}{% endif %}</span>
+        <a class="navbar__user" href="{% url 'account_change_password' %}" title="{% translate 'Mi cuenta: cambiar contraseña' %}">{{ user.short_name }}{% if membership %} · {{ membership.get_role_display }}{% endif %}</a>
         {% include "_theme_button.html" %}
-        <form method="post" action="{% url 'logout' %}">
+        <form method="post" action="{% url 'account_logout' %}">
           {% csrf_token %}
           <button class="btn-nav" type="submit">{% translate "Salir" %}</button>
         </form>

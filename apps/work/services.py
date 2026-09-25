@@ -9,8 +9,8 @@ from django.db import transaction
 from django.utils import timezone
 
 from apps.accounts.permissions import Perm, has_perm, require_perm
-from apps.assets.models import Asset
-from apps.assets.services import change_asset_status
+from apps.assets.models import Asset, MeterReading
+from apps.assets.services import change_asset_status, record_meter_reading
 
 from .models import (
     Attachment,
@@ -65,9 +65,11 @@ def create_work_order(
     priority: int = WorkOrder.Priority.NORMAL,
     status: str = S.PLANNED,
     due_on: datetime.date | None = None,
+    due_meter_value=None,
     estimated_minutes: int | None = None,
     assigned_to=None,
     plan_assignment=None,
+    plan_version=None,
     checklist=(),
     by=None,
     client_uuid=None,
@@ -81,9 +83,11 @@ def create_work_order(
         description=description,
         asset=asset,
         due_on=due_on,
+        due_meter_value=due_meter_value,
         estimated_minutes=estimated_minutes,
         assigned_to=assigned_to,
         plan_assignment=plan_assignment,
+        plan_version=plan_version,
         client_uuid=client_uuid,
     )
     # Snapshot del checklist: cambiar el plan después no altera esta OT.
@@ -260,7 +264,11 @@ def _close(*, work_order: WorkOrder, user, at, record=True):
             asset=asset, status=Asset.Status.OPERATIONAL, by=user, reason=work_order.code, at=at
         )
     if work_order.plan_assignment_id:
-        register_completion(assignment=work_order.plan_assignment, completed_on=timezone.localdate(at))
+        register_completion(
+            assignment=work_order.plan_assignment,
+            completed_on=timezone.localdate(at),
+            meter_value=work_order.meter_value_at_completion,
+        )
 
 
 @transaction.atomic
@@ -295,6 +303,13 @@ def answer_checklist_item(
     return item
 
 
+def work_order_meter(work_order: WorkOrder):
+    """Medidor cuya lectura se pide al cerrar: el del plan o, si no, el primero del activo."""
+    if work_order.plan_assignment_id and work_order.plan_assignment.meter_id:
+        return work_order.plan_assignment.meter
+    return work_order.asset.meters.filter(is_active=True).order_by("kind").first()
+
+
 @transaction.atomic
 def complete_work_order(
     *,
@@ -304,7 +319,22 @@ def complete_work_order(
     notes: str = "",
     failure_mode=None,
     failure_cause=None,
+    meter_value=None,
 ) -> WorkOrder:
+    """Completa la OT; si se informa la lectura del medidor, la registra y reprograma desde ella."""
+    if meter_value is not None:
+        meter = work_order_meter(work_order)
+        if meter is not None:
+            reading, _ = record_meter_reading(
+                meter=meter,
+                value=meter_value,
+                membership=membership,
+                source=MeterReading.Source.WORK_ORDER,
+                work_order=work_order,
+                generate_work_orders=False,
+            )
+            work_order.meter_value_at_completion = reading.value
+            work_order.save(update_fields=["meter_value_at_completion", "updated_at"])
     if labor_minutes:
         LaborEntry.objects.create(work_order=work_order, user=membership.user, minutes=labor_minutes)
     work_order.completion_notes = notes

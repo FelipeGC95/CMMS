@@ -81,21 +81,23 @@ Restricción: un solo período abierto por activo (índice único parcial `WHERE
 
 ### 2.4 Mantenimiento preventivo
 
-**`maintenance_plan`**
-`organization_id` · `code` · `name` · `asset_class_id` (opcional: clase a la que aplica) · `work_type` (preventive, inspection, predictive) · `current_version_id` · `is_active` · `source_template_id`.
+**`maintenance_plan`** — datos generales; el contenido vive en versiones (ADR-016).
+`organization_id` · `code` · `name` · `asset_class_id` (opcional: clase a la que aplica) · `current_version_id` (versión publicada vigente, null si solo hay borrador) · `is_active`.
+`UNIQUE (organization_id, code)`. El manager por defecto hace `select_related("current_version")`; al llegar al plan por una relación hay que pedir `select_related("plan__current_version")`.
 
-**`maintenance_plan_version`** (inmutable una vez publicada)
-`organization_id` · `plan_id` · `number` · `status` (draft, published, superseded) · `published_at` · `estimated_minutes` · `instructions` · `requires_meter_reading` · `supersedes_plans` (lista de planes que absorbe, PM‑05 CA3).
-`UNIQUE (plan_id, number)`.
+**`plan_version`** (inmutable una vez publicada)
+`organization_id` · `plan_id` · `number` · `status` (draft, published, superseded) · `published_at` · `published_by_id` · `change_note` · `estimated_minutes` · `instructions` · disparadores: `interval_days` · `meter_kind` · `meter_interval` (vence lo que ocurra primero) · `schedule_mode` (floating, fixed) · `tolerance_pct`.
+`UNIQUE (organization_id, plan_id, number)`; único parcial `(organization_id, plan_id) WHERE status = 'draft'` (un borrador por plan).
+Los disparadores son campos de la versión y no una tabla `plan_trigger`: un plan tiene a lo sumo uno por calendario y uno por medidor (ADR-016).
 
-**`plan_task_item`** — ítems del checklist de una versión.
-`organization_id` · `version_id` · `order` · `section` · `text` · `item_type` (check, measurement, text, photo, signature) · `unit` · `min_value` · `max_value` · `required`.
+**`plan_task_item`** — ítems del checklist de una versión (solo editables en borrador).
+`organization_id` · `version_id` · `order` · `text` · `item_type` (check, measurement; texto, foto y firma en MVP‑1) · `unit` · `min_value` · `max_value` · `required`.
 
-**`plan_resource`** — repuestos y herramientas estimados.
-`organization_id` · `version_id` · `kind` (part, tool) · `description` · `quantity` · `unit` · `part_id` (F2, nullable).
+**`plan_resource`** — repuestos y herramientas previstos (solo editables en borrador).
+`organization_id` · `version_id` · `kind` (part, tool) · `description` · `quantity` · `unit`. `part_id` se agrega con inventario (F2).
 
-**`plan_trigger`** — uno o más por versión; vence el que ocurra primero.
-`organization_id` · `version_id` · `kind` (calendar, meter) · `interval_value` · `interval_unit` (day, week, month, reading) · `meter_kind` · `tolerance_pct` · `schedule_mode` (fixed, floating).
+Pendientes del diseño original: `work_type` del plan, `section` en ítems y
+absorción de planes (`supersedes_plans`, PM‑05 CA3).
 
 **`plan_assignment`** — plan aplicado a un activo; aquí vive el estado del programador.
 `organization_id` · `plan_id` · `asset_id` · `meter_id` · `starts_on` · `last_done_at` · `last_done_meter_value` · `next_due_at` · `next_due_meter_value` · `open_work_order_id` · `is_active`.
@@ -152,6 +154,12 @@ Restricción: un solo período abierto por activo (índice único parcial `WHERE
 **`audit_log`** (solo inserción)
 `organization_id` (null = evento de plataforma) · `actor_id` · `actor_type` (user, api_token, system) · `action` (create, update, delete, transition, login, export…) · `object_type` · `object_id` · `object_repr` · `changes JSONB` (antes/después de los campos cambiados) · `ip` · `user_agent` · `request_id` · `at`.
 Índices `(organization_id, at DESC)`, `(organization_id, object_type, object_id)`. Candidata a particionarse por mes.
+> Implementado como `audit.AuditEvent` (X-01, etapa 1). Diferencias con este
+> diseño: `organization_id` es obligatorio porque hereda de `TenantModel`, así
+> que los eventos de plataforma (organization_id nulo) y el registro de login
+> quedan para la etapa 2, cuando haya auditoría sin tenant. `at` es
+> `created_at`; `object_type` es `target_type` (content type). En `changes` nunca
+> se guardan campos sensibles (password, secret, token, key).
 
 **`notification`**
 `organization_id` · `recipient_id` · `kind` · `title` · `body` · `url` · `read_at` · `emailed_at`.
@@ -172,7 +180,7 @@ Se **copian** a la organización al adoptarlas; nunca se referencian en vivo (un
 
 | Módulo | Tablas | Punto de enganche en el MVP |
 |---|---|---|
-| Inventario (F2) | `part`, `warehouse`, `stock_item`, `stock_movement`, `reservation` | `part_usage.part_id`, `plan_resource.part_id` ya existen (nullable). |
+| Inventario (F2) | `part`, `warehouse`, `stock_item`, `stock_movement`, `reservation` | `part_usage.part_id`, `plan_resource.part_id` se agregará (hoy solo `part_usage.part_id`). |
 | Condición (F2) | `measurement_point` (variable de un activo), `measurement` (serie de tiempo, particionada), `condition_rule`, `alert` | `meter` y `meter_reading` son un caso particular; las reglas pueden apuntar a `meter_id` o a `measurement_point_id`. |
 | Offline (F2) | `sync_batch` (registro de lotes recibidos) | `client_uuid` en todas las tablas que escribe el técnico. |
 | SSO (F3) | tablas de allauth (`socialaccount`, config SAML por organización) | `user` global + `membership`. |

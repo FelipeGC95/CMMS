@@ -1,5 +1,5 @@
 from django.contrib import messages
-from django.core.exceptions import PermissionDenied
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.paginator import Paginator
 from django.http import FileResponse, Http404
 from django.shortcuts import get_object_or_404, redirect, render
@@ -10,13 +10,14 @@ from apps.core.decorators import membership_required
 
 from .forms import CompleteWorkOrderForm
 from .models import Attachment, WorkOrder, WorkOrderChecklistItem
-from .selectors import work_order_detail, work_order_list
+from .selectors import visible_work_orders, work_order_detail, work_order_list
 from .services import (
     WorkOrderError,
     allowed_transitions,
     answer_checklist_item,
     complete_work_order,
     transition,
+    work_order_meter,
 )
 
 SCOPES = [("open", "Abiertas"), ("overdue", "Vencidas"), ("mine", "Mis OT"), ("done", "Cerradas")]
@@ -27,9 +28,11 @@ def work_order_list_view(request):
     scope = request.GET.get("scope", "open")
     work_type = request.GET.get("type", "")
     if scope == "mine":
-        qs = work_order_list(scope="open", work_type=work_type, assigned_to=request.user)
+        qs = work_order_list(
+            membership=request.membership, scope="open", work_type=work_type, assigned_to=request.user
+        )
     else:
-        qs = work_order_list(scope=scope, work_type=work_type)
+        qs = work_order_list(membership=request.membership, scope=scope, work_type=work_type)
     page = Paginator(qs, 25).get_page(request.GET.get("page"))
     return render(
         request,
@@ -44,35 +47,45 @@ def work_order_list_view(request):
     )
 
 
+def _complete_form(work_order, data=None):
+    meter = work_order_meter(work_order)
+    plan = work_order.plan_assignment.plan if work_order.plan_assignment_id else None
+    return CompleteWorkOrderForm(
+        data,
+        with_failure=work_order.work_type == WorkOrder.Type.CORRECTIVE,
+        meter=meter,
+        meter_required=bool(plan and plan.uses_meter and meter),
+    )
+
+
 def _detail_context(request, work_order, complete_form=None):
-    is_corrective = work_order.work_type == WorkOrder.Type.CORRECTIVE
     targets = allowed_transitions(work_order=work_order, membership=request.membership)
     return {
         "wo": work_order,
         "transitions": [(s, WorkOrder.Status(s).label) for s in targets if s != WorkOrder.Status.COMPLETED],
         "can_execute": has_perm(request.membership, Perm.WORK_ORDER_EXECUTE) and work_order.is_open,
-        "complete_form": complete_form or CompleteWorkOrderForm(with_failure=is_corrective),
+        "complete_form": complete_form or _complete_form(work_order),
         "pending_required": sum(1 for i in work_order.checklist.all() if i.required and not i.result),
     }
 
 
-def _get_detail_or_404(pk):
+def _get_detail_or_404(request, pk):
     try:
-        return work_order_detail(pk)
+        return work_order_detail(pk, membership=request.membership)
     except WorkOrder.DoesNotExist as exc:
         raise Http404 from exc
 
 
 @membership_required
 def work_order_detail_view(request, pk):
-    work_order = _get_detail_or_404(pk)
+    work_order = _get_detail_or_404(request, pk)
     return render(request, "work/detail.html", _detail_context(request, work_order))
 
 
 @require_POST
 @membership_required
 def work_order_transition_view(request, pk):
-    work_order = get_object_or_404(WorkOrder, pk=pk)
+    work_order = get_object_or_404(visible_work_orders(membership=request.membership), pk=pk)
     try:
         transition(
             work_order=work_order,
@@ -91,7 +104,11 @@ def work_order_transition_view(request, pk):
 @membership_required(perm=Perm.WORK_ORDER_EXECUTE)
 def checklist_answer_view(request, pk, item_pk):
     item = get_object_or_404(
-        WorkOrderChecklistItem.objects.select_related("work_order"), pk=item_pk, work_order_id=pk
+        WorkOrderChecklistItem.objects.select_related("work_order").filter(
+            work_order__in=visible_work_orders(membership=request.membership)
+        ),
+        pk=item_pk,
+        work_order_id=pk,
     )
     error = None
     try:
@@ -121,8 +138,8 @@ def checklist_answer_view(request, pk, item_pk):
 @require_POST
 @membership_required(perm=Perm.WORK_ORDER_EXECUTE)
 def work_order_complete_view(request, pk):
-    work_order = _get_detail_or_404(pk)
-    form = CompleteWorkOrderForm(request.POST, with_failure=work_order.work_type == WorkOrder.Type.CORRECTIVE)
+    work_order = _get_detail_or_404(request, pk)
+    form = _complete_form(work_order, request.POST)
     if form.is_valid():
         try:
             complete_work_order(
@@ -132,20 +149,23 @@ def work_order_complete_view(request, pk):
                 notes=form.cleaned_data["notes"],
                 failure_mode=form.cleaned_data.get("failure_mode"),
                 failure_cause=form.cleaned_data.get("failure_cause"),
+                meter_value=form.cleaned_data.get("meter_value"),
             )
-        except WorkOrderError as exc:
-            messages.error(request, exc.message)
+        except ValidationError as exc:
+            messages.error(request, " ".join(exc.messages))
         else:
             messages.success(request, f"{work_order.code} completada.")
             return redirect("work_order_detail", pk=pk)
-    work_order = work_order_detail(pk)
+    work_order = work_order_detail(pk, membership=request.membership)
     return render(request, "work/detail.html", _detail_context(request, work_order, form), status=400)
 
 
 @membership_required
 def attachment_view(request, pk):
-    """Los archivos nunca se sirven públicamente: se verifica la organización."""
-    attachment = get_object_or_404(Attachment, pk=pk)
+    """Los archivos nunca se sirven públicamente: se verifica la organización y el alcance por sitio."""
+    attachment = get_object_or_404(
+        Attachment.objects.filter(work_order__in=visible_work_orders(membership=request.membership)), pk=pk
+    )
     return FileResponse(
         attachment.file.open("rb"), content_type=attachment.content_type, filename=attachment.filename
     )
