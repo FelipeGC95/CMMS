@@ -352,6 +352,6 @@ completo; inglés y portugués en F3.
 | NF-14 | Operación | Ambientes dev, staging y producción; despliegue automático a staging en `main` y manual a producción. | Pipeline. |
 | NF-15 | Operación | Monitoreo de errores (Sentry), logs estructurados, `/healthz` (vida) y `/readyz` (base de datos). | Staging. |
 | NF-16 | Accesibilidad | WCAG 2.2 AA: contraste, foco visible, navegación por teclado, etiquetas; objetivos táctiles ≥ 48 px en vistas de técnico. | Test automático de contraste de tokens + revisión manual. |
-| NF-17 | Móvil | Mobile first; usable en pantallas de 360 px; alto contraste para exteriores. | Revisión en dispositivo real. |
+| NF-17 | Móvil | Mobile first: **toda** funcionalidad (no solo la del técnico) se completa desde un teléfono de 360 px, sin scroll horizontal; alto contraste para exteriores (ADR-017). | `tests/ui/test_mobile.py` en CI + prueba a 360 px por vista + revisión en dispositivo real por release. |
 | NF-18 | Tiempo | Fechas en UTC en la base; se muestran en la zona del sitio o de la organización. | Tests con zonas distintas. |
 | NF-19 | i18n | Ningún texto de interfaz sin marcar para traducción. | Revisión + `makemessages` en CI. |

@@ -29,14 +29,14 @@
       {% for row in preview.rows %}
       <tr>
         <td class="num" data-label="{% translate 'Fila' %}">{{ row.row }}</td>
-        <td class="mono">{{ row.code|default:"—" }}</td>
-        <td>{{ row.name|default:"—" }}</td>
-        <td>
+        <td class="mono" data-label="">{{ row.code|default:"—" }}</td>
+        <td data-label="">{{ row.name|default:"—" }}</td>
+        <td data-label="">
           {% if row.action == "create" %}<span class="badge badge--success">{% icon 'check' %}{% translate "Nuevo" %}</span>
           {% elif row.action == "update" %}<span class="badge badge--info">{% icon 'info' %}{% translate "Actualiza" %}</span>
           {% else %}<span class="badge badge--error">{% icon 'stop' %}{% translate "Error" %}</span>{% endif %}
         </td>
-        <td>
+        <td data-label="">
           {% for e in row.errors %}<div><span class="badge badge--error">{% icon 'stop' %}{{ e }}</span></div>{% endfor %}
           {% for n in row.notes %}<div class="muted">{{ n }}</div>{% endfor %}
         </td>

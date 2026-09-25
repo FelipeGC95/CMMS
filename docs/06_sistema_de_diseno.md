@@ -10,6 +10,8 @@ archivos que usa la aplicación se copian a `static/brand/` con un comando
 
 1. **Legible en terreno primero:** alto contraste, texto ≥ 16 px en móvil,
    objetivos táctiles ≥ 48 × 48 px en vistas de técnico (usables con guantes).
+   **Toda** la aplicación se completa desde un teléfono de 360 px, sin scroll
+   horizontal (ADR-017); se diseña primero a 360 px y se amplía a escritorio.
 2. **Sobrio y consistente:** pocas variantes por componente; el color comunica
    estado, no decora.
 3. **Nunca solo color:** todo estado lleva ícono + texto.
@@ -26,7 +28,7 @@ archivos que usa la aplicación se copian a `static/brand/` con un comando
 |---|---|
 | Navbar escritorio, fondo claro | `galbust-horizontal-color.svg` |
 | Navbar escritorio, fondo oscuro o modo oscuro | `galbust-horizontal-negativo.svg` |
-| Navbar móvil (< 640 px) | `galbust-isotipo-color.svg` / `galbust-isotipo-blanco.svg` en oscuro |
+| Navbar compacta (< 1100 px) | `galbust-isotipo-color.svg` / `galbust-isotipo-blanco.svg` en oscuro |
 | Favicon | `galbust-favicon.ico` + `png/favicon-*.png` |
 | Ícono PWA / apple-touch | `png/galbust-app-icon-180.png`, `-512.png` |
 | Login y pantallas de bienvenida | `galbust-vertical-color.svg` / `-negativo.svg` |
@@ -213,6 +215,14 @@ de estado, texto, fondo, foco ni bordes. La marca GALBUST sigue visible como
 
 ## 5. Componentes base
 
+**Cortes de pantalla** (únicos; ningún componente define otros):
+
+| Corte | Qué cambia |
+|---|---|
+| < 720 px | Una columna; las tablas `.table` se apilan como tarjetas con la etiqueta de `data-label`. |
+| < 1100 px | Navegación compacta: isotipo, menú de escritorio oculto y navegación inferior con todos los destinos (los que no caben van en "Más"). |
+
+
 Todos se muestran en `/design-system/` en ambos modos, con sus estados
 (normal, hover, foco, deshabilitado, cargando, error).
 
@@ -223,11 +233,11 @@ Todos se muestran en `/design-system/` en ambos modos, con sus estados
 | **Checkbox / radio / switch** | | Área táctil ≥ 48px. |
 | **Resultado de checklist** | OK / No OK / N.A. | Tres botones grandes con ícono + texto; el seleccionado usa el color de estado. |
 | **Badge de estado** | éxito, advertencia, error, info, neutro | Píldora con fondo tenue + ícono + texto. |
-| **Tabla** | densa (escritorio), tarjetas apiladas (móvil < 640px) | Inter con cifras tabulares; encabezado fijo; ordenar y paginar con htmx. |
+| **Tabla** | densa (escritorio), tarjetas apiladas (< 720px) | Inter con cifras tabulares; encabezado fijo; ordenar y paginar con htmx. Toda `<td>` lleva `data-label`. |
 | **Tarjeta** | simple, con encabezado y acciones | |
 | **Tarjeta KPI** | valor, unidad, variación, meta | Cifra en Inter 600 `--text-2xl`; la variación con ícono de flecha + texto (no solo verde/rojo). |
 | **Navbar** | escritorio (logo horizontal), móvil (isotipo + menú) | Fondo `--color-nav-bg`, logo negativo; selector de organización y de tema. |
-| **Navegación inferior móvil** | 4–5 destinos | Solo en vistas de técnico: Mis OT, Escanear QR, Avisar falla, Perfil. |
+| **Navegación inferior móvil** | 4–5 destinos | Bajo 1100 px, para todos los roles. Técnico: Mis OT, Escanear QR, Avisar falla, Perfil. Otros roles: sus destinos principales + "Más" con el resto del menú de escritorio. |
 | **Alerta / toast** | 4 estados | `role="status"` o `role="alert"` según urgencia. |
 | **Modal / hoja inferior** | | Hoja inferior en móvil; foco atrapado; se cierra con Esc. |
 | **Estado vacío** | | Ilustración mínima con el isotipo en monocromo + acción sugerida. |
@@ -241,5 +251,9 @@ Todos se muestran en `/design-system/` en ambos modos, con sus estados
   agrega a esa tabla.
 - Test que busca colores en formato hex en `templates/` y
   `static/css/components.css`: fuera de `tokens.css` no se permiten.
+- `tests/ui/test_mobile.py` falla si una `.table` de `templates/` tiene
+  celdas `<td>` sin `data-label`.
+- Cada vista nueva se prueba a 360 px (DevTools) antes de darla por
+  terminada: sin scroll horizontal y con todas sus acciones alcanzables.
 - Revisión manual de cada release en un teléfono real a pleno sol y con
   guantes en las vistas de técnico.

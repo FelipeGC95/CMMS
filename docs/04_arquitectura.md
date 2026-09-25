@@ -415,3 +415,44 @@ tener ingresos).
     `frequency_label`, `uses_meter`…) delegan en la versión vigente y
     devuelven vacío si no la hay.
   - Las versiones usadas por OT no se pueden borrar.
+
+### ADR-017 · Toda la aplicación es usable completa desde un smartphone
+- **Contexto:** los clientes son pymes donde el administrador, el
+  planificador y el técnico suelen ser la misma persona y trabajan en planta,
+  no en un escritorio. NF-17 decía "mobile first", pero solo las vistas de
+  técnico tenían reglas concretas y la verificación era manual.
+- **Decisión:**
+  - **Toda** funcionalidad web (técnico, planificador, administrador,
+    reportes, importación, configuración) se puede **completar** desde un
+    teléfono de 360 px de ancho, en vertical, sin scroll horizontal de la
+    página. "Consultable pero no editable en móvil" no es aceptable.
+  - Se diseña primero para 360 px y se amplía hacia escritorio; el
+    escritorio puede ser más denso, pero no tener funciones exclusivas.
+  - Cortes de pantalla únicos, definidos en `docs/06_sistema_de_diseno.md`
+    §5: **720 px** (una columna, tablas a tarjetas) y **1100 px**
+    (navegación compacta). Ningún componente inventa otro corte.
+  - Toda `<td>` de una `.table` lleva `data-label`, porque bajo 720 px la
+    fila se apila como tarjeta y la etiqueta reemplaza al encabezado.
+  - Todo destino de la navegación de escritorio tiene un acceso en la
+    navegación móvil.
+  - Una vista no se da por terminada sin probarla a 360 px (DevTools basta
+    en desarrollo; teléfono real en cada release).
+- **Por qué:** cubre el uso real del cliente objetivo sin mantener dos
+  aplicaciones, y es coherente con ADR-004 (renderizado en servidor) y con la
+  PWA de F2 (ADR-011).
+- **Alternativas descartadas:**
+  - Móvil solo para técnicos y escritorio para administración: obliga al
+    dueño de la pyme a ir a un computador para tareas cortas.
+  - App nativa: segundo código que mantener; se reevalúa solo si la PWA no
+    alcanza (cámara, offline).
+- **Consecuencias:**
+  - `tests/ui/test_mobile.py` falla si una `.table` tiene celdas sin
+    `data-label`.
+  - Tareas de escritorio intensivas (importación de Excel, edición de
+    checklists largos) necesitan un diseño móvil propio: pasos cortos,
+    tarjetas en vez de grillas, subida de archivo desde el teléfono.
+  - La navegación móvil actual (Inicio, Mis OT, Activos) no expone Equipo
+    ni Configuración: requiere un destino "Más" con el resto del menú.
+  - Configuración vive hoy en el admin de Django, cuyo uso en móvil es
+    limitado; las pantallas de configuración que use el cliente se mueven
+    a vistas propias a medida que se construyen.

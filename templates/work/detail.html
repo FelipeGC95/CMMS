@@ -75,15 +75,15 @@
       <thead><tr><th>{% translate "Concepto" %}</th><th>{% translate "Detalle" %}</th><th>{% translate "Costo" %}</th><th><span class="visually-hidden">{% translate "Acción" %}</span></th></tr></thead>
       <tbody>
         {% for l in wo.labor.all %}
-        <tr><td>{% icon 'clock' %} {{ l.user }}</td><td class="num" data-label="{% translate 'Detalle' %}">{{ l.minutes }} min × $ {{ l.hourly_cost|num }}/h</td><td class="num" data-label="{% translate 'Costo' %}">$ {{ l.cost|num }}</td><td></td></tr>
+        <tr><td data-label="">{% icon 'clock' %} {{ l.user }}</td><td class="num" data-label="{% translate 'Detalle' %}">{{ l.minutes }} min × $ {{ l.hourly_cost|num }}/h</td><td class="num" data-label="{% translate 'Costo' %}">$ {{ l.cost|num }}</td><td data-label=""></td></tr>
         {% endfor %}
         {% for p in wo.parts.all %}
-        <tr><td>{% icon 'box' %} {{ p.description }}</td><td class="num" data-label="{% translate 'Detalle' %}">{{ p.quantity|num }} {{ p.unit }} × $ {{ p.unit_cost|num }}</td><td class="num" data-label="{% translate 'Costo' %}">$ {{ p.cost|num }}</td>
-          <td>{% if costs_editable and can_execute %}<form method="post" action="{% url 'work_order_cost_delete' wo.pk 'part' p.pk %}">{% csrf_token %}<button class="btn btn--ghost" type="submit" aria-label="{% translate 'Quitar' %} {{ p.description }}">{% icon 'x' %}</button></form>{% endif %}</td></tr>
+        <tr><td data-label="">{% icon 'box' %} {{ p.description }}</td><td class="num" data-label="{% translate 'Detalle' %}">{{ p.quantity|num }} {{ p.unit }} × $ {{ p.unit_cost|num }}</td><td class="num" data-label="{% translate 'Costo' %}">$ {{ p.cost|num }}</td>
+          <td data-label="">{% if costs_editable and can_execute %}<form method="post" action="{% url 'work_order_cost_delete' wo.pk 'part' p.pk %}">{% csrf_token %}<button class="btn btn--ghost" type="submit" aria-label="{% translate 'Quitar' %} {{ p.description }}">{% icon 'x' %}</button></form>{% endif %}</td></tr>
         {% endfor %}
         {% for c in wo.other_costs.all %}
-        <tr><td>{% icon 'wrench' %} {{ c.description }}</td><td data-label="{% translate 'Detalle' %}">{{ c.supplier|default:"—" }}</td><td class="num" data-label="{% translate 'Costo' %}">$ {{ c.amount|num }}</td>
-          <td>{% if costs_editable and can_manage %}<form method="post" action="{% url 'work_order_cost_delete' wo.pk 'other' c.pk %}">{% csrf_token %}<button class="btn btn--ghost" type="submit" aria-label="{% translate 'Quitar' %} {{ c.description }}">{% icon 'x' %}</button></form>{% endif %}</td></tr>
+        <tr><td data-label="">{% icon 'wrench' %} {{ c.description }}</td><td data-label="{% translate 'Detalle' %}">{{ c.supplier|default:"—" }}</td><td class="num" data-label="{% translate 'Costo' %}">$ {{ c.amount|num }}</td>
+          <td data-label="">{% if costs_editable and can_manage %}<form method="post" action="{% url 'work_order_cost_delete' wo.pk 'other' c.pk %}">{% csrf_token %}<button class="btn btn--ghost" type="submit" aria-label="{% translate 'Quitar' %} {{ c.description }}">{% icon 'x' %}</button></form>{% endif %}</td></tr>
         {% endfor %}
       </tbody>
     </table>
