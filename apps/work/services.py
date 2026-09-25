@@ -12,6 +12,8 @@ from django.utils import timezone
 from apps.accounts.permissions import Perm, has_perm, require_perm
 from apps.assets.models import Asset, MeterReading
 from apps.assets.services import change_asset_status, record_meter_reading
+from apps.audit import services as audit
+from apps.audit.models import AuditEvent
 
 from .models import (
     Attachment,
@@ -28,6 +30,7 @@ from .models import (
 )
 
 S = WorkOrder.Status
+R = WorkRequest.Status
 
 # Ciclo de vida fijo con pasos opcionales (ADR-008).
 TRANSITIONS: dict[str, set[str]] = {
@@ -460,3 +463,114 @@ def remove_cost_line(*, line, membership) -> None:
     _require_cost_editable(work_order)
     line.delete()
     recalculate_costs(work_order=work_order)
+
+
+# --- Decisión del planificador sobre solicitudes (REQ-01 CA3) -----------------
+
+
+def _require_pending_request(work_request: WorkRequest) -> None:
+    if work_request.status != R.PENDING:
+        raise WorkOrderError(f"La solicitud #{work_request.number} ya fue decidida.")
+
+
+def _cancel_request_work_order(*, work_request: WorkRequest, membership, comment: str) -> None:
+    """Cancela la OT de la solicitud (rechazo o fusión); no se puede si ya se completó el trabajo.
+
+    El evento de falla y el estado del activo (si `asset_stopped` los abrió) no
+    se tocan: reflejan la condición física real del equipo, no la decisión
+    administrativa sobre el aviso. Quedan en la OT cancelada como historial de
+    cuándo se avisó la falla; si el activo sigue detenido, alguien debe
+    resolverlo por separado (cambio de estado del activo).
+    """
+    work_order = work_request.work_order
+    if work_order is None:
+        return
+    if work_order.status in (S.COMPLETED, S.CLOSED):
+        raise WorkOrderError(
+            f"La {work_order.code} ya fue completada: la solicitud no se puede rechazar ni fusionar."
+        )
+    if work_order.status != S.CANCELLED:
+        transition(work_order=work_order, to_status=S.CANCELLED, membership=membership, comment=comment[:500])
+
+
+@transaction.atomic
+def accept_request(*, work_request: WorkRequest, membership) -> WorkRequest:
+    """El planificador acepta la solicitud.
+
+    La OT correctiva ya existe (se crea al avisar, `report_failure`): aceptar
+    solo formaliza la decisión y saca la solicitud de la bandeja de pendientes.
+    """
+    require_perm(membership, Perm.WORK_ORDER_MANAGE)
+    _require_pending_request(work_request)
+    work_request.status = R.ACCEPTED
+    work_request.decided_by = membership.user
+    work_request.decided_at = timezone.now()
+    work_request.save(update_fields=["status", "decided_by", "decided_at", "updated_at"])
+    audit.record(
+        action=AuditEvent.Action.TRANSITION,
+        target=work_request,
+        actor=membership.user,
+        changes={"status": [R.PENDING, R.ACCEPTED]},
+    )
+    return work_request
+
+
+@transaction.atomic
+def reject_request(*, work_request: WorkRequest, membership, reason: str) -> WorkRequest:
+    """El planificador rechaza la solicitud (motivo obligatorio) y cancela su OT."""
+    require_perm(membership, Perm.WORK_ORDER_MANAGE)
+    _require_pending_request(work_request)
+    reason = reason.strip()
+    if not reason:
+        raise WorkOrderError("El motivo de rechazo es obligatorio.")
+
+    _cancel_request_work_order(
+        work_request=work_request, membership=membership, comment=f"Solicitud rechazada: {reason}"
+    )
+    work_request.status = R.REJECTED
+    work_request.rejection_reason = reason[:500]
+    work_request.decided_by = membership.user
+    work_request.decided_at = timezone.now()
+    work_request.save(update_fields=["status", "rejection_reason", "decided_by", "decided_at", "updated_at"])
+    audit.record(
+        action=AuditEvent.Action.TRANSITION,
+        target=work_request,
+        actor=membership.user,
+        changes={"status": [R.PENDING, R.REJECTED], "reason": work_request.rejection_reason},
+    )
+    return work_request
+
+
+@transaction.atomic
+def merge_request(*, work_request: WorkRequest, into: WorkRequest, membership) -> WorkRequest:
+    """El planificador fusiona `work_request` con `into`: son el mismo problema.
+
+    Cancela la OT de `work_request` (sin borrado físico: la solicitud queda
+    vinculada mediante `merged_into`) y no toca la de `into`.
+    """
+    require_perm(membership, Perm.WORK_ORDER_MANAGE)
+    _require_pending_request(work_request)
+    if into.pk == work_request.pk:
+        raise WorkOrderError("Una solicitud no se puede fusionar consigo misma.")
+    if into.asset_id != work_request.asset_id:
+        raise WorkOrderError("Solo se puede fusionar con una solicitud del mismo activo.")
+    if into.status not in (R.PENDING, R.ACCEPTED):
+        raise WorkOrderError(f"La solicitud #{into.number} no está abierta.")
+
+    _cancel_request_work_order(
+        work_request=work_request,
+        membership=membership,
+        comment=f"Fusionada con la solicitud #{into.number}",
+    )
+    work_request.status = R.MERGED
+    work_request.merged_into = into
+    work_request.decided_by = membership.user
+    work_request.decided_at = timezone.now()
+    work_request.save(update_fields=["status", "merged_into", "decided_by", "decided_at", "updated_at"])
+    audit.record(
+        action=AuditEvent.Action.TRANSITION,
+        target=work_request,
+        actor=membership.user,
+        changes={"status": [R.PENDING, R.MERGED], "merged_into": into.number},
+    )
+    return work_request

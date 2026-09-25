@@ -1,8 +1,9 @@
 from django.utils import timezone
 
+from apps.accounts.permissions import Perm, require_perm
 from apps.accounts.scoping import allowed_location_ids
 
-from .models import FailureCode, WorkOrder
+from .models import FailureCode, WorkOrder, WorkRequest
 
 OPEN_STATUSES = [
     WorkOrder.Status.REQUESTED,
@@ -56,3 +57,36 @@ def work_order_detail(pk, *, membership):
 
 def failure_codes(kind: str):
     return FailureCode.objects.filter(kind=kind, is_active=True)
+
+
+# --- Solicitudes (REQ-01 CA3) --------------------------------------------------
+
+
+def visible_requests(*, membership):
+    """Solicitudes que la membresía puede ver (ORG-06): alcance por sitio del activo."""
+    qs = WorkRequest.objects.all()
+    location_ids = allowed_location_ids(membership)
+    if location_ids is not None:
+        qs = qs.filter(asset__location_id__in=location_ids)
+    return qs
+
+
+def pending_requests(*, membership):
+    """Bandeja de solicitudes por decidir, del más antiguo al más nuevo."""
+    require_perm(membership, Perm.WORK_ORDER_MANAGE)
+    return (
+        visible_requests(membership=membership)
+        .filter(status=WorkRequest.Status.PENDING)
+        .select_related("asset", "requested_by", "work_order")
+        .order_by("created_at")
+    )
+
+
+def open_requests_for_asset(*, asset, exclude=None):
+    """Otras solicitudes del mismo activo aún abiertas (candidatas para fusionar)."""
+    qs = WorkRequest.objects.filter(
+        asset=asset, status__in=(WorkRequest.Status.PENDING, WorkRequest.Status.ACCEPTED)
+    )
+    if exclude is not None:
+        qs = qs.exclude(pk=exclude.pk)
+    return qs.select_related("requested_by").order_by("-created_at")
