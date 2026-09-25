@@ -1,10 +1,13 @@
 """Auditoría etapa 2 (X-01): vista filtrable, login y planes preventivos."""
 
 import datetime
+import zoneinfo
+from unittest import mock
 
 import pytest
 from django.contrib.contenttypes.models import ContentType
 from django.urls import reverse
+from django.utils import timezone
 
 from apps.accounts.models import Membership, User
 from apps.assets.models import Asset
@@ -63,7 +66,7 @@ def test_audit_list_filters(client, tenant_a):
         return response.context["page"].paginator.count
 
     asset_type = ContentType.objects.get_for_model(Asset).pk
-    today = datetime.date.today().isoformat()
+    today = timezone.localdate(timezone=zoneinfo.ZoneInfo(tenant_a.org.timezone)).isoformat()
     assert count() == total
     assert count(action="transition", target_type=asset_type) == 1
     assert count(actor="technician@") == 2
@@ -72,6 +75,22 @@ def test_audit_list_filters(client, tenant_a):
     assert count(date_from="2000-01-01", date_to="2000-01-02") == 0
     assert count(date_from=today) == total
     assert count(action="no-existe") == total  # filtro inválido: se ignora
+
+
+def test_audit_list_dates_use_the_organization_timezone(client, tenant_a):
+    """01:44 UTC del 25 de septiembre sigue siendo el 24 en Santiago (UTC-3)."""
+    near_midnight = datetime.datetime(2026, 9, 25, 1, 44, tzinfo=datetime.UTC)
+    with tenant_context(tenant_a.org), mock.patch("django.utils.timezone.now", return_value=near_midnight):
+        event = record(action=Action.UPDATE, target=tenant_a.asset)
+    login(client, tenant_a.admin)
+
+    def shown(**params):
+        page = client.get(reverse("audit_list"), params).context["page"]
+        return event.pk in {e.pk for e in page.paginator.object_list}
+
+    assert shown(date_from="2026-09-24", date_to="2026-09-24")
+    assert not shown(date_from="2026-09-25")
+    assert not shown(date_to="2026-09-23")
 
 
 # --- Login ---------------------------------------------------------------------
