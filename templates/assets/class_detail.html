@@ -1,0 +1,53 @@
+{% extends "base.html" %}{% load i18n ui %}
+{% block title %}{{ asset_class.name }}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <p class="muted mono">{{ asset_class.code }}</p>
+    <h1>{{ asset_class.name }}</h1>
+  </div>
+  <a class="btn btn--ghost" href="{% url 'asset_class_list' %}">{% translate "Volver a clases" %}</a>
+</div>
+
+<section class="card card--flush" aria-labelledby="attributes-title">
+  <div class="card__header"><h2 id="attributes-title">{% translate "Atributos" %}</h2></div>
+  <table class="table">
+    <thead><tr><th>{% translate "Nombre" %}</th><th>{% translate "Tipo" %}</th><th>{% translate "Unidad / opciones" %}</th><th>{% translate "Obligatorio" %}</th><th>{% translate "Estado" %}</th></tr></thead>
+    <tbody>
+      {% for attribute in attributes %}
+      <tr>
+        <td><a href="{% url 'attribute_edit' asset_class.pk attribute.pk %}">{{ attribute.label }}</a></td>
+        <td data-label="{% translate 'Tipo' %}">{{ attribute.get_data_type_display }}</td>
+        <td data-label="{% translate 'Unidad / opciones' %}">{% if attribute.choices %}{{ attribute.choices|join:", " }}{% else %}{{ attribute.unit|default:"—" }}{% endif %}</td>
+        <td data-label="{% translate 'Obligatorio' %}">{% if attribute.required %}{% translate "Sí" %}{% else %}{% translate "No" %}{% endif %}</td>
+        <td>{% if attribute.is_active %}<span class="badge badge--success">{% icon 'check' %}{% translate "Visible" %}</span>{% else %}<span class="badge badge--neutral">{% icon 'dot' %}{% translate "Oculto" %}</span>{% endif %}</td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="5" class="empty">{% translate "Sin atributos: agrega los datos técnicos que quieres registrar (capacidad, potencia…)." %}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+
+<div class="grid grid--2 mt-4">
+  <section class="card">
+    <h2>{% translate "Agregar atributo" %}</h2>
+    <form method="post">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="attribute">
+      {% include "_form_fields.html" with form=attribute_form %}
+      <p class="muted">{% translate "El tipo no se puede cambiar después: los valores guardados siguen siendo válidos." %}</p>
+      <button class="btn btn--primary" type="submit">{% translate "Agregar" %}</button>
+    </form>
+  </section>
+  <section class="card">
+    <h2>{% translate "Datos de la clase" %}</h2>
+    <form method="post">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="class">
+      {% include "_form_fields.html" with form=class_form %}
+      <button class="btn btn--secondary" type="submit">{% translate "Guardar" %}</button>
+    </form>
+  </section>
+</div>
+{% endblock %}

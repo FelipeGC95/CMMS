@@ -106,3 +106,21 @@ def test_django_admin_is_scoped_to_active_organization(client, tenant_a, tenant_
     listing = client.get(reverse("admin:assets_asset_changelist"))
     assert list(listing.context["cl"].queryset) == [tenant_a.asset]
     assert client.get(reverse("admin:assets_asset_change", args=[tenant_b.asset.pk])).status_code == 302
+
+
+@pytest.mark.parametrize("role", ["supervisor", "technician", "viewer", "external"])
+def test_only_asset_managers_configure_locations_and_classes(client, tenant_a, role):
+    member = tenant_a.tech
+    member.role = role
+    member.save()
+    login(client, member)
+    for url in [
+        reverse("location_list"),
+        reverse("asset_class_list"),
+        reverse("asset_class_detail", args=[tenant_a.asset.asset_class_id]),
+        reverse("asset_attributes", args=[tenant_a.asset.pk]),
+    ]:
+        assert client.get(url).status_code == 403, url
+    assert (
+        client.post(reverse("location_list"), {"code": "P", "name": "P", "kind": "site"}).status_code == 403
+    )
