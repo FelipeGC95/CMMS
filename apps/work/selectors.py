@@ -134,3 +134,11 @@ def open_requests_for_asset(*, asset, exclude=None):
     if exclude is not None:
         qs = qs.exclude(pk=exclude.pk)
     return qs.select_related("requested_by").order_by("-created_at")
+
+
+def failure_code_list(*, kind: str = ""):
+    """Catálogo completo (activos e inactivos) para la pantalla de edición (REQ-03 CA1)."""
+    qs = FailureCode.objects.all()
+    if kind:
+        qs = qs.filter(kind=kind)
+    return qs.order_by("kind", "name")

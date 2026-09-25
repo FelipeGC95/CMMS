@@ -33,13 +33,13 @@
     <tbody>
       {% for asset in page.object_list %}
       <tr>
-        <td class="mono">{{ asset.code }}</td>
-        <td><a href="{% url 'asset_detail' asset.pk %}">{{ asset.name }}</a></td>
+        <td class="mono" data-label="">{{ asset.code }}</td>
+        <td data-label=""><a href="{% url 'asset_detail' asset.pk %}">{{ asset.name }}</a></td>
         <td data-label="{% translate 'Clase' %}">{{ asset.asset_class }}</td>
         <td data-label="{% translate 'Ubicación' %}">{{ asset.location|default:"—" }}</td>
         <td data-label="{% translate 'Criticidad' %}">{{ asset.criticality }}</td>
-        <td>{% status_badge asset %}</td>
-        {% if request.GET.report %}<td><a class="btn btn--primary" href="{% url 'asset_report' asset.pk %}">{% icon 'megaphone' %}{% translate "Avisar" %}</a></td>{% endif %}
+        <td data-label="">{% status_badge asset %}</td>
+        {% if request.GET.report %}<td data-label=""><a class="btn btn--primary" href="{% url 'asset_report' asset.pk %}">{% icon 'megaphone' %}{% translate "Avisar" %}</a></td>{% endif %}
       </tr>
       {% endfor %}
     </tbody>

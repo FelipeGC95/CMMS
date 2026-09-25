@@ -1,0 +1,77 @@
+"""Uso completo desde un smartphone (ADR-017, docs/06_sistema_de_diseno.md §6).
+
+Bajo 720 px cada fila de una `.table` se apila como tarjeta y `data-label`
+reemplaza al encabezado. Toda celda lo declara; `data-label=""` marca una
+celda que se explica sola (nombre, estado, acciones).
+"""
+
+import re
+from pathlib import Path
+
+import pytest
+from django.urls import reverse
+
+from tests.conftest import login
+
+TEMPLATES = Path(__file__).resolve().parents[2] / "templates"
+
+TABLE = re.compile(r'<table\b[^>]*class="[^"]*\btable\b[^"]*"[^>]*>(.*?)</table>', re.S)
+TD = re.compile(r"<td\b[^>]*>")
+
+
+def _templates():
+    return sorted(TEMPLATES.rglob("*.html"))
+
+
+@pytest.mark.parametrize("path", _templates(), ids=lambda p: str(p.relative_to(TEMPLATES)))
+def test_table_cells_declare_data_label(path):
+    source = path.read_text(encoding="utf-8")
+    missing = [td for table in TABLE.findall(source) for td in TD.findall(table) if "data-label" not in td]
+    assert not missing, f"Celdas sin data-label en {path.name}: {missing}"
+
+
+@pytest.mark.parametrize("layout", ["base.html", "allauth/layouts/base.html"])
+def test_layouts_declare_viewport(layout):
+    source = (TEMPLATES / layout).read_text(encoding="utf-8")
+    assert 'name="viewport" content="width=device-width, initial-scale=1"' in source
+
+
+NAV_LINKS = re.compile(r'<nav class="navbar__links"[^>]*>(.*?)</nav>', re.S)
+BOTTOM_NAV = re.compile(r'<nav class="bottom-nav"[^>]*>(.*?)</nav>', re.S)
+HREF = re.compile(r'href="([^"?#]+)')
+
+
+@pytest.mark.parametrize("role", ["admin", "tech", "viewer"])
+def test_every_desktop_destination_is_reachable_on_mobile(client, tenant_a, role):
+    """Todo destino del menú de escritorio tiene acceso en la navegación móvil (ADR-017)."""
+    membership = getattr(tenant_a, role)
+    membership.user.is_staff = role == "admin"
+    membership.user.save(update_fields=["is_staff"])
+    login(client, membership)
+
+    page = client.get(reverse("dashboard")).content.decode()
+    desktop = set(HREF.findall(NAV_LINKS.search(page).group(1)))
+    mobile = set(HREF.findall(BOTTOM_NAV.search(page).group(1)))
+    assert reverse("menu") in mobile
+
+    menu = client.get(reverse("menu"))
+    assert menu.status_code == 200
+    mobile |= set(HREF.findall(menu.content.decode()))
+    assert desktop <= mobile, f"Destinos sin acceso móvil: {desktop - mobile}"
+
+
+def test_menu_offers_organization_switch_when_member_of_several(client, tenant_a, tenant_b):
+    from apps.accounts.models import Membership
+
+    Membership.objects.create(user=tenant_a.admin.user, organization=tenant_b.org, role="viewer")
+    login(client, tenant_a.admin)
+    body = client.get(reverse("menu")).content.decode()
+    assert reverse("switch_organization") in body
+    assert tenant_b.org.name in body
+
+
+def test_menu_hides_destinations_the_role_cannot_use(client, tenant_a):
+    login(client, tenant_a.viewer)
+    body = client.get(reverse("menu")).content.decode()
+    for name in ("request_list", "team", "audit_list", "location_list"):
+        assert reverse(name) not in body

@@ -15,14 +15,17 @@ from apps.core.decorators import membership_required
 
 from .forms import (
     CompleteWorkOrderForm,
+    FailureCodeForm,
+    FailureCodeRenameForm,
     LaborForm,
     OtherCostForm,
     PartUsageForm,
     WorkOrderCreateForm,
     WorkOrderFilterForm,
 )
-from .models import OtherCost, PartUsage, WorkOrder, WorkOrderChecklistItem
+from .models import FailureCode, OtherCost, PartUsage, WorkOrder, WorkOrderChecklistItem
 from .selectors import (
+    failure_code_list,
     open_requests_for_asset,
     pending_requests,
     visible_requests,
@@ -39,11 +42,14 @@ from .services import (
     allowed_transitions,
     answer_checklist_item,
     complete_work_order,
+    create_failure_code,
     create_work_order,
     log_labor,
     merge_request,
     reject_request,
     remove_cost_line,
+    rename_failure_code,
+    set_failure_code_active,
     transition,
     work_order_meter,
 )
@@ -122,6 +128,8 @@ def _complete_form(work_order, data=None):
         with_failure=work_order.work_type == WorkOrder.Type.CORRECTIVE,
         meter=meter,
         meter_required=bool(plan and plan.uses_meter and meter),
+        require_failure_details=work_order.organization.require_failure_details,
+        asset=work_order.asset,
     )
 
 
@@ -222,6 +230,9 @@ def work_order_complete_view(request, pk):
                 notes=form.cleaned_data["notes"],
                 failure_mode=form.cleaned_data.get("failure_mode"),
                 failure_cause=form.cleaned_data.get("failure_cause"),
+                failure_mechanism=form.cleaned_data.get("failure_mechanism"),
+                detection_method=form.cleaned_data.get("detection_method"),
+                component=form.cleaned_data.get("component"),
                 meter_value=form.cleaned_data.get("meter_value"),
             )
         except ValidationError as exc:
@@ -369,3 +380,63 @@ def request_merge_view(request, pk):
     return render(
         request, "work/request_merge.html", {"work_request": work_request, "candidates": candidates}
     )
+
+
+# --- Catálogo de falla (REQ-03 CA1) --------------------------------------------
+
+
+@membership_required(perm=Perm.WORK_ORDER_MANAGE)
+def failure_code_list_view(request):
+    kind = request.GET.get("kind", "")
+    page = Paginator(failure_code_list(kind=kind), 25).get_page(request.GET.get("page"))
+    form = FailureCodeForm(initial={"kind": kind} if kind else None)
+    return render(
+        request,
+        "work/failure_codes.html",
+        {"page": page, "kind": kind, "kinds": FailureCode.Kind.choices, "form": form},
+    )
+
+
+@require_POST
+@membership_required(perm=Perm.WORK_ORDER_MANAGE)
+def failure_code_create_view(request):
+    form = FailureCodeForm(request.POST)
+    if form.is_valid():
+        try:
+            create_failure_code(membership=request.membership, **form.cleaned_data)
+        except WorkOrderError as exc:
+            messages.error(request, exc.message)
+        else:
+            messages.success(request, "Código agregado.")
+    else:
+        messages.error(request, "Revisa el tipo, código y nombre.")
+    return redirect("failure_code_list")
+
+
+@require_POST
+@membership_required(perm=Perm.WORK_ORDER_MANAGE)
+def failure_code_rename_view(request, pk):
+    failure_code = get_object_or_404(FailureCode, pk=pk)
+    form = FailureCodeRenameForm(request.POST)
+    if form.is_valid():
+        try:
+            rename_failure_code(
+                failure_code=failure_code, name=form.cleaned_data["name"], membership=request.membership
+            )
+        except WorkOrderError as exc:
+            messages.error(request, exc.message)
+        else:
+            messages.success(request, f"{failure_code.code} actualizado.")
+    else:
+        messages.error(request, "El nombre es obligatorio.")
+    return redirect("failure_code_list")
+
+
+@require_POST
+@membership_required(perm=Perm.WORK_ORDER_MANAGE)
+def failure_code_toggle_view(request, pk):
+    failure_code = get_object_or_404(FailureCode, pk=pk)
+    set_failure_code_active(
+        failure_code=failure_code, is_active=not failure_code.is_active, membership=request.membership
+    )
+    return redirect("failure_code_list")

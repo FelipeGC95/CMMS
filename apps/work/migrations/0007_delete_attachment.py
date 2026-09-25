@@ -27,7 +27,7 @@ def copy_attachments_forward(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("work", "0005_request_triage"),
+        ("work", "0006_merge_0005_failure_catalog_0005_request_triage"),
         ("attachments", "0001_initial"),
     ]
 

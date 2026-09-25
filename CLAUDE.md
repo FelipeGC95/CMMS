@@ -107,6 +107,11 @@ plan preventivo = `maintenance_plan` · OT = `work_order` · solicitud =
   `static/brand/` es una copia.
 - Estados siempre con ícono + texto. Vistas de técnico: objetivos táctiles
   ≥ 48 px y texto ≥ 16 px.
+- **Móvil completo (ADR-017):** toda funcionalidad, de cualquier rol, se
+  completa desde un teléfono de 360 px sin scroll horizontal; probar cada
+  vista a 360 px. Cortes solo en 720 px y 1100 px. Toda `<td>` de una
+  `.table` lleva `data-label`. Todo destino del menú de escritorio tiene
+  acceso en la navegación móvil.
 - Todo componente nuevo se agrega a `/design-system/`; toda combinación de
   colores nueva se agrega a `CONTRAST_PAIRS` en `tests/ui/test_contrast.py`.
 - Sin JS ni estilos en línea (CSP estricta).
