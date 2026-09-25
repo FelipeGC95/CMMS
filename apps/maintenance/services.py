@@ -27,6 +27,17 @@ class PlanVersionError(ValidationError):
 # --- Versiones --------------------------------------------------------------
 
 
+def locked_plans():
+    """Planes para bloquear con SELECT … FOR UPDATE.
+
+    El manager por defecto hace select_related("current_version"), un LEFT JOIN
+    porque la FK es nullable, y PostgreSQL no admite FOR UPDATE sobre el lado
+    nullable de un outer join. Por eso se quita el join antes de bloquear
+    (SQLite no bloquea filas y no reproduce el error).
+    """
+    return MaintenancePlan.objects.select_related(None).select_for_update()
+
+
 def _add_content(version: PlanVersion, *, items=(), resources=()):
     PlanTaskItem.objects.bulk_create(
         [
@@ -99,7 +110,7 @@ def publish_version(*, version: PlanVersion, by=None, change_note: str = "") -> 
     if not version.items.exists():
         raise PlanVersionError("Agrega al menos un ítem al checklist antes de publicar.")
 
-    plan = MaintenancePlan.objects.select_for_update().get(pk=version.plan_id)
+    plan = locked_plans().get(pk=version.plan_id)
     previous = plan.current_version
     if previous is not None:
         previous.status = PlanVersion.Status.SUPERSEDED

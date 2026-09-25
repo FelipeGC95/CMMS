@@ -253,3 +253,28 @@ def test_plan_properties_do_not_query_again(in_a, django_assert_num_queries):
     with django_assert_num_queries(1):
         labels = [p.frequency_label for p in MaintenancePlan.objects.all()]
     assert len(labels) == 4
+
+
+# --- Bloqueos (PostgreSQL) ------------------------------------------------------
+
+
+def test_plan_lock_query_has_no_outer_join(in_a):
+    """FOR UPDATE no puede ir sobre un LEFT JOIN en PostgreSQL (select_related de la versión)."""
+    from apps.maintenance.services import locked_plans
+
+    queryset = locked_plans().filter(pk=in_a.plan.pk)
+    assert queryset.query.select_for_update
+    assert not queryset.query.select_related
+    assert "JOIN" not in str(queryset.query).upper()
+
+
+def test_publish_locks_without_joins_on_postgres(in_a):
+    from django.db import connection
+    from django.test.utils import CaptureQueriesContext
+
+    draft = start_draft(plan=in_a.plan)
+    with CaptureQueriesContext(connection) as ctx:
+        publish_version(version=draft)
+    locking = [q["sql"] for q in ctx.captured_queries if "FOR UPDATE" in q["sql"].upper()]
+    if connection.vendor == "postgresql":
+        assert locking and all("JOIN" not in sql.upper() for sql in locking)
