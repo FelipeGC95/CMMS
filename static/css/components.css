@@ -63,10 +63,17 @@ svg[aria-hidden="true"], svg[role="img"] { width: 1.1em; height: 1.1em; vertical
 .btn-nav { cursor: pointer; white-space: nowrap; }
 .navbar__links a, .navbar__user { white-space: nowrap; }
 a.navbar__user { color: var(--color-nav-text); }
+/* El lado derecho cede espacio (organización y usuario se recortan) antes que empujar "Salir" fuera. */
+.navbar__right { min-width: 0; }
+.navbar__right > * { flex-shrink: 0; }
+.navbar__right > .navbar__user, .navbar__right > .org-switch { flex-shrink: 1; min-width: 0; }
+.navbar__user { max-width: 22ch; overflow: hidden; text-overflow: ellipsis; }
 .org-switch { display: flex; align-items: center; gap: var(--space-1); }
-.org-switch select { max-width: 220px; }
+.org-switch select { max-width: 180px; min-width: 0; }
+/* En la barra el tema es solo ícono; el nombre accesible viene de aria-label. */
+.navbar .theme-toggle__label { display: none; }
 @media (max-width: 1200px) {
-  .navbar__user, .navbar .theme-toggle__label { display: none; }
+  .navbar__user { display: none; }
 }
 .theme-toggle { display: inline-flex; align-items: center; gap: var(--space-1); }
 
@@ -89,9 +96,8 @@ main { max-width: var(--content-max); margin: 0 auto; padding: var(--space-5) va
   .brand .brand__logo--iso { display: block; }
   .navbar__user, .org-switch .btn-nav { display: none; }
   .navbar__inner { gap: var(--space-2); }
-  .navbar__right { min-width: 0; gap: var(--space-2); }
+  .navbar__right { gap: var(--space-2); }
   .org-switch select { max-width: 40vw; }
-  .navbar .theme-toggle__label { display: none; }
   .bottom-nav {
     display: grid; grid-template-columns: repeat(3, 1fr);
     position: fixed; bottom: 0; left: 0; right: 0; z-index: 20;
