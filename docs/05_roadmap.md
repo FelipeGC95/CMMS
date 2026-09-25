@@ -52,12 +52,17 @@ organización) en vez de R2; sin CI ni despliegue.
 Parte de F0 ya existe gracias a la v0.1 (tenancy, estructura de apps, tokens),
 por lo que se estima en ~3 semanas.
 
-**Avance (2026-09-24):** hechos 0.1, 0.2 y 0.4 completos: GitHub Actions
+**Avance (2026-09-24):** hechos 0.1 a 0.4: GitHub Actions
 con PostgreSQL 16 (Python 3.11 y 3.13), uv (`uv.lock`, CI con
 `uv sync --locked`), pre-commit (ruff, lock, `requirements*.txt` exportados
 para Render y migraciones), chequeo de migraciones y `check --deploy`, y
 soporte de `DATABASE_URL`. Además: tests de permisos por rol y de cantidad de
-consultas. Pendiente: allauth y Plan (0.3), despliegue (0.5, requiere cuentas de Render, Cloudflare y Sentry).
+consultas. 0.3: django-allauth con login por correo, verificación obligatoria,
+recuperación y cambio de contraseña (el admin entra por el mismo login),
+Argon2, registro cerrado hasta ORG-02, catálogo `Plan` (cupos provisionales,
+se hacen cumplir en ORG-10), estado y fin de prueba en `Organization` y última
+organización recordada al iniciar sesión (ORG-07). Pendiente: despliegue
+(0.5, requiere cuentas de Render, Cloudflare, Sentry y el proveedor de correo).
 
 | # | Entregable | Sem. |
 |---|---|---|

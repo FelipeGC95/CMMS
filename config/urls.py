@@ -1,7 +1,7 @@
 from django.contrib import admin
-from django.contrib.auth import views as auth_views
+from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse
-from django.urls import path
+from django.urls import include, path
 
 from apps.accounts.views import switch_organization
 from apps.assets import views as asset_views
@@ -11,6 +11,8 @@ from apps.work import views as work_views
 
 admin.site.site_header = "GALBUST CMMS · Administración"
 admin.site.site_title = "GALBUST CMMS"
+# El admin entra por el login de allauth (límite de intentos y correo verificado).
+admin.site.login = login_required(admin.site.login)
 
 
 def healthz(request):
@@ -20,12 +22,7 @@ def healthz(request):
 urlpatterns = [
     path("", dashboard, name="dashboard"),
     path("healthz", healthz, name="healthz"),
-    path(
-        "accounts/login/",
-        auth_views.LoginView.as_view(template_name="accounts/login.html", redirect_authenticated_user=True),
-        name="login",
-    ),
-    path("accounts/logout/", auth_views.LogoutView.as_view(), name="logout"),
+    path("accounts/", include("allauth.urls")),
     path("org/switch/", switch_organization, name="switch_organization"),
     path("assets/", asset_views.asset_list_view, name="asset_list"),
     path("assets/labels/", asset_views.asset_labels_view, name="asset_labels"),

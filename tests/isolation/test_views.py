@@ -60,6 +60,14 @@ def test_switching_to_foreign_organization_is_ignored(client, tenant_a, tenant_b
     assert response.context["organization"] == tenant_b.org
 
 
+def test_last_organization_without_membership_is_ignored(client, tenant_a, tenant_b):
+    user = tenant_b.admin.user
+    user.last_organization = tenant_a.org
+    user.save()
+    login(client, tenant_b.admin)
+    assert client.get(reverse("dashboard")).context["organization"] == tenant_b.org
+
+
 def test_qr_of_other_own_organization_switches_context(client, tenant_a, tenant_b):
     from apps.accounts.models import Membership
 

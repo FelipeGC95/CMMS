@@ -74,6 +74,17 @@ En producción lo ejecutará una tarea programada diaria.
 Ver [docs/operacion/render.md](docs/operacion/render.md): el ambiente de
 demostración se crea gratis en Render desde [`render.yaml`](render.yaml).
 
+## Usuarios y correo
+
+El acceso usa django-allauth: se entra con correo y contraseña, y el correo
+debe estar verificado (los usuarios demo ya lo están). No hay registro
+público; los usuarios se crean en `/admin/` como superadmin y al primer
+ingreso reciben el enlace de verificación. En local los correos se imprimen
+en la consola de `runserver`; en producción se configura SMTP con
+`EMAIL_BACKEND`, `EMAIL_HOST`, `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD` y
+`DEFAULT_FROM_EMAIL`. `ACCOUNT_EMAIL_VERIFICATION=optional` permite entrar
+sin verificar mientras no haya correo configurado.
+
 ## Base de datos
 
 Sin configuración usa SQLite (`db.sqlite3`). Para PostgreSQL define

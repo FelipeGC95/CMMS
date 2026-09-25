@@ -31,6 +31,10 @@ class User(AbstractBaseUser, PermissionsMixin, TimeStampedModel):
     is_active = models.BooleanField(_("activo"), default=True)
     is_staff = models.BooleanField(_("acceso al panel de administración"), default=False)
     date_joined = models.DateTimeField(default=timezone.now)
+    # Se abre al iniciar sesión (ORG-07); el middleware valida que siga siendo miembro.
+    last_organization = models.ForeignKey(
+        "organizations.Organization", null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
 
     objects = UserManager()
 

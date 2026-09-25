@@ -17,10 +17,12 @@ DRF + drf-spectacular · django-allauth · Procrastinate · django-storages (R2)
 uv · ruff · pytest. Sin Node, Redis, Celery ni frameworks CSS.
 
 **Estado actual:** Python 3.11+ con uv (`uv.lock`; `requirements*.txt` se
-generan desde el lock para Render, no se editan a mano), pre-commit, htmx (sin Alpine aún), login de
-Django. Base de datos por `DATABASE_URL` (SQLite local si no está definida;
-el CI corre sobre PostgreSQL 16, así que el código no debe depender de
-SQLite). allauth, DRF, Procrastinate y R2 entran en F0/MVP (docs/05_roadmap.md).
+generan desde el lock para Render, no se editan a mano), pre-commit, htmx
+(sin Alpine aún), django-allauth (login por correo con verificación; registro
+cerrado; usuarios nuevos con `accounts.services.create_user`). Base de datos
+por `DATABASE_URL` (SQLite local si no está definida; el CI corre sobre
+PostgreSQL 16, así que el código no debe depender de SQLite). MFA, DRF,
+Procrastinate y R2 entran en MVP (docs/05_roadmap.md).
 
 ## Comandos
 

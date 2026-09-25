@@ -1,0 +1,30 @@
+{% load static i18n %}<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0B2E4F">
+  <title>{% block head_title %}{% endblock %} · GALBUST CMMS</title>
+  <link rel="icon" href="{% static 'brand/galbust-favicon.ico' %}">
+  <script src="{% static 'js/theme.js' %}"></script>
+  <link rel="stylesheet" href="{% static 'css/tokens.css' %}">
+  <link rel="stylesheet" href="{% static 'css/components.css' %}">
+  {% block extra_head %}{% endblock %}
+</head>
+<body>
+  {# Páginas de acceso de allauth (login, verificación, recuperar clave): tarjeta sobre fondo de marca. #}
+  <main class="auth" id="main">
+    <div class="auth__card">
+      <div class="auth__logo">
+        <img src="{% static 'brand/galbust-vertical-negativo.svg' %}" alt="GALBUST">
+        <span class="auth__product">CMMS</span>
+      </div>
+      <div class="card">
+        {% include "_messages.html" %}
+        {% block body %}{% block content %}{% endblock %}{% endblock %}
+      </div>
+    </div>
+  </main>
+  {% block extra_body %}{% endblock %}
+</body>
+</html>

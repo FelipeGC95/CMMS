@@ -15,12 +15,14 @@ from django.db import transaction
 from django.utils import timezone
 
 from apps.accounts.models import Membership, User
+from apps.accounts.services import create_user
 from apps.assets.models import Asset, AssetClass, AssetStatusPeriod, Meter, MeterKind
 from apps.assets.services import record_meter_reading
 from apps.core.tenancy import tenant_context
 from apps.maintenance.models import ItemType, MaintenancePlan, PlanTaskItem
 from apps.maintenance.services import assign_plan, generate_due_work_orders
-from apps.organizations.models import Location, Organization
+from apps.organizations.models import Location, Organization, Plan
+from apps.organizations.plans import ensure_default_plans
 from apps.work.models import FailureCode, FailureEvent, WorkOrder
 from apps.work.services import answer_checklist_item, complete_work_order, create_work_order
 
@@ -234,8 +236,12 @@ class Command(BaseCommand):
             return
 
         with transaction.atomic():
+            ensure_default_plans(Plan)  # `--reset` vacía también el catálogo de planes
+            pro = Plan.objects.get(code="pro")
             platform = self._user("plataforma@galbust.cl", "Equipo GALBUST", superuser=True)
-            org = Organization.objects.create(name="Alimentos del Sur SpA", slug="alimentos-del-sur")
+            org = Organization.objects.create(
+                name="Alimentos del Sur SpA", slug="alimentos-del-sur", plan=pro
+            )
             admin = self._user("jefe@demo.cl", "Carolina Muñoz", staff=True)
             tech = self._user("tecnico@demo.cl", "Jorge Soto")
             tech2 = self._user("tecnico2@demo.cl", "Marcelo Ríos")
@@ -250,7 +256,13 @@ class Command(BaseCommand):
             with tenant_context(org):
                 self._seed_main(org, members)
 
-            other = Organization.objects.create(name="Maestranza Norte Ltda.", slug="maestranza-norte")
+            other = Organization.objects.create(
+                name="Maestranza Norte Ltda.",
+                slug="maestranza-norte",
+                plan=Plan.objects.get(code="trial"),
+                status=Organization.Status.TRIAL,
+                trial_ends_at=timezone.now() + datetime.timedelta(days=30),
+            )
             Membership.objects.create(user=admin, organization=other, role="viewer")
             with tenant_context(other):
                 cls = AssetClass.objects.create(code="TOR", name="Torno CNC")
@@ -272,15 +284,21 @@ class Command(BaseCommand):
     def _user(self, email, name, staff=False, superuser=False):
         user = User.objects.filter(email=email).first()
         if user is None:
-            user = User.objects.create_user(
-                email, PASSWORD, full_name=name, is_staff=staff or superuser, is_superuser=superuser
+            # Correo ya verificado: los usuarios demo no reciben el correo de verificación.
+            user = create_user(
+                email=email,
+                password=PASSWORD,
+                full_name=name,
+                email_verified=True,
+                is_staff=staff or superuser,
+                is_superuser=superuser,
             )
         if staff and not superuser:
             # El admin de la organización configura desde el admin de Django (solo su tenant).
             user.user_permissions.set(
                 Permission.objects.filter(
                     content_type__app_label__in=["assets", "maintenance", "work", "organizations"]
-                ).exclude(content_type__model="organization")
+                ).exclude(content_type__model__in=["organization", "plan"])
             )
         return user
 

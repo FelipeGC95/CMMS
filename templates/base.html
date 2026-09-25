@@ -46,9 +46,9 @@
         {% elif organization %}
         <span class="navbar__user">{{ organization.name }}</span>
         {% endif %}
-        <span class="navbar__user">{{ user.short_name }}{% if membership %} · {{ membership.get_role_display }}{% endif %}</span>
+        <a class="navbar__user" href="{% url 'account_change_password' %}" title="{% translate 'Mi cuenta: cambiar contraseña' %}">{{ user.short_name }}{% if membership %} · {{ membership.get_role_display }}{% endif %}</a>
         {% include "_theme_button.html" %}
-        <form method="post" action="{% url 'logout' %}">
+        <form method="post" action="{% url 'account_logout' %}">
           {% csrf_token %}
           <button class="btn-nav" type="submit">{% translate "Salir" %}</button>
         </form>
