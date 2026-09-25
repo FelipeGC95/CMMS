@@ -25,7 +25,7 @@
     <tbody>
       {% for req in page.object_list %}
       <tr>
-        <td class="num">{{ req.created_at|date:"d-m-Y H:i" }}</td>
+        <td data-label="{% translate 'Fecha' %}" class="num">{{ req.created_at|date:"d-m-Y H:i" }}</td>
         <td data-label="{% translate 'Activo' %}"><a href="{% url 'asset_detail' req.asset_id %}">{{ req.asset.code }} · {{ req.asset.name }}</a></td>
         <td data-label="{% translate 'Descripción' %}">{{ req.description|truncatechars:120 }}</td>
         <td data-label="{% translate 'Detenido' %}">{% if req.asset_stopped %}{% icon 'stop' %} {% translate "Sí" %}{% else %}—{% endif %}</td>

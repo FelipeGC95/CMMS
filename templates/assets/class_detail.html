@@ -16,14 +16,14 @@
     <tbody>
       {% for attribute in attributes %}
       <tr>
-        <td><a href="{% url 'attribute_edit' asset_class.pk attribute.pk %}">{{ attribute.label }}</a></td>
+        <td data-label=""><a href="{% url 'attribute_edit' asset_class.pk attribute.pk %}">{{ attribute.label }}</a></td>
         <td data-label="{% translate 'Tipo' %}">{{ attribute.get_data_type_display }}</td>
         <td data-label="{% translate 'Unidad / opciones' %}">{% if attribute.choices %}{{ attribute.choices|join:", " }}{% else %}{{ attribute.unit|default:"—" }}{% endif %}</td>
         <td data-label="{% translate 'Obligatorio' %}">{% if attribute.required %}{% translate "Sí" %}{% else %}{% translate "No" %}{% endif %}</td>
-        <td>{% if attribute.is_active %}<span class="badge badge--success">{% icon 'check' %}{% translate "Visible" %}</span>{% else %}<span class="badge badge--neutral">{% icon 'dot' %}{% translate "Oculto" %}</span>{% endif %}</td>
+        <td data-label="">{% if attribute.is_active %}<span class="badge badge--success">{% icon 'check' %}{% translate "Visible" %}</span>{% else %}<span class="badge badge--neutral">{% icon 'dot' %}{% translate "Oculto" %}</span>{% endif %}</td>
       </tr>
       {% empty %}
-      <tr><td colspan="5" class="empty">{% translate "Sin atributos: agrega los datos técnicos que quieres registrar (capacidad, potencia…)." %}</td></tr>
+      <tr><td data-label="" colspan="5" class="empty">{% translate "Sin atributos: agrega los datos técnicos que quieres registrar (capacidad, potencia…)." %}</td></tr>
       {% endfor %}
     </tbody>
   </table>
