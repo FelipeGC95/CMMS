@@ -59,6 +59,16 @@ urlpatterns = [
         work_views.work_order_complete_view,
         name="work_order_complete",
     ),
+    path("work-orders/<uuid:pk>/labor/", work_views.labor_add_view, name="work_order_labor_add"),
+    path("work-orders/<uuid:pk>/parts/", work_views.part_add_view, name="work_order_part_add"),
+    path(
+        "work-orders/<uuid:pk>/other-costs/", work_views.other_cost_add_view, name="work_order_other_cost_add"
+    ),
+    path(
+        "work-orders/<uuid:pk>/costs/<str:kind>/<uuid:line_pk>/delete/",
+        work_views.cost_line_delete_view,
+        name="work_order_cost_delete",
+    ),
     path(
         "work-orders/<uuid:pk>/items/<uuid:item_pk>/",
         work_views.checklist_answer_view,

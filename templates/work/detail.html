@@ -58,6 +58,72 @@
   </section>
 </div>
 
+<section class="card mt-4" id="costs" aria-labelledby="costs-title">
+  <div class="card__header">
+    <h2 id="costs-title">{% translate "Costos" %}</h2>
+    <span class="kpi__value num">$ {{ wo.total_cost|num }}</span>
+  </div>
+  <dl class="dl mb-4">
+    <dt>{% translate "Mano de obra" %}</dt><dd class="num">$ {{ wo.labor_cost|num }}</dd>
+    <dt>{% translate "Repuestos y materiales" %}</dt><dd class="num">$ {{ wo.parts_cost|num }}</dd>
+    <dt>{% translate "Otros costos" %}</dt><dd class="num">$ {{ wo.other_cost|num }}</dd>
+  </dl>
+
+  {% if wo.labor.all or wo.parts.all or wo.other_costs.all %}
+  <div class="card--flush mb-4">
+    <table class="table">
+      <thead><tr><th>{% translate "Concepto" %}</th><th>{% translate "Detalle" %}</th><th>{% translate "Costo" %}</th><th><span class="visually-hidden">{% translate "Acción" %}</span></th></tr></thead>
+      <tbody>
+        {% for l in wo.labor.all %}
+        <tr><td>{% icon 'clock' %} {{ l.user }}</td><td class="num" data-label="{% translate 'Detalle' %}">{{ l.minutes }} min × $ {{ l.hourly_cost|num }}/h</td><td class="num" data-label="{% translate 'Costo' %}">$ {{ l.cost|num }}</td><td></td></tr>
+        {% endfor %}
+        {% for p in wo.parts.all %}
+        <tr><td>{% icon 'box' %} {{ p.description }}</td><td class="num" data-label="{% translate 'Detalle' %}">{{ p.quantity|num }} {{ p.unit }} × $ {{ p.unit_cost|num }}</td><td class="num" data-label="{% translate 'Costo' %}">$ {{ p.cost|num }}</td>
+          <td>{% if costs_editable and can_execute %}<form method="post" action="{% url 'work_order_cost_delete' wo.pk 'part' p.pk %}">{% csrf_token %}<button class="btn btn--ghost" type="submit" aria-label="{% translate 'Quitar' %} {{ p.description }}">{% icon 'x' %}</button></form>{% endif %}</td></tr>
+        {% endfor %}
+        {% for c in wo.other_costs.all %}
+        <tr><td>{% icon 'wrench' %} {{ c.description }}</td><td data-label="{% translate 'Detalle' %}">{{ c.supplier|default:"—" }}</td><td class="num" data-label="{% translate 'Costo' %}">$ {{ c.amount|num }}</td>
+          <td>{% if costs_editable and can_manage %}<form method="post" action="{% url 'work_order_cost_delete' wo.pk 'other' c.pk %}">{% csrf_token %}<button class="btn btn--ghost" type="submit" aria-label="{% translate 'Quitar' %} {{ c.description }}">{% icon 'x' %}</button></form>{% endif %}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+
+  {% if costs_editable and can_execute %}
+  <div class="grid grid--2">
+    <form method="post" action="{% url 'work_order_part_add' wo.pk %}" aria-label="{% translate 'Agregar repuesto o material' %}">
+      {% csrf_token %}{{ part_form.client_uuid }}
+      <h3>{% translate "Agregar repuesto o material" %}</h3>
+      {% for field in part_form.visible_fields %}
+      <div class="field"><label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}</div>
+      {% endfor %}
+      <button class="btn btn--secondary btn--lg" type="submit">{% icon 'box' %}{% translate "Agregar" %}</button>
+    </form>
+    <div class="stack">
+      <form method="post" action="{% url 'work_order_labor_add' wo.pk %}" aria-label="{% translate 'Registrar horas' %}">
+        {% csrf_token %}
+        <h3>{% translate "Registrar horas" %}</h3>
+        <div class="field"><label for="{{ labor_form.minutes.id_for_label }}">{{ labor_form.minutes.label }}</label>{{ labor_form.minutes }}</div>
+        <button class="btn btn--secondary btn--lg" type="submit">{% icon 'clock' %}{% translate "Registrar" %}</button>
+      </form>
+      {% if can_manage %}
+      <form method="post" action="{% url 'work_order_other_cost_add' wo.pk %}" aria-label="{% translate 'Agregar otro costo' %}">
+        {% csrf_token %}
+        <h3>{% translate "Otro costo (servicio externo)" %}</h3>
+        {% for field in other_cost_form %}
+        <div class="field"><label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}</div>
+        {% endfor %}
+        <button class="btn btn--secondary btn--lg" type="submit">{% icon 'wrench' %}{% translate "Agregar" %}</button>
+      </form>
+      {% endif %}
+    </div>
+  </div>
+  {% elif not costs_editable %}
+  <p class="muted">{% translate "La OT está cerrada: los costos quedaron fijos." %}</p>
+  {% endif %}
+</section>
+
 {% if wo.checklist.all %}
 <section class="mt-4" aria-labelledby="cl-title">
   <h2 id="cl-title">{% translate "Checklist" %}</h2>
@@ -70,6 +136,7 @@
 {% if can_execute %}
 <section class="card mt-4" aria-labelledby="done-title" id="complete-section" hx-get="{% url 'work_order_detail' wo.pk %}" hx-trigger="checklist-changed from:body" hx-select="#complete-section" hx-swap="outerHTML">
   <h2 id="done-title">{% translate "Terminar trabajo" %}</h2>
+  <p class="muted">{% blocktranslate with total=wo.total_cost|num %}Costo registrado hasta ahora: $ {{ total }}. Los minutos que ingreses se suman a la mano de obra.{% endblocktranslate %} <a href="#costs">{% translate "Ver costos" %}</a></p>
   {% if pending_required %}
   <div class="alert alert--warning" role="status">{% icon 'alert' %}<span>{% blocktranslate count n=pending_required %}Falta {{ n }} ítem obligatorio del checklist.{% plural %}Faltan {{ n }} ítems obligatorios del checklist.{% endblocktranslate %}</span></div>
   {% endif %}
