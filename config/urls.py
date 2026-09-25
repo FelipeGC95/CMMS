@@ -4,6 +4,7 @@ from django.http import HttpResponse
 from django.urls import include, path
 
 from apps.accounts.views import switch_organization
+from apps.assets import import_views as asset_import_views
 from apps.assets import views as asset_views
 from apps.reporting.views import dashboard
 from apps.ui.views import design_system_css_view, design_system_view
@@ -27,6 +28,17 @@ urlpatterns = [
     path("", include("apps.accounts.urls")),
     path("assets/", asset_views.asset_list_view, name="asset_list"),
     path("assets/labels/", asset_views.asset_labels_view, name="asset_labels"),
+    path("assets/import/", asset_import_views.asset_import_view, name="asset_import"),
+    path(
+        "assets/import/template.xlsx",
+        asset_import_views.asset_import_template_view,
+        name="asset_import_template",
+    ),
+    path(
+        "assets/import/<str:token>/confirm/",
+        asset_import_views.asset_import_confirm_view,
+        name="asset_import_confirm",
+    ),
     path("assets/<uuid:pk>/", asset_views.asset_detail_view, name="asset_detail"),
     path("assets/<uuid:pk>/report/", asset_views.asset_report_view, name="asset_report"),
     path(

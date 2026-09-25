@@ -19,7 +19,11 @@ django==5.2.17
     #   galbust-cmms
 django-allauth==65.19.4
     # via galbust-cmms
+et-xmlfile==2.0.0
+    # via openpyxl
 gunicorn==26.2.0
+    # via galbust-cmms
+openpyxl==3.1.5
     # via galbust-cmms
 psycopg==3.3.6
     # via galbust-cmms
