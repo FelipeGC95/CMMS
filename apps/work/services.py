@@ -8,6 +8,7 @@ from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.db.models import Q
 from django.utils import timezone
+from django.utils.translation import gettext as _
 
 from apps.accounts.permissions import Perm, has_perm, require_perm
 from apps.assets.models import Asset, MeterReading
@@ -185,9 +186,9 @@ def report_failure(
 
 def add_attachment(*, work_order: WorkOrder, uploaded_file, by) -> Attachment:
     if uploaded_file.size > settings.MAX_UPLOAD_BYTES:
-        raise WorkOrderError("El archivo supera el tamaño máximo (10 MB).")
+        raise WorkOrderError(_("El archivo supera el tamaño máximo (10 MB)."))
     if uploaded_file.content_type not in ALLOWED_UPLOAD_TYPES:
-        raise WorkOrderError("Tipo de archivo no permitido.")
+        raise WorkOrderError(_("Tipo de archivo no permitido."))
     return Attachment.objects.create(
         work_order=work_order,
         file=uploaded_file,
@@ -210,11 +211,16 @@ def allowed_transitions(*, work_order: WorkOrder, membership) -> list[str]:
 @transaction.atomic
 def transition(*, work_order: WorkOrder, to_status: str, membership, comment: str = "") -> WorkOrder:
     if to_status not in allowed_transitions(work_order=work_order, membership=membership):
-        raise WorkOrderError(f"Transición no permitida: {work_order.get_status_display()} → {to_status}.")
+        raise WorkOrderError(
+            _("Transición no permitida: %(from)s → %(to)s.")
+            % {"from": work_order.get_status_display(), "to": to_status}
+        )
     if to_status == S.COMPLETED:
         pending = work_order.checklist.filter(required=True, result="").count()
         if pending:
-            raise WorkOrderError(f"Faltan {pending} ítems obligatorios del checklist.")
+            raise WorkOrderError(
+                _("Faltan %(pending)s ítems obligatorios del checklist.") % {"pending": pending}
+            )
 
     user = membership.user
     now = timezone.now()
@@ -289,13 +295,13 @@ def answer_checklist_item(
     require_perm(membership, Perm.WORK_ORDER_EXECUTE)
     work_order = item.work_order
     if work_order.status in (S.COMPLETED, *WorkOrder.CLOSED_STATUSES):
-        raise WorkOrderError("La OT ya no admite cambios.")
+        raise WorkOrderError(_("La OT ya no admite cambios."))
     if work_order.status != S.IN_PROGRESS:
         transition(work_order=work_order, to_status=S.IN_PROGRESS, membership=membership)
 
     if item.item_type == "measurement":
         if value_number in (None, ""):
-            raise WorkOrderError("Ingresa el valor medido.")
+            raise WorkOrderError(_("Ingresa el valor medido."))
         value = Decimal(str(value_number))
         out_of_range = (item.min_value is not None and value < item.min_value) or (
             item.max_value is not None and value > item.max_value
@@ -303,7 +309,7 @@ def answer_checklist_item(
         item.value_number = value
         result = item.Result.NOT_OK if out_of_range else item.Result.OK
     elif result not in item.Result.values:
-        raise WorkOrderError("Resultado inválido.")
+        raise WorkOrderError(_("Resultado inválido."))
 
     item.result = result
     item.note = note[:500]
@@ -346,14 +352,16 @@ def complete_work_order(
         and work_order.organization.require_failure_details
         and not (failure_mode and failure_cause)
     ):
-        raise WorkOrderError("Esta organización exige modo y causa de falla para cerrar una OT correctiva.")
+        raise WorkOrderError(
+            _("Esta organización exige modo y causa de falla para cerrar una OT correctiva.")
+        )
     if component is not None and component.parent_id != work_order.asset_id:
-        raise WorkOrderError("El componente debe ser un activo hijo del activo de la OT.")
+        raise WorkOrderError(_("El componente debe ser un activo hijo del activo de la OT."))
 
     if meter_value is not None:
         meter = work_order_meter(work_order)
         if meter is not None:
-            reading, _ = record_meter_reading(
+            reading, _warnings = record_meter_reading(
                 meter=meter,
                 value=meter_value,
                 membership=membership,
@@ -395,7 +403,7 @@ COST_LOCKED_STATUSES = (S.CLOSED, S.CANCELLED)
 
 def _require_cost_editable(work_order: WorkOrder) -> None:
     if work_order.status in COST_LOCKED_STATUSES:
-        raise WorkOrderError("La OT está cerrada: sus costos ya no se pueden cambiar.")
+        raise WorkOrderError(_("La OT está cerrada: sus costos ya no se pueden cambiar."))
 
 
 def hourly_cost_for(membership) -> Decimal:
@@ -425,7 +433,7 @@ def log_labor(*, work_order: WorkOrder, membership, minutes: int) -> LaborEntry:
     require_perm(membership, Perm.WORK_ORDER_EXECUTE)
     _require_cost_editable(work_order)
     if minutes <= 0:
-        raise WorkOrderError("Indica los minutos trabajados.")
+        raise WorkOrderError(_("Indica los minutos trabajados."))
     entry = LaborEntry.objects.create(
         work_order=work_order,
         user=membership.user,
@@ -450,7 +458,7 @@ def add_part_usage(
             return existing
     quantity, unit_cost = Decimal(str(quantity)), Decimal(str(unit_cost))
     if quantity <= 0 or unit_cost < 0:
-        raise WorkOrderError("La cantidad debe ser mayor que cero y el costo no puede ser negativo.")
+        raise WorkOrderError(_("La cantidad debe ser mayor que cero y el costo no puede ser negativo."))
     part = PartUsage.objects.create(
         work_order=work_order,
         description=description.strip()[:200],
@@ -473,7 +481,7 @@ def add_other_cost(
     _require_cost_editable(work_order)
     amount = Decimal(str(amount))
     if amount < 0:
-        raise WorkOrderError("El monto no puede ser negativo.")
+        raise WorkOrderError(_("El monto no puede ser negativo."))
     cost = OtherCost.objects.create(
         work_order=work_order,
         description=description.strip()[:200],
@@ -501,7 +509,7 @@ def remove_cost_line(*, line, membership) -> None:
 
 def _require_pending_request(work_request: WorkRequest) -> None:
     if work_request.status != R.PENDING:
-        raise WorkOrderError(f"La solicitud #{work_request.number} ya fue decidida.")
+        raise WorkOrderError(_("La solicitud #%(number)s ya fue decidida.") % {"number": work_request.number})
 
 
 def _cancel_request_work_order(*, work_request: WorkRequest, membership, comment: str) -> None:
@@ -518,7 +526,8 @@ def _cancel_request_work_order(*, work_request: WorkRequest, membership, comment
         return
     if work_order.status in (S.COMPLETED, S.CLOSED):
         raise WorkOrderError(
-            f"La {work_order.code} ya fue completada: la solicitud no se puede rechazar ni fusionar."
+            _("La %(code)s ya fue completada: la solicitud no se puede rechazar ni fusionar.")
+            % {"code": work_order.code}
         )
     if work_order.status != S.CANCELLED:
         transition(work_order=work_order, to_status=S.CANCELLED, membership=membership, comment=comment[:500])
@@ -553,10 +562,12 @@ def reject_request(*, work_request: WorkRequest, membership, reason: str) -> Wor
     _require_pending_request(work_request)
     reason = reason.strip()
     if not reason:
-        raise WorkOrderError("El motivo de rechazo es obligatorio.")
+        raise WorkOrderError(_("El motivo de rechazo es obligatorio."))
 
     _cancel_request_work_order(
-        work_request=work_request, membership=membership, comment=f"Solicitud rechazada: {reason}"
+        work_request=work_request,
+        membership=membership,
+        comment=_("Solicitud rechazada: %(reason)s") % {"reason": reason},
     )
     work_request.status = R.REJECTED
     work_request.rejection_reason = reason[:500]
@@ -582,16 +593,16 @@ def merge_request(*, work_request: WorkRequest, into: WorkRequest, membership) -
     require_perm(membership, Perm.WORK_ORDER_MANAGE)
     _require_pending_request(work_request)
     if into.pk == work_request.pk:
-        raise WorkOrderError("Una solicitud no se puede fusionar consigo misma.")
+        raise WorkOrderError(_("Una solicitud no se puede fusionar consigo misma."))
     if into.asset_id != work_request.asset_id:
-        raise WorkOrderError("Solo se puede fusionar con una solicitud del mismo activo.")
+        raise WorkOrderError(_("Solo se puede fusionar con una solicitud del mismo activo."))
     if into.status not in (R.PENDING, R.ACCEPTED):
-        raise WorkOrderError(f"La solicitud #{into.number} no está abierta.")
+        raise WorkOrderError(_("La solicitud #%(number)s no está abierta.") % {"number": into.number})
 
     _cancel_request_work_order(
         work_request=work_request,
         membership=membership,
-        comment=f"Fusionada con la solicitud #{into.number}",
+        comment=_("Fusionada con la solicitud #%(number)s") % {"number": into.number},
     )
     work_request.status = R.MERGED
     work_request.merged_into = into
@@ -653,9 +664,9 @@ def create_failure_code(*, kind: str, code: str, name: str, membership) -> Failu
     require_perm(membership, Perm.WORK_ORDER_MANAGE)
     code, name = code.strip().upper()[:10], name.strip()[:120]
     if not code or not name:
-        raise WorkOrderError("Código y nombre son obligatorios.")
+        raise WorkOrderError(_("Código y nombre son obligatorios."))
     if FailureCode.objects.filter(kind=kind, code=code).exists():
-        raise WorkOrderError(f"Ya existe un código «{code}» de ese tipo.")
+        raise WorkOrderError(_("Ya existe un código «%(code)s» de ese tipo.") % {"code": code})
     failure_code = FailureCode.objects.create(kind=kind, code=code, name=name)
     audit.record(
         action=AuditEvent.Action.CREATE,
@@ -671,7 +682,7 @@ def rename_failure_code(*, failure_code: FailureCode, name: str, membership) -> 
     require_perm(membership, Perm.WORK_ORDER_MANAGE)
     name = name.strip()[:120]
     if not name:
-        raise WorkOrderError("El nombre es obligatorio.")
+        raise WorkOrderError(_("El nombre es obligatorio."))
     old_name = failure_code.name
     if old_name == name:
         return failure_code
