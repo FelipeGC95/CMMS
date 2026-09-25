@@ -69,6 +69,7 @@ def create_work_order(
     estimated_minutes: int | None = None,
     assigned_to=None,
     plan_assignment=None,
+    plan_version=None,
     checklist=(),
     by=None,
     client_uuid=None,
@@ -86,6 +87,7 @@ def create_work_order(
         estimated_minutes=estimated_minutes,
         assigned_to=assigned_to,
         plan_assignment=plan_assignment,
+        plan_version=plan_version,
         client_uuid=client_uuid,
     )
     # Snapshot del checklist: cambiar el plan después no altera esta OT.

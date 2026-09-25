@@ -71,6 +71,14 @@ class WorkOrder(TenantModel):
         blank=True,
         related_name="work_orders",
     )
+    # Versión del plan con que se generó (inmutable, ADR-016); el checklist va copiado aparte.
+    plan_version = models.ForeignKey(
+        "maintenance.PlanVersion",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="work_orders",
+    )
     assigned_to = models.ForeignKey(
         "accounts.User",
         on_delete=models.SET_NULL,

@@ -7,7 +7,8 @@ import pytest
 from apps.accounts.models import Membership, User
 from apps.assets.models import Asset, AssetClass
 from apps.core.tenancy import tenant_context
-from apps.maintenance.models import ItemType, MaintenancePlan, PlanTaskItem
+from apps.maintenance.models import ItemType, MaintenancePlan
+from apps.maintenance.services import create_plan
 from apps.organizations.models import Organization
 
 PASSWORD = "clave-de-prueba-123"
@@ -34,16 +35,21 @@ def make_tenant(slug: str) -> Tenant:
     with tenant_context(org):
         cls = AssetClass.objects.create(code="CMP", name="Compresor")
         asset = Asset.objects.create(code="CMP-01", name="Compresor 1", asset_class=cls, criticality="A")
-        plan = MaintenancePlan.objects.create(code="PM1", name="Mensual", asset_class=cls, interval_days=30)
-        PlanTaskItem.objects.create(plan=plan, order=1, text="Purgar", item_type=ItemType.CHECK)
-        PlanTaskItem.objects.create(
-            plan=plan,
-            order=2,
-            text="Presión",
-            item_type=ItemType.MEASUREMENT,
-            unit="bar",
-            min_value=Decimal("6.5"),
-            max_value=Decimal("8"),
+        plan = create_plan(
+            code="PM1",
+            name="Mensual",
+            asset_class=cls,
+            interval_days=30,
+            items=[
+                {"text": "Purgar", "item_type": ItemType.CHECK},
+                {
+                    "text": "Presión",
+                    "item_type": ItemType.MEASUREMENT,
+                    "unit": "bar",
+                    "min_value": Decimal("6.5"),
+                    "max_value": Decimal("8"),
+                },
+            ],
         )
     return Tenant(org, admin, tech, viewer, asset, plan)
 

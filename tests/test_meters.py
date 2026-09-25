@@ -10,8 +10,8 @@ from apps.accounts.permissions import PermissionDeniedError
 from apps.assets.models import Meter, MeterKind
 from apps.assets.services import MeterReadingError, record_meter_reading
 from apps.core.tenancy import tenant_context
-from apps.maintenance.models import MaintenancePlan
-from apps.maintenance.services import assign_plan, generate_due_work_orders
+from apps.maintenance.models import PlanVersion
+from apps.maintenance.services import assign_plan, create_plan, generate_due_work_orders
 from apps.work.models import WorkOrder
 from apps.work.services import answer_checklist_item, complete_work_order
 from tests.conftest import login
@@ -27,13 +27,15 @@ def _read(meter, value, days_ago=0, **kwargs):
     return record_meter_reading(meter=meter, value=value, read_at=at, **kwargs)
 
 
-def _usage_plan(in_a, interval=250, days=None):
-    return MaintenancePlan.objects.create(
+def _usage_plan(in_a, interval=250, days=None, **fields):
+    return create_plan(
         code=f"PM-H{interval}-{days}",
         name=f"Cada {interval} h",
         meter_kind=MeterKind.HOURS,
         meter_interval=Decimal(interval),
         interval_days=days,
+        items=[{"text": "Cambiar aceite", "item_type": "check", "required": False}],
+        **fields,
     )
 
 
@@ -163,7 +165,7 @@ def test_meter_reset_keeps_remaining_usage(in_a, meter):
 def test_plan_needs_some_frequency(in_a):
     from django.core.exceptions import ValidationError
 
-    plan = MaintenancePlan(code="X", name="X")
+    plan = PlanVersion(number=1)
     with pytest.raises(ValidationError):
         plan.clean()
     plan.meter_kind = MeterKind.KM

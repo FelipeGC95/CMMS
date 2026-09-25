@@ -47,6 +47,12 @@ organización) en vez de R2; sin CI ni despliegue.
   registrar la lectura que alcanza el umbral y reprogramación desde la
   lectura de cierre.
 
+- **Versiones de planes (PM-01..04, ADR-016):** borrador → publicar, versiones
+  inmutables, repuestos y herramientas previstos, modo fijo o flotante,
+  tolerancia, recálculo de vencimientos al cambiar la frecuencia y OT con
+  la versión con que se generó. Pendiente: absorción de planes (PM-05 CA3)
+  y pantallas propias fuera del admin.
+
 ## F0 · Fundaciones (4 semanas)
 
 Parte de F0 ya existe gracias a la v0.1 (tenancy, estructura de apps, tokens),
