@@ -4,12 +4,24 @@ from decimal import Decimal
 from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.utils import timezone
+from django.utils.text import slugify
+from django.utils.translation import gettext
 
 from apps.accounts.permissions import Perm, require_perm
 from apps.audit import services as audit
 from apps.audit.models import AuditEvent
 
-from .models import Asset, AssetStatusPeriod, Meter, MeterKind, MeterReading
+from . import attributes as attribute_values
+from .models import (
+    Asset,
+    AssetClass,
+    AssetClassAttribute,
+    AssetStatusPeriod,
+    AttributeType,
+    Meter,
+    MeterKind,
+    MeterReading,
+)
 
 # Más de 24 h de uso por día en un horómetro indica un error de digitación.
 MAX_HOURS_PER_DAY = Decimal("24")
@@ -143,3 +155,154 @@ def _average_daily_usage(meter: Meter, *, until) -> Decimal | None:
     if days < 1:
         return meter.avg_daily_usage
     return ((last_value - first_value) / days).quantize(Decimal("0.001"))
+
+
+# ---------- Clases de activo y sus atributos (AST-01) ----------
+
+CLASS_FIELDS = ["code", "name", "iso_category", "level_hint", "is_active"]
+ATTRIBUTE_FIELDS = ["label", "data_type", "unit", "choices", "required", "order", "is_active"]
+
+
+def _unique_class_code(code, *, exclude=None):
+    duplicate = AssetClass.objects.filter(code__iexact=code)
+    if exclude is not None:
+        duplicate = duplicate.exclude(pk=exclude.pk)
+    if duplicate.exists():
+        raise ValidationError(gettext("Ya existe una clase con el código %(code)s.") % {"code": code})
+
+
+@transaction.atomic
+def create_asset_class(*, membership, code, name, iso_category, level_hint) -> AssetClass:
+    require_perm(membership, Perm.ASSET_MANAGE)
+    code = code.strip()
+    _unique_class_code(code)
+    asset_class = AssetClass.objects.create(
+        code=code, name=name.strip(), iso_category=iso_category, level_hint=level_hint
+    )
+    audit.record(
+        action=AuditEvent.Action.CREATE,
+        target=asset_class,
+        membership=membership,
+        changes=audit.snapshot(asset_class, CLASS_FIELDS),
+    )
+    return asset_class
+
+
+@transaction.atomic
+def update_asset_class(
+    *, membership, asset_class, code, name, iso_category, level_hint, is_active
+) -> AssetClass:
+    require_perm(membership, Perm.ASSET_MANAGE)
+    code = code.strip()
+    _unique_class_code(code, exclude=asset_class)
+    before = audit.snapshot(asset_class, CLASS_FIELDS)
+    asset_class.code, asset_class.name = code, name.strip()
+    asset_class.iso_category, asset_class.level_hint, asset_class.is_active = (
+        iso_category,
+        level_hint,
+        is_active,
+    )
+    asset_class.save()
+    changes = audit.diff(before, audit.snapshot(asset_class, CLASS_FIELDS))
+    if changes:
+        audit.record(
+            action=AuditEvent.Action.UPDATE, target=asset_class, membership=membership, changes=changes
+        )
+    return asset_class
+
+
+def _clean_choices(data_type, choices):
+    choices = [c.strip()[:80] for c in choices if c.strip()]
+    if data_type == AttributeType.CHOICE and not choices:
+        raise ValidationError(gettext("Una lista necesita al menos una opción."))
+    return list(dict.fromkeys(choices)) if data_type == AttributeType.CHOICE else []
+
+
+@transaction.atomic
+def add_class_attribute(
+    *, membership, asset_class, label, data_type, unit="", choices=(), required=False
+) -> AssetClassAttribute:
+    """Agrega un atributo a la clase. La clave sale del nombre y no cambia después."""
+    require_perm(membership, Perm.ASSET_MANAGE)
+    if data_type not in AttributeType.values:
+        raise ValidationError(gettext("Tipo de atributo no válido."))
+    label = label.strip()
+    base = slugify(label).replace("-", "_")[:40] or "atributo"
+    existing = set(asset_class.attributes.values_list("key", flat=True))
+    key, n = base, 2
+    while key in existing:
+        key, n = f"{base}_{n}", n + 1
+    last = asset_class.attributes.order_by("-order").values_list("order", flat=True).first() or 0
+    attribute = AssetClassAttribute.objects.create(
+        asset_class=asset_class,
+        key=key,
+        label=label,
+        data_type=data_type,
+        unit=unit.strip(),
+        choices=_clean_choices(data_type, choices),
+        required=required,
+        order=last + 1,
+    )
+    audit.record(
+        action=AuditEvent.Action.CREATE,
+        target=attribute,
+        membership=membership,
+        changes=audit.snapshot(attribute, ["key", *ATTRIBUTE_FIELDS]),
+    )
+    return attribute
+
+
+@transaction.atomic
+def update_class_attribute(
+    *, membership, attribute, label, unit, choices, required, order, is_active
+) -> AssetClassAttribute:
+    """Edita un atributo; tipo y clave quedan fijos y los valores guardados nunca se borran (CA3)."""
+    require_perm(membership, Perm.ASSET_MANAGE)
+    before = audit.snapshot(attribute, ATTRIBUTE_FIELDS)
+    attribute.label, attribute.unit = label.strip(), unit.strip()
+    attribute.choices = _clean_choices(attribute.data_type, choices)
+    attribute.required, attribute.order, attribute.is_active = required, order, is_active
+    attribute.save()
+    changes = audit.diff(before, audit.snapshot(attribute, ATTRIBUTE_FIELDS))
+    if changes:
+        audit.record(
+            action=AuditEvent.Action.UPDATE, target=attribute, membership=membership, changes=changes
+        )
+    return attribute
+
+
+@transaction.atomic
+def set_asset_attributes(*, membership, asset, values: dict) -> Asset:
+    """Guarda los valores de los atributos activos de la clase del activo (`values` por clave).
+
+    Los valores de atributos desactivados o de otra clase se conservan (AST-01 CA3).
+    """
+    require_perm(membership, Perm.ASSET_MANAGE)
+    attributes = list(asset.asset_class.attributes.filter(is_active=True))
+    stored = dict(asset.attributes)
+    errors = []
+    for attribute in attributes:
+        try:
+            value = attribute_values.to_json(attribute, values.get(attribute.key))
+        except ValueError as error:
+            errors.append(str(error))
+            continue
+        if value is None:
+            if attribute.required:
+                errors.append(gettext("%(label)s es obligatorio.") % {"label": attribute.label})
+            stored.pop(attribute.key, None)
+        else:
+            stored[attribute.key] = value
+    if errors:
+        raise ValidationError(errors)
+    changes = audit.diff(asset.attributes, stored)
+    if changes:
+        asset.attributes = stored
+        asset.save(update_fields=["attributes", "updated_at"])
+        audit.record(
+            action=AuditEvent.Action.UPDATE,
+            target=asset,
+            membership=membership,
+            changes={"attributes": changes},
+        )
+    return asset

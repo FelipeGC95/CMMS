@@ -1,0 +1,47 @@
+{% extends "base.html" %}{% load i18n ui %}
+{% block title %}{% translate "Ubicaciones" %}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>{% translate "Ubicaciones" %}</h1>
+    <p class="muted">{% translate "Sitios, áreas y líneas en árbol. Los activos se ubican aquí." %}</p>
+  </div>
+  <a class="btn btn--ghost" href="{% url 'asset_list' %}">{% translate "Volver a activos" %}</a>
+</div>
+
+<div class="grid grid--2">
+  <section class="card card--flush" aria-labelledby="tree-title">
+    <h2 class="visually-hidden" id="tree-title">{% translate "Árbol de ubicaciones" %}</h2>
+    {% if page.object_list %}
+    <table class="table">
+      <thead><tr><th>{% translate "Ubicación" %}</th><th>{% translate "Tipo" %}</th><th>{% translate "Activos" %}</th><th>{% translate "Estado" %}</th></tr></thead>
+      <tbody>
+        {% for row in page.object_list %}
+        <tr>
+          <td>
+            {% if row.path %}<span class="muted">{{ row.path }} ›</span><br>{% endif %}
+            <a href="{% url 'location_edit' row.location.pk %}">{{ row.location.name }}</a> <span class="muted mono">{{ row.location.code }}</span>
+          </td>
+          <td data-label="{% translate 'Tipo' %}">{{ row.location.get_kind_display }}</td>
+          <td data-label="{% translate 'Activos' %}" class="num">{{ row.asset_count }}</td>
+          <td>{% if row.location.is_active %}<span class="badge badge--success">{% icon 'check' %}{% translate "Activa" %}</span>{% else %}<span class="badge badge--neutral">{% icon 'dot' %}{% translate "Inactiva" %}</span>{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="empty">{% translate "Aún no hay ubicaciones. Crea la primera: tu planta o sitio principal." %}</p>
+    {% endif %}
+  </section>
+
+  <section class="card" aria-labelledby="new-title">
+    <h2 id="new-title">{% translate "Nueva ubicación" %}</h2>
+    <form method="post">
+      {% csrf_token %}
+      {% include "_form_fields.html" with form=form %}
+      <button class="btn btn--primary" type="submit">{% translate "Crear" %}</button>
+    </form>
+  </section>
+</div>
+{% include "_pagination.html" %}
+{% endblock %}

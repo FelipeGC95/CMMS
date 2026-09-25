@@ -26,6 +26,8 @@ urlpatterns = [
     path("accounts/", include("allauth.urls")),
     path("org/switch/", switch_organization, name="switch_organization"),
     path("", include("apps.accounts.urls")),
+    path("", include("apps.organizations.urls")),
+    path("", include("apps.assets.urls")),
     path("audit/", include("apps.audit.urls")),
     path("assets/", asset_views.asset_list_view, name="asset_list"),
     path("assets/labels/", asset_views.asset_labels_view, name="asset_labels"),

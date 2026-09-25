@@ -1,4 +1,4 @@
-{% extends "base.html" %}{% load i18n ui asset_import %}
+{% extends "base.html" %}{% load i18n ui asset_import accounts_tags %}
 {% block title %}{% translate "Activos" %}{% endblock %}
 {% block content %}
 <div class="page-header">
@@ -9,6 +9,8 @@
   {% if not request.GET.report %}<div class="row">
     {% if membership|can_import_assets %}<a class="btn btn--secondary" href="{% url 'asset_import' %}">{% icon 'box' %}{% translate "Importar desde Excel" %}</a>{% endif %}
     <a class="btn btn--ghost" href="{% url 'asset_labels' %}">{% icon 'print' %}{% translate "Imprimir etiquetas QR" %}</a>
+    {% if membership|can:"asset.manage" %}<a class="btn btn--ghost" href="{% url 'location_list' %}">{% translate "Ubicaciones" %}</a>
+    <a class="btn btn--ghost" href="{% url 'asset_class_list' %}">{% translate "Clases de activo" %}</a>{% endif %}
   </div>{% endif %}
 </div>
 

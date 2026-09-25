@@ -1,0 +1,18 @@
+{% extends "base.html" %}{% load i18n %}
+{% block title %}{{ attribute.label }}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <p class="muted">{{ attribute.asset_class.name }} · {{ attribute.get_data_type_display }}</p>
+    <h1>{{ attribute.label }}</h1>
+  </div>
+  <a class="btn btn--ghost" href="{% url 'asset_class_detail' attribute.asset_class_id %}">{% translate "Volver a la clase" %}</a>
+</div>
+<section class="card">
+  <form method="post">
+    {% csrf_token %}
+    {% include "_form_fields.html" with form=form %}
+    <button class="btn btn--primary" type="submit">{% translate "Guardar" %}</button>
+  </form>
+</section>
+{% endblock %}
