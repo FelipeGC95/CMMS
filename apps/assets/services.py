@@ -6,6 +6,8 @@ from django.db import transaction
 from django.utils import timezone
 
 from apps.accounts.permissions import Perm, require_perm
+from apps.audit import services as audit
+from apps.audit.models import AuditEvent
 
 from .models import Asset, AssetStatusPeriod, Meter, MeterKind, MeterReading
 
@@ -28,8 +30,15 @@ def change_asset_status(*, asset: Asset, status: str, by=None, reason: str = "",
     AssetStatusPeriod.objects.create(
         asset=asset, status=status, started_at=at, reason=reason[:200], changed_by=by
     )
+    previous = asset.status
     asset.status = status
     asset.save(update_fields=["status", "updated_at"])
+    audit.record(
+        action=AuditEvent.Action.TRANSITION,
+        target=asset,
+        actor=by,
+        changes={"status": [previous, status], "reason": reason[:200]},
+    )
     return asset
 
 
@@ -87,6 +96,18 @@ def record_meter_reading(
         work_order=work_order,
         created_by=membership.user if membership else None,
         client_uuid=client_uuid,
+    )
+    audit.record(
+        action=AuditEvent.Action.CREATE,
+        target=reading,
+        membership=membership,
+        changes={
+            "meter": str(meter.pk),
+            "value": value,
+            "read_at": read_at,
+            "is_reset": is_reset,
+            "source": source,
+        },
     )
     if not is_latest:
         return reading, warnings  # lectura histórica: no cambia el valor vigente

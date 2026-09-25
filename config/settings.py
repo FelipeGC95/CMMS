@@ -39,6 +39,7 @@ INSTALLED_APPS = [
     "apps.maintenance",
     "apps.work",
     "apps.reporting",
+    "apps.audit",
     "apps.ui",
 ]
 
@@ -50,6 +51,7 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "apps.audit.middleware.AuditContextMiddleware",
     "allauth.account.middleware.AccountMiddleware",
     "apps.core.middleware.TenantMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
@@ -127,6 +129,10 @@ CACHES = {
         "LOCATION": "django_cache",
     }
 }
+
+# Auditoría (X-01): cantidad de proxies de confianza delante de la app. Con N > 0
+# la IP del cliente es X-Forwarded-For[-N]; con 0 se usa REMOTE_ADDR.
+AUDIT_TRUSTED_PROXIES = int(os.environ.get("AUDIT_TRUSTED_PROXIES", "0"))
 
 # Correo: consola en local; en producción SMTP del proveedor (Postmark o Brevo, docs/04).
 EMAIL_BACKEND = os.environ.get("EMAIL_BACKEND", "django.core.mail.backends.console.EmailBackend")
