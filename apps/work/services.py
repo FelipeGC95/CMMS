@@ -6,6 +6,7 @@ from decimal import Decimal
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import transaction
+from django.db.models import Q
 from django.utils import timezone
 
 from apps.accounts.permissions import Perm, has_perm, require_perm
@@ -16,6 +17,9 @@ from .models import (
     Attachment,
     FailureEvent,
     LaborEntry,
+    LaborRate,
+    OtherCost,
+    PartUsage,
     WorkOrder,
     WorkOrderChecklistItem,
     WorkOrderSequence,
@@ -248,6 +252,7 @@ def _close(*, work_order: WorkOrder, user, at, record=True):
             by=user,
             comment="Cierre automático (la organización no exige aprobación)",
         )
+    recalculate_costs(work_order=work_order)  # los totales quedan fijos al cerrar (WO-04 CA3)
     work_order.status = S.CLOSED
     work_order.closed_at = at
     work_order.save(update_fields=["status", "closed_at", "updated_at"])
@@ -336,7 +341,7 @@ def complete_work_order(
             work_order.meter_value_at_completion = reading.value
             work_order.save(update_fields=["meter_value_at_completion", "updated_at"])
     if labor_minutes:
-        LaborEntry.objects.create(work_order=work_order, user=membership.user, minutes=labor_minutes)
+        log_labor(work_order=work_order, membership=membership, minutes=labor_minutes)
     work_order.completion_notes = notes
     work_order.save(update_fields=["completion_notes", "updated_at"])
     failure = FailureEvent.objects.filter(work_order=work_order).first()
@@ -347,3 +352,111 @@ def complete_work_order(
     if work_order.status != S.IN_PROGRESS:
         transition(work_order=work_order, to_status=S.IN_PROGRESS, membership=membership)
     return transition(work_order=work_order, to_status=S.COMPLETED, membership=membership)
+
+
+# --- Costos (WO-04) -----------------------------------------------------------
+
+COST_LOCKED_STATUSES = (S.CLOSED, S.CANCELLED)
+
+
+def _require_cost_editable(work_order: WorkOrder) -> None:
+    if work_order.status in COST_LOCKED_STATUSES:
+        raise WorkOrderError("La OT está cerrada: sus costos ya no se pueden cambiar.")
+
+
+def hourly_cost_for(membership) -> Decimal:
+    """Tarifa de la persona si tiene una; si no, la general de la organización; si no, 0."""
+    rates = dict(
+        LaborRate.objects.filter(Q(membership=membership) | Q(membership__isnull=True)).values_list(
+            "membership_id", "hourly_cost"
+        )
+    )
+    return rates.get(membership.pk, rates.get(None, Decimal(0)))
+
+
+def recalculate_costs(*, work_order: WorkOrder) -> WorkOrder:
+    """Suma mano de obra, repuestos y otros costos y los guarda en la OT."""
+    labor = sum((e.cost for e in work_order.labor.all()), Decimal(0))
+    parts = sum((p.cost for p in work_order.parts.all()), Decimal(0))
+    other = sum((c.cost for c in work_order.other_costs.all()), Decimal(0))
+    work_order.labor_cost, work_order.parts_cost, work_order.other_cost = labor, parts, other
+    work_order.total_cost = labor + parts + other
+    work_order.save(update_fields=["labor_cost", "parts_cost", "other_cost", "total_cost", "updated_at"])
+    return work_order
+
+
+@transaction.atomic
+def log_labor(*, work_order: WorkOrder, membership, minutes: int) -> LaborEntry:
+    """Registra horas de la persona con su tarifa vigente copiada (WO-04 CA1)."""
+    require_perm(membership, Perm.WORK_ORDER_EXECUTE)
+    _require_cost_editable(work_order)
+    if minutes <= 0:
+        raise WorkOrderError("Indica los minutos trabajados.")
+    entry = LaborEntry.objects.create(
+        work_order=work_order,
+        user=membership.user,
+        minutes=minutes,
+        hourly_cost=hourly_cost_for(membership),
+    )
+    recalculate_costs(work_order=work_order)
+    return entry
+
+
+@transaction.atomic
+def add_part_usage(
+    *, work_order: WorkOrder, membership, description: str, quantity, unit_cost, unit: str = "",
+    client_uuid=None,
+) -> PartUsage:  # fmt: skip
+    """Repuesto o material consumido. Idempotente por client_uuid (móvil)."""
+    require_perm(membership, Perm.WORK_ORDER_EXECUTE)
+    _require_cost_editable(work_order)
+    if client_uuid:
+        existing = PartUsage.objects.filter(client_uuid=client_uuid).first()
+        if existing:
+            return existing
+    quantity, unit_cost = Decimal(str(quantity)), Decimal(str(unit_cost))
+    if quantity <= 0 or unit_cost < 0:
+        raise WorkOrderError("La cantidad debe ser mayor que cero y el costo no puede ser negativo.")
+    part = PartUsage.objects.create(
+        work_order=work_order,
+        description=description.strip()[:200],
+        quantity=quantity,
+        unit=unit.strip()[:20],
+        unit_cost=unit_cost,
+        created_by=membership.user,
+        client_uuid=client_uuid,
+    )
+    recalculate_costs(work_order=work_order)
+    return part
+
+
+@transaction.atomic
+def add_other_cost(
+    *, work_order: WorkOrder, membership, description: str, amount, supplier: str = ""
+) -> OtherCost:
+    """Servicio externo u otro costo: lo registra quien gestiona la OT."""
+    require_perm(membership, Perm.WORK_ORDER_MANAGE)
+    _require_cost_editable(work_order)
+    amount = Decimal(str(amount))
+    if amount < 0:
+        raise WorkOrderError("El monto no puede ser negativo.")
+    cost = OtherCost.objects.create(
+        work_order=work_order,
+        description=description.strip()[:200],
+        supplier=supplier.strip()[:150],
+        amount=amount,
+        created_by=membership.user,
+    )
+    recalculate_costs(work_order=work_order)
+    return cost
+
+
+@transaction.atomic
+def remove_cost_line(*, line, membership) -> None:
+    """Quita un repuesto (ejecutor) u otro costo (gestor) mientras la OT no esté cerrada."""
+    perm = Perm.WORK_ORDER_MANAGE if isinstance(line, OtherCost) else Perm.WORK_ORDER_EXECUTE
+    require_perm(membership, perm)
+    work_order = line.work_order
+    _require_cost_editable(work_order)
+    line.delete()
+    recalculate_costs(work_order=work_order)

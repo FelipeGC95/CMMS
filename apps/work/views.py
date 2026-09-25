@@ -3,19 +3,25 @@ from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.paginator import Paginator
 from django.http import FileResponse, Http404
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.views.decorators.http import require_POST
 
 from apps.accounts.permissions import Perm, PermissionDeniedError, has_perm
 from apps.core.decorators import membership_required
 
-from .forms import CompleteWorkOrderForm
-from .models import Attachment, WorkOrder, WorkOrderChecklistItem
+from .forms import CompleteWorkOrderForm, LaborForm, OtherCostForm, PartUsageForm
+from .models import Attachment, OtherCost, PartUsage, WorkOrder, WorkOrderChecklistItem
 from .selectors import visible_work_orders, work_order_detail, work_order_list
 from .services import (
+    COST_LOCKED_STATUSES,
     WorkOrderError,
+    add_other_cost,
+    add_part_usage,
     allowed_transitions,
     answer_checklist_item,
     complete_work_order,
+    log_labor,
+    remove_cost_line,
     transition,
     work_order_meter,
 )
@@ -66,6 +72,11 @@ def _detail_context(request, work_order, complete_form=None):
         "can_execute": has_perm(request.membership, Perm.WORK_ORDER_EXECUTE) and work_order.is_open,
         "complete_form": complete_form or _complete_form(work_order),
         "pending_required": sum(1 for i in work_order.checklist.all() if i.required and not i.result),
+        "costs_editable": work_order.status not in COST_LOCKED_STATUSES,
+        "can_manage": has_perm(request.membership, Perm.WORK_ORDER_MANAGE),
+        "labor_form": LaborForm(),
+        "part_form": PartUsageForm(),
+        "other_cost_form": OtherCostForm(),
     }
 
 
@@ -169,3 +180,82 @@ def attachment_view(request, pk):
     return FileResponse(
         attachment.file.open("rb"), content_type=attachment.content_type, filename=attachment.filename
     )
+
+
+# --- Costos (WO-04) -----------------------------------------------------------
+
+
+def _costs_redirect(pk):
+    return redirect(f"{reverse('work_order_detail', args=[pk])}#costs")
+
+
+def _run_cost_action(request, pk, action):
+    try:
+        action()
+    except PermissionDeniedError as exc:
+        raise PermissionDenied from exc
+    except ValidationError as exc:
+        messages.error(request, " ".join(exc.messages))
+    return _costs_redirect(pk)
+
+
+@require_POST
+@membership_required(perm=Perm.WORK_ORDER_EXECUTE)
+def labor_add_view(request, pk):
+    work_order = get_object_or_404(visible_work_orders(membership=request.membership), pk=pk)
+    form = LaborForm(request.POST)
+    if not form.is_valid():
+        messages.error(request, "Indica los minutos trabajados (1 a 1.440).")
+        return _costs_redirect(pk)
+    return _run_cost_action(
+        request,
+        pk,
+        lambda: log_labor(
+            work_order=work_order, membership=request.membership, minutes=form.cleaned_data["minutes"]
+        ),
+    )
+
+
+@require_POST
+@membership_required(perm=Perm.WORK_ORDER_EXECUTE)
+def part_add_view(request, pk):
+    work_order = get_object_or_404(visible_work_orders(membership=request.membership), pk=pk)
+    form = PartUsageForm(request.POST)
+    if not form.is_valid():
+        messages.error(
+            request, "Revisa el repuesto: descripción, cantidad y costo unitario son obligatorios."
+        )
+        return _costs_redirect(pk)
+    return _run_cost_action(
+        request,
+        pk,
+        lambda: add_part_usage(work_order=work_order, membership=request.membership, **form.cleaned_data),
+    )
+
+
+@require_POST
+@membership_required(perm=Perm.WORK_ORDER_MANAGE)
+def other_cost_add_view(request, pk):
+    work_order = get_object_or_404(visible_work_orders(membership=request.membership), pk=pk)
+    form = OtherCostForm(request.POST)
+    if not form.is_valid():
+        messages.error(request, "Revisa el costo: descripción y monto son obligatorios.")
+        return _costs_redirect(pk)
+    return _run_cost_action(
+        request,
+        pk,
+        lambda: add_other_cost(work_order=work_order, membership=request.membership, **form.cleaned_data),
+    )
+
+
+@require_POST
+@membership_required(perm=Perm.WORK_ORDER_EXECUTE)
+def cost_line_delete_view(request, pk, kind, line_pk):
+    model = {"part": PartUsage, "other": OtherCost}.get(kind)
+    if model is None:
+        raise Http404
+    visible = visible_work_orders(membership=request.membership)
+    line = get_object_or_404(
+        model.objects.select_related("work_order"), pk=line_pk, work_order__in=visible, work_order_id=pk
+    )
+    return _run_cost_action(request, pk, lambda: remove_cost_line(line=line, membership=request.membership))

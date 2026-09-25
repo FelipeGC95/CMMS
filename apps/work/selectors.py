@@ -47,7 +47,9 @@ def work_order_detail(pk, *, membership):
         .select_related(
             "asset", "asset__location", "assigned_to", "plan_assignment__plan", "plan_assignment__meter"
         )
-        .prefetch_related("checklist", "attachments", "transitions__by", "labor__user")
+        .prefetch_related(
+            "checklist", "attachments", "transitions__by", "labor__user", "parts", "other_costs"
+        )
         .get(pk=pk)
     )
 

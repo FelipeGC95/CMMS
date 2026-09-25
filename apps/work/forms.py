@@ -60,3 +60,22 @@ class CompleteWorkOrderForm(forms.Form):
         else:
             del self.fields["failure_mode"]
             del self.fields["failure_cause"]
+
+
+class LaborForm(forms.Form):
+    minutes = forms.IntegerField(label=_("Minutos trabajados"), min_value=1, max_value=24 * 60)
+
+
+class PartUsageForm(forms.Form):
+    description = forms.CharField(label=_("Repuesto o material"), max_length=200)
+    quantity = forms.DecimalField(label=_("Cantidad"), min_value=0, max_digits=12, decimal_places=3)
+    unit = forms.CharField(label=_("Unidad"), max_length=20, required=False)
+    unit_cost = forms.DecimalField(label=_("Costo unitario"), min_value=0, max_digits=14, decimal_places=2)
+    # Generado al mostrar el formulario: un doble envío no duplica la línea.
+    client_uuid = forms.UUIDField(widget=forms.HiddenInput, required=False, initial=uuid.uuid4)
+
+
+class OtherCostForm(forms.Form):
+    description = forms.CharField(label=_("Descripción"), max_length=200)
+    supplier = forms.CharField(label=_("Proveedor"), max_length=150, required=False)
+    amount = forms.DecimalField(label=_("Monto"), min_value=0, max_digits=14, decimal_places=2)
