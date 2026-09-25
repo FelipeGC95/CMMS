@@ -6,6 +6,7 @@ from django.urls import include, path
 from apps.accounts.views import switch_organization
 from apps.assets import import_views as asset_import_views
 from apps.assets import views as asset_views
+from apps.attachments.views import attachment_view
 from apps.reporting.views import dashboard
 from apps.ui.views import design_system_css_view, design_system_view
 from apps.work import views as work_views
@@ -78,7 +79,7 @@ urlpatterns = [
         work_views.checklist_answer_view,
         name="checklist_answer",
     ),
-    path("files/<uuid:pk>/", work_views.attachment_view, name="attachment"),
+    path("files/<uuid:pk>/", attachment_view, name="attachment"),
     path("requests/", work_views.request_list_view, name="request_list"),
     path("requests/<uuid:pk>/accept/", work_views.request_accept_view, name="request_accept"),
     path("requests/<uuid:pk>/reject/", work_views.request_reject_view, name="request_reject"),

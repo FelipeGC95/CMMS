@@ -10,11 +10,13 @@ from django.urls import reverse
 
 from apps.accounts.models import Membership, MembershipLocation
 from apps.assets.models import Asset
+from apps.attachments.models import TargetType
+from apps.attachments.selectors import attachments_for
 from apps.core.tenancy import tenant_context
 from apps.organizations.models import Location
 from apps.work.models import WorkOrder
 from apps.work.services import create_work_order, report_failure
-from tests.conftest import login
+from tests.conftest import login, tiny_jpeg_bytes
 
 
 @dataclass
@@ -138,7 +140,7 @@ def test_scoped_member_cannot_create_a_work_order_on_an_asset_outside_scope(clie
 
 
 def test_attachment_out_of_scope_is_404(client, tenant_a, scene):
-    photo = SimpleUploadedFile("f.jpg", b"\xff\xd8\xff fake", content_type="image/jpeg")
+    photo = SimpleUploadedFile("f.jpg", tiny_jpeg_bytes(), content_type="image/jpeg")
     with tenant_context(tenant_a.org):
         request = report_failure(
             membership=tenant_a.admin,
@@ -147,7 +149,7 @@ def test_attachment_out_of_scope_is_404(client, tenant_a, scene):
             asset_stopped=False,
             photo=photo,
         )
-        attachment = request.work_order.attachments.get()
+        attachment = attachments_for(target_type=TargetType.WORK_ORDER, target_id=request.work_order_id).get()
     login(client, tenant_a.tech)
     assert client.get(reverse("attachment", args=[attachment.pk])).status_code == 404
 

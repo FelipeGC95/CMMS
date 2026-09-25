@@ -25,6 +25,8 @@ gunicorn==26.2.0
     # via galbust-cmms
 openpyxl==3.1.5
     # via galbust-cmms
+pillow==12.3.0
+    # via galbust-cmms
 psycopg==3.3.6
     # via galbust-cmms
 psycopg-binary==3.3.6 ; implementation_name != 'pypy'

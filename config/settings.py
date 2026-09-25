@@ -37,6 +37,7 @@ INSTALLED_APPS = [
     "apps.accounts",
     "apps.assets",
     "apps.maintenance",
+    "apps.attachments",
     "apps.work",
     "apps.reporting",
     "apps.audit",
@@ -168,7 +169,7 @@ STORAGES = {
 # En Render apunta a un disco persistente; pasará a R2 (ADR-014).
 MEDIA_ROOT = Path(os.environ.get("MEDIA_ROOT", BASE_DIR / "media"))
 MEDIA_URL = "media/"  # No se sirve públicamente: los archivos pasan por files.views.
-MAX_UPLOAD_BYTES = 10 * 1024 * 1024
+MAX_UPLOAD_BYTES = 20 * 1024 * 1024  # AST-06 CA1
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 

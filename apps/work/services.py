@@ -3,7 +3,6 @@
 import datetime
 from decimal import Decimal
 
-from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.db.models import Q
@@ -12,11 +11,15 @@ from django.utils import timezone
 from apps.accounts.permissions import Perm, has_perm, require_perm
 from apps.assets.models import Asset, MeterReading
 from apps.assets.services import change_asset_status, record_meter_reading
+from apps.attachments import services as attachments_services
+from apps.attachments.models import Attachment
+from apps.attachments.models import Purpose as AttachmentPurpose
+from apps.attachments.models import TargetType as AttachmentTargetType
+from apps.attachments.services import AttachmentError
 from apps.audit import services as audit
 from apps.audit.models import AuditEvent
 
 from .models import (
-    Attachment,
     FailureEvent,
     LaborEntry,
     LaborRate,
@@ -46,8 +49,6 @@ TRANSITIONS: dict[str, set[str]] = {
 
 # Transiciones que un técnico puede hacer; el resto requiere WORK_ORDER_MANAGE.
 EXECUTION_TARGETS = {S.IN_PROGRESS, S.ON_HOLD, S.COMPLETED}
-
-ALLOWED_UPLOAD_TYPES = {"image/jpeg", "image/png", "image/webp", "image/heic", "application/pdf"}
 
 
 class WorkOrderError(ValidationError):
@@ -181,19 +182,19 @@ def report_failure(
     return request
 
 
-def add_attachment(*, work_order: WorkOrder, uploaded_file, by) -> Attachment:
-    if uploaded_file.size > settings.MAX_UPLOAD_BYTES:
-        raise WorkOrderError("El archivo supera el tamaño máximo (10 MB).")
-    if uploaded_file.content_type not in ALLOWED_UPLOAD_TYPES:
-        raise WorkOrderError("Tipo de archivo no permitido.")
-    return Attachment.objects.create(
-        work_order=work_order,
-        file=uploaded_file,
-        filename=uploaded_file.name[:200],
-        content_type=uploaded_file.content_type,
-        size_bytes=uploaded_file.size,
-        uploaded_by=by,
-    )
+def add_attachment(
+    *, work_order: WorkOrder, uploaded_file, by, purpose=AttachmentPurpose.PHOTO
+) -> Attachment:
+    try:
+        return attachments_services.add_attachment(
+            target_type=AttachmentTargetType.WORK_ORDER,
+            target_id=work_order.pk,
+            uploaded_file=uploaded_file,
+            by=by,
+            purpose=purpose,
+        )
+    except AttachmentError as error:
+        raise WorkOrderError(error.message) from error
 
 
 def allowed_transitions(*, work_order: WorkOrder, membership) -> list[str]:

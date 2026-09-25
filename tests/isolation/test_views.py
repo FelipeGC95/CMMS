@@ -3,13 +3,15 @@
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.urls import reverse
 
+from apps.attachments.models import TargetType
+from apps.attachments.selectors import attachments_for
 from apps.core.tenancy import tenant_context
 from apps.work.services import report_failure
-from tests.conftest import login
+from tests.conftest import login, tiny_jpeg_bytes
 
 
 def _failure_in_a(tenant_a):
-    photo = SimpleUploadedFile("f.jpg", b"\xff\xd8\xff fake", content_type="image/jpeg")
+    photo = SimpleUploadedFile("f.jpg", tiny_jpeg_bytes(), content_type="image/jpeg")
     with tenant_context(tenant_a.org):
         return report_failure(
             membership=tenant_a.viewer,
@@ -24,7 +26,7 @@ def test_user_of_b_gets_404_on_objects_of_a(client, tenant_a, tenant_b, settings
     settings.MEDIA_ROOT = tmp_path
     request = _failure_in_a(tenant_a)
     with tenant_context(tenant_a.org):
-        attachment = request.work_order.attachments.get()
+        attachment = attachments_for(target_type=TargetType.WORK_ORDER, target_id=request.work_order_id).get()
         item_url = reverse("work_order_detail", args=[request.work_order_id])
     login(client, tenant_b.admin)
     for url in [

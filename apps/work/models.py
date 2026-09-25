@@ -9,6 +9,12 @@ from apps.core.models import TenantModel
 from apps.maintenance.models import ItemType
 
 
+def attachment_upload_to(instance, filename):
+    """Referenciada por 0001_initial (el modelo Attachment vive ahora en apps.attachments)."""
+    ext = Path(filename).suffix.lower()[:10]
+    return f"org/{instance.organization_id}/{uuid.uuid4().hex}{ext}"
+
+
 class WorkOrderSequence(TenantModel):
     """Correlativos por organización y tipo, sin huecos por concurrencia."""
 
@@ -384,20 +390,3 @@ class WorkRequest(TenantModel):
         indexes = [
             models.Index(fields=["organization", "status", "created_at"], name="request_org_status_idx"),
         ]
-
-
-def attachment_upload_to(instance, filename):
-    ext = Path(filename).suffix.lower()[:10]
-    return f"org/{instance.organization_id}/{uuid.uuid4().hex}{ext}"
-
-
-class Attachment(TenantModel):
-    work_order = models.ForeignKey(WorkOrder, on_delete=models.CASCADE, related_name="attachments")
-    file = models.FileField(upload_to=attachment_upload_to)
-    filename = models.CharField(max_length=200)
-    content_type = models.CharField(max_length=100)
-    size_bytes = models.PositiveIntegerField()
-    uploaded_by = models.ForeignKey("accounts.User", on_delete=models.SET_NULL, null=True, related_name="+")
-
-    class Meta:
-        ordering = ["created_at"]

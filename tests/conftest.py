@@ -78,3 +78,14 @@ def today():
 def login(client, membership):
     client.force_login(membership.user)
     return client
+
+
+def tiny_jpeg_bytes(size=(10, 10), color="red") -> bytes:
+    """JPEG real y mínimo (no una firma falsa): Pillow debe poder abrirlo (AST-06)."""
+    import io
+
+    from PIL import Image
+
+    buffer = io.BytesIO()
+    Image.new("RGB", size, color=color).save(buffer, format="JPEG")
+    return buffer.getvalue()

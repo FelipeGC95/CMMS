@@ -1,7 +1,7 @@
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.paginator import Paginator
-from django.http import FileResponse, Http404
+from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
@@ -9,6 +9,8 @@ from django.views.decorators.http import require_POST
 
 from apps.accounts.models import Membership
 from apps.accounts.permissions import Perm, PermissionDeniedError, has_perm
+from apps.attachments.models import TargetType
+from apps.attachments.selectors import attachments_for
 from apps.core.decorators import membership_required
 
 from .forms import (
@@ -19,7 +21,7 @@ from .forms import (
     WorkOrderCreateForm,
     WorkOrderFilterForm,
 )
-from .models import Attachment, OtherCost, PartUsage, WorkOrder, WorkOrderChecklistItem
+from .models import OtherCost, PartUsage, WorkOrder, WorkOrderChecklistItem
 from .selectors import (
     open_requests_for_asset,
     pending_requests,
@@ -136,6 +138,7 @@ def _detail_context(request, work_order, complete_form=None):
         "labor_form": LaborForm(),
         "part_form": PartUsageForm(),
         "other_cost_form": OtherCostForm(),
+        "attachments": attachments_for(target_type=TargetType.WORK_ORDER, target_id=work_order.pk),
     }
 
 
@@ -228,17 +231,6 @@ def work_order_complete_view(request, pk):
             return redirect("work_order_detail", pk=pk)
     work_order = work_order_detail(pk, membership=request.membership)
     return render(request, "work/detail.html", _detail_context(request, work_order, form), status=400)
-
-
-@membership_required
-def attachment_view(request, pk):
-    """Los archivos nunca se sirven públicamente: se verifica la organización y el alcance por sitio."""
-    attachment = get_object_or_404(
-        Attachment.objects.filter(work_order__in=visible_work_orders(membership=request.membership)), pk=pk
-    )
-    return FileResponse(
-        attachment.file.open("rb"), content_type=attachment.content_type, filename=attachment.filename
-    )
 
 
 # --- Costos (WO-04) -----------------------------------------------------------

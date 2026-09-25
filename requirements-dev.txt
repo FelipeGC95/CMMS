@@ -43,6 +43,8 @@ openpyxl==3.1.5
     # via galbust-cmms
 packaging==26.3
     # via pytest
+pillow==12.3.0
+    # via galbust-cmms
 platformdirs==4.11.12
     # via virtualenv
 pluggy==1.6.0

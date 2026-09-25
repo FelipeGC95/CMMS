@@ -36,9 +36,9 @@
       {% if wo.completion_notes %}<dt>{% translate "Cierre" %}</dt><dd>{{ wo.completion_notes|linebreaksbr }}</dd>{% endif %}
     </dl>
     {% if wo.description %}<p class="mt-4">{{ wo.description|linebreaksbr }}</p>{% endif %}
-    {% if wo.attachments.all %}
+    {% if attachments %}
     <div class="row mt-4">
-      {% for a in wo.attachments.all %}
+      {% for a in attachments %}
         {% if a.content_type|slice:":6" == "image/" %}
         <a href="{% url 'attachment' a.pk %}"><img class="thumb" src="{% url 'attachment' a.pk %}" alt="{% translate 'Foto adjunta' %}"></a>
         {% else %}<a class="btn btn--ghost" href="{% url 'attachment' a.pk %}">{{ a.filename }}</a>{% endif %}
