@@ -8,6 +8,7 @@ from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.db.models import F, Max, Q
 from django.utils import timezone
+from django.utils.translation import gettext as _
 
 from apps.audit import services as audit
 from apps.audit.models import AuditEvent
@@ -109,10 +110,10 @@ def publish_version(*, version: PlanVersion, by=None, change_note: str = "") -> 
     """
     version = PlanVersion.objects.select_for_update().get(pk=version.pk)
     if not version.is_draft:
-        raise PlanVersionError(f"La versión {version.number} ya está publicada.")
+        raise PlanVersionError(_("La versión %(number)s ya está publicada.") % {"number": version.number})
     version.clean()
     if not version.items.exists():
-        raise PlanVersionError("Agrega al menos un ítem al checklist antes de publicar.")
+        raise PlanVersionError(_("Agrega al menos un ítem al checklist antes de publicar."))
 
     plan = locked_plans().get(pk=version.plan_id)
     previous = plan.current_version
@@ -211,7 +212,7 @@ def assign_plan(
     """
     version = plan.current_version
     if version is None:
-        raise PlanVersionError(f"«{plan}» no tiene una versión publicada.")
+        raise PlanVersionError(_("«%(plan)s» no tiene una versión publicada.") % {"plan": plan})
     defaults = {"is_active": True, "next_due_on": None, "meter": None, "next_due_meter_value": None}
     if version.interval_days:
         defaults["next_due_on"] = starts_on or timezone.localdate() + datetime.timedelta(
@@ -221,7 +222,8 @@ def assign_plan(
         meter = meter or asset.meters.filter(kind=version.meter_kind, is_active=True).first()
         if meter is None:
             raise ValidationError(
-                f"{asset.code} no tiene un medidor de tipo «{version.get_meter_kind_display()}»."
+                _("%(asset)s no tiene un medidor de tipo «%(kind)s».")
+                % {"asset": asset.code, "kind": version.get_meter_kind_display()}
             )
         defaults["meter"] = meter
         defaults["next_due_meter_value"] = (

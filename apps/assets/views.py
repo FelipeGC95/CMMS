@@ -7,6 +7,7 @@ from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils.safestring import mark_safe
+from django.utils.translation import gettext as _
 from django.views.decorators.http import require_POST
 
 from apps.accounts.permissions import Perm, PermissionDeniedError, has_perm
@@ -94,9 +95,9 @@ def asset_attachment_add_view(request, pk):
         except AttachmentError as error:
             messages.error(request, error.message)
         else:
-            messages.success(request, "Adjunto guardado.")
+            messages.success(request, _("Adjunto guardado."))
     else:
-        messages.error(request, "Revisa el archivo: es obligatorio y debe pesar hasta 20 MB.")
+        messages.error(request, _("Revisa el archivo: es obligatorio y debe pesar hasta 20 MB."))
     return redirect(f"{reverse('asset_detail', args=[pk])}#attachments")
 
 
@@ -110,10 +111,10 @@ def meter_reading_view(request, pk, meter_pk):
     )
     form = MeterReadingForm(request.POST, prefix=str(meter.pk))
     if not form.is_valid():
-        messages.error(request, "Ingresa una lectura válida (número mayor o igual a cero).")
+        messages.error(request, _("Ingresa una lectura válida (número mayor o igual a cero)."))
         return redirect(f"{reverse('asset_detail', args=[pk])}#meters")
     try:
-        _, warnings = record_meter_reading(
+        _reading, warnings = record_meter_reading(
             meter=meter,
             value=form.cleaned_data["value"],
             membership=request.membership,
@@ -123,7 +124,7 @@ def meter_reading_view(request, pk, meter_pk):
     except ValidationError as exc:
         messages.error(request, " ".join(exc.messages))
     else:
-        messages.success(request, f"Lectura registrada: {meter.get_kind_display()}.")
+        messages.success(request, _("Lectura registrada: %(kind)s.") % {"kind": meter.get_kind_display()})
         for warning in warnings:
             messages.warning(request, warning)
     return redirect(f"{reverse('asset_detail', args=[pk])}#meters")
@@ -181,6 +182,9 @@ def asset_report_view(request, pk):
         except WorkOrderError as exc:
             form.add_error(None, exc.message)
         else:
-            messages.success(request, f"Aviso enviado. Se creó la {work_request.work_order.code}.")
+            messages.success(
+                request,
+                _("Aviso enviado. Se creó la %(code)s.") % {"code": work_request.work_order.code},
+            )
             return redirect("work_order_detail", pk=work_request.work_order_id)
     return render(request, "assets/report.html", {"asset": asset, "form": form})

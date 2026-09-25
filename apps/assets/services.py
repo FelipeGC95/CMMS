@@ -83,7 +83,7 @@ def record_meter_reading(
     value = Decimal(str(value))
     read_at = read_at or timezone.now()
     if value < 0:
-        raise MeterReadingError("La lectura no puede ser negativa.")
+        raise MeterReadingError(gettext("La lectura no puede ser negativa."))
 
     previous_value, previous_at = meter.current_value, meter.current_read_at
     is_latest = previous_at is None or read_at >= previous_at
@@ -91,13 +91,18 @@ def record_meter_reading(
     if meter.is_cumulative and previous_value is not None and is_latest and not is_reset:
         if value < previous_value:
             raise MeterReadingError(
-                f"La lectura ({value.normalize():f}) es menor que la actual "
-                f"({previous_value.normalize():f}). Si se cambió o reinició el medidor, márcalo."
+                gettext(
+                    "La lectura (%(value)s) es menor que la actual (%(previous)s). "
+                    "Si se cambió o reinició el medidor, márcalo."
+                )
+                % {"value": f"{value.normalize():f}", "previous": f"{previous_value.normalize():f}"}
             )
         elapsed_days = Decimal((read_at - previous_at).total_seconds()) / 86400
         if meter.kind == MeterKind.HOURS and elapsed_days > 0:
             if (value - previous_value) / elapsed_days > MAX_HOURS_PER_DAY:
-                warnings.append("Uso mayor a 24 h por día desde la lectura anterior: revisa el valor.")
+                warnings.append(
+                    gettext("Uso mayor a 24 h por día desde la lectura anterior: revisa el valor.")
+                )
 
     reading = MeterReading.objects.create(
         meter=meter,

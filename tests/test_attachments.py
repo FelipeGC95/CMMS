@@ -116,6 +116,16 @@ def test_unreadable_image_like_heic_is_rejected_with_a_clear_message(in_a):
         )
 
 
+def test_decompression_bomb_is_rejected_with_a_clear_message(in_a, monkeypatch):
+    """Una imagen con demasiados píxeles no debe terminar en un error 500."""
+    monkeypatch.setattr(Image, "MAX_IMAGE_PIXELS", 1000)
+    uploaded, _ = _jpeg_file(size=(3000, 1500))
+    with pytest.raises(AttachmentError, match="formato no compatible"):
+        add_attachment(
+            target_type=TargetType.ASSET, target_id=in_a.asset.pk, uploaded_file=uploaded, by=in_a.admin.user
+        )
+
+
 def test_client_uuid_makes_the_upload_idempotent(in_a):
     import uuid
 

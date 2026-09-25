@@ -7,6 +7,7 @@ from pathlib import Path
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.files.base import ContentFile
+from django.utils.translation import gettext as _
 from PIL import Image, ImageOps, UnidentifiedImageError
 
 from .models import Attachment, Purpose
@@ -28,10 +29,12 @@ def _compress_image(uploaded_file):
     try:
         image = Image.open(uploaded_file)
         image.load()
-    except UnidentifiedImageError as error:
+    except (UnidentifiedImageError, Image.DecompressionBombError) as error:
         raise AttachmentError(
-            "No se pudo leer la imagen (formato no compatible, por ejemplo HEIC en algunos equipos). "
-            "Conviértela a JPEG o PNG e inténtalo de nuevo."
+            _(
+                "No se pudo leer la imagen (formato no compatible, por ejemplo HEIC en algunos equipos). "
+                "Conviértela a JPEG o PNG e inténtalo de nuevo."
+            )
         ) from error
     image = ImageOps.exif_transpose(image)
     if image.mode not in ("RGB", "L"):
@@ -60,10 +63,10 @@ def add_attachment(
             return existing
 
     if uploaded_file.size > settings.MAX_UPLOAD_BYTES:
-        raise AttachmentError("El archivo supera el tamaño máximo (20 MB).")
+        raise AttachmentError(_("El archivo supera el tamaño máximo (20 MB)."))
     content_type = uploaded_file.content_type
     if content_type not in ALLOWED_UPLOAD_TYPES:
-        raise AttachmentError("Tipo de archivo no permitido.")
+        raise AttachmentError(_("Tipo de archivo no permitido."))
 
     filename = uploaded_file.name[:200]
     width = height = None
