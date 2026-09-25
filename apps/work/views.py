@@ -4,41 +4,93 @@ from django.core.paginator import Paginator
 from django.http import FileResponse, Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
+from django.utils.translation import gettext_lazy as _
 from django.views.decorators.http import require_POST
 
+from apps.accounts.models import Membership
 from apps.accounts.permissions import Perm, PermissionDeniedError, has_perm
 from apps.core.decorators import membership_required
 
-from .forms import CompleteWorkOrderForm, LaborForm, OtherCostForm, PartUsageForm
-from .models import Attachment, OtherCost, PartUsage, WorkOrder, WorkOrderChecklistItem
-from .selectors import visible_work_orders, work_order_detail, work_order_list
+from .forms import (
+    CompleteWorkOrderForm,
+    FailureCodeForm,
+    FailureCodeRenameForm,
+    LaborForm,
+    OtherCostForm,
+    PartUsageForm,
+    WorkOrderCreateForm,
+    WorkOrderFilterForm,
+)
+from .models import Attachment, FailureCode, OtherCost, PartUsage, WorkOrder, WorkOrderChecklistItem
+from .selectors import (
+    failure_code_list,
+    open_requests_for_asset,
+    pending_requests,
+    visible_requests,
+    visible_work_orders,
+    work_order_detail,
+    work_order_list,
+)
 from .services import (
     COST_LOCKED_STATUSES,
     WorkOrderError,
+    accept_request,
     add_other_cost,
     add_part_usage,
     allowed_transitions,
     answer_checklist_item,
     complete_work_order,
+    create_failure_code,
+    create_work_order,
     log_labor,
+    merge_request,
+    reject_request,
     remove_cost_line,
+    rename_failure_code,
+    set_failure_code_active,
     transition,
     work_order_meter,
 )
 
-SCOPES = [("open", "Abiertas"), ("overdue", "Vencidas"), ("mine", "Mis OT"), ("done", "Cerradas")]
+SCOPES = [("open", _("Abiertas")), ("overdue", _("Vencidas")), ("mine", _("Mis OT")), ("done", _("Cerradas"))]
+
+
+def _query_with(request, **overrides):
+    """Querystring actual (sin `page`) con las claves de `overrides` reemplazadas o quitadas."""
+    data = request.GET.copy()
+    data.pop("page", None)
+    for key, value in overrides.items():
+        if value:
+            data[key] = value
+        else:
+            data.pop(key, None)
+    return data.urlencode()
 
 
 @membership_required
 def work_order_list_view(request):
-    scope = request.GET.get("scope", "open")
+    membership = request.membership
+    default_scope = "mine" if membership.role == Membership.Role.TECHNICIAN else "open"
+    scope = request.GET.get("scope", default_scope)
     work_type = request.GET.get("type", "")
-    if scope == "mine":
-        qs = work_order_list(
-            membership=request.membership, scope="open", work_type=work_type, assigned_to=request.user
-        )
-    else:
-        qs = work_order_list(membership=request.membership, scope=scope, work_type=work_type)
+
+    filter_form = WorkOrderFilterForm(request.GET, membership=membership)
+    filter_form.is_valid()
+    filters = filter_form.cleaned_data
+
+    assigned_to = request.user if scope == "mine" else filters.get("assigned_to")
+    qs = work_order_list(
+        membership=membership,
+        scope="open" if scope == "mine" else scope,
+        work_type=work_type,
+        status=filters.get("status", ""),
+        assigned_to=assigned_to,
+        asset_q=filters.get("asset_q", ""),
+        location=filters.get("location"),
+        date_field=filters.get("date_field") or "due_on",
+        date_from=filters.get("date_from"),
+        date_to=filters.get("date_to"),
+    )
     page = Paginator(qs, 25).get_page(request.GET.get("page"))
     return render(
         request,
@@ -46,11 +98,24 @@ def work_order_list_view(request):
         {
             "page": page,
             "scope": scope,
-            "scopes": SCOPES,
+            "scope_links": [(value, label, _query_with(request, scope=value)) for value, label in SCOPES],
             "work_type": work_type,
-            "types": WorkOrder.Type.choices,
+            "type_links": [("", _("Todos los tipos"), _query_with(request, type=""))]
+            + [(value, label, _query_with(request, type=value)) for value, label in WorkOrder.Type.choices],
+            "filter_form": filter_form,
         },
     )
+
+
+@membership_required(perm=Perm.WORK_ORDER_MANAGE)
+def work_order_create_view(request):
+    membership = request.membership
+    form = WorkOrderCreateForm(request.POST or None, membership=membership)
+    if request.method == "POST" and form.is_valid():
+        work_order = create_work_order(by=request.user, **form.cleaned_data)
+        messages.success(request, _("%(code)s creada.") % {"code": work_order.code})
+        return redirect("work_order_detail", pk=work_order.pk)
+    return render(request, "work/create.html", {"form": form})
 
 
 def _complete_form(work_order, data=None):
@@ -61,6 +126,8 @@ def _complete_form(work_order, data=None):
         with_failure=work_order.work_type == WorkOrder.Type.CORRECTIVE,
         meter=meter,
         meter_required=bool(plan and plan.uses_meter and meter),
+        require_failure_details=work_order.organization.require_failure_details,
+        asset=work_order.asset,
     )
 
 
@@ -160,6 +227,9 @@ def work_order_complete_view(request, pk):
                 notes=form.cleaned_data["notes"],
                 failure_mode=form.cleaned_data.get("failure_mode"),
                 failure_cause=form.cleaned_data.get("failure_cause"),
+                failure_mechanism=form.cleaned_data.get("failure_mechanism"),
+                detection_method=form.cleaned_data.get("detection_method"),
+                component=form.cleaned_data.get("component"),
                 meter_value=form.cleaned_data.get("meter_value"),
             )
         except ValidationError as exc:
@@ -259,3 +329,122 @@ def cost_line_delete_view(request, pk, kind, line_pk):
         model.objects.select_related("work_order"), pk=line_pk, work_order__in=visible, work_order_id=pk
     )
     return _run_cost_action(request, pk, lambda: remove_cost_line(line=line, membership=request.membership))
+
+
+# --- Bandeja de solicitudes (REQ-01 CA3) ---------------------------------------
+
+
+@membership_required(perm=Perm.WORK_ORDER_MANAGE)
+def request_list_view(request):
+    page = Paginator(pending_requests(membership=request.membership), 25).get_page(request.GET.get("page"))
+    return render(request, "work/request_list.html", {"page": page})
+
+
+def _get_request_or_404(request, pk):
+    return get_object_or_404(visible_requests(membership=request.membership), pk=pk)
+
+
+@require_POST
+@membership_required(perm=Perm.WORK_ORDER_MANAGE)
+def request_accept_view(request, pk):
+    work_request = _get_request_or_404(request, pk)
+    try:
+        accept_request(work_request=work_request, membership=request.membership)
+    except WorkOrderError as exc:
+        messages.error(request, exc.message)
+    else:
+        messages.success(request, f"Solicitud #{work_request.number} aceptada.")
+    return redirect("request_list")
+
+
+@require_POST
+@membership_required(perm=Perm.WORK_ORDER_MANAGE)
+def request_reject_view(request, pk):
+    work_request = _get_request_or_404(request, pk)
+    try:
+        reject_request(
+            work_request=work_request, membership=request.membership, reason=request.POST.get("reason", "")
+        )
+    except WorkOrderError as exc:
+        messages.error(request, exc.message)
+    else:
+        messages.success(request, f"Solicitud #{work_request.number} rechazada.")
+    return redirect("request_list")
+
+
+@membership_required(perm=Perm.WORK_ORDER_MANAGE)
+def request_merge_view(request, pk):
+    work_request = _get_request_or_404(request, pk)
+    candidates = open_requests_for_asset(asset=work_request.asset, exclude=work_request)
+    if request.method == "POST":
+        into = get_object_or_404(candidates, pk=request.POST.get("into", ""))
+        try:
+            merge_request(work_request=work_request, into=into, membership=request.membership)
+        except WorkOrderError as exc:
+            messages.error(request, exc.message)
+        else:
+            messages.success(request, f"Solicitud #{work_request.number} fusionada con #{into.number}.")
+            return redirect("request_list")
+    return render(
+        request, "work/request_merge.html", {"work_request": work_request, "candidates": candidates}
+    )
+
+
+# --- Catálogo de falla (REQ-03 CA1) --------------------------------------------
+
+
+@membership_required(perm=Perm.WORK_ORDER_MANAGE)
+def failure_code_list_view(request):
+    kind = request.GET.get("kind", "")
+    page = Paginator(failure_code_list(kind=kind), 25).get_page(request.GET.get("page"))
+    form = FailureCodeForm(initial={"kind": kind} if kind else None)
+    return render(
+        request,
+        "work/failure_codes.html",
+        {"page": page, "kind": kind, "kinds": FailureCode.Kind.choices, "form": form},
+    )
+
+
+@require_POST
+@membership_required(perm=Perm.WORK_ORDER_MANAGE)
+def failure_code_create_view(request):
+    form = FailureCodeForm(request.POST)
+    if form.is_valid():
+        try:
+            create_failure_code(membership=request.membership, **form.cleaned_data)
+        except WorkOrderError as exc:
+            messages.error(request, exc.message)
+        else:
+            messages.success(request, "Código agregado.")
+    else:
+        messages.error(request, "Revisa el tipo, código y nombre.")
+    return redirect("failure_code_list")
+
+
+@require_POST
+@membership_required(perm=Perm.WORK_ORDER_MANAGE)
+def failure_code_rename_view(request, pk):
+    failure_code = get_object_or_404(FailureCode, pk=pk)
+    form = FailureCodeRenameForm(request.POST)
+    if form.is_valid():
+        try:
+            rename_failure_code(
+                failure_code=failure_code, name=form.cleaned_data["name"], membership=request.membership
+            )
+        except WorkOrderError as exc:
+            messages.error(request, exc.message)
+        else:
+            messages.success(request, f"{failure_code.code} actualizado.")
+    else:
+        messages.error(request, "El nombre es obligatorio.")
+    return redirect("failure_code_list")
+
+
+@require_POST
+@membership_required(perm=Perm.WORK_ORDER_MANAGE)
+def failure_code_toggle_view(request, pk):
+    failure_code = get_object_or_404(FailureCode, pk=pk)
+    set_failure_code_active(
+        failure_code=failure_code, is_active=not failure_code.is_active, membership=request.membership
+    )
+    return redirect("failure_code_list")

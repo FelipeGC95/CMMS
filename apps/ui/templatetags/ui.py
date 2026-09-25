@@ -19,6 +19,7 @@ _ICONS = {
     "calendar": '<rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4"/>',
     "home": '<path d="M4 11l8-7 8 7v9h-5v-6H9v6H4z"/>',
     "box": '<path d="M12 3l8.5 4.5v9L12 21l-8.5-4.5v-9L12 3z"/><path d="M3.5 7.5L12 12l8.5-4.5M12 12v9"/>',
+    "menu": '<path d="M4 7h16M4 12h16M4 17h16"/>',
     "list": '<path d="M9 6h11M9 12h11M9 18h11M4.5 6h.01M4.5 12h.01M4.5 18h.01"/>',
     "megaphone": '<path d="M4 10v4h3l7 4V6L7 10H4z"/><path d="M17.5 9a4 4 0 0 1 0 6"/>',
     "print": '<path d="M7 9V4h10v5"/><rect x="4" y="9" width="16" height="7" rx="2"/><path d="M7 14h10v6H7z"/>',
@@ -60,6 +61,11 @@ _STATUS_TONES = {
     "completed": "success",
     "closed": "success",
     "cancelled": "neutral",
+    # Solicitudes (REQ-01 CA3)
+    "pending": "warning",
+    "accepted": "success",
+    "rejected": "error",
+    "merged": "neutral",
 }
 
 

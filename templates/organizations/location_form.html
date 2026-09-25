@@ -1,0 +1,28 @@
+{% extends "base.html" %}{% load i18n %}
+{% block title %}{{ location.name }}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <p class="muted mono">{{ location.code }}</p>
+    <h1>{{ location.name }}</h1>
+  </div>
+  <a class="btn btn--ghost" href="{% url 'location_list' %}">{% translate "Volver a ubicaciones" %}</a>
+</div>
+
+<section class="card">
+  <form method="post">
+    {% csrf_token %}
+    {% include "_form_fields.html" with form=form %}
+    <p class="muted">{% translate "Al moverla, las ubicaciones y activos que contiene se mueven con ella." %}</p>
+    <button class="btn btn--primary" type="submit">{% translate "Guardar" %}</button>
+  </form>
+</section>
+
+<section class="card mt-4">
+  <form method="post" action="{% url 'location_delete' location.pk %}">
+    {% csrf_token %}
+    <p class="muted">{% translate "Solo se puede eliminar si no contiene ubicaciones ni activos; si no, desactívala." %}</p>
+    <button class="btn btn--danger" type="submit">{% translate "Eliminar" %}</button>
+  </form>
+</section>
+{% endblock %}

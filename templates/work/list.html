@@ -1,4 +1,4 @@
-{% extends "base.html" %}{% load i18n ui %}
+{% extends "base.html" %}{% load i18n ui accounts_tags %}
 {% block title %}{% translate "Órdenes de trabajo" %}{% endblock %}
 {% block content %}
 <div class="page-header">
@@ -6,19 +6,34 @@
     <h1>{% translate "Órdenes de trabajo" %}</h1>
     <p class="muted">{% blocktranslate count n=page.paginator.count %}{{ n }} OT{% plural %}{{ n }} OT{% endblocktranslate %}</p>
   </div>
+  {% if membership|can:"work_order.manage" %}
+  <a class="btn btn--primary" href="{% url 'work_order_create' %}">{% translate "Nueva OT" %}</a>
+  {% endif %}
 </div>
 
 <nav class="chips" aria-label="{% translate 'Filtro' %}">
-  {% for value, label in scopes %}
-  <a class="chip" href="?scope={{ value }}{% if work_type %}&type={{ work_type }}{% endif %}" {% if value == scope %}aria-current="true"{% endif %}>{{ label }}</a>
+  {% for value, label, query in scope_links %}
+  <a class="chip" href="?{{ query }}" {% if value == scope %}aria-current="true"{% endif %}>{{ label }}</a>
   {% endfor %}
 </nav>
 <nav class="chips" aria-label="{% translate 'Tipo' %}">
-  <a class="chip" href="?scope={{ scope }}" {% if not work_type %}aria-current="true"{% endif %}>{% translate "Todos los tipos" %}</a>
-  {% for value, label in types %}
-  <a class="chip" href="?scope={{ scope }}&type={{ value }}" {% if value == work_type %}aria-current="true"{% endif %}>{{ label }}</a>
+  {% for value, label, query in type_links %}
+  <a class="chip" href="?{{ query }}" {% if value == work_type %}aria-current="true"{% endif %}>{{ label }}</a>
   {% endfor %}
 </nav>
+
+<section class="card mb-4" aria-labelledby="filters-title">
+  <h2 id="filters-title">{% translate "Filtros" %}</h2>
+  <form method="get">
+    <input type="hidden" name="scope" value="{{ scope }}">
+    {% if work_type %}<input type="hidden" name="type" value="{{ work_type }}">{% endif %}
+    {% include "_form_fields.html" with form=filter_form %}
+    <div class="row">
+      <button class="btn btn--primary" type="submit">{% translate "Filtrar" %}</button>
+      <a class="btn btn--ghost" href="?scope={{ scope }}{% if work_type %}&type={{ work_type }}{% endif %}">{% translate "Limpiar filtros" %}</a>
+    </div>
+  </form>
+</section>
 
 <div class="card">
   {% if page.object_list %}

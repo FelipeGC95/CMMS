@@ -1,0 +1,41 @@
+{% extends "base.html" %}{% load i18n ui %}
+{% block title %}{% translate "Clases de activo" %}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>{% translate "Clases de activo" %}</h1>
+    <p class="muted">{% translate "Cada clase define los datos técnicos que se registran en sus activos." %}</p>
+  </div>
+  <a class="btn btn--ghost" href="{% url 'asset_list' %}">{% translate "Volver a activos" %}</a>
+</div>
+
+<div class="grid grid--2">
+  <section class="card card--flush">
+    <table class="table">
+      <thead><tr><th>{% translate "Clase" %}</th><th>{% translate "Categoría" %}</th><th>{% translate "Activos" %}</th><th>{% translate "Atributos" %}</th><th>{% translate "Estado" %}</th></tr></thead>
+      <tbody>
+        {% for asset_class in page.object_list %}
+        <tr>
+          <td data-label=""><a href="{% url 'asset_class_detail' asset_class.pk %}">{{ asset_class.name }}</a> <span class="muted mono">{{ asset_class.code }}</span></td>
+          <td data-label="{% translate 'Categoría' %}">{{ asset_class.get_iso_category_display }}</td>
+          <td data-label="{% translate 'Activos' %}" class="num">{{ asset_class.asset_count }}</td>
+          <td data-label="{% translate 'Atributos' %}" class="num">{{ asset_class.attribute_count }}</td>
+          <td data-label="">{% if asset_class.is_active %}<span class="badge badge--success">{% icon 'check' %}{% translate "Activa" %}</span>{% else %}<span class="badge badge--neutral">{% icon 'dot' %}{% translate "Inactiva" %}</span>{% endif %}</td>
+        </tr>
+        {% empty %}
+        <tr><td data-label="" colspan="5" class="empty">{% translate "Aún no hay clases." %}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+  <section class="card">
+    <h2>{% translate "Nueva clase" %}</h2>
+    <form method="post">
+      {% csrf_token %}
+      {% include "_form_fields.html" with form=form %}
+      <button class="btn btn--primary" type="submit">{% translate "Crear" %}</button>
+    </form>
+  </section>
+</div>
+{% include "_pagination.html" %}
+{% endblock %}

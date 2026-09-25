@@ -282,13 +282,19 @@ class OtherCost(TenantModel):
 
 
 class FailureCode(TenantModel):
-    """Catálogo con la estructura de ISO 14224 (contenido propio y editable)."""
+    """Catálogo con la estructura de ISO 14224 (contenido propio y editable).
+
+    Sin borrado físico: un código que ya no se usa se desactiva (`is_active`),
+    nunca se borra (queda referenciado por eventos de falla históricos).
+    """
 
     class Kind(models.TextChoices):
         MODE = "mode", _("Modo de falla")
         CAUSE = "cause", _("Causa")
+        MECHANISM = "mechanism", _("Mecanismo de falla")
+        DETECTION_METHOD = "detection_method", _("Método de detección")
 
-    kind = models.CharField(_("tipo"), max_length=10, choices=Kind.choices)
+    kind = models.CharField(_("tipo"), max_length=20, choices=Kind.choices)
     code = models.CharField(_("código"), max_length=10)
     name = models.CharField(_("nombre"), max_length=120)
     is_active = models.BooleanField(default=True)
@@ -312,16 +318,51 @@ class FailureEvent(TenantModel):
         NONE = "none", _("Sin detención")
 
     asset = models.ForeignKey("assets.Asset", on_delete=models.PROTECT, related_name="failures")
+    # Activo hijo afectado (opcional): ej. un motor dentro de una envasadora.
+    component = models.ForeignKey(
+        "assets.Asset",
+        verbose_name=_("componente"),
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="+",
+    )
     work_order = models.OneToOneField(
         WorkOrder, on_delete=models.SET_NULL, null=True, blank=True, related_name="failure"
     )
     impact = models.CharField(max_length=20, choices=Impact.choices)
     description = models.TextField(blank=True)
     failure_mode = models.ForeignKey(
-        FailureCode, on_delete=models.PROTECT, null=True, blank=True, related_name="+"
+        FailureCode,
+        verbose_name=_("modo de falla"),
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="+",
     )
     failure_cause = models.ForeignKey(
-        FailureCode, on_delete=models.PROTECT, null=True, blank=True, related_name="+"
+        FailureCode,
+        verbose_name=_("causa"),
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="+",
+    )
+    failure_mechanism = models.ForeignKey(
+        FailureCode,
+        verbose_name=_("mecanismo de falla"),
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="+",
+    )
+    detection_method = models.ForeignKey(
+        FailureCode,
+        verbose_name=_("método de detección"),
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="+",
     )
     started_at = models.DateTimeField()
     ended_at = models.DateTimeField(null=True, blank=True)
@@ -334,9 +375,18 @@ class FailureEvent(TenantModel):
 class WorkRequest(TenantModel):
     """Aviso de falla o solicitud de trabajo (REQ-01).
 
-    En la demo se acepta automáticamente y genera una OT correctiva: el flujo
-    por defecto es el automático.
+    La OT correctiva se genera de inmediato al avisar (CA1/CA2): el flujo por
+    defecto es el automático. `status` es la decisión del planificador sobre
+    la solicitud en sí (CA3) — aceptarla es solo formalizar lo ya creado;
+    rechazarla o fusionarla cancela esa OT (ver `services.reject_request` y
+    `services.merge_request`).
     """
+
+    class Status(models.TextChoices):
+        PENDING = "pending", _("Pendiente")
+        ACCEPTED = "accepted", _("Aceptada")
+        REJECTED = "rejected", _("Rechazada")
+        MERGED = "merged", _("Fusionada")
 
     number = models.PositiveIntegerField(editable=False)
     asset = models.ForeignKey("assets.Asset", on_delete=models.PROTECT, related_name="requests")
@@ -346,12 +396,34 @@ class WorkRequest(TenantModel):
     work_order = models.OneToOneField(
         WorkOrder, on_delete=models.SET_NULL, null=True, blank=True, related_name="request"
     )
+    status = models.CharField(_("estado"), max_length=10, choices=Status.choices, default=Status.PENDING)
+    decided_by = models.ForeignKey(
+        "accounts.User",
+        verbose_name=_("decidida por"),
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+    )
+    decided_at = models.DateTimeField(_("decidida el"), null=True, blank=True)
+    rejection_reason = models.CharField(_("motivo de rechazo"), max_length=500, blank=True)
+    merged_into = models.ForeignKey(
+        "self",
+        verbose_name=_("fusionada en"),
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="merged_requests",
+    )
     client_uuid = models.UUIDField(null=True, blank=True)
 
     class Meta:
         ordering = ["-created_at"]
         constraints = [
             models.UniqueConstraint(fields=["organization", "client_uuid"], name="uniq_request_client_uuid"),
+        ]
+        indexes = [
+            models.Index(fields=["organization", "status", "created_at"], name="request_org_status_idx"),
         ]
 
 

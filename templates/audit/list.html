@@ -32,7 +32,7 @@
     <tbody>
       {% for event in page.object_list %}
       <tr>
-        <td class="num">{{ event.created_at|date:"d-m-Y H:i" }}</td>
+        <td data-label="{% translate 'Fecha' %}" class="num">{{ event.created_at|date:"d-m-Y H:i" }}</td>
         <td data-label="{% translate 'Persona' %}">{{ event.actor_repr|default:_("Sistema") }}</td>
         <td data-label="{% translate 'Acción' %}">{{ event.get_action_display }}</td>
         <td data-label="{% translate 'Objeto' %}">{{ event.target_label }}{% if event.target_repr %} · {{ event.target_repr }}{% endif %}</td>

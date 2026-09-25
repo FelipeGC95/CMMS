@@ -22,6 +22,20 @@
       <dt>{% translate "N.º de serie" %}</dt><dd class="mono">{{ asset.serial_number|default:"—" }}</dd>
       <dt>{% translate "Año" %}</dt><dd>{{ asset.year|default:"—" }}</dd>
     </dl>
+    {% if attribute_rows or can_manage %}
+    <h3 id="attributes-title">{% translate "Datos técnicos" %}</h3>
+    {% if attribute_rows %}
+    <dl class="dl" aria-labelledby="attributes-title">
+      {% for attribute, value in attribute_rows %}<dt>{{ attribute.label }}</dt><dd>{{ value }}</dd>{% endfor %}
+    </dl>
+    {% else %}
+    <p class="muted">{% blocktranslate with cls=asset.asset_class %}La clase {{ cls }} aún no tiene atributos.{% endblocktranslate %}</p>
+    {% endif %}
+    {% if can_manage %}<div class="row">
+      {% if attribute_rows %}<a class="btn btn--ghost" href="{% url 'asset_attributes' asset.pk %}">{% translate "Editar datos técnicos" %}</a>{% endif %}
+      <a class="btn btn--ghost" href="{% url 'asset_class_detail' asset.asset_class_id %}">{% translate "Atributos de la clase" %}</a>
+    </div>{% endif %}
+    {% endif %}
   </section>
   <section class="card" aria-labelledby="qr-title">
     <h2 id="qr-title">{% translate "Código QR" %}</h2>

@@ -22,6 +22,7 @@ operar aparte de Postgres.
 | Excel / PDF | openpyxl / WeasyPrint |
 | Imágenes | Pillow (compresión y miniaturas en el worker) |
 | Correo | Postmark o Brevo vía django-anymail |
+| Asistente IA (F2) | API de Anthropic con el SDK oficial `anthropic`; búsqueda con texto completo de PostgreSQL (ADR-018) |
 | Errores / logs | Sentry + logs JSON a stdout (structlog) |
 | Herramientas | uv, ruff (lint + formato), pytest + pytest-django + factory_boy, pre-commit, GitHub Actions |
 | Hosting | Render (web + worker + Postgres), región US‑East |
@@ -415,3 +416,122 @@ tener ingresos).
     `frequency_label`, `uses_meter`…) delegan en la versión vigente y
     devuelven vacío si no la hay.
   - Las versiones usadas por OT no se pueden borrar.
+
+### ADR-017 · Toda la aplicación es usable completa desde un smartphone
+- **Contexto:** los clientes son pymes donde el administrador, el
+  planificador y el técnico suelen ser la misma persona y trabajan en planta,
+  no en un escritorio. NF-17 decía "mobile first", pero solo las vistas de
+  técnico tenían reglas concretas y la verificación era manual.
+- **Decisión:**
+  - **Toda** funcionalidad web (técnico, planificador, administrador,
+    reportes, importación, configuración) se puede **completar** desde un
+    teléfono de 360 px de ancho, en vertical, sin scroll horizontal de la
+    página. "Consultable pero no editable en móvil" no es aceptable.
+  - Se diseña primero para 360 px y se amplía hacia escritorio; el
+    escritorio puede ser más denso, pero no tener funciones exclusivas.
+  - Cortes de pantalla únicos, definidos en `docs/06_sistema_de_diseno.md`
+    §5: **720 px** (una columna, tablas a tarjetas) y **1100 px**
+    (navegación compacta). Ningún componente inventa otro corte.
+  - Toda `<td>` de una `.table` lleva `data-label`, porque bajo 720 px la
+    fila se apila como tarjeta y la etiqueta reemplaza al encabezado.
+  - Todo destino de la navegación de escritorio tiene un acceso en la
+    navegación móvil.
+  - Una vista no se da por terminada sin probarla a 360 px (DevTools basta
+    en desarrollo; teléfono real en cada release).
+- **Por qué:** cubre el uso real del cliente objetivo sin mantener dos
+  aplicaciones, y es coherente con ADR-004 (renderizado en servidor) y con la
+  PWA de F2 (ADR-011).
+- **Alternativas descartadas:**
+  - Móvil solo para técnicos y escritorio para administración: obliga al
+    dueño de la pyme a ir a un computador para tareas cortas.
+  - App nativa: segundo código que mantener; se reevalúa solo si la PWA no
+    alcanza (cámara, offline).
+- **Consecuencias:**
+  - `tests/ui/test_mobile.py` falla si una `.table` tiene celdas sin
+    `data-label`.
+  - Tareas de escritorio intensivas (importación de Excel, edición de
+    checklists largos) necesitan un diseño móvil propio: pasos cortos,
+    tarjetas en vez de grillas, subida de archivo desde el teléfono.
+  - La navegación móvil actual (Inicio, Mis OT, Activos) no expone Equipo
+    ni Configuración: requiere un destino "Más" con el resto del menú.
+  - Configuración vive hoy en el admin de Django, cuyo uso en móvil es
+    limitado; las pantallas de configuración que use el cliente se mueven
+    a vistas propias a medida que se construyen.
+
+### ADR-018 · Asistente de diagnóstico con IA sobre el historial propio
+- **Contexto:** en las pymes el conocimiento de cada máquina vive en uno o
+  dos técnicos expertos. Cuando se van, se pierde. Un chat de IA genérico no
+  resuelve esto (cualquier técnico ya lo tiene gratis en su teléfono); lo que
+  vale es responder con **el historial y los manuales de ese equipo en esa
+  empresa**. El asistente es tan bueno como los datos que el sistema capturó,
+  así que la decisión tiene dos mitades: capturar desde el MVP y consultar
+  después (requisitos `AI-*` en 02).
+- **Decisión:**
+  - **Captura (MVP):** al cerrar una OT correctiva se registra síntoma
+    observado, causa (catálogo ISO 14224) y acción realizada en texto libre
+    (REQ-03). El técnico puede dictar con el micrófono del teclado del
+    teléfono; no se construye reconocimiento de voz propio. Los manuales se
+    adjuntan al activo o a su clase (AST-06).
+  - **Consulta (F2):** un botón "Pedir ayuda" en la ficha del activo y en la
+    OT abre una conversación que ya conoce el activo (clase, modelo,
+    medidores, fallas recientes, OT abierta).
+  - **Recuperación por herramientas, no por volcado de datos:** el modelo
+    recibe herramientas que ejecuta el backend (`search_work_orders`,
+    `asset_failure_history`, `search_manuals`…). Cada herramienta llama a un
+    selector con la `membership` del usuario, dentro de `tenant_context`: el
+    aislamiento y el alcance por sitio los garantiza nuestro código, no el
+    modelo, y se prueban en `tests/isolation/` como cualquier vista.
+  - **Búsqueda con PostgreSQL:** texto completo en español (`tsvector`) sobre
+    OT, fallas y páginas de manuales. `pgvector`, en la misma base, solo si
+    las pruebas muestran que la búsqueda por palabras no alcanza.
+  - **Manuales:** al subir un PDF, el worker extrae el texto por página a
+    `document_page` (con número de página) y lo indexa. Así cada respuesta
+    cita "Manual X, p. 45".
+  - **Citas obligatorias:** cada afirmación indica su origen: manual
+    (documento y página), historial (código de OT) o conocimiento general,
+    este último marcado como de menor confianza. La interfaz enlaza cada
+    fuente.
+  - **Ejecución en el worker:** cada turno corre como tarea de Procrastinate
+    (un turno con herramientas puede tardar decenas de segundos) y la
+    página consulta el resultado con htmx. No se bloquean procesos web.
+  - **Proveedor y modelo:** API de Anthropic con el SDK oficial. El modelo
+    se configura por ajuste (`AI_ASSISTANT_MODEL`). Se parte con Claude
+    Opus 5 y se compara con Claude Sonnet 5 sobre un conjunto de casos reales
+    del piloto antes de fijar el de producción. Prompt caching en las
+    instrucciones y el contexto del activo.
+  - **Reglas de seguridad en las instrucciones del sistema:** recordar
+    bloqueo y etiquetado (LOTO) antes de intervenir; nunca sugerir anular
+    protecciones o enclavamientos; decir "no lo sé" si no hay fuente; la
+    decisión y la responsabilidad son del técnico, y así se muestra en
+    pantalla.
+  - **Cierre del ciclo:** al completar la OT se propone un resumen de la
+    conversación como nota de cierre (el técnico la edita o descarta), y el
+    técnico marca si la ayuda sirvió. Esas marcas forman el conjunto de
+    evaluación para cambiar de modelo o de instrucciones.
+  - **Costo acotado:** módulo por plan con cupo mensual de conversaciones por
+    organización (ORG-10). Cada turno guarda los tokens usados para medir el
+    costo real por cliente.
+- **Por qué:** convierte el historial del CMMS en el diferenciador: el valor
+  crece con cada mes de uso y retiene al cliente. Reutiliza Postgres,
+  Procrastinate, R2 y los selectors existentes, sin servicios nuevos que
+  operar.
+- **Alternativas descartadas:**
+  - Chat genérico sin datos propios: no diferencia.
+  - Base vectorial externa (Pinecone u otra): un servicio más que operar y
+    otro lugar donde aislar tenants.
+  - Enviar al modelo todo el historial del activo en cada turno: caro y
+    arriesga mezclar datos fuera del alcance del usuario.
+  - Ajuste fino (fine-tuning) por cliente: caro, lento de actualizar y sin
+    citas verificables.
+- **Consecuencias:**
+  - Datos del cliente (manuales, historial, conversaciones) se envían a un
+    proveedor en EE. UU.: se declara en la postura de seguridad y en el
+    contrato (Ley 21.719); en el contexto no se envían datos personales
+    innecesarios (nombres de técnicos se reemplazan por su rol). Se verifican
+    los términos de retención y uso de datos del proveedor antes de producción.
+  - Requiere conexión: el asistente no está disponible offline (ADR-011); es
+    ayuda, nunca un paso obligatorio del flujo.
+  - Cliente nuevo sin historial: el asistente se apoya en los manuales y en
+    la biblioteca de clases de activo de GALBUST hasta acumular OT propias.
+  - Conversaciones y mensajes son modelos con tenant, en la auditoría y en
+    la exportación completa (X-03).

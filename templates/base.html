@@ -29,6 +29,8 @@
         <a href="{% url 'dashboard' %}" {% nav_current '/' %}>{% translate "Inicio" %}</a>
         <a href="{% url 'work_order_list' %}" {% nav_current '/work-orders/' %}>{% translate "Órdenes de trabajo" %}</a>
         <a href="{% url 'asset_list' %}" {% nav_current '/assets/' %}>{% translate "Activos" %}</a>
+        {% if membership|can:"work_order.manage" %}<a href="{% url 'request_list' %}" {% nav_current '/requests/' %}>{% translate "Solicitudes" %}</a>{% endif %}
+        {% if membership|can:"work_order.manage" %}<a href="{% url 'failure_code_list' %}" {% nav_current '/failure-codes/' %}>{% translate "Catálogo de falla" %}</a>{% endif %}
         {% if membership|can:"team.manage" %}<a href="{% url 'team' %}" {% nav_current '/team/' %}>{% translate "Equipo" %}</a>{% endif %}
         {% if membership|can:"audit.view" %}<a href="{% url 'audit_list' %}" {% nav_current '/audit/' %}>{% translate "Auditoría" %}</a>{% endif %}
         {% if user.is_staff %}<a href="{% url 'admin:index' %}">{% translate "Configuración" %}</a>{% endif %}
@@ -70,6 +72,7 @@
     <a href="{% url 'dashboard' %}" {% nav_current '/' %}>{% icon 'home' %}{% translate "Inicio" %}</a>
     <a href="{% url 'work_order_list' %}?scope=mine" {% nav_current '/work-orders/' %}>{% icon 'list' %}{% translate "Mis OT" %}</a>
     <a href="{% url 'asset_list' %}" {% nav_current '/assets/' %}>{% icon 'box' %}{% translate "Activos" %}</a>
+    <a href="{% url 'menu' %}" {% nav_current '/menu/' '/requests/' '/failure-codes/' '/team/' '/audit/' '/locations/' '/asset-classes/' %}>{% icon 'menu' %}{% translate "Más" %}</a>
   </nav>
   {% endif %}
 </body>

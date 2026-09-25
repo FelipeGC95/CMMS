@@ -110,3 +110,51 @@ def test_scope_cannot_reference_a_location_of_another_organization(tenant_a, ten
             restricted_to_locations=True,
             locations=[foreign],
         )
+
+
+def test_work_order_filters_do_not_reveal_another_organization(client, tenant_a, tenant_b):
+    """Un id de sitio o de responsable de otra organización no filtra ni revela sus OT (WO-05)."""
+    from apps.organizations.models import Location
+    from apps.work.services import create_work_order
+
+    with tenant_context(tenant_b.org):
+        foreign_location = Location.objects.create(code="F", name="Sitio de B")
+        foreign_wo = create_work_order(work_type="corrective", title="OT de B", asset=tenant_b.asset)
+
+    login(client, tenant_a.admin)
+    for params in [
+        {"scope": "open", "location": str(foreign_location.pk)},
+        {"scope": "open", "assigned_to": str(tenant_b.admin.user_id)},
+        {"scope": "open", "asset_q": tenant_b.asset.code},
+    ]:
+        response = client.get(reverse("work_order_list"), params)
+        assert response.status_code == 200
+        assert foreign_wo.pk not in {wo.pk for wo in response.context["page"].object_list}
+
+
+def test_location_and_class_screens_do_not_cross_organizations(client, tenant_a, tenant_b):
+    from apps.assets.services import add_class_attribute
+    from apps.organizations.models import Location
+
+    with tenant_context(tenant_a.org):
+        plant = Location.objects.create(code="SOLO-A", name="Planta de A")
+        attribute = add_class_attribute(
+            membership=tenant_a.admin,
+            asset_class=tenant_a.asset.asset_class,
+            label="Potencia",
+            data_type="number",
+        )
+    login(client, tenant_b.admin)
+    assert "SOLO-A" not in client.get(reverse("location_list")).content.decode()
+    assert client.get(reverse("location_edit", args=[plant.pk])).status_code == 404
+    assert client.post(reverse("location_delete", args=[plant.pk])).status_code == 404
+    assert client.get(reverse("asset_class_detail", args=[tenant_a.asset.asset_class_id])).status_code == 404
+    assert (
+        client.get(reverse("attribute_edit", args=[tenant_a.asset.asset_class_id, attribute.pk])).status_code
+        == 404
+    )
+    assert client.post(reverse("asset_attributes", args=[tenant_a.asset.pk]), {}).status_code == 404
+    # B no puede colgar una ubicación bajo una de A.
+    client.post(reverse("location_list"), {"code": "X", "name": "X", "kind": "area", "parent": str(plant.pk)})
+    with tenant_context(tenant_b.org):
+        assert not Location.objects.filter(code="X").exists()

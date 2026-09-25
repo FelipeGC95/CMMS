@@ -136,6 +136,9 @@ propios (capacidad, combustible…), para registrar datos técnicos homogéneos.
 - CA1: Adjuntos de hasta 20 MB; imágenes comprimidas y redimensionadas
   (lado mayor ≤ 2000 px) al subir.
 - CA2: El uso cuenta para el cupo de almacenamiento de la organización.
+- CA3 (M1): Los manuales (PDF) se adjuntan al activo o a su clase de activo;
+  los de la clase aplican a todos sus activos. El worker extrae el texto por
+  página para la búsqueda y el asistente (`AI-*`, ADR-018).
 
 **AST-07 · Medidores y lecturas (M0)**
 Como técnico quiero registrar horómetro/odómetro, para que los preventivos por
@@ -263,6 +266,11 @@ desde el celular.
   inicio y fin de la detención, impacto (detención total, parcial, sin detención).
 - CA2: Al cerrar una OT correctiva se pide completar la falla (modo y causa
   obligatorios si la organización lo configura).
+- CA3: Al cerrar una OT correctiva se piden, en texto libre, **síntoma
+  observado** (`failure_event.description`) y **acción realizada**
+  (`work_order.completion_notes`), con ayuda en pantalla ("¿Qué viste? ¿Qué
+  hiciste?") y campos aptos para dictado por voz. Es la base de conocimiento
+  del asistente (ADR-018): sin esto no hay de dónde aprender.
 
 **REQ-04 · Backlog priorizado (M1)**
 - CA1: Backlog = OT no cerradas ni canceladas, ordenadas por puntaje:
@@ -330,6 +338,48 @@ lecturas, OT y solicitudes.
 **X-07 · i18n (M0)**: todos los textos marcados para traducción; español (Chile)
 completo; inglés y portugués en F3.
 
+## 10. Asistente de diagnóstico con IA (`AI`, F2)
+
+Ver [04_arquitectura.md](04_arquitectura.md), ADR-018. Módulo por plan.
+
+**AI-01 · Pedir ayuda desde el activo o la OT**
+Como técnico quiero describir un síntoma y recibir orientación basada en el
+historial y los manuales de ese equipo.
+- CA1: Botón "Pedir ayuda" en la ficha del activo (también al llegar por QR)
+  y en la OT; la conversación queda asociada al activo y, si aplica, a la OT.
+- CA2: El asistente ya conoce el activo (clase, modelo, medidores, fallas y
+  OT recientes); el técnico no tiene que explicarlo.
+- CA3: Entrada por texto (con dictado del teclado) y foto (placa, alarma,
+  pieza dañada).
+- CA4: Usable completo desde el teléfono (ADR-017); texto ≥ 16 px.
+
+**AI-02 · Respuestas con fuente**
+- CA1: Cada recomendación indica su origen con ícono + texto: manual
+  (documento y página, enlazado), historial (código de OT, enlazado) o
+  conocimiento general (marcado como de menor confianza).
+- CA2: Si no hay información suficiente, lo dice y sugiere qué dato falta.
+- CA3: Solo usa datos que el usuario puede ver (organización y alcance por
+  sitio); probado en `tests/isolation/`.
+
+**AI-03 · Seguridad**
+- CA1: Recuerda aislar energías (bloqueo y etiquetado) antes de intervenir y
+  nunca sugiere anular protecciones ni enclavamientos.
+- CA2: Aviso visible: la orientación no reemplaza el criterio del técnico ni
+  los procedimientos de la empresa.
+
+**AI-04 · Cierre del ciclo**
+- CA1: Al completar la OT se propone un resumen de la conversación como nota
+  de cierre; el técnico lo edita o lo descarta.
+- CA2: El técnico marca si la ayuda sirvió (sí / en parte / no).
+
+**AI-05 · Cupo, costo y auditoría**
+- CA1: Cupo mensual de conversaciones por organización según el plan
+  (ORG-10); al agotarse se informa sin bloquear el resto del sistema.
+- CA2: Cada turno guarda modelo y tokens usados; el superadmin ve el costo por
+  organización.
+- CA3: Conversaciones consultables por el administrador, incluidas en la
+  exportación completa (X-03) y en el borrado de organización (X-04).
+
 ---
 
 ## Requisitos no funcionales
@@ -352,6 +402,6 @@ completo; inglés y portugués en F3.
 | NF-14 | Operación | Ambientes dev, staging y producción; despliegue automático a staging en `main` y manual a producción. | Pipeline. |
 | NF-15 | Operación | Monitoreo de errores (Sentry), logs estructurados, `/healthz` (vida) y `/readyz` (base de datos). | Staging. |
 | NF-16 | Accesibilidad | WCAG 2.2 AA: contraste, foco visible, navegación por teclado, etiquetas; objetivos táctiles ≥ 48 px en vistas de técnico. | Test automático de contraste de tokens + revisión manual. |
-| NF-17 | Móvil | Mobile first; usable en pantallas de 360 px; alto contraste para exteriores. | Revisión en dispositivo real. |
+| NF-17 | Móvil | Mobile first: **toda** funcionalidad (no solo la del técnico) se completa desde un teléfono de 360 px, sin scroll horizontal; alto contraste para exteriores (ADR-017). | `tests/ui/test_mobile.py` en CI + prueba a 360 px por vista + revisión en dispositivo real por release. |
 | NF-18 | Tiempo | Fechas en UTC en la base; se muestran en la zona del sitio o de la organización. | Tests con zonas distintas. |
 | NF-19 | i18n | Ningún texto de interfaz sin marcar para traducción. | Revisión + `makemessages` en CI. |

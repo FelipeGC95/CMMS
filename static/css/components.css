@@ -99,7 +99,7 @@ main { max-width: var(--content-max); margin: 0 auto; padding: var(--space-5) va
   .navbar__right { gap: var(--space-2); }
   .org-switch select { max-width: 40vw; }
   .bottom-nav {
-    display: grid; grid-template-columns: repeat(3, 1fr);
+    display: grid; grid-template-columns: repeat(4, 1fr);
     position: fixed; bottom: 0; left: 0; right: 0; z-index: 20;
     background: var(--color-surface); border-top: 1px solid var(--color-border);
     padding-bottom: env(safe-area-inset-bottom);
@@ -173,7 +173,7 @@ main { max-width: var(--content-max); margin: 0 auto; padding: var(--space-5) va
   .table, .table tbody, .table tr, .table td { display: block; width: 100%; }
   .table tr { padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--color-border); }
   .table td { border: 0; padding: 2px 0; }
-  .table td[data-label]::before { content: attr(data-label) ": "; color: var(--color-text-muted); }
+  .table td[data-label]:not([data-label=""])::before { content: attr(data-label) ": "; color: var(--color-text-muted); }
 }
 
 .list { list-style: none; margin: 0; padding: 0; }
@@ -181,6 +181,9 @@ main { max-width: var(--content-max); margin: 0 auto; padding: var(--space-5) va
 .list li:last-child { border-bottom: 0; }
 .list__main { min-width: 0; }
 .list__title { font-weight: 500; display: block; overflow: hidden; text-overflow: ellipsis; }
+.list--nav li { padding: 0; }
+.list--nav a { display: flex; align-items: center; gap: var(--space-3); flex: 1; min-height: 48px; font-size: var(--text-md); text-decoration: none; }
+.list--nav svg { width: 20px; height: 20px; flex: none; }
 .list__meta { font-size: var(--text-sm); color: var(--color-text-muted); }
 
 .chips { display: flex; gap: var(--space-2); flex-wrap: wrap; margin-bottom: var(--space-4); }
@@ -197,7 +200,7 @@ main { max-width: var(--content-max); margin: 0 auto; padding: var(--space-5) va
 /* ---------- Formularios ---------- */
 .field { display: flex; flex-direction: column; gap: var(--space-1); margin-bottom: var(--space-4); }
 .field label, .field .label { font-weight: 500; font-size: var(--text-sm); }
-.field input[type="text"], .field input[type="email"], .field input[type="password"], .field input[type="number"], .field input[type="search"],
+.field input[type="text"], .field input[type="email"], .field input[type="password"], .field input[type="number"], .field input[type="search"], .field input[type="date"],
 .field textarea, .field select, .input {
   font: inherit; font-size: var(--text-md); color: var(--color-text); background: var(--color-surface);
   border: 1px solid var(--color-border-strong); border-radius: var(--radius-md);
@@ -228,7 +231,7 @@ main { max-width: var(--content-max); margin: 0 auto; padding: var(--space-5) va
 .check-item__text { font-weight: 500; margin-bottom: var(--space-3); display: flex; gap: var(--space-2); }
 .check-item__num { font-family: var(--font-mono); color: var(--color-text-muted); }
 .check-item form { margin: 0; }
-.segmented { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-2); }
+.segmented { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--space-2); }
 .segmented button {
   min-height: var(--touch-target); border-radius: var(--radius-md); border: 2px solid var(--color-border-strong);
   background: var(--color-surface); color: var(--color-text); font-family: var(--font-brand); font-weight: 500; font-size: var(--text-md);

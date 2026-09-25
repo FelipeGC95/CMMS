@@ -47,6 +47,9 @@ class Organization(TimeStampedModel):
     timezone = models.CharField(_("zona horaria"), max_length=64, default="America/Santiago")
     is_active = models.BooleanField(_("activa"), default=True)
     require_close_approval = models.BooleanField(_("requiere aprobación para cerrar OT"), default=False)
+    require_failure_details = models.BooleanField(
+        _("exige modo y causa de falla para cerrar una OT correctiva"), default=False
+    )
 
     class Meta:
         verbose_name = _("organización")
@@ -77,6 +80,8 @@ class Location(TenantModel):
     kind = models.CharField(_("tipo"), max_length=10, choices=Kind.choices, default=Kind.SITE)
     code = models.CharField(_("código"), max_length=30)
     name = models.CharField(_("nombre"), max_length=150)
+    # En blanco hereda la de la organización (ORG-04 CA1).
+    timezone = models.CharField(_("zona horaria"), max_length=64, blank=True)
     is_active = models.BooleanField(_("activa"), default=True)
 
     class Meta:

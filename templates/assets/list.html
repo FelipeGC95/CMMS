@@ -1,4 +1,4 @@
-{% extends "base.html" %}{% load i18n ui asset_import %}
+{% extends "base.html" %}{% load i18n ui asset_import accounts_tags %}
 {% block title %}{% translate "Activos" %}{% endblock %}
 {% block content %}
 <div class="page-header">
@@ -9,6 +9,8 @@
   {% if not request.GET.report %}<div class="row">
     {% if membership|can_import_assets %}<a class="btn btn--secondary" href="{% url 'asset_import' %}">{% icon 'box' %}{% translate "Importar desde Excel" %}</a>{% endif %}
     <a class="btn btn--ghost" href="{% url 'asset_labels' %}">{% icon 'print' %}{% translate "Imprimir etiquetas QR" %}</a>
+    {% if membership|can:"asset.manage" %}<a class="btn btn--ghost" href="{% url 'location_list' %}">{% translate "Ubicaciones" %}</a>
+    <a class="btn btn--ghost" href="{% url 'asset_class_list' %}">{% translate "Clases de activo" %}</a>{% endif %}
   </div>{% endif %}
 </div>
 
@@ -31,13 +33,13 @@
     <tbody>
       {% for asset in page.object_list %}
       <tr>
-        <td class="mono">{{ asset.code }}</td>
-        <td><a href="{% url 'asset_detail' asset.pk %}">{{ asset.name }}</a></td>
+        <td class="mono" data-label="">{{ asset.code }}</td>
+        <td data-label=""><a href="{% url 'asset_detail' asset.pk %}">{{ asset.name }}</a></td>
         <td data-label="{% translate 'Clase' %}">{{ asset.asset_class }}</td>
         <td data-label="{% translate 'Ubicación' %}">{{ asset.location|default:"—" }}</td>
         <td data-label="{% translate 'Criticidad' %}">{{ asset.criticality }}</td>
-        <td>{% status_badge asset %}</td>
-        {% if request.GET.report %}<td><a class="btn btn--primary" href="{% url 'asset_report' asset.pk %}">{% icon 'megaphone' %}{% translate "Avisar" %}</a></td>{% endif %}
+        <td data-label="">{% status_badge asset %}</td>
+        {% if request.GET.report %}<td data-label=""><a class="btn btn--primary" href="{% url 'asset_report' asset.pk %}">{% icon 'megaphone' %}{% translate "Avisar" %}</a></td>{% endif %}
       </tr>
       {% endfor %}
     </tbody>
