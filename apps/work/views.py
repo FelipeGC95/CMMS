@@ -174,7 +174,10 @@ def work_order_transition_view(request, pk):
     except WorkOrderError as exc:
         messages.error(request, exc.message)
     else:
-        messages.success(request, f"{work_order.code}: {work_order.get_status_display()}.")
+        messages.success(
+            request,
+            _("%(code)s: %(status)s.") % {"code": work_order.code, "status": work_order.get_status_display()},
+        )
     return redirect("work_order_detail", pk=pk)
 
 
@@ -235,7 +238,7 @@ def work_order_complete_view(request, pk):
         except ValidationError as exc:
             messages.error(request, " ".join(exc.messages))
         else:
-            messages.success(request, f"{work_order.code} completada.")
+            messages.success(request, _("%(code)s completada.") % {"code": work_order.code})
             return redirect("work_order_detail", pk=pk)
     work_order = work_order_detail(pk, membership=request.membership)
     return render(request, "work/detail.html", _detail_context(request, work_order, form), status=400)
@@ -275,7 +278,7 @@ def labor_add_view(request, pk):
     work_order = get_object_or_404(visible_work_orders(membership=request.membership), pk=pk)
     form = LaborForm(request.POST)
     if not form.is_valid():
-        messages.error(request, "Indica los minutos trabajados (1 a 1.440).")
+        messages.error(request, _("Indica los minutos trabajados (1 a 1.440)."))
         return _costs_redirect(pk)
     return _run_cost_action(
         request,
@@ -293,7 +296,7 @@ def part_add_view(request, pk):
     form = PartUsageForm(request.POST)
     if not form.is_valid():
         messages.error(
-            request, "Revisa el repuesto: descripción, cantidad y costo unitario son obligatorios."
+            request, _("Revisa el repuesto: descripción, cantidad y costo unitario son obligatorios.")
         )
         return _costs_redirect(pk)
     return _run_cost_action(
@@ -309,7 +312,7 @@ def other_cost_add_view(request, pk):
     work_order = get_object_or_404(visible_work_orders(membership=request.membership), pk=pk)
     form = OtherCostForm(request.POST)
     if not form.is_valid():
-        messages.error(request, "Revisa el costo: descripción y monto son obligatorios.")
+        messages.error(request, _("Revisa el costo: descripción y monto son obligatorios."))
         return _costs_redirect(pk)
     return _run_cost_action(
         request,
@@ -353,7 +356,7 @@ def request_accept_view(request, pk):
     except WorkOrderError as exc:
         messages.error(request, exc.message)
     else:
-        messages.success(request, f"Solicitud #{work_request.number} aceptada.")
+        messages.success(request, _("Solicitud #%(number)s aceptada.") % {"number": work_request.number})
     return redirect("request_list")
 
 
@@ -368,7 +371,7 @@ def request_reject_view(request, pk):
     except WorkOrderError as exc:
         messages.error(request, exc.message)
     else:
-        messages.success(request, f"Solicitud #{work_request.number} rechazada.")
+        messages.success(request, _("Solicitud #%(number)s rechazada.") % {"number": work_request.number})
     return redirect("request_list")
 
 
@@ -383,7 +386,11 @@ def request_merge_view(request, pk):
         except WorkOrderError as exc:
             messages.error(request, exc.message)
         else:
-            messages.success(request, f"Solicitud #{work_request.number} fusionada con #{into.number}.")
+            messages.success(
+                request,
+                _("Solicitud #%(number)s fusionada con #%(into)s.")
+                % {"number": work_request.number, "into": into.number},
+            )
             return redirect("request_list")
     return render(
         request, "work/request_merge.html", {"work_request": work_request, "candidates": candidates}
@@ -415,9 +422,9 @@ def failure_code_create_view(request):
         except WorkOrderError as exc:
             messages.error(request, exc.message)
         else:
-            messages.success(request, "Código agregado.")
+            messages.success(request, _("Código agregado."))
     else:
-        messages.error(request, "Revisa el tipo, código y nombre.")
+        messages.error(request, _("Revisa el tipo, código y nombre."))
     return redirect("failure_code_list")
 
 
@@ -434,9 +441,9 @@ def failure_code_rename_view(request, pk):
         except WorkOrderError as exc:
             messages.error(request, exc.message)
         else:
-            messages.success(request, f"{failure_code.code} actualizado.")
+            messages.success(request, _("%(code)s actualizado.") % {"code": failure_code.code})
     else:
-        messages.error(request, "El nombre es obligatorio.")
+        messages.error(request, _("El nombre es obligatorio."))
     return redirect("failure_code_list")
 
 

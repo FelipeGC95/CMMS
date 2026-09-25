@@ -59,7 +59,7 @@ class WorkOrderError(ValidationError):
 
 def next_number(*, key: str) -> int:
     """Siguiente correlativo, con bloqueo de fila (sin huecos por concurrencia)."""
-    sequence, _ = WorkOrderSequence.objects.select_for_update().get_or_create(key=key)
+    sequence, _created = WorkOrderSequence.objects.select_for_update().get_or_create(key=key)
     sequence.last_number += 1
     sequence.save(update_fields=["last_number", "updated_at"])
     return sequence.last_number
