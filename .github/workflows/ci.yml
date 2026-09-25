@@ -25,23 +25,28 @@ jobs:
       DATABASE_URL: postgres://cmms:cmms@localhost:5432/cmms
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: astral-sh/setup-uv@v6
         with:
           python-version: ${{ matrix.python-version }}
-          cache: pip
-          cache-dependency-path: requirements*.txt
-      - run: pip install -r requirements-dev.txt
+          enable-cache: true
+      - name: Dependencias (lock al día)
+        run: uv sync --locked
       - name: Lint y formato
         run: |
-          ruff check .
-          ruff format --check .
+          uv run ruff check .
+          uv run ruff format --check .
+      - name: requirements*.txt al día con uv.lock
+        run: |
+          uv export --no-dev --no-hashes --no-emit-project -o requirements.txt
+          uv export --no-hashes --no-emit-project -o requirements-dev.txt
+          git diff --exit-code -- requirements.txt requirements-dev.txt
       - name: Migraciones al día
-        run: python manage.py makemigrations --check --dry-run
+        run: uv run python manage.py makemigrations --check --dry-run
       - name: Tests (PostgreSQL)
-        run: pytest
+        run: uv run pytest
       - name: Chequeos de despliegue
         env:
           DJANGO_DEBUG: "0"
           DJANGO_SECRET_KEY: ci-only-not-secret-0123456789-abcdefghijklmnopqrstuvwxyz-ABCDEFG
           DJANGO_ALLOWED_HOSTS: cmms.example.com
-        run: python manage.py check --deploy --fail-level WARNING
+        run: uv run python manage.py check --deploy --fail-level WARNING

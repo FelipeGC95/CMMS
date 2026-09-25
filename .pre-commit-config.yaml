@@ -1,0 +1,40 @@
+# Instalar una vez: uv run pre-commit install
+# Correr a mano:    uv run pre-commit run --all-files
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: check-yaml
+      - id: check-toml
+      - id: check-merge-conflict
+      - id: check-added-large-files
+        args: ["--maxkb=1024"]
+      - id: detect-private-key
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.16.9
+    hooks:
+      - id: ruff-check
+        args: ["--fix"]
+      - id: ruff-format
+
+  # Mantiene uv.lock al día y regenera los requirements*.txt (Render instala
+  # desde requirements.txt) cada vez que cambia pyproject.toml.
+  - repo: https://github.com/astral-sh/uv-pre-commit
+    rev: 0.12.18
+    hooks:
+      - id: uv-lock
+      - id: uv-export
+        args: ["--no-dev", "--no-hashes", "--no-emit-project", "-o", "requirements.txt"]
+      - id: uv-export
+        name: uv-export (dev)
+        args: ["--no-hashes", "--no-emit-project", "-o", "requirements-dev.txt"]
+
+  - repo: local
+    hooks:
+      - id: makemigrations-check
+        name: migraciones al día
+        entry: uv run python manage.py makemigrations --check --dry-run
+        language: system
+        pass_filenames: false
+        files: ^apps/.*/models\.py$|^apps/.*/models/

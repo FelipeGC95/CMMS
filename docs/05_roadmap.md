@@ -52,11 +52,12 @@ organización) en vez de R2; sin CI ni despliegue.
 Parte de F0 ya existe gracias a la v0.1 (tenancy, estructura de apps, tokens),
 por lo que se estima en ~3 semanas.
 
-**Avance (2026-09-24):** hechos 0.2 y 0.4 completos; de 0.1, GitHub Actions
-con PostgreSQL 16 (Python 3.11 y 3.13), ruff, chequeo de migraciones y
-`check --deploy`, y soporte de `DATABASE_URL`. Además: tests de permisos por
-rol y de cantidad de consultas. Pendiente: uv y pre-commit (0.1), allauth y
-Plan (0.3), despliegue (0.5, requiere cuentas de Render, Cloudflare y Sentry).
+**Avance (2026-09-24):** hechos 0.1, 0.2 y 0.4 completos: GitHub Actions
+con PostgreSQL 16 (Python 3.11 y 3.13), uv (`uv.lock`, CI con
+`uv sync --locked`), pre-commit (ruff, lock, `requirements*.txt` exportados
+para Render y migraciones), chequeo de migraciones y `check --deploy`, y
+soporte de `DATABASE_URL`. Además: tests de permisos por rol y de cantidad de
+consultas. Pendiente: allauth y Plan (0.3), despliegue (0.5, requiere cuentas de Render, Cloudflare y Sentry).
 
 | # | Entregable | Sem. |
 |---|---|---|

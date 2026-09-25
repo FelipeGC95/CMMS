@@ -10,15 +10,19 @@ Documentación de diseño en [docs/](docs/) · convenciones en [CLAUDE.md](CLAUD
 
 ## Levantar la demo (Windows, PowerShell)
 
-Requisitos: Python 3.11 o superior.
+Requisitos: [uv](https://docs.astral.sh/uv/)
+(`winget install astral-sh.uv`); uv descarga Python si hace falta.
 
 ```powershell
-python -m venv .venv
-.venv\Scripts\python -m pip install -r requirements-dev.txt
-.venv\Scripts\python manage.py migrate
-.venv\Scripts\python manage.py seed_demo          # --reset para recrear desde cero
-.venv\Scripts\python manage.py runserver 0.0.0.0:8000
+uv sync
+uv run python manage.py migrate
+uv run python manage.py seed_demo          # --reset para recrear desde cero
+uv run python manage.py runserver 0.0.0.0:8000
 ```
+
+Sin uv también funciona con pip: `python -m venv .venv` y
+`.venv\Scripts\python -m pip install -r requirements-dev.txt` (archivo
+generado desde `uv.lock`, mismas versiones).
 
 Abre <http://localhost:8000>. Contraseña de todos los usuarios demo:
 `demo-galbust-2026`.
@@ -42,7 +46,7 @@ Abre <http://localhost:8000>. Contraseña de todos los usuarios demo:
 ### Generar los preventivos del día
 
 ```powershell
-.venv\Scripts\python manage.py generate_preventive_work_orders
+uv run python manage.py generate_preventive_work_orders
 ```
 
 En producción lo ejecutará una tarea programada diaria.
@@ -85,9 +89,10 @@ Oscuro.
 ## Tests y calidad
 
 ```powershell
-.venv\Scripts\python -m pytest
-.venv\Scripts\ruff check .
-.venv\Scripts\ruff format --check .
+uv run pre-commit install      # una vez: ruff, lock y migraciones en cada commit
+uv run pytest
+uv run ruff check .
+uv run ruff format --check .
 ```
 
 La suite incluye aislamiento entre organizaciones (`tests/isolation/`),

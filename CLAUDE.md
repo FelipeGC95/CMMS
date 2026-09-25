@@ -16,7 +16,8 @@ Objetivo: Python 3.13 · Django 5.2 LTS · PostgreSQL 16+ · htmx + Alpine.js ·
 DRF + drf-spectacular · django-allauth · Procrastinate · django-storages (R2) ·
 uv · ruff · pytest. Sin Node, Redis, Celery ni frameworks CSS.
 
-**Estado actual:** Python 3.11 + venv/pip, htmx (sin Alpine aún), login de
+**Estado actual:** Python 3.11+ con uv (`uv.lock`; `requirements*.txt` se
+generan desde el lock para Render, no se editan a mano), pre-commit, htmx (sin Alpine aún), login de
 Django. Base de datos por `DATABASE_URL` (SQLite local si no está definida;
 el CI corre sobre PostgreSQL 16, así que el código no debe depender de
 SQLite). allauth, DRF, Procrastinate y R2 entran en F0/MVP (docs/05_roadmap.md).
@@ -24,14 +25,15 @@ SQLite). allauth, DRF, Procrastinate y R2 entran en F0/MVP (docs/05_roadmap.md).
 ## Comandos
 
 ```powershell
-python -m venv .venv; .venv\Scripts\python -m pip install -r requirements-dev.txt
-.venv\Scripts\python manage.py migrate
-.venv\Scripts\python manage.py seed_demo --reset     # datos de demostración
-.venv\Scripts\python manage.py runserver 0.0.0.0:8000
-.venv\Scripts\python manage.py generate_preventive_work_orders
-.venv\Scripts\python -m pytest
-.venv\Scripts\ruff check . ; .venv\Scripts\ruff format .
-.venv\Scripts\python manage.py makemigrations --check --dry-run
+uv sync; uv run pre-commit install                   # una vez
+uv run python manage.py migrate
+uv run python manage.py seed_demo --reset             # datos de demostración
+uv run python manage.py runserver 0.0.0.0:8000
+uv run python manage.py generate_preventive_work_orders
+uv run pytest
+uv run ruff check . ; uv run ruff format .
+uv run python manage.py makemigrations --check --dry-run
+uv add <paquete>  /  uv add --dev <paquete>            # dependencias (pre-commit regenera requirements*.txt)
 ```
 
 ## Idioma
