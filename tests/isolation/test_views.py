@@ -160,3 +160,31 @@ def test_location_and_class_screens_do_not_cross_organizations(client, tenant_a,
     client.post(reverse("location_list"), {"code": "X", "name": "X", "kind": "area", "parent": str(plant.pk)})
     with tenant_context(tenant_b.org):
         assert not Location.objects.filter(code="X").exists()
+
+
+def test_attachments_do_not_cross_organizations(client, tenant_a, tenant_b):
+    """Ni ver ni adjuntar a un activo u OT de otra organización (AST-06)."""
+    from apps.attachments.services import add_attachment
+
+    with tenant_context(tenant_a.org):
+        attachment = add_attachment(
+            target_type=TargetType.ASSET,
+            target_id=tenant_a.asset.pk,
+            uploaded_file=SimpleUploadedFile("f.jpg", tiny_jpeg_bytes(), content_type="image/jpeg"),
+            by=tenant_a.admin.user,
+        )
+
+    login(client, tenant_b.admin)
+    # No se puede ver el archivo de A.
+    assert client.get(reverse("attachment", args=[attachment.pk])).status_code == 404
+    # No se puede adjuntar al activo de A (ni siquiera pasando su id a mano).
+    response = client.post(
+        reverse("asset_attachment_add", args=[tenant_a.asset.pk]),
+        {
+            "purpose": "photo",
+            "file": SimpleUploadedFile("g.jpg", tiny_jpeg_bytes(), content_type="image/jpeg"),
+        },
+    )
+    assert response.status_code == 404
+    with tenant_context(tenant_a.org):
+        assert attachments_for(target_type=TargetType.ASSET, target_id=tenant_a.asset.pk).count() == 1

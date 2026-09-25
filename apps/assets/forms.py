@@ -3,7 +3,16 @@ import uuid
 from django import forms
 from django.utils.translation import gettext_lazy as _
 
+from apps.attachments.models import Purpose
+
 from .models import AssetClass, AttributeType
+
+
+class AssetAttachmentForm(forms.Form):
+    purpose = forms.ChoiceField(label=_("Tipo"), choices=Purpose.choices, initial=Purpose.DOCUMENT)
+    file = forms.FileField(label=_("Archivo"), help_text=_("Fotos o documentos, hasta 20 MB."))
+    # Generado al mostrar el formulario: un doble envío no duplica el adjunto.
+    client_uuid = forms.UUIDField(widget=forms.HiddenInput, required=False, initial=uuid.uuid4)
 
 
 class MeterReadingForm(forms.Form):

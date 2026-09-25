@@ -10,6 +10,10 @@ from django.utils.safestring import mark_safe
 from django.views.decorators.http import require_POST
 
 from apps.accounts.permissions import Perm, PermissionDeniedError, has_perm
+from apps.attachments.models import TargetType
+from apps.attachments.selectors import attachments_for
+from apps.attachments.services import AttachmentError
+from apps.attachments.services import add_attachment as add_generic_attachment
 from apps.core.decorators import membership_required
 from apps.core.middleware import SESSION_KEY
 from apps.work.forms import FailureReportForm
@@ -17,7 +21,7 @@ from apps.work.selectors import work_order_list
 from apps.work.services import WorkOrderError, report_failure
 
 from .attributes import attribute_rows
-from .forms import MeterReadingForm
+from .forms import AssetAttachmentForm, MeterReadingForm
 from .models import Asset, Meter
 from .selectors import active_attributes, asset_by_qr_token, asset_list, visible_assets
 from .services import record_meter_reading
@@ -66,8 +70,34 @@ def asset_detail_view(request, pk):
             "can_manage": has_perm(request.membership, Perm.ASSET_MANAGE),
             "attribute_rows": attribute_rows(asset, active_attributes(asset.asset_class)),
             "status_periods": asset.status_periods.all()[:10],
+            "attachments": attachments_for(target_type=TargetType.ASSET, target_id=asset.pk),
+            "attachment_form": AssetAttachmentForm(),
         },
     )
+
+
+@require_POST
+@membership_required(perm=Perm.ASSET_MANAGE)
+def asset_attachment_add_view(request, pk):
+    asset = get_object_or_404(visible_assets(membership=request.membership), pk=pk)
+    form = AssetAttachmentForm(request.POST, request.FILES)
+    if form.is_valid():
+        try:
+            add_generic_attachment(
+                target_type=TargetType.ASSET,
+                target_id=asset.pk,
+                uploaded_file=form.cleaned_data["file"],
+                by=request.user,
+                purpose=form.cleaned_data["purpose"],
+                client_uuid=form.cleaned_data.get("client_uuid"),
+            )
+        except AttachmentError as error:
+            messages.error(request, error.message)
+        else:
+            messages.success(request, "Adjunto guardado.")
+    else:
+        messages.error(request, "Revisa el archivo: es obligatorio y debe pesar hasta 20 MB.")
+    return redirect(f"{reverse('asset_detail', args=[pk])}#attachments")
 
 
 @require_POST

@@ -103,4 +103,29 @@
   {% if history %}<ul class="list">{% for wo in history %}{% include "work/_wo_item.html" %}{% endfor %}</ul>
   {% else %}<p class="muted">{% translate "Aún no hay trabajos cerrados." %}</p>{% endif %}
 </section>
+
+<section class="card mt-4" id="attachments" aria-labelledby="attachments-title">
+  <h2 id="attachments-title">{% translate "Documentos y fotos" %}</h2>
+  {% if attachments %}
+  <ul class="list">
+    {% for attachment in attachments %}
+    <li>
+      <div class="list__main">
+        <span class="list__title"><a href="{% url 'attachment' attachment.pk %}">{{ attachment.filename }}</a></span>
+        <span class="list__meta">{{ attachment.get_purpose_display }} · {{ attachment.size_bytes|filesizeformat }}{% if attachment.uploaded_by %} · {{ attachment.uploaded_by }}{% endif %}</span>
+      </div>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="muted">{% translate "Sin documentos ni fotos." %}</p>
+  {% endif %}
+  {% if can_manage %}
+  <form method="post" action="{% url 'asset_attachment_add' asset.pk %}" enctype="multipart/form-data" class="mt-4">
+    {% csrf_token %}
+    {% include "_form_fields.html" with form=attachment_form %}
+    <button class="btn btn--secondary" type="submit">{% translate "Subir" %}</button>
+  </form>
+  {% endif %}
+</section>
 {% endblock %}
