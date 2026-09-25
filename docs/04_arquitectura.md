@@ -368,3 +368,50 @@ tener ingresos).
   y con un catálogo acotado de componentes.
 - **Consecuencias:** mantener el catálogo en `/design-system/` y no escribir
   estilos sueltos en las plantillas.
+
+### ADR-016 · Versiones inmutables de planes preventivos
+- **Contexto:** PM-03 exige que editar un plan no altere OT existentes y que
+  las OT futuras usen la nueva definición. Los planes cambian (frecuencia,
+  checklist, repuestos) mientras hay OT abiertas y asignaciones programadas.
+- **Decisión:**
+  - El contenido del plan (frecuencia, modo de reprogramación, tolerancia,
+    duración, instrucciones, checklist y recursos) vive en `plan_version`.
+    `maintenance_plan.current_version` apunta a la publicada vigente.
+  - Flujo: *borrador → publicar*. Hay un solo borrador por plan, y se crea
+    copiando la versión vigente. Publicar marca la anterior como
+    `superseded`.
+  - Una versión publicada es **inmutable**: `PlanVersion.save()` rechaza
+    cambios de contenido (solo puede cambiar de estado), y los ítems y
+    recursos solo se crean, editan o borran en borradores.
+  - La OT guarda `plan_version` (PROTECT) y copia el checklist para
+    registrar resultados. Los recursos previstos se leen de la versión, que
+    no cambia.
+  - Las asignaciones apuntan al **plan**, no a la versión. La generación y
+    la reprogramación usan la versión vigente en ese momento, así que
+    publicar no obliga a reasignar N activos.
+  - Si la nueva versión cambia la frecuencia, `publish_version` recalcula en
+    la misma transacción el próximo vencimiento de las asignaciones **sin
+    OT abierta**. Lo cuenta desde la última ejecución o lectura de cierre;
+    si nunca se ejecutó, desde el inicio implícito del ciclo anterior. Así,
+    acortar de 30 a 7 días se nota de inmediato. Las asignaciones con OT
+    abierta se reprograman al cerrarla.
+  - Los disparadores son campos de la versión (uno por calendario y uno por
+    medidor, vence lo que ocurra primero), no una tabla `plan_trigger`.
+  - Modo fijo: el siguiente objetivo es el anterior + k·intervalo, con el
+    menor k que lo deja después de la ejecución. Una OT muy atrasada no
+    genera OT en el pasado.
+- **Alternativas descartadas:**
+  - Editar el plan en sitio y confiar solo en el snapshot del checklist:
+    pierde la trazabilidad de frecuencia y recursos.
+  - Asignaciones apuntando a una versión: cada publicación tendría que
+    migrarlas.
+  - Tabla de disparadores: más flexibilidad de la que el dominio necesita.
+- **Consecuencias:**
+  - La inmutabilidad se aplica en `save()`/`delete()`; `QuerySet.update()`
+    y `bulk_*` la saltan. Los servicios no los usan sobre versiones, ítems
+    ni recursos de versiones publicadas, salvo `bulk_create` al crear un
+    borrador.
+  - Las propiedades de frecuencia del plan (`interval_days`,
+    `frequency_label`, `uses_meter`…) delegan en la versión vigente y
+    devuelven vacío si no la hay.
+  - Las versiones usadas por OT no se pueden borrar.

@@ -19,8 +19,8 @@ from apps.accounts.services import create_user
 from apps.assets.models import Asset, AssetClass, AssetStatusPeriod, Meter, MeterKind
 from apps.assets.services import record_meter_reading
 from apps.core.tenancy import tenant_context
-from apps.maintenance.models import ItemType, MaintenancePlan, PlanTaskItem
-from apps.maintenance.services import assign_plan, generate_due_work_orders
+from apps.maintenance.models import ItemType
+from apps.maintenance.services import assign_plan, create_plan, generate_due_work_orders
 from apps.organizations.models import Location, Organization, Plan
 from apps.organizations.plans import ensure_default_plans
 from apps.work.models import FailureCode, FailureEvent, WorkOrder
@@ -336,14 +336,14 @@ class Command(BaseCommand):
 
         # Planes y asignaciones con vencimientos repartidos (algunos atrasados).
         for code, name, cls, interval, minutes, items in PLANS:
-            plan = MaintenancePlan.objects.create(
+            plan = create_plan(
                 code=code,
                 name=name,
                 asset_class=classes[cls],
                 interval_days=interval,
                 estimated_minutes=minutes,
+                items=self._items(items),
             )
-            self._create_items(plan, items)
             for asset in (a for a in assets.values() if a.asset_class_id == classes[cls].id):
                 first_due = history_start + datetime.timedelta(days=random.randint(0, min(interval, 60) - 1))
                 assign_plan(plan=plan, asset=asset, starts_on=first_due)
@@ -404,7 +404,7 @@ class Command(BaseCommand):
 
     def _seed_meter_plans(self, assets, classes):
         for code, name, cls, kind, interval, days, minutes, items, remaining in METER_PLANS:
-            plan = MaintenancePlan.objects.create(
+            plan = create_plan(
                 code=code,
                 name=name,
                 asset_class=classes[cls],
@@ -412,8 +412,8 @@ class Command(BaseCommand):
                 meter_interval=Decimal(interval),
                 interval_days=days,
                 estimated_minutes=minutes,
+                items=self._items(items),
             )
-            self._create_items(plan, items)
             for asset_code, left in remaining.items():
                 meter = assets[asset_code].meters.get(kind=kind)
                 assign_plan(
@@ -423,18 +423,20 @@ class Command(BaseCommand):
                     next_due_meter_value=meter.current_value + left,
                 )
 
-    def _create_items(self, plan, items):
-        for i, item in enumerate(items, start=1):
-            text, item_type, *rng = item
-            PlanTaskItem.objects.create(
-                plan=plan,
-                order=i,
-                text=text,
-                item_type=item_type,
-                unit=rng[0] if rng else "",
-                min_value=Decimal(str(rng[1])) if rng else None,
-                max_value=Decimal(str(rng[2])) if rng else None,
+    def _items(self, items):
+        """Ítems del checklist en el formato de create_plan: (texto, tipo[, unidad, mín, máx])."""
+        result = []
+        for text, item_type, *rng in items:
+            result.append(
+                {
+                    "text": text,
+                    "item_type": item_type,
+                    "unit": rng[0] if rng else "",
+                    "min_value": Decimal(str(rng[1])) if rng else None,
+                    "max_value": Decimal(str(rng[2])) if rng else None,
+                }
             )
+        return result
 
     def _simulate_preventive_history(self, start, today, tech):
         """Recorre los días pasados: genera las OT y cierra la mayoría a tiempo."""
