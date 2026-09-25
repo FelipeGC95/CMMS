@@ -47,6 +47,9 @@ class Organization(TimeStampedModel):
     timezone = models.CharField(_("zona horaria"), max_length=64, default="America/Santiago")
     is_active = models.BooleanField(_("activa"), default=True)
     require_close_approval = models.BooleanField(_("requiere aprobación para cerrar OT"), default=False)
+    require_failure_details = models.BooleanField(
+        _("exige modo y causa de falla para cerrar una OT correctiva"), default=False
+    )
 
     class Meta:
         verbose_name = _("organización")

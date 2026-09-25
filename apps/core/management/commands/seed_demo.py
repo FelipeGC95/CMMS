@@ -193,21 +193,6 @@ METER_PLANS = [
     ),
 ]
 
-FAILURE_CODES = [
-    ("mode", "BRD", "Falla total / no funciona"),
-    ("mode", "ELP", "Fuga externa de fluido"),
-    ("mode", "VIB", "Vibración anormal"),
-    ("mode", "OHE", "Sobrecalentamiento"),
-    ("mode", "ERO", "Operación errática"),
-    ("mode", "NOI", "Ruido anormal"),
-    ("cause", "DES", "Desgaste"),
-    ("cause", "LUB", "Falta de lubricación"),
-    ("cause", "ELE", "Falla eléctrica / control"),
-    ("cause", "OPE", "Error de operación"),
-    ("cause", "MAT", "Falla de material / componente"),
-    ("cause", "SUC", "Suciedad / contaminación"),
-]
-
 HISTORY_FAILURES = [
     # activo, hace N días, horas detenido, descripción, modo, causa
     ("ENV-01", 26, 5.5, "Mordaza vertical no sella, bolsas abiertas", "ERO", "DES"),
@@ -339,9 +324,8 @@ class Command(BaseCommand):
             AssetStatusPeriod.objects.create(
                 asset=assets[code], status="operational", started_at=now - datetime.timedelta(days=60)
             )
-        codes = {}
-        for kind, code, name in FAILURE_CODES:
-            codes[code] = FailureCode.objects.create(kind=kind, code=code, name=name)
+        # El catálogo base de falla (REQ-03 CA1) ya se cargó al crear `org` (señal en apps.work).
+        codes = {c.code: c for c in FailureCode.objects.all()}
 
         # Planes y asignaciones con vencimientos repartidos (algunos atrasados).
         for code, name, cls, interval, minutes, items in PLANS:

@@ -15,6 +15,7 @@
     <ul class="list list--nav">
       <li><a href="{% url 'work_order_list' %}">{% icon 'wrench' %}{% translate "Órdenes de trabajo" %}</a></li>
       {% if membership|can:"work_order.manage" %}<li><a href="{% url 'request_list' %}">{% icon 'megaphone' %}{% translate "Solicitudes" %}</a></li>{% endif %}
+      {% if membership|can:"work_order.manage" %}<li><a href="{% url 'failure_code_list' %}">{% icon 'alert' %}{% translate "Catálogo de falla" %}</a></li>{% endif %}
       {% if membership|can:"asset.manage" %}
       <li><a href="{% url 'location_list' %}">{% icon 'home' %}{% translate "Ubicaciones" %}</a></li>
       <li><a href="{% url 'asset_class_list' %}">{% icon 'box' %}{% translate "Clases de activo" %}</a></li>
