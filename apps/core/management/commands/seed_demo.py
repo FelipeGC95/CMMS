@@ -232,6 +232,10 @@ class Command(BaseCommand):
             # Base de demo: se vacía completa. (El borrado de una organización real es X-04.)
             call_command("flush", interactive=False, verbosity=0)
         if Organization.objects.filter(slug="alimentos-del-sur").exists():
+            # Render corre seed_demo en cada arranque: los permisos del admin se ponen al
+            # día aunque los datos ya existan (modelos nuevos como versiones o auditoría).
+            if admin := User.objects.filter(email="jefe@demo.cl").first():
+                self._grant_admin_permissions(admin)
             self.stdout.write("Los datos demo ya existen. Usa --reset para recrearlos.")
             return
 
@@ -294,13 +298,18 @@ class Command(BaseCommand):
                 is_superuser=superuser,
             )
         if staff and not superuser:
-            # El admin de la organización configura desde el admin de Django (solo su tenant).
-            user.user_permissions.set(
-                Permission.objects.filter(
-                    content_type__app_label__in=["assets", "maintenance", "work", "organizations"]
-                ).exclude(content_type__model__in=["organization", "plan"])
-            )
+            self._grant_admin_permissions(user)
         return user
+
+    def _grant_admin_permissions(self, user):
+        # El admin de la organización configura desde el admin de Django (solo su tenant)
+        # y consulta la auditoría, que es de solo lectura.
+        user.user_permissions.set(
+            Permission.objects.filter(
+                content_type__app_label__in=["assets", "maintenance", "work", "organizations"]
+            ).exclude(content_type__model__in=["organization", "plan"])
+            | Permission.objects.filter(content_type__app_label="audit", codename__startswith="view_")
+        )
 
     def _seed_main(self, org, members):
         now = timezone.now()
