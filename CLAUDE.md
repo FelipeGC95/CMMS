@@ -130,3 +130,31 @@ plan preventivo = `maintenance_plan` · OT = `work_order` · solicitud =
 - Commits en inglés, en imperativo, pequeños y con tests.
 - Commits con la identidad de GitHub `FelipeGC95`.
 - Nunca commitear `.env`, credenciales ni datos de clientes.
+
+## Trabajo en paralelo
+
+- Una sesión orquesta; el trabajo lo hacen subagentes en segundo plano, cada
+  uno en su propio worktree (`isolation: "worktree"`). Nunca dos agentes en el
+  mismo directorio o rama.
+- Cada tarea sale del `main` actual (`feat/<tema>`, `fix/<tema>`) y entra a
+  `main` apenas está verificada. No apilar ramas.
+- No correr en paralelo dos tareas que toquen la misma app o creen migraciones
+  en la misma app; la segunda se inicia después de integrar la primera.
+- Los trabajadores no hacen merge a `main`; el orquestador verifica, actualiza
+  la rama con `main` si hace falta y la integra.
+
+## Definición de terminado
+
+Una tarea está terminada solo cuando:
+
+1. Cumple los criterios de aceptación del requisito (`docs/02_requisitos.md`)
+   y lo que no se hizo queda dicho explícitamente.
+2. Tiene tests de servicio, aislamiento (`tests/isolation/`), permisos y, si
+   hay lista nueva, `tests/test_query_counts.py`.
+3. Pasan `pytest`, `ruff check`, `ruff format --check` y
+   `makemigrations --check --dry-run`, con la rama actualizada con `main`.
+4. Si toca la interfaz: textos con `gettext`, `data-label` en tablas, enlaces
+   nuevos también en "Más" (`/menu/`), y capturas revisadas a 360, 1024 y
+   1440 px (los tests no detectan superposiciones).
+5. Está en su rama remota; tras integrarla, el despliegue en Render responde
+   `/healthz` y las rutas nuevas.
