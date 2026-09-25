@@ -1,0 +1,16 @@
+{% load ui %}{# Campos de un formulario con el sistema de diseño: {% include "_form_fields.html" with form=form %} #}
+{% for error in form.non_field_errors %}<div class="alert alert--error" role="alert">{% icon 'stop' %}<span>{{ error }}</span></div>{% endfor %}
+{% for field in form.hidden_fields %}{{ field }}{% endfor %}
+{% for field in form.visible_fields %}
+{% if field.widget_type == "checkbox" %}
+<div class="field field--check">{{ field }}<label for="{{ field.id_for_label }}">{{ field.label }}</label></div>
+{% if field.help_text %}<p class="help muted">{{ field.help_text }}</p>{% endif %}
+{% else %}
+<div class="field">
+  <label for="{{ field.id_for_label }}">{{ field.label }}{% if field.field.required %} *{% endif %}</label>
+  {{ field }}
+  {% if field.help_text %}<span class="help">{{ field.help_text }}</span>{% endif %}
+  {% for error in field.errors %}<span class="error">{% icon 'stop' %}{{ error }}</span>{% endfor %}
+</div>
+{% endif %}
+{% endfor %}
