@@ -25,6 +25,8 @@ django==5.2.17
     #   galbust-cmms
 django-allauth==65.19.4
     # via galbust-cmms
+et-xmlfile==2.0.0
+    # via openpyxl
 filelock==4.0.3
     # via
     #   python-discovery
@@ -37,6 +39,8 @@ iniconfig==2.3.0
     # via pytest
 nodeenv==1.10.0
     # via pre-commit
+openpyxl==3.1.5
+    # via galbust-cmms
 packaging==26.3
     # via pytest
 platformdirs==4.11.12
