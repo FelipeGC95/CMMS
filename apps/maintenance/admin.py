@@ -72,6 +72,7 @@ class MaintenancePlanAdmin(TenantAdmin):
                     asset=instance.asset,
                     starts_on=instance.next_due_on,
                     next_due_meter_value=instance.next_due_meter_value,
+                    by=request.user,
                 )
             except ValidationError as exc:
                 messages.error(request, " ".join(exc.messages))
