@@ -3,8 +3,12 @@ import uuid
 from django import forms
 from django.utils.translation import gettext_lazy as _
 
-from .models import FailureCode
-from .selectors import failure_codes
+from apps.accounts.models import User
+from apps.organizations.models import Location
+from apps.organizations.selectors import visible_locations
+
+from .models import FailureCode, WorkOrder
+from .selectors import assignable_members, failure_codes
 
 
 class FailureReportForm(forms.Form):
@@ -79,3 +83,49 @@ class OtherCostForm(forms.Form):
     description = forms.CharField(label=_("Descripción"), max_length=200)
     supplier = forms.CharField(label=_("Proveedor"), max_length=150, required=False)
     amount = forms.DecimalField(label=_("Monto"), min_value=0, max_digits=14, decimal_places=2)
+
+
+class WorkOrderFilterForm(forms.Form):
+    """Filtros de la lista de OT (WO-05); todos opcionales, se combinan con la vista (scope)."""
+
+    DATE_FIELD_CHOICES = [("due_on", _("Fecha límite")), ("created_at", _("Fecha de creación"))]
+
+    status = forms.ChoiceField(
+        label=_("Estado"), choices=[("", _("Todos los estados")), *WorkOrder.Status.choices], required=False
+    )
+    asset_q = forms.CharField(
+        label=_("Activo"), required=False, max_length=200, help_text=_("Código o nombre.")
+    )
+    location = forms.ModelChoiceField(
+        # `all_tenants`: al definir la clase no hay organización activa en el contexto.
+        label=_("Sitio"),
+        queryset=Location.all_tenants.none(),
+        required=False,
+        empty_label=_("Todos los sitios"),
+    )
+    assigned_to = forms.ModelChoiceField(
+        label=_("Responsable"), queryset=User.objects.none(), required=False, empty_label=_("Todos")
+    )
+    date_field = forms.ChoiceField(
+        label=_("Buscar fecha en"), choices=DATE_FIELD_CHOICES, required=False, initial="due_on"
+    )
+    date_from = forms.DateField(
+        label=_("Desde"), required=False, widget=forms.DateInput(attrs={"type": "date"})
+    )
+    date_to = forms.DateField(
+        label=_("Hasta"), required=False, widget=forms.DateInput(attrs={"type": "date"})
+    )
+
+    def __init__(self, *args, membership, **kwargs):
+        super().__init__(*args, **kwargs)
+        # code/name en vez de str(location): evita recorrer `parent` por cada opción (N+1).
+        self.fields["location"].queryset = visible_locations(membership=membership).order_by("code")
+        self.fields["location"].label_from_instance = lambda loc: f"{loc.name} ({loc.code})"
+        self.fields["assigned_to"].queryset = assignable_members(membership=membership)
+
+    def clean(self):
+        cleaned = super().clean()
+        date_from, date_to = cleaned.get("date_from"), cleaned.get("date_to")
+        if date_from and date_to and date_from > date_to:
+            raise forms.ValidationError(_("La fecha «desde» no puede ser posterior a «hasta»."))
+        return cleaned
