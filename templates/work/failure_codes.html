@@ -1,0 +1,91 @@
+{% extends "base.html" %}{% load i18n ui %}
+{% block title %}{% translate "Catálogo de falla" %}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>{% translate "Catálogo de falla" %}</h1>
+    <p class="muted">{% blocktranslate count n=page.paginator.count %}{{ n }} código{% plural %}{{ n }} códigos{% endblocktranslate %} · {% translate "Modo, causa, mecanismo y método de detección (ISO 14224). Editable; nunca se borra, se desactiva." %}</p>
+  </div>
+</div>
+
+<nav class="chips" aria-label="{% translate 'Tipo' %}">
+  <a class="chip" href="?" {% if not kind %}aria-current="true"{% endif %}>{% translate "Todos" %}</a>
+  {% for value, label in kinds %}
+  <a class="chip" href="?kind={{ value }}" {% if value == kind %}aria-current="true"{% endif %}>{{ label }}</a>
+  {% endfor %}
+</nav>
+
+<div class="card card--flush">
+  {% if page.object_list %}
+  <table class="table">
+    <caption class="visually-hidden">{% translate "Códigos de falla" %}</caption>
+    <thead>
+      <tr>
+        <th>{% translate "Tipo" %}</th>
+        <th>{% translate "Código" %}</th>
+        <th>{% translate "Nombre" %}</th>
+        <th>{% translate "Estado" %}</th>
+        <th>{% translate "Acciones" %}</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for code in page.object_list %}
+      <tr>
+        <td data-label="{% translate 'Tipo' %}">{{ code.get_kind_display }}</td>
+        <td data-label="{% translate 'Código' %}" class="num">{{ code.code }}</td>
+        <td data-label="{% translate 'Nombre' %}">{{ code.name }}</td>
+        <td data-label="{% translate 'Estado' %}">
+          {% if code.is_active %}
+          <span class="badge badge--success">{% icon 'check' %}{% translate "Activo" %}</span>
+          {% else %}
+          <span class="badge badge--neutral">{% icon 'x' %}{% translate "Inactivo" %}</span>
+          {% endif %}
+        </td>
+        <td data-label="{% translate 'Acciones' %}">
+          <div class="row">
+            <details>
+              <summary class="btn btn--ghost">{% icon 'wrench' %}{% translate "Renombrar" %}</summary>
+              <form method="post" action="{% url 'failure_code_rename' code.pk %}" class="mt-2">
+                {% csrf_token %}
+                <label class="visually-hidden" for="name-{{ code.pk }}">{% translate "Nombre" %}</label>
+                <input class="input" id="name-{{ code.pk }}" name="name" value="{{ code.name }}" required maxlength="120">
+                <button class="btn btn--secondary mt-2" type="submit">{% translate "Guardar" %}</button>
+              </form>
+            </details>
+            <form method="post" action="{% url 'failure_code_toggle' code.pk %}">
+              {% csrf_token %}
+              {% if code.is_active %}
+              <button class="btn btn--ghost" type="submit">{% icon 'x' %}{% translate "Desactivar" %}</button>
+              {% else %}
+              <button class="btn btn--secondary" type="submit">{% icon 'check' %}{% translate "Activar" %}</button>
+              {% endif %}
+            </form>
+          </div>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="empty">{% icon 'check' %} {% translate "No hay códigos de este tipo todavía." %}</p>
+  {% endif %}
+</div>
+{% include "_pagination.html" %}
+
+<section class="card mt-4" aria-labelledby="add-title">
+  <h2 id="add-title">{% translate "Agregar código" %}</h2>
+  <form method="post" action="{% url 'failure_code_create' %}">
+    {% csrf_token %}
+    <div class="grid grid--kpi">
+      {% for field in form %}
+      <div class="field">
+        <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+        {{ field }}
+        {% for error in field.errors %}<span class="error">{% icon 'stop' %}{{ error }}</span>{% endfor %}
+      </div>
+      {% endfor %}
+    </div>
+    <button class="btn btn--primary" type="submit">{% icon 'check' %}{% translate "Agregar" %}</button>
+  </form>
+</section>
+{% endblock %}
