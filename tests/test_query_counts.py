@@ -45,7 +45,16 @@ def _count(client, url):
 
 @pytest.mark.parametrize(
     "url_name",
-    ["dashboard", "asset_list", "work_order_list", "asset_labels", "design_system", "team", "audit_list"],
+    [
+        "dashboard",
+        "asset_list",
+        "work_order_list",
+        "asset_labels",
+        "design_system",
+        "team",
+        "audit_list",
+        "request_list",
+    ],
 )
 def test_list_queries_do_not_grow_with_rows(client, tenant_a, url_name):
     login(client, tenant_a.admin)

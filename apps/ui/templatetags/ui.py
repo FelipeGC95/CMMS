@@ -60,6 +60,11 @@ _STATUS_TONES = {
     "completed": "success",
     "closed": "success",
     "cancelled": "neutral",
+    # Solicitudes (REQ-01 CA3)
+    "pending": "warning",
+    "accepted": "success",
+    "rejected": "error",
+    "merged": "neutral",
 }
 
 
