@@ -1,4 +1,5 @@
 import uuid
+from decimal import Decimal
 from pathlib import Path
 
 from django.db import models
@@ -96,6 +97,11 @@ class WorkOrder(TenantModel):
     completed_at = models.DateTimeField(null=True, blank=True)
     closed_at = models.DateTimeField(null=True, blank=True)
     completion_notes = models.TextField(_("comentario de cierre"), blank=True)
+    # Totales (WO-04 CA3): se recalculan con cada registro y quedan fijos al cerrar.
+    labor_cost = models.DecimalField(_("mano de obra"), max_digits=14, decimal_places=2, default=0)
+    parts_cost = models.DecimalField(_("repuestos"), max_digits=14, decimal_places=2, default=0)
+    other_cost = models.DecimalField(_("otros costos"), max_digits=14, decimal_places=2, default=0)
+    total_cost = models.DecimalField(_("costo total"), max_digits=14, decimal_places=2, default=0)
     meter_value_at_completion = models.DecimalField(
         _("lectura al cerrar"), max_digits=14, decimal_places=3, null=True, blank=True
     )
@@ -178,10 +184,101 @@ class WorkOrderChecklistItem(TenantModel):
         ordering = ["order"]
 
 
+MONEY = {"max_digits": 14, "decimal_places": 2}
+
+
+class LaborRate(TenantModel):
+    """Costo por hora de mano de obra (WO-04 CA1).
+
+    Una fila sin membresía es la tarifa general de la organización; una fila
+    con membresía la reemplaza para esa persona. Se copia a cada registro de
+    horas, así que cambiarla no altera OT pasadas.
+    """
+
+    membership = models.OneToOneField(
+        "accounts.Membership",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="labor_rate",
+        verbose_name=_("persona (vacío = tarifa general)"),
+    )
+    hourly_cost = models.DecimalField(_("costo por hora"), **MONEY)
+
+    class Meta:
+        verbose_name = _("tarifa de mano de obra")
+        verbose_name_plural = _("tarifas de mano de obra")
+        constraints = [
+            models.UniqueConstraint(
+                fields=["organization"],
+                condition=models.Q(membership__isnull=True),
+                name="uniq_default_labor_rate",
+            ),
+        ]
+
+    def __str__(self):
+        who = self.membership.user if self.membership_id else _("Tarifa general")
+        return f"{who}: {self.hourly_cost}"
+
+
 class LaborEntry(TenantModel):
     work_order = models.ForeignKey(WorkOrder, on_delete=models.CASCADE, related_name="labor")
     user = models.ForeignKey("accounts.User", on_delete=models.PROTECT, related_name="+")
     minutes = models.PositiveIntegerField()
+    # Copia de la tarifa vigente al registrar (WO-04 CA1).
+    hourly_cost = models.DecimalField(_("costo por hora"), default=0, **MONEY)
+
+    class Meta:
+        ordering = ["created_at"]
+
+    @property
+    def cost(self):
+        return (self.hourly_cost * self.minutes / 60).quantize(Decimal("0.01"))
+
+
+class PartUsage(TenantModel):
+    """Repuesto o material consumido en la OT (WO-04 CA2; catálogo en F2)."""
+
+    work_order = models.ForeignKey(WorkOrder, on_delete=models.CASCADE, related_name="parts")
+    description = models.CharField(_("repuesto o material"), max_length=200)
+    quantity = models.DecimalField(_("cantidad"), max_digits=12, decimal_places=3)
+    unit = models.CharField(_("unidad"), max_length=20, blank=True)
+    unit_cost = models.DecimalField(_("costo unitario"), **MONEY)
+    created_by = models.ForeignKey(
+        "accounts.User", on_delete=models.SET_NULL, null=True, blank=True, related_name="+"
+    )
+    client_uuid = models.UUIDField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["created_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["organization", "client_uuid"], name="uniq_part_usage_client_uuid"
+            ),
+        ]
+
+    @property
+    def cost(self):
+        return (self.quantity * self.unit_cost).quantize(Decimal("0.01"))
+
+
+class OtherCost(TenantModel):
+    """Otro costo de la OT, por ejemplo un servicio externo (WO-04 CA2)."""
+
+    work_order = models.ForeignKey(WorkOrder, on_delete=models.CASCADE, related_name="other_costs")
+    description = models.CharField(_("descripción"), max_length=200)
+    supplier = models.CharField(_("proveedor"), max_length=150, blank=True)
+    amount = models.DecimalField(_("monto"), **MONEY)
+    created_by = models.ForeignKey(
+        "accounts.User", on_delete=models.SET_NULL, null=True, blank=True, related_name="+"
+    )
+
+    class Meta:
+        ordering = ["created_at"]
+
+    @property
+    def cost(self):
+        return self.amount
 
 
 class FailureCode(TenantModel):

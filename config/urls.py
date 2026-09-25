@@ -28,6 +28,7 @@ urlpatterns = [
     path("", include("apps.accounts.urls")),
     path("", include("apps.organizations.urls")),
     path("", include("apps.assets.urls")),
+    path("audit/", include("apps.audit.urls")),
     path("assets/", asset_views.asset_list_view, name="asset_list"),
     path("assets/labels/", asset_views.asset_labels_view, name="asset_labels"),
     path("assets/import/", asset_import_views.asset_import_view, name="asset_import"),
@@ -60,6 +61,16 @@ urlpatterns = [
         "work-orders/<uuid:pk>/complete/",
         work_views.work_order_complete_view,
         name="work_order_complete",
+    ),
+    path("work-orders/<uuid:pk>/labor/", work_views.labor_add_view, name="work_order_labor_add"),
+    path("work-orders/<uuid:pk>/parts/", work_views.part_add_view, name="work_order_part_add"),
+    path(
+        "work-orders/<uuid:pk>/other-costs/", work_views.other_cost_add_view, name="work_order_other_cost_add"
+    ),
+    path(
+        "work-orders/<uuid:pk>/costs/<str:kind>/<uuid:line_pk>/delete/",
+        work_views.cost_line_delete_view,
+        name="work_order_cost_delete",
     ),
     path(
         "work-orders/<uuid:pk>/items/<uuid:item_pk>/",

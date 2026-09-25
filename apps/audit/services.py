@@ -84,3 +84,18 @@ def record(
         user_agent=origin.user_agent,
         request_id=origin.request_id,
     )
+
+
+def login_membership(user):
+    """Membresía que abrirá la sesión: la última organización usada o la primera activa."""
+    from apps.accounts.models import Membership
+
+    memberships = list(
+        Membership.objects.select_related("organization").filter(
+            user=user, is_active=True, organization__is_active=True
+        )
+    )
+    return next(
+        (m for m in memberships if m.organization_id == user.last_organization_id),
+        memberships[0] if memberships else None,
+    )
