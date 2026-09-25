@@ -143,7 +143,10 @@ class WorkOrderCreateForm(forms.Form):
         label=_("Descripción"), required=False, widget=forms.Textarea(attrs={"rows": 4})
     )
     priority = forms.TypedChoiceField(
-        label=_("Prioridad"), choices=WorkOrder.Priority.choices, coerce=int, initial=WorkOrder.Priority.NORMAL
+        label=_("Prioridad"),
+        choices=WorkOrder.Priority.choices,
+        coerce=int,
+        initial=WorkOrder.Priority.NORMAL,
     )
     due_on = forms.DateField(
         label=_("Fecha límite"), required=False, widget=forms.DateInput(attrs={"type": "date"})

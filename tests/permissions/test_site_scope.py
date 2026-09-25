@@ -115,6 +115,28 @@ def test_scoped_technician_cannot_filter_by_a_site_outside_scope(client, tenant_
     assert response.status_code == 200
 
 
+def test_scoped_member_cannot_create_a_work_order_on_an_asset_outside_scope(client, tenant_a, scene):
+    """El activo fuera de alcance no aparece en el select y tampoco se puede forzar por POST (WO-01)."""
+    tenant_a.tech.role = Membership.Role.SUPERVISOR  # necesita work_order.manage para llegar al alta
+    tenant_a.tech.save()
+    login(client, tenant_a.tech)
+
+    page = client.get(reverse("work_order_create")).content.decode()
+    assert str(scene.inside.pk) in page
+    assert str(scene.outside.pk) not in page
+
+    with tenant_context(tenant_a.org):
+        before = WorkOrder.objects.count()
+    response = client.post(
+        reverse("work_order_create"),
+        {"work_type": "corrective", "asset": str(scene.outside.pk), "title": "x", "priority": "3"},
+    )
+    assert response.status_code == 200
+    assert "asset" in response.context["form"].errors
+    with tenant_context(tenant_a.org):
+        assert WorkOrder.objects.count() == before
+
+
 def test_attachment_out_of_scope_is_404(client, tenant_a, scene):
     photo = SimpleUploadedFile("f.jpg", b"\xff\xd8\xff fake", content_type="image/jpeg")
     with tenant_context(tenant_a.org):
