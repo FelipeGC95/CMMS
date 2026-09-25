@@ -334,9 +334,18 @@ class FailureEvent(TenantModel):
 class WorkRequest(TenantModel):
     """Aviso de falla o solicitud de trabajo (REQ-01).
 
-    En la demo se acepta automáticamente y genera una OT correctiva: el flujo
-    por defecto es el automático.
+    La OT correctiva se genera de inmediato al avisar (CA1/CA2): el flujo por
+    defecto es el automático. `status` es la decisión del planificador sobre
+    la solicitud en sí (CA3) — aceptarla es solo formalizar lo ya creado;
+    rechazarla o fusionarla cancela esa OT (ver `services.reject_request` y
+    `services.merge_request`).
     """
+
+    class Status(models.TextChoices):
+        PENDING = "pending", _("Pendiente")
+        ACCEPTED = "accepted", _("Aceptada")
+        REJECTED = "rejected", _("Rechazada")
+        MERGED = "merged", _("Fusionada")
 
     number = models.PositiveIntegerField(editable=False)
     asset = models.ForeignKey("assets.Asset", on_delete=models.PROTECT, related_name="requests")
@@ -346,12 +355,34 @@ class WorkRequest(TenantModel):
     work_order = models.OneToOneField(
         WorkOrder, on_delete=models.SET_NULL, null=True, blank=True, related_name="request"
     )
+    status = models.CharField(_("estado"), max_length=10, choices=Status.choices, default=Status.PENDING)
+    decided_by = models.ForeignKey(
+        "accounts.User",
+        verbose_name=_("decidida por"),
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+    )
+    decided_at = models.DateTimeField(_("decidida el"), null=True, blank=True)
+    rejection_reason = models.CharField(_("motivo de rechazo"), max_length=500, blank=True)
+    merged_into = models.ForeignKey(
+        "self",
+        verbose_name=_("fusionada en"),
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="merged_requests",
+    )
     client_uuid = models.UUIDField(null=True, blank=True)
 
     class Meta:
         ordering = ["-created_at"]
         constraints = [
             models.UniqueConstraint(fields=["organization", "client_uuid"], name="uniq_request_client_uuid"),
+        ]
+        indexes = [
+            models.Index(fields=["organization", "status", "created_at"], name="request_org_status_idx"),
         ]
 
 
