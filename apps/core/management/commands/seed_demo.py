@@ -24,6 +24,7 @@ from apps.maintenance.services import assign_plan, create_plan, generate_due_wor
 from apps.organizations.models import Location, Organization, Plan
 from apps.organizations.plans import ensure_default_plans
 from apps.work.models import FailureCode, FailureEvent, WorkOrder
+from apps.work.selectors import OPEN_STATUSES
 from apps.work.services import answer_checklist_item, complete_work_order, create_work_order
 
 # En ambientes publicados se define DEMO_PASSWORD (la de por defecto está en el repo).
@@ -221,6 +222,7 @@ class Command(BaseCommand):
             # día aunque los datos ya existan (modelos nuevos como versiones o auditoría).
             if admin := User.objects.filter(email="jefe@demo.cl").first():
                 self._grant_admin_permissions(admin)
+            self._assign_open_work_orders(Organization.objects.get(slug="alimentos-del-sur"))
             self.stdout.write("Los datos demo ya existen. Usa --reset para recrearlos.")
             return
 
@@ -244,6 +246,7 @@ class Command(BaseCommand):
             Membership.objects.create(user=platform, organization=org, role="admin")
             with tenant_context(org):
                 self._seed_main(org, members)
+            self._assign_open_work_orders(org)
 
             other = Organization.objects.create(
                 name="Maestranza Norte Ltda.",
@@ -269,6 +272,26 @@ class Command(BaseCommand):
             ("plataforma@galbust.cl", "superadmin de plataforma"),
         ]:
             self.stdout.write(f"  {email:24} {role}")
+
+    def _assign_open_work_orders(self, org):
+        """Reparte las OT abiertas sin responsable entre los técnicos demo.
+
+        Sin esto "Mis OT" (vista por defecto del técnico, WO-05) queda vacía en la
+        demo. Idempotente: solo toca OT sin responsable, así que también corrige
+        la base de Render que ya existe sin recrearla.
+        """
+        technicians = list(
+            User.objects.filter(email__in=["tecnico@demo.cl", "tecnico2@demo.cl"]).order_by("email")
+        )
+        if not technicians:
+            return
+        with tenant_context(org):
+            pending = WorkOrder.objects.filter(status__in=OPEN_STATUSES, assigned_to__isnull=True).order_by(
+                "due_on", "created_at"
+            )
+            for index, work_order in enumerate(pending):
+                work_order.assigned_to = technicians[index % len(technicians)]
+                work_order.save(update_fields=["assigned_to", "updated_at"])
 
     def _user(self, email, name, staff=False, superuser=False):
         user = User.objects.filter(email=email).first()
