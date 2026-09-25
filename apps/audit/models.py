@@ -39,6 +39,7 @@ class AuditEvent(TenantModel):
         UPDATE = "update", _("Edición")
         DELETE = "delete", _("Eliminación")
         TRANSITION = "transition", _("Cambio de estado")
+        LOGIN = "login", _("Inicio de sesión")
         ADMIN_CREATE = "admin_create", _("Creación en administración")
         ADMIN_UPDATE = "admin_update", _("Edición en administración")
         ADMIN_DELETE = "admin_delete", _("Eliminación en administración")
@@ -80,6 +81,17 @@ class AuditEvent(TenantModel):
 
     def __str__(self):
         return f"{self.get_action_display()} · {self.target_repr}"
+
+    @property
+    def target_label(self) -> str:
+        model = self.target_type.model_class()
+        return str(model._meta.verbose_name).capitalize() if model else self.target_type.model
+
+    @property
+    def changed_fields(self) -> list[str]:
+        """Nombres de los campos del evento (en el admin vienen bajo `fields`)."""
+        fields = self.changes.get("fields", self.changes)
+        return list(fields) if isinstance(fields, dict) else []
 
     def save(self, *args, **kwargs):
         if not self._state.adding:

@@ -1,0 +1,50 @@
+{% extends "base.html" %}{% load i18n ui %}
+{% block title %}{% translate "Auditoría" %}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>{% translate "Auditoría" %}</h1>
+    <p class="muted">{% blocktranslate count n=page.paginator.count %}{{ n }} evento{% plural %}{{ n }} eventos{% endblocktranslate %} · {% translate "Registro de solo lectura: nadie puede editarlo ni borrarlo." %}</p>
+  </div>
+</div>
+
+<form class="card" method="get">
+  <div class="grid grid--kpi">
+    {% for field in form %}
+    <div class="field">
+      <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+      {{ field }}
+      {% for error in field.errors %}<span class="error">{% icon 'stop' %}{{ error }}</span>{% endfor %}
+    </div>
+    {% endfor %}
+  </div>
+  <div class="row">
+    <button class="btn btn--primary" type="submit">{% translate "Filtrar" %}</button>
+    <a class="btn btn--ghost" href="{% url 'audit_list' %}">{% translate "Limpiar" %}</a>
+  </div>
+</form>
+
+<div class="card card--flush">
+  {% if page.object_list %}
+  <table class="table">
+    <caption class="visually-hidden">{% translate "Eventos de auditoría" %}</caption>
+    <thead><tr><th>{% translate "Fecha" %}</th><th>{% translate "Persona" %}</th><th>{% translate "Acción" %}</th><th>{% translate "Objeto" %}</th><th>{% translate "Campos" %}</th><th>{% translate "IP" %}</th></tr></thead>
+    <tbody>
+      {% for event in page.object_list %}
+      <tr>
+        <td class="num">{{ event.created_at|date:"d-m-Y H:i" }}</td>
+        <td data-label="{% translate 'Persona' %}">{{ event.actor_repr|default:_("Sistema") }}</td>
+        <td data-label="{% translate 'Acción' %}">{{ event.get_action_display }}</td>
+        <td data-label="{% translate 'Objeto' %}">{{ event.target_label }}{% if event.target_repr %} · {{ event.target_repr }}{% endif %}</td>
+        <td data-label="{% translate 'Campos' %}">{{ event.changed_fields|join:", " }}</td>
+        <td data-label="{% translate 'IP' %}" class="num">{{ event.ip|default:"—" }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="empty">{% icon 'check' %} {% translate "No hay eventos con estos filtros." %}</p>
+  {% endif %}
+</div>
+{% include "_pagination.html" %}
+{% endblock %}
