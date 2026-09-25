@@ -1,8 +1,8 @@
-from django.db.models import Q
+from django.db.models import Count, Q
 
 from apps.accounts.scoping import allowed_location_ids
 
-from .models import Asset
+from .models import Asset, AssetClass
 
 
 def visible_assets(*, membership):
@@ -30,3 +30,15 @@ def asset_list(*, membership, search: str = "", status: str = ""):
 
 def asset_by_qr_token(token: str, *, membership) -> Asset | None:
     return visible_assets(membership=membership).filter(qr_token=token, is_active=True).first()
+
+
+def asset_class_list():
+    """Clases de la organización con sus cantidades de activos y atributos visibles."""
+    return AssetClass.objects.annotate(
+        asset_count=Count("assets", filter=Q(assets__is_active=True), distinct=True),
+        attribute_count=Count("attributes", filter=Q(attributes__is_active=True), distinct=True),
+    ).order_by("-is_active", "name")
+
+
+def active_attributes(asset_class):
+    return list(asset_class.attributes.filter(is_active=True).order_by("order", "label"))

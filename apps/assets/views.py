@@ -16,9 +16,10 @@ from apps.work.forms import FailureReportForm
 from apps.work.selectors import work_order_list
 from apps.work.services import WorkOrderError, report_failure
 
+from .attributes import attribute_rows
 from .forms import MeterReadingForm
 from .models import Asset, Meter
-from .selectors import asset_by_qr_token, asset_list, visible_assets
+from .selectors import active_attributes, asset_by_qr_token, asset_list, visible_assets
 from .services import record_meter_reading
 
 
@@ -62,6 +63,8 @@ def asset_detail_view(request, pk):
                 for meter in asset.meters.filter(is_active=True)
             ],
             "can_read_meters": has_perm(request.membership, Perm.METER_READING_CREATE),
+            "can_manage": has_perm(request.membership, Perm.ASSET_MANAGE),
+            "attribute_rows": attribute_rows(asset, active_attributes(asset.asset_class)),
             "status_periods": asset.status_periods.all()[:10],
         },
     )

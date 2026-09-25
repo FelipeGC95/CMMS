@@ -12,8 +12,34 @@ def new_qr_token():
 
 
 class AssetClass(TenantModel):
+    class IsoCategory(models.TextChoices):
+        """Categoría de referencia ISO 14224 (AST-01 CA2)."""
+
+        ROTATING = "rotating", _("Rotativo")
+        MECHANICAL = "mechanical", _("Mecánico")
+        ELECTRICAL = "electrical", _("Eléctrico")
+        INSTRUMENTATION = "instrumentation", _("Instrumentación")
+        VEHICLE = "vehicle", _("Vehículo")
+        SAFETY = "safety", _("Seguridad")
+        OTHER = "other", _("Otro")
+
+    class Level(models.TextChoices):
+        EQUIPMENT = "equipment", _("Equipo")
+        SYSTEM = "system", _("Sistema")
+        COMPONENT = "component", _("Componente")
+
     code = models.CharField(_("código"), max_length=30)
     name = models.CharField(_("nombre"), max_length=120)
+    iso_category = models.CharField(
+        _("categoría ISO 14224"),
+        max_length=20,
+        choices=IsoCategory.choices,
+        default=IsoCategory.OTHER,
+        blank=True,
+    )
+    level_hint = models.CharField(
+        _("nivel típico"), max_length=20, choices=Level.choices, default=Level.EQUIPMENT, blank=True
+    )
     is_active = models.BooleanField(_("activa"), default=True)
 
     class Meta:
@@ -26,6 +52,47 @@ class AssetClass(TenantModel):
 
     def __str__(self):
         return self.name
+
+
+class AttributeType(models.TextChoices):
+    TEXT = "text", _("Texto")
+    NUMBER = "number", _("Número")
+    DATE = "date", _("Fecha")
+    BOOL = "bool", _("Sí / No")
+    CHOICE = "choice", _("Lista")
+
+
+class AssetClassAttribute(TenantModel):
+    """Atributo técnico definido en la clase (AST-01); el valor vive en `Asset.attributes[key]`.
+
+    `key` y `data_type` no cambian tras crearse: así los valores guardados siguen
+    siendo válidos. Desactivar oculta el atributo sin borrar valores (CA3).
+    """
+
+    asset_class = models.ForeignKey(
+        AssetClass, on_delete=models.CASCADE, related_name="attributes", verbose_name=_("clase")
+    )
+    key = models.SlugField(_("clave"), max_length=50, editable=False)
+    label = models.CharField(_("nombre"), max_length=80)
+    data_type = models.CharField(_("tipo"), max_length=10, choices=AttributeType.choices)
+    unit = models.CharField(_("unidad"), max_length=20, blank=True)
+    choices = models.JSONField(_("opciones"), default=list, blank=True)
+    required = models.BooleanField(_("obligatorio"), default=False)
+    order = models.PositiveSmallIntegerField(_("orden"), default=0)
+    is_active = models.BooleanField(_("activo"), default=True)
+
+    class Meta:
+        verbose_name = _("atributo de clase")
+        verbose_name_plural = _("atributos de clase")
+        ordering = ["order", "label"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["organization", "asset_class", "key"], name="uniq_asset_class_attribute_key"
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.label} ({self.unit})" if self.unit else self.label
 
 
 class Asset(TenantModel):
@@ -69,6 +136,8 @@ class Asset(TenantModel):
     model = models.CharField(_("modelo"), max_length=100, blank=True)
     serial_number = models.CharField(_("n.º de serie"), max_length=100, blank=True)
     year = models.PositiveSmallIntegerField(_("año"), null=True, blank=True)
+    # Valores de los atributos de la clase por `key` (AST-01); JSON serializable (número y fecha como texto).
+    attributes = models.JSONField(_("atributos"), default=dict, blank=True)
     qr_token = models.CharField(max_length=32, unique=True, default=new_qr_token, editable=False)
     is_active = models.BooleanField(_("activo"), default=True)
 

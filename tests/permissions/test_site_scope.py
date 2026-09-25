@@ -77,7 +77,10 @@ def test_qr_of_asset_out_of_scope_is_404_without_redirect_loop(client, tenant_a,
 
 def test_work_orders_out_of_scope_are_hidden(client, tenant_a, scene):
     login(client, tenant_a.tech)
-    listed = {wo.pk for wo in client.get(reverse("work_order_list")).context["page"].object_list}
+    # scope=open: el técnico ve "Mis OT" por defecto (WO-05), no es lo que prueba este test.
+    listed = {
+        wo.pk for wo in client.get(reverse("work_order_list"), {"scope": "open"}).context["page"].object_list
+    }
     assert scene.wo_inside.pk in listed and scene.wo_outside.pk not in listed
     assert client.get(reverse("work_order_detail", args=[scene.wo_outside.pk])).status_code == 404
     with tenant_context(tenant_a.org):
@@ -95,6 +98,21 @@ def test_work_orders_out_of_scope_are_hidden(client, tenant_a, scene):
         == 404
     )
     assert client.post(reverse("work_order_complete", args=[scene.wo_outside.pk]), {}).status_code == 404
+
+
+def test_scoped_technician_cannot_filter_by_a_site_outside_scope(client, tenant_a, scene):
+    """El sitio "Planta Sur" es de la propia organización pero fuera del alcance del técnico (WO-05)."""
+    login(client, tenant_a.tech)
+    response = client.get(
+        reverse("work_order_list"), {"scope": "open", "location": scene.outside.location_id}
+    )
+    assert response.status_code == 200
+    assert scene.wo_outside.pk not in {wo.pk for wo in response.context["page"].object_list}
+    # El filtro por responsable tampoco deja elegir a alguien fuera de su alcance más allá de sí mismo.
+    response = client.get(
+        reverse("work_order_list"), {"scope": "open", "assigned_to": tenant_a.admin.user_id}
+    )
+    assert response.status_code == 200
 
 
 def test_attachment_out_of_scope_is_404(client, tenant_a, scene):
