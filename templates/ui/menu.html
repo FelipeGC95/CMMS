@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% load i18n ui accounts_tags %}
+{% block title %}{% translate "Más" %}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>{% translate "Más" %}</h1>
+    {% if organization %}<p class="muted">{{ organization.name }}{% if membership %} · {{ membership.get_role_display }}{% endif %}</p>{% endif %}
+  </div>
+</div>
+
+<div class="stack">
+  <section class="card">
+    <h2>{% translate "Secciones" %}</h2>
+    <ul class="list list--nav">
+      <li><a href="{% url 'work_order_list' %}">{% icon 'wrench' %}{% translate "Órdenes de trabajo" %}</a></li>
+      {% if membership|can:"work_order.manage" %}<li><a href="{% url 'request_list' %}">{% icon 'megaphone' %}{% translate "Solicitudes" %}</a></li>{% endif %}
+      {% if membership|can:"asset.manage" %}
+      <li><a href="{% url 'location_list' %}">{% icon 'home' %}{% translate "Ubicaciones" %}</a></li>
+      <li><a href="{% url 'asset_class_list' %}">{% icon 'box' %}{% translate "Clases de activo" %}</a></li>
+      {% endif %}
+      {% if membership|can:"team.manage" %}<li><a href="{% url 'team' %}">{% icon 'list' %}{% translate "Equipo" %}</a></li>{% endif %}
+      {% if membership|can:"audit.view" %}<li><a href="{% url 'audit_list' %}">{% icon 'clock' %}{% translate "Auditoría" %}</a></li>{% endif %}
+      {% if user.is_staff %}
+      <li><a href="{% url 'admin:index' %}">{% icon 'wrench' %}{% translate "Configuración" %}</a></li>
+      <li><a href="{% url 'design_system' %}">{% icon 'contrast' %}{% translate "Sistema de diseño" %}</a></li>
+      {% endif %}
+    </ul>
+  </section>
+
+  {% if memberships|length > 1 %}
+  <section class="card">
+    <h2>{% translate "Organización" %}</h2>
+    <form method="post" action="{% url 'switch_organization' %}" class="stack">
+      {% csrf_token %}
+      <div class="field">
+        <label for="menu-org-select">{% translate "Organización activa" %}</label>
+        <select id="menu-org-select" name="organization">
+          {% for m in memberships %}
+          <option value="{{ m.organization_id }}" {% if m.organization_id == organization.id %}selected{% endif %}>{{ m.organization.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <button class="btn btn--primary" type="submit">{% translate "Cambiar de organización" %}</button>
+    </form>
+  </section>
+  {% endif %}
+
+  <section class="card">
+    <h2>{% translate "Mi cuenta" %}</h2>
+    <ul class="list list--nav">
+      <li><a href="{% url 'account_change_password' %}">{% icon 'info' %}{{ user.short_name }} · {% translate "Cambiar contraseña" %}</a></li>
+    </ul>
+    <div class="row">
+      {% include "_theme_button.html" with extra_class="btn btn--secondary" %}
+      <form method="post" action="{% url 'account_logout' %}">
+        {% csrf_token %}
+        <button class="btn btn--secondary" type="submit">{% translate "Salir" %}</button>
+      </form>
+    </div>
+  </section>
+</div>
+{% endblock %}

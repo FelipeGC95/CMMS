@@ -7,7 +7,7 @@ from apps.accounts.views import switch_organization
 from apps.assets import import_views as asset_import_views
 from apps.assets import views as asset_views
 from apps.reporting.views import dashboard
-from apps.ui.views import design_system_css_view, design_system_view
+from apps.ui.views import design_system_css_view, design_system_view, menu_view
 from apps.work import views as work_views
 
 admin.site.site_header = "GALBUST CMMS · Administración"
@@ -83,6 +83,7 @@ urlpatterns = [
     path("requests/<uuid:pk>/accept/", work_views.request_accept_view, name="request_accept"),
     path("requests/<uuid:pk>/reject/", work_views.request_reject_view, name="request_reject"),
     path("requests/<uuid:pk>/merge/", work_views.request_merge_view, name="request_merge"),
+    path("menu/", menu_view, name="menu"),
     path("design-system/", design_system_view, name="design_system"),
     path("design-system/swatches.css", design_system_css_view, name="design_system_css"),
     path("admin/", admin.site.urls),

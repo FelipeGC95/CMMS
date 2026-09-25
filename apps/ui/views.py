@@ -4,6 +4,7 @@ from django.shortcuts import render
 from django.views.decorators.cache import cache_control
 
 from apps.assets.models import Asset
+from apps.core.decorators import membership_required
 from apps.work.models import WorkOrder
 
 from .tokens import color_tokens
@@ -32,3 +33,9 @@ def design_system_css_view(request):
         f'.swatch[data-token="{name}"] {{ background: var({name}); }}' for name in color_tokens()["light"]
     ]
     return HttpResponse("\n".join(rules), content_type="text/css")
+
+
+@membership_required
+def menu_view(request):
+    """Menú "Más" de la navegación móvil: todo destino del menú de escritorio (ADR-017)."""
+    return render(request, "ui/menu.html")

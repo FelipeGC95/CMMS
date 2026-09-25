@@ -71,6 +71,7 @@
     <a href="{% url 'dashboard' %}" {% nav_current '/' %}>{% icon 'home' %}{% translate "Inicio" %}</a>
     <a href="{% url 'work_order_list' %}?scope=mine" {% nav_current '/work-orders/' %}>{% icon 'list' %}{% translate "Mis OT" %}</a>
     <a href="{% url 'asset_list' %}" {% nav_current '/assets/' %}>{% icon 'box' %}{% translate "Activos" %}</a>
+    <a href="{% url 'menu' %}" {% nav_current '/menu/' '/requests/' '/team/' '/audit/' '/locations/' '/asset-classes/' %}>{% icon 'menu' %}{% translate "Más" %}</a>
   </nav>
   {% endif %}
 </body>
