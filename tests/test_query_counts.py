@@ -4,6 +4,7 @@ import pytest
 from django.db import connection
 from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
+from django.utils.http import urlencode
 
 from apps.accounts.models import Membership, MembershipLocation, User
 from apps.assets.models import Asset
@@ -51,6 +52,24 @@ def test_list_queries_do_not_grow_with_rows(client, tenant_a, url_name):
     _add_rows(tenant_a, 10)
     many = _count(client, url)
     assert many == few, f"{url_name}: {few} → {many} consultas"
+
+
+def test_work_order_list_with_filters_does_not_grow_with_rows(client, tenant_a):
+    """Con filtros activos (WO-05), las consultas siguen sin crecer con la cantidad de filas."""
+    login(client, tenant_a.admin)
+    url = reverse("work_order_list")
+    params = {
+        "scope": "open",
+        "status": "planned",
+        "type": "corrective",
+        "asset_q": "a",
+        "date_field": "due_on",
+    }
+    _add_rows(tenant_a, 2)
+    few = _count(client, f"{url}?{urlencode(params)}")
+    _add_rows(tenant_a, 10)
+    many = _count(client, f"{url}?{urlencode(params)}")
+    assert many == few
 
 
 def test_work_order_detail_query_budget(client, tenant_a, django_assert_max_num_queries):
