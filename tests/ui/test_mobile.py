@@ -75,3 +75,15 @@ def test_menu_hides_destinations_the_role_cannot_use(client, tenant_a):
     body = client.get(reverse("menu")).content.decode()
     for name in ("request_list", "team", "audit_list", "location_list"):
         assert reverse(name) not in body
+
+
+def test_desktop_nav_keeps_few_links_and_groups_the_rest_in_more(client, tenant_a):
+    """La barra de escritorio no debe desbordarse: lo secundario vive en "Más" (/menu/)."""
+    tenant_a.admin.user.is_staff = True
+    tenant_a.admin.user.save(update_fields=["is_staff"])
+    login(client, tenant_a.admin)
+
+    page = client.get(reverse("dashboard")).content.decode()
+    desktop = HREF.findall(NAV_LINKS.search(page).group(1))
+    assert reverse("menu") in desktop
+    assert len(desktop) <= 5, f"Demasiados enlaces en la barra de escritorio: {desktop}"

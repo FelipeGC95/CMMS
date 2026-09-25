@@ -63,10 +63,16 @@ svg[aria-hidden="true"], svg[role="img"] { width: 1.1em; height: 1.1em; vertical
 .btn-nav { cursor: pointer; white-space: nowrap; }
 .navbar__links a, .navbar__user { white-space: nowrap; }
 a.navbar__user { color: var(--color-nav-text); }
-/* El lado derecho cede espacio (organización y usuario se recortan) antes que empujar "Salir" fuera. */
-.navbar__right { min-width: 0; }
+/* Si falta ancho ceden primero el nombre del usuario y luego el selector de organización
+   (se recortan con "…"); los enlaces y los botones (Cambiar, tema, Salir) nunca se
+   encogen ni se montan unos sobre otros. */
+.navbar__links { flex-shrink: 0; }
+.navbar__right { min-width: 0; flex-shrink: 1; }
 .navbar__right > * { flex-shrink: 0; }
-.navbar__right > .navbar__user, .navbar__right > .org-switch { flex-shrink: 1; min-width: 0; }
+.navbar__right > .navbar__user { flex-shrink: 20; min-width: 0; }
+.navbar__right > .org-switch { flex-shrink: 1; min-width: 0; }
+.org-switch select { flex: 0 1 auto; }
+.org-switch .btn-nav { flex-shrink: 0; }
 .navbar__user { max-width: 22ch; overflow: hidden; text-overflow: ellipsis; }
 .org-switch { display: flex; align-items: center; gap: var(--space-1); }
 .org-switch select { max-width: 180px; min-width: 0; }

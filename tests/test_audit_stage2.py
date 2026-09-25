@@ -43,10 +43,11 @@ def test_audit_list_is_only_for_admins(client, tenant_a, role, status):
 
 
 def test_audit_link_only_in_admin_menu(client, tenant_a):
+    # Auditoría vive en "Más" (/menu/) en escritorio y móvil.
     login(client, tenant_a.admin)
-    assert reverse("audit_list") in client.get(reverse("dashboard")).content.decode()
+    assert reverse("audit_list") in client.get(reverse("menu")).content.decode()
     login(client, tenant_a.tech)
-    assert reverse("audit_list") not in client.get(reverse("dashboard")).content.decode()
+    assert reverse("audit_list") not in client.get(reverse("menu")).content.decode()
 
 
 def test_audit_list_filters(client, tenant_a):

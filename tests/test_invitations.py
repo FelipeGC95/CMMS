@@ -201,10 +201,10 @@ def test_only_admins_manage_the_team(client, tenant_a, role):
 
 def test_team_page_links_only_for_admins(client, tenant_a):
     login(client, tenant_a.admin)
-    assert reverse("team") in client.get(reverse("dashboard")).content.decode()
+    assert reverse("team") in client.get(reverse("menu")).content.decode()
     client.logout()
     login(client, tenant_a.tech)
-    assert reverse("team") not in client.get(reverse("dashboard")).content.decode()
+    assert reverse("team") not in client.get(reverse("menu")).content.decode()
 
 
 def test_new_account_password_is_validated(client, tenant_a):
