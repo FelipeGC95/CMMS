@@ -114,3 +114,20 @@ def test_platform_admin_manages_plans(client, tenant_a):
     user.save()
     login(client, tenant_a.admin)
     assert client.get(reverse("admin:organizations_plan_changelist")).status_code == 200
+
+
+def test_login_rate_limit_uses_shared_cache(client, tenant_a):
+    """Los límites de allauth viven en la base de datos, no en la memoria de cada worker."""
+    from django.db import connection
+
+    user = verify(tenant_a.admin.user)
+    sign_in(client, user.email, "otra-clave-999")
+    with connection.cursor() as cursor:
+        cursor.execute("SELECT COUNT(*) FROM django_cache")
+        assert cursor.fetchone()[0] >= 1
+
+
+def test_user_without_last_organization_gets_first_membership(client, tenant_a):
+    assert tenant_a.admin.user.last_organization_id is None
+    login(client, tenant_a.admin)
+    assert client.get(reverse("dashboard")).context["organization"] == tenant_a.org

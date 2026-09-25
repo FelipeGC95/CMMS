@@ -120,6 +120,13 @@ ACCOUNT_LOGIN_ON_PASSWORD_RESET = True
 ACCOUNT_EMAIL_SUBJECT_PREFIX = "[GALBUST CMMS] "
 ACCOUNT_DEFAULT_HTTP_PROTOCOL = "http" if DEBUG else "https"
 # Límites de intentos por defecto de allauth (login, reinicio de clave) sobre el caché.
+# Caché en la base de datos: compartido entre workers de gunicorn (LocMem es por proceso).
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.db.DatabaseCache",
+        "LOCATION": "django_cache",
+    }
+}
 
 # Correo: consola en local; en producción SMTP del proveedor (Postmark o Brevo, docs/04).
 EMAIL_BACKEND = os.environ.get("EMAIL_BACKEND", "django.core.mail.backends.console.EmailBackend")
