@@ -4,6 +4,8 @@ from django import forms
 from django.utils.translation import gettext_lazy as _
 
 from apps.accounts.models import User
+from apps.assets.models import Asset
+from apps.assets.selectors import visible_assets
 from apps.organizations.models import Location
 from apps.organizations.selectors import visible_locations
 
@@ -129,3 +131,33 @@ class WorkOrderFilterForm(forms.Form):
         if date_from and date_to and date_from > date_to:
             raise forms.ValidationError(_("La fecha «desde» no puede ser posterior a «hasta»."))
         return cleaned
+
+
+class WorkOrderCreateForm(forms.Form):
+    """Alta manual de OT (WO-01); el correlativo y el estado inicial los pone el servicio."""
+
+    work_type = forms.ChoiceField(label=_("Tipo"), choices=WorkOrder.Type.choices)
+    asset = forms.ModelChoiceField(label=_("Activo"), queryset=Asset.all_tenants.none())
+    title = forms.CharField(label=_("Título"), max_length=200)
+    description = forms.CharField(
+        label=_("Descripción"), required=False, widget=forms.Textarea(attrs={"rows": 4})
+    )
+    priority = forms.TypedChoiceField(
+        label=_("Prioridad"), choices=WorkOrder.Priority.choices, coerce=int, initial=WorkOrder.Priority.NORMAL
+    )
+    due_on = forms.DateField(
+        label=_("Fecha límite"), required=False, widget=forms.DateInput(attrs={"type": "date"})
+    )
+    estimated_minutes = forms.IntegerField(
+        label=_("Estimación (minutos)"), required=False, min_value=1, max_value=30 * 24 * 60
+    )
+    assigned_to = forms.ModelChoiceField(
+        label=_("Responsable"), queryset=User.objects.none(), required=False, empty_label=_("Sin asignar")
+    )
+
+    def __init__(self, *args, membership, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["asset"].queryset = (
+            visible_assets(membership=membership).filter(is_active=True).order_by("code")
+        )
+        self.fields["assigned_to"].queryset = assignable_members(membership=membership)

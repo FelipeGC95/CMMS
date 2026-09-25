@@ -51,6 +51,7 @@ urlpatterns = [
     ),
     path("q/<str:token>/", asset_views.asset_qr_view, name="asset_qr"),
     path("work-orders/", work_views.work_order_list_view, name="work_order_list"),
+    path("work-orders/new/", work_views.work_order_create_view, name="work_order_create"),
     path("work-orders/<uuid:pk>/", work_views.work_order_detail_view, name="work_order_detail"),
     path(
         "work-orders/<uuid:pk>/transition/",
