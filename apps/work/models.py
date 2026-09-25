@@ -282,13 +282,19 @@ class OtherCost(TenantModel):
 
 
 class FailureCode(TenantModel):
-    """Catálogo con la estructura de ISO 14224 (contenido propio y editable)."""
+    """Catálogo con la estructura de ISO 14224 (contenido propio y editable).
+
+    Sin borrado físico: un código que ya no se usa se desactiva (`is_active`),
+    nunca se borra (queda referenciado por eventos de falla históricos).
+    """
 
     class Kind(models.TextChoices):
         MODE = "mode", _("Modo de falla")
         CAUSE = "cause", _("Causa")
+        MECHANISM = "mechanism", _("Mecanismo de falla")
+        DETECTION_METHOD = "detection_method", _("Método de detección")
 
-    kind = models.CharField(_("tipo"), max_length=10, choices=Kind.choices)
+    kind = models.CharField(_("tipo"), max_length=20, choices=Kind.choices)
     code = models.CharField(_("código"), max_length=10)
     name = models.CharField(_("nombre"), max_length=120)
     is_active = models.BooleanField(default=True)
@@ -312,16 +318,51 @@ class FailureEvent(TenantModel):
         NONE = "none", _("Sin detención")
 
     asset = models.ForeignKey("assets.Asset", on_delete=models.PROTECT, related_name="failures")
+    # Activo hijo afectado (opcional): ej. un motor dentro de una envasadora.
+    component = models.ForeignKey(
+        "assets.Asset",
+        verbose_name=_("componente"),
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="+",
+    )
     work_order = models.OneToOneField(
         WorkOrder, on_delete=models.SET_NULL, null=True, blank=True, related_name="failure"
     )
     impact = models.CharField(max_length=20, choices=Impact.choices)
     description = models.TextField(blank=True)
     failure_mode = models.ForeignKey(
-        FailureCode, on_delete=models.PROTECT, null=True, blank=True, related_name="+"
+        FailureCode,
+        verbose_name=_("modo de falla"),
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="+",
     )
     failure_cause = models.ForeignKey(
-        FailureCode, on_delete=models.PROTECT, null=True, blank=True, related_name="+"
+        FailureCode,
+        verbose_name=_("causa"),
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="+",
+    )
+    failure_mechanism = models.ForeignKey(
+        FailureCode,
+        verbose_name=_("mecanismo de falla"),
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="+",
+    )
+    detection_method = models.ForeignKey(
+        FailureCode,
+        verbose_name=_("método de detección"),
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="+",
     )
     started_at = models.DateTimeField()
     ended_at = models.DateTimeField(null=True, blank=True)
