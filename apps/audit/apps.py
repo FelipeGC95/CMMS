@@ -6,3 +6,6 @@ class AuditConfig(AppConfig):
     name = "apps.audit"
     verbose_name = _("Auditoría")
     default_auto_field = "django.db.models.BigAutoField"
+
+    def ready(self):
+        from . import signals  # noqa: F401

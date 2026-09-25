@@ -32,6 +32,12 @@ def test_every_role_has_a_permission_set():
         (Role.ADMIN, Perm.TEAM_MANAGE, True),
         (Role.PLANNER, Perm.TEAM_MANAGE, False),
         (Role.SUPERVISOR, Perm.TEAM_MANAGE, False),
+        (Role.ADMIN, Perm.AUDIT_VIEW, True),
+        (Role.PLANNER, Perm.AUDIT_VIEW, False),
+        (Role.SUPERVISOR, Perm.AUDIT_VIEW, False),
+        (Role.TECHNICIAN, Perm.AUDIT_VIEW, False),
+        (Role.VIEWER, Perm.AUDIT_VIEW, False),
+        (Role.EXTERNAL, Perm.AUDIT_VIEW, False),
     ],
 )
 def test_role_matrix(role, perm, expected):

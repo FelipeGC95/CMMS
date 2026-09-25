@@ -154,12 +154,13 @@ absorción de planes (`supersedes_plans`, PM‑05 CA3).
 **`audit_log`** (solo inserción)
 `organization_id` (null = evento de plataforma) · `actor_id` · `actor_type` (user, api_token, system) · `action` (create, update, delete, transition, login, export…) · `object_type` · `object_id` · `object_repr` · `changes JSONB` (antes/después de los campos cambiados) · `ip` · `user_agent` · `request_id` · `at`.
 Índices `(organization_id, at DESC)`, `(organization_id, object_type, object_id)`. Candidata a particionarse por mes.
-> Implementado como `audit.AuditEvent` (X-01, etapa 1). Diferencias con este
-> diseño: `organization_id` es obligatorio porque hereda de `TenantModel`, así
-> que los eventos de plataforma (organization_id nulo) y el registro de login
-> quedan para la etapa 2, cuando haya auditoría sin tenant. `at` es
-> `created_at`; `object_type` es `target_type` (content type). En `changes` nunca
-> se guardan campos sensibles (password, secret, token, key).
+> Implementado como `audit.AuditEvent` (X-01). Diferencias con este diseño:
+> `organization_id` es obligatorio porque hereda de `TenantModel`, así que los
+> eventos de plataforma (organization_id nulo) quedan pendientes. El login se
+> registra en la organización que abre la sesión; si el usuario no tiene
+> organización, no se registra. `at` es `created_at`; `object_type` es
+> `target_type` (content type). En `changes` nunca se guardan campos sensibles
+> (password, secret, token, key). Consulta: `/audit/`, solo para administradores.
 
 **`notification`**
 `organization_id` · `recipient_id` · `kind` · `title` · `body` · `url` · `read_at` · `emailed_at`.

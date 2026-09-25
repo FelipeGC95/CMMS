@@ -9,6 +9,9 @@ from django.db import transaction
 from django.db.models import F, Max, Q
 from django.utils import timezone
 
+from apps.audit import services as audit
+from apps.audit.models import AuditEvent
+
 from .models import MaintenancePlan, PlanAssignment, PlanResource, PlanTaskItem, PlanVersion
 
 DEFAULT_HORIZON_DAYS = 14
@@ -68,6 +71,7 @@ def create_plan(
     meter_interval, estimated_minutes, instructions, schedule_mode, tolerance_pct.
     """
     plan = MaintenancePlan.objects.create(code=code, name=name, asset_class=asset_class)
+    audit.record(action=AuditEvent.Action.CREATE, target=plan, actor=by, changes=audit.snapshot(plan))
     version = PlanVersion.objects.create(plan=plan, number=1, **version_fields)
     _add_content(version, items=items, resources=resources)
     publish_version(version=version, by=by, change_note="Versión inicial")
@@ -122,6 +126,16 @@ def publish_version(*, version: PlanVersion, by=None, change_note: str = "") -> 
     version.save(update_fields=["status", "published_at", "published_by", "change_note", "updated_at"])
     plan.current_version = version
     plan.save(update_fields=["current_version", "updated_at"])
+    audit.record(
+        action=AuditEvent.Action.TRANSITION,
+        target=version,
+        actor=by,
+        changes={
+            "status": [PlanVersion.Status.DRAFT, PlanVersion.Status.PUBLISHED],
+            "replaces": previous.number if previous is not None else None,
+            "change_note": version.change_note,
+        },
+    )
 
     if previous is not None and any(getattr(previous, f) != getattr(version, f) for f in TRIGGER_FIELDS):
         reschedule_after_trigger_change(plan=plan, previous=previous, current=version)
@@ -180,6 +194,7 @@ def reschedule_after_trigger_change(*, plan, previous: PlanVersion, current: Pla
 # --- Asignaciones -----------------------------------------------------------
 
 
+@transaction.atomic
 def assign_plan(
     *,
     plan: MaintenancePlan,
@@ -187,6 +202,7 @@ def assign_plan(
     starts_on: datetime.date | None = None,
     meter=None,
     next_due_meter_value=None,
+    by=None,
 ) -> PlanAssignment:
     """Aplica un plan a un activo y calcula su primer vencimiento con la versión vigente.
 
@@ -213,7 +229,13 @@ def assign_plan(
             if next_due_meter_value is not None
             else (meter.current_value or Decimal(0)) + version.meter_interval
         )
-    assignment, _ = PlanAssignment.objects.update_or_create(plan=plan, asset=asset, defaults=defaults)
+    before = PlanAssignment.objects.filter(plan=plan, asset=asset).first()
+    before = audit.snapshot(before) if before is not None else {}
+    assignment, created = PlanAssignment.objects.update_or_create(plan=plan, asset=asset, defaults=defaults)
+    changes = audit.diff(before, audit.snapshot(assignment))
+    if changes:
+        action = AuditEvent.Action.CREATE if created else AuditEvent.Action.UPDATE
+        audit.record(action=action, target=assignment, actor=by, changes=changes)
     return assignment
 
 
