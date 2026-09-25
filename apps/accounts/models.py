@@ -3,7 +3,7 @@ from django.db import models
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
-from apps.core.models import TimeStampedModel
+from apps.core.models import TenantModel, TimeStampedModel
 
 
 class UserManager(BaseUserManager):
@@ -75,6 +75,8 @@ class Membership(TimeStampedModel):
     )
     role = models.CharField(_("rol"), max_length=20, choices=Role.choices)
     is_active = models.BooleanField(_("activa"), default=True)
+    # ORG-06: si está marcado, solo ve lo de sus ubicaciones (MembershipLocation) y descendientes.
+    restricted_to_locations = models.BooleanField(_("limitado a ciertas ubicaciones"), default=False)
 
     class Meta:
         verbose_name = _("membresía")
@@ -85,3 +87,19 @@ class Membership(TimeStampedModel):
 
     def __str__(self):
         return f"{self.user} · {self.organization} ({self.get_role_display()})"
+
+
+class MembershipLocation(TenantModel):
+    """Alcance por sitio de una membresía (ORG-06). El acceso incluye las ubicaciones hijas."""
+
+    membership = models.ForeignKey(Membership, on_delete=models.CASCADE, related_name="scope")
+    location = models.ForeignKey("organizations.Location", on_delete=models.CASCADE, related_name="+")
+
+    class Meta:
+        verbose_name = _("ubicación permitida")
+        verbose_name_plural = _("ubicaciones permitidas")
+        constraints = [
+            models.UniqueConstraint(
+                fields=["organization", "membership", "location"], name="uniq_membership_location"
+            ),
+        ]
