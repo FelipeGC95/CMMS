@@ -56,6 +56,7 @@ def _count(client, url):
         "location_list",
         "asset_class_list",
         "audit_list",
+        "request_list",
     ],
 )
 def test_list_queries_do_not_grow_with_rows(client, tenant_a, url_name):

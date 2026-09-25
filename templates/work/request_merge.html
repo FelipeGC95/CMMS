@@ -1,0 +1,34 @@
+{% extends "base.html" %}{% load i18n %}
+{% block title %}{% translate "Fusionar solicitud" %}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>{% translate "Fusionar solicitud" %}</h1>
+    <p class="muted">{{ work_request.asset.code }} · {{ work_request.asset.name }} — {{ work_request.description|truncatechars:200 }}</p>
+  </div>
+</div>
+
+<div class="card">
+  {% if candidates %}
+  <form method="post">
+    {% csrf_token %}
+    <div class="field">
+      <label for="into">{% translate "Fusionar con" %}</label>
+      <select class="input" id="into" name="into" required>
+        <option value="">{% translate "Elige la solicitud que se mantiene" %}</option>
+        {% for candidate in candidates %}
+        <option value="{{ candidate.pk }}">
+          #{{ candidate.number }} · {{ candidate.created_at|date:"d-m-Y H:i" }} · {{ candidate.requested_by|default:_("Sistema") }} · {{ candidate.description|truncatechars:80 }}
+        </option>
+        {% endfor %}
+      </select>
+    </div>
+    <button class="btn btn--primary" type="submit">{% translate "Fusionar" %}</button>
+    <a class="btn btn--ghost" href="{% url 'request_list' %}">{% translate "Cancelar" %}</a>
+  </form>
+  {% else %}
+  <p class="empty">{% translate "No hay otras solicitudes abiertas de este activo." %}</p>
+  <a class="btn btn--ghost" href="{% url 'request_list' %}">{% translate "Volver" %}</a>
+  {% endif %}
+</div>
+{% endblock %}

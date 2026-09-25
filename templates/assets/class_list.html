@@ -16,14 +16,14 @@
       <tbody>
         {% for asset_class in page.object_list %}
         <tr>
-          <td><a href="{% url 'asset_class_detail' asset_class.pk %}">{{ asset_class.name }}</a> <span class="muted mono">{{ asset_class.code }}</span></td>
+          <td data-label=""><a href="{% url 'asset_class_detail' asset_class.pk %}">{{ asset_class.name }}</a> <span class="muted mono">{{ asset_class.code }}</span></td>
           <td data-label="{% translate 'Categoría' %}">{{ asset_class.get_iso_category_display }}</td>
           <td data-label="{% translate 'Activos' %}" class="num">{{ asset_class.asset_count }}</td>
           <td data-label="{% translate 'Atributos' %}" class="num">{{ asset_class.attribute_count }}</td>
-          <td>{% if asset_class.is_active %}<span class="badge badge--success">{% icon 'check' %}{% translate "Activa" %}</span>{% else %}<span class="badge badge--neutral">{% icon 'dot' %}{% translate "Inactiva" %}</span>{% endif %}</td>
+          <td data-label="">{% if asset_class.is_active %}<span class="badge badge--success">{% icon 'check' %}{% translate "Activa" %}</span>{% else %}<span class="badge badge--neutral">{% icon 'dot' %}{% translate "Inactiva" %}</span>{% endif %}</td>
         </tr>
         {% empty %}
-        <tr><td colspan="5" class="empty">{% translate "Aún no hay clases." %}</td></tr>
+        <tr><td data-label="" colspan="5" class="empty">{% translate "Aún no hay clases." %}</td></tr>
         {% endfor %}
       </tbody>
     </table>

@@ -1,0 +1,60 @@
+{% extends "base.html" %}{% load i18n ui %}
+{% block title %}{% translate "Solicitudes" %}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>{% translate "Solicitudes" %}</h1>
+    <p class="muted">{% blocktranslate count n=page.paginator.count %}{{ n }} solicitud pendiente{% plural %}{{ n }} solicitudes pendientes{% endblocktranslate %}</p>
+  </div>
+</div>
+
+<div class="card card--flush">
+  {% if page.object_list %}
+  <table class="table">
+    <caption class="visually-hidden">{% translate "Solicitudes pendientes" %}</caption>
+    <thead>
+      <tr>
+        <th>{% translate "Fecha" %}</th>
+        <th>{% translate "Activo" %}</th>
+        <th>{% translate "Descripción" %}</th>
+        <th>{% translate "Detenido" %}</th>
+        <th>{% translate "Solicitada por" %}</th>
+        <th>{% translate "Acciones" %}</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for req in page.object_list %}
+      <tr>
+        <td data-label="{% translate 'Fecha' %}" class="num">{{ req.created_at|date:"d-m-Y H:i" }}</td>
+        <td data-label="{% translate 'Activo' %}"><a href="{% url 'asset_detail' req.asset_id %}">{{ req.asset.code }} · {{ req.asset.name }}</a></td>
+        <td data-label="{% translate 'Descripción' %}">{{ req.description|truncatechars:120 }}</td>
+        <td data-label="{% translate 'Detenido' %}">{% if req.asset_stopped %}{% icon 'stop' %} {% translate "Sí" %}{% else %}—{% endif %}</td>
+        <td data-label="{% translate 'Solicitada por' %}">{{ req.requested_by|default:_("Sistema") }}</td>
+        <td data-label="{% translate 'Acciones' %}">
+          <div class="row">
+            <form method="post" action="{% url 'request_accept' req.pk %}">
+              {% csrf_token %}
+              <button class="btn btn--primary" type="submit">{% icon 'check' %}{% translate "Aceptar" %}</button>
+            </form>
+            <details>
+              <summary class="btn btn--ghost">{% icon 'x' %}{% translate "Rechazar" %}</summary>
+              <form method="post" action="{% url 'request_reject' req.pk %}" class="mt-2">
+                {% csrf_token %}
+                <label class="visually-hidden" for="reason-{{ req.pk }}">{% translate "Motivo del rechazo" %}</label>
+                <textarea class="input" id="reason-{{ req.pk }}" name="reason" required rows="2" placeholder="{% translate 'Motivo del rechazo (obligatorio)' %}"></textarea>
+                <button class="btn btn--secondary mt-2" type="submit">{% translate "Confirmar rechazo" %}</button>
+              </form>
+            </details>
+            <a class="btn btn--ghost" href="{% url 'request_merge' req.pk %}">{% icon 'box' %}{% translate "Fusionar" %}</a>
+          </div>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="empty">{% icon 'check' %} {% translate "No hay solicitudes pendientes." %}</p>
+  {% endif %}
+</div>
+{% include "_pagination.html" %}
+{% endblock %}

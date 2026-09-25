@@ -20,10 +20,18 @@ from .forms import (
     WorkOrderFilterForm,
 )
 from .models import Attachment, OtherCost, PartUsage, WorkOrder, WorkOrderChecklistItem
-from .selectors import visible_work_orders, work_order_detail, work_order_list
+from .selectors import (
+    open_requests_for_asset,
+    pending_requests,
+    visible_requests,
+    visible_work_orders,
+    work_order_detail,
+    work_order_list,
+)
 from .services import (
     COST_LOCKED_STATUSES,
     WorkOrderError,
+    accept_request,
     add_other_cost,
     add_part_usage,
     allowed_transitions,
@@ -31,6 +39,8 @@ from .services import (
     complete_work_order,
     create_work_order,
     log_labor,
+    merge_request,
+    reject_request,
     remove_cost_line,
     transition,
     work_order_meter,
@@ -308,3 +318,62 @@ def cost_line_delete_view(request, pk, kind, line_pk):
         model.objects.select_related("work_order"), pk=line_pk, work_order__in=visible, work_order_id=pk
     )
     return _run_cost_action(request, pk, lambda: remove_cost_line(line=line, membership=request.membership))
+
+
+# --- Bandeja de solicitudes (REQ-01 CA3) ---------------------------------------
+
+
+@membership_required(perm=Perm.WORK_ORDER_MANAGE)
+def request_list_view(request):
+    page = Paginator(pending_requests(membership=request.membership), 25).get_page(request.GET.get("page"))
+    return render(request, "work/request_list.html", {"page": page})
+
+
+def _get_request_or_404(request, pk):
+    return get_object_or_404(visible_requests(membership=request.membership), pk=pk)
+
+
+@require_POST
+@membership_required(perm=Perm.WORK_ORDER_MANAGE)
+def request_accept_view(request, pk):
+    work_request = _get_request_or_404(request, pk)
+    try:
+        accept_request(work_request=work_request, membership=request.membership)
+    except WorkOrderError as exc:
+        messages.error(request, exc.message)
+    else:
+        messages.success(request, f"Solicitud #{work_request.number} aceptada.")
+    return redirect("request_list")
+
+
+@require_POST
+@membership_required(perm=Perm.WORK_ORDER_MANAGE)
+def request_reject_view(request, pk):
+    work_request = _get_request_or_404(request, pk)
+    try:
+        reject_request(
+            work_request=work_request, membership=request.membership, reason=request.POST.get("reason", "")
+        )
+    except WorkOrderError as exc:
+        messages.error(request, exc.message)
+    else:
+        messages.success(request, f"Solicitud #{work_request.number} rechazada.")
+    return redirect("request_list")
+
+
+@membership_required(perm=Perm.WORK_ORDER_MANAGE)
+def request_merge_view(request, pk):
+    work_request = _get_request_or_404(request, pk)
+    candidates = open_requests_for_asset(asset=work_request.asset, exclude=work_request)
+    if request.method == "POST":
+        into = get_object_or_404(candidates, pk=request.POST.get("into", ""))
+        try:
+            merge_request(work_request=work_request, into=into, membership=request.membership)
+        except WorkOrderError as exc:
+            messages.error(request, exc.message)
+        else:
+            messages.success(request, f"Solicitud #{work_request.number} fusionada con #{into.number}.")
+            return redirect("request_list")
+    return render(
+        request, "work/request_merge.html", {"work_request": work_request, "candidates": candidates}
+    )
