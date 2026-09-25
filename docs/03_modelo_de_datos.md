@@ -148,8 +148,12 @@ absorción de planes (`supersedes_plans`, PM‑05 CA3).
 ### 2.7 Transversales
 
 **`attachment`**
-`organization_id` · `target_type` (asset, work_order, checklist_item, request, failure, plan_version, organization) · `target_id` · `purpose` (photo, document, signature, logo) · `storage_key` (`org/<org_id>/<yyyy>/<mm>/<uuid>.<ext>`) · `filename` · `content_type` · `size_bytes` · `width` · `height` · `sha256` · `uploaded_by_id` · `client_uuid`.
+`organization_id` · `target_type` (asset, asset_class, work_order, checklist_item, request, failure, plan_version, organization) · `target_id` · `purpose` (photo, document, manual, signature, logo) · `storage_key` (`org/<org_id>/<yyyy>/<mm>/<uuid>.<ext>`) · `filename` · `content_type` · `size_bytes` · `width` · `height` · `sha256` · `uploaded_by_id` · `client_uuid`.
 Índice `(organization_id, target_type, target_id)`. Se usa referencia genérica (`target_type` + `target_id`) y no `GenericForeignKey` de Django, para mantener simple la exportación.
+
+**`document_page`** (M1, AST-06 CA3) — texto extraído de un manual, una fila por página.
+`organization_id` · `attachment_id` · `page_number` · `text` · `search_vector` (`tsvector`, configuración `spanish`).
+`UNIQUE (attachment_id, page_number)`; índice GIN `(search_vector)`; índice `(organization_id, attachment_id)`. Lo llena el worker al subir el PDF.
 
 **`audit_log`** (solo inserción)
 `organization_id` (null = evento de plataforma) · `actor_id` · `actor_type` (user, api_token, system) · `action` (create, update, delete, transition, login, export…) · `object_type` · `object_id` · `object_repr` · `changes JSONB` (antes/después de los campos cambiados) · `ip` · `user_agent` · `request_id` · `at`.
@@ -183,6 +187,7 @@ Se **copian** a la organización al adoptarlas; nunca se referencian en vivo (un
 |---|---|---|
 | Inventario (F2) | `part`, `warehouse`, `stock_item`, `stock_movement`, `reservation` | `part_usage.part_id`, `plan_resource.part_id` se agregará (hoy solo `part_usage.part_id`). |
 | Condición (F2) | `measurement_point` (variable de un activo), `measurement` (serie de tiempo, particionada), `condition_rule`, `alert` | `meter` y `meter_reading` son un caso particular; las reglas pueden apuntar a `meter_id` o a `measurement_point_id`. |
+| Asistente IA (F2, ADR-018) | `assistant_conversation` (`asset_id`, `work_order_id`, `started_by_id`, `helpful`: yes/partial/no), `assistant_message` (`role`, `content JSONB`, `sources JSONB`, `model`, `input_tokens`, `output_tokens`, `cache_read_tokens`) | `failure_event.description` (síntoma) y `work_order.completion_notes` (acción) capturados desde el MVP; `document_page` desde M1; índices de texto completo sobre OT y fallas cuando se construya. |
 | Offline (F2) | `sync_batch` (registro de lotes recibidos) | `client_uuid` en todas las tablas que escribe el técnico. |
 | SSO (F3) | tablas de allauth (`socialaccount`, config SAML por organización) | `user` global + `membership`. |
 | Facturación (F3) | `subscription`, `invoice` | `organization.plan_id`, cupos. |

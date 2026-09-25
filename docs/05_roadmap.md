@@ -13,8 +13,8 @@
 | **F0 · Fundaciones** | Repo, CI, tenancy, auth, sistema de diseño | 4 | 4 |
 | **MVP‑0 · Demo** | Activos, medidores, OT con checklist, solicitudes y fallas | 10 | 14 |
 | **MVP‑1 · Piloto** | Preventivos automáticos, backlog, KPIs, puesta en marcha, producción | 14 | 28 |
-| **F2 · Terreno y stock** | Offline, inventario, condición, KPIs ampliados | ~16 | ~44 |
-| **F3 · Escala comercial** | SSO, roles personalizados, cobro, idiomas, API ampliada | ~12 | ~56 |
+| **F2 · Terreno y stock** | Offline, asistente IA, inventario, condición, KPIs ampliados | ~20 | ~48 |
+| **F3 · Escala comercial** | SSO, roles personalizados, cobro, idiomas, API ampliada | ~12 | ~60 |
 
 Aproximadamente **6,5 meses hasta el piloto** con 15 h/semana.
 
@@ -92,7 +92,7 @@ organizaciones y los tests de aislamiento pasan en CI.
 | 5 | Medidores y lecturas | AST-07 | 0.5 |
 | 6 | OT: alta, correlativos, ciclo de vida, lista y filtros | WO-01/02/05 | 1 |
 | 7 | Ejecución móvil del checklist, mano de obra, repuestos y costos | WO-03/04 | 1.5 |
-| 8 | Solicitudes y registro de fallas con catálogo base | REQ-01/03 | 1 |
+| 8 | Solicitudes y registro de fallas con catálogo base; cierre de correctiva con síntoma y acción realizada (base del asistente, ADR-018) | REQ-01/03 | 1 |
 
 Si se atrasa, el ítem 4 se reduce a QR solamente (sin etiquetas PDF).
 
@@ -109,7 +109,7 @@ celular → cerrarla con costos y falla registrada.
 | 3 | Calendario y proyección | PM-06 | 1 |
 | 4 | Backlog priorizado y tablero semanal | REQ-04/05 | 1.5 |
 | 5 | KPIs básicos con tests de valor conocido | KPI-01 | 1.5 |
-| 6 | Importación Excel de activos y planes; exportación Excel/PDF | AST-08, PM-08, KPI-03 | 1.5 |
+| 6 | Importación Excel de activos y planes; exportación Excel/PDF; manuales por activo y clase con extracción de texto por página | AST-06 CA3, AST-08, PM-08, KPI-03 | 1.5 |
 | 7 | Biblioteca de plantillas (1–2 rubros) y asistente de puesta en marcha | ORG-03, PM-07 | 1.5 |
 | 8 | Auditoría, notificaciones in‑app y por correo | X-01/02 | 1 |
 | 9 | MFA, marca por organización, cupos y módulos por plan, aviso por QR sin cuenta | ORG-08/09/10, REQ-02 | 1 |
@@ -119,9 +119,12 @@ celular → cerrarla con costos y falla registrada.
 producción: la carga inicial toma menos de un día y las OT preventivas se
 generan solas.
 
-## F2 · Terreno y stock (~16 semanas, el orden se decide con el piloto)
+## F2 · Terreno y stock (~20 semanas, el orden se decide con el piloto)
 
 - PWA offline para técnicos (ADR-011) — 5 semanas.
+- Asistente de diagnóstico con IA (AI-01..05, ADR-018): herramientas de
+  búsqueda con alcance, conversación en el worker, citas, cupos y conjunto de
+  evaluación con casos del piloto — 4 semanas.
 - Inventario: repuestos, bodegas, stock mínimo, reservas y consumos — 5 semanas.
 - Mantenimiento por condición: umbrales, alertas, ingesta CSV/API — 3 semanas.
 - KPIs ampliados, Pareto de fallas y costos por activo — 2 semanas.

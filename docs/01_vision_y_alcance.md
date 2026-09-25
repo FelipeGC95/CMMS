@@ -47,15 +47,30 @@ diseño se evalúa con la pregunta *¿esto le agrega un paso al cliente?*
 
 ## 4. Diferenciadores frente a CMMS existentes
 
-| Diferenciador | Cómo se materializa |
+Móvil, QR, plantillas, KPIs y precio pyme ya los ofrecen MaintainX, Limble,
+UpKeep y, en Chile, Fracttal. Son **lo mínimo para competir**, no el motivo de
+compra. GALBUST se diferencia en tres cosas:
+
+| Diferenciador | Por qué importa | Cómo se materializa |
+|---|---|---|
+| **Cumplimiento normativo chileno listo** | Es el motivo de compra: la pyme no compra "orden", compra no ser multada ni tener un accidente. Los CMMS globales no lo harán para Chile. | Planes precargados por normativa (calderas y autoclaves DS 10, grúas horquilla, extintores NCh 1433, instalaciones eléctricas y de gas SEC, DS 594, revisión técnica de flota), con vencimientos, certificados como evidencia y **reporte listo para la fiscalización** (SEREMI, SEC, mutual). El contenido exacto se prioriza según el rubro de los pilotos (por definir). |
+| **El conocimiento no se va con el técnico** | Es el motivo para quedarse: las pymes dependen de uno o dos expertos; la rotación borra años de experiencia. El valor crece con cada mes de uso. | Cada cierre de OT captura síntoma, causa y acción (dictable por voz). Un asistente con IA responde al técnico desde el activo con el historial y los manuales **de ese equipo**, citando la fuente (ADR-018). |
+| **Puesta en marcha hecha por nosotros** | Es la barrera de entrada que la competencia deja al cliente. | "Mándanos tu Excel, fotos de las placas y tu cuaderno; en 48 horas tienes el sistema funcionando." Servicio manual al principio; lo repetido se automatiza (importación Excel, plantillas y, después, extracción desde fotos y manuales). |
+
+**Base esperable (paridad con el mercado):**
+
+| Capacidad | Cómo se materializa |
 |---|---|
-| **Puesta en marcha guiada** | Asistente inicial: rubro → sitios → activos (Excel o alta rápida) → planes sugeridos → calendario generado. Meta: **primera OT preventiva generada en menos de 1 hora** desde el registro. |
-| **Biblioteca de plantillas** | Clases de activo con atributos, planes preventivos típicos (compresor, grúa horquilla, generador, camioneta, bomba, correa transportadora, caldera, etc.) y catálogo de fallas basado en la estructura de ISO 14224. El cliente adopta y ajusta, no parte en blanco. |
+| **Biblioteca de plantillas** | Clases de activo con atributos, planes preventivos típicos (compresor, grúa horquilla, generador, camioneta, bomba, correa transportadora, caldera, etc.) y catálogo de fallas basado en ISO 14224. El cliente adopta y ajusta, no parte en blanco. |
 | **Asignación automática de planes** | Al crear un activo de una clase, se le proponen (o asignan) los planes de esa clase. Al registrar un horómetro, se recalculan vencimientos. |
 | **Aviso de falla por QR** | Etiqueta QR en cada equipo: escanear → describir → foto → enviar. Sin navegar menús. |
-| **Móvil primero, pensado para terreno** | Botones grandes, alto contraste, flujos de 3 toques. Modo offline en fase 2. |
-| **Indicadores estándar sin configurar** | Disponibilidad, MTBF, MTTR y cumplimiento del preventivo calculados desde el día 1 con definiciones de EN 15341 / SMRP explicadas en pantalla. |
+| **Todo desde el teléfono** | Toda la aplicación, para todos los roles, se usa completa desde un teléfono (ADR-017). Botones grandes, alto contraste, flujos de 3 toques. Offline en fase 2. |
+| **Indicadores estándar sin configurar** | Disponibilidad, MTBF, MTTR y cumplimiento del preventivo desde el día 1, con definiciones de EN 15341 / SMRP explicadas en pantalla. |
 | **Precio pyme y en español de Chile** | Precio por cantidad de activos, usuarios ilimitados en planes medios (los técnicos no deben ser un costo marginal). Soporte en español. |
+
+Mensaje de venta propuesto: *"Cumple la normativa de mantención sin
+planillas: tus equipos al día, la evidencia lista para la fiscalización y el
+conocimiento de tus técnicos guardado en el sistema."*
 
 ## 5. Qué **no** haremos (al menos hasta validar el producto)
 
@@ -83,6 +98,9 @@ diseño se evalúa con la pregunta *¿esto le agrega un paso al cliente?*
 | La conectividad en terreno es mala. | MVP web responsivo; offline como primera prioridad de fase 2 y datos modelados para ello desde ya (UUID de cliente, idempotencia). |
 | Fuga de datos entre organizaciones. | Filtrado por tenant que falla cerrado + tests de aislamiento obligatorios + RLS antes del primer cliente pagado. |
 | Ley 21.719 de protección de datos personales (Chile). | Datos personales mínimos, exportación y borrado por organización, registro de auditoría, documento de postura de seguridad. |
+| El asistente IA da una orientación errónea que causa un daño o accidente. | Citas obligatorias, "no lo sé" sin fuente, reglas de seguridad (bloqueo y etiquetado), aviso de que decide el técnico, evaluación con casos reales antes de liberar (ADR-018). |
+| Los técnicos no registran síntoma y acción al cerrar, y el asistente no tiene de dónde aprender. | Campos cortos y dictables en el cierre de correctivas desde el MVP (REQ-03 CA3); medir su llenado en el piloto. |
+| El contenido normativo es incorrecto o queda desactualizado. | Revisar las plantillas normativas con un prevencionista o experto por rubro; cada plantilla indica la norma y la fecha de revisión. |
 
 ## 7. Métricas de éxito del producto
 
@@ -90,3 +108,5 @@ diseño se evalúa con la pregunta *¿esto le agrega un paso al cliente?*
 - % de OT preventivas cerradas a tiempo en organizaciones activas: **> 70 %** a los 3 meses.
 - Organizaciones que siguen activas a los 90 días del piloto.
 - Fallas registradas por QR / total de fallas (adopción por operadores).
+- % de OT correctivas cerradas con síntoma y acción registrados: **> 80 %**.
+- Conversaciones del asistente marcadas como útiles: **> 60 %** (desde F2).

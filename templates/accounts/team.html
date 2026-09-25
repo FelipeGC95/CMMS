@@ -36,10 +36,10 @@
       <tbody>
         {% for invitation in invitations %}
         <tr>
-          <td>{{ invitation.email }}</td>
+          <td data-label="">{{ invitation.email }}</td>
           <td data-label="{% translate 'Rol' %}">{{ invitation.get_role_display }}</td>
           <td data-label="{% translate 'Vence' %}" class="num">{{ invitation.expires_at|date:"d-m-Y" }}</td>
-          <td>
+          <td data-label="">
             <form method="post" action="{% url 'invitation_revoke' invitation.pk %}">
               {% csrf_token %}
               <button class="btn btn--ghost" type="submit">{% translate "Revocar" %}</button>
@@ -63,11 +63,11 @@
     <tbody>
       {% for member in page.object_list %}
       <tr>
-        <td><a href="{% url 'member_edit' member.pk %}">{{ member.user.full_name|default:member.user.email }}</a></td>
+        <td data-label=""><a href="{% url 'member_edit' member.pk %}">{{ member.user.full_name|default:member.user.email }}</a></td>
         <td data-label="{% translate 'Correo' %}">{{ member.user.email }}</td>
         <td data-label="{% translate 'Rol' %}">{{ member.get_role_display }}</td>
         <td data-label="{% translate 'Alcance' %}">{% if member.restricted_to_locations or member.role == "external" %}{% for scope in member.scope.all %}{{ scope.location.name }}{% if not forloop.last %}, {% endif %}{% empty %}{% translate "Sin ubicaciones" %}{% endfor %}{% else %}{% translate "Toda la organización" %}{% endif %}</td>
-        <td>{% if member.is_active %}<span class="badge badge--success">{% icon 'check' %}{% translate "Activo" %}</span>{% else %}<span class="badge badge--neutral">{% icon 'dot' %}{% translate "Desactivado" %}</span>{% endif %}</td>
+        <td data-label="">{% if member.is_active %}<span class="badge badge--success">{% icon 'check' %}{% translate "Activo" %}</span>{% else %}<span class="badge badge--neutral">{% icon 'dot' %}{% translate "Desactivado" %}</span>{% endif %}</td>
       </tr>
       {% endfor %}
     </tbody>

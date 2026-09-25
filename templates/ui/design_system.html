@@ -18,7 +18,7 @@
       <thead><tr><th>{% translate "Muestra" %}</th><th>Token</th><th>{% translate "Claro" %}</th><th>{% translate "Oscuro" %}</th></tr></thead>
       <tbody>
         {% for name, light, dark in colors %}
-        <tr><td><span class="swatch" data-token="{{ name }}"></span></td><td class="mono">{{ name }}</td><td class="mono" data-label="{% translate 'Claro' %}">{{ light }}</td><td class="mono" data-label="{% translate 'Oscuro' %}">{{ dark }}</td></tr>
+        <tr><td data-label=""><span class="swatch" data-token="{{ name }}"></span></td><td class="mono" data-label="">{{ name }}</td><td class="mono" data-label="{% translate 'Claro' %}">{{ light }}</td><td class="mono" data-label="{% translate 'Oscuro' %}">{{ dark }}</td></tr>
         {% endfor %}
       </tbody>
     </table>
