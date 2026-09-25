@@ -5,8 +5,10 @@ from django.db import connection
 from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 
+from apps.accounts.models import Membership, MembershipLocation, User
 from apps.assets.models import Asset
 from apps.core.tenancy import tenant_context
+from apps.organizations.models import Location
 from apps.work.services import create_work_order, report_failure
 from tests.conftest import login
 
@@ -23,6 +25,13 @@ def _add_rows(tenant, n):
                 work_type="corrective", title=f"OT {i}", asset=asset, assigned_to=tenant.admin.user
             )
             report_failure(membership=tenant.viewer, asset=asset, description="x", asset_stopped=True)
+            # Miembros con alcance por sitio para la lista del equipo.
+            user = User.objects.create_user(f"m{Asset.objects.count()}@{tenant.org.slug}.cl")
+            member = Membership.objects.create(
+                user=user, organization=tenant.org, role="external", restricted_to_locations=True
+            )
+            location = Location.objects.create(code=f"L-{Asset.objects.count():03d}", name=f"Sitio {i}")
+            MembershipLocation.objects.create(membership=member, location=location)
 
 
 def _count(client, url):
@@ -32,7 +41,7 @@ def _count(client, url):
 
 
 @pytest.mark.parametrize(
-    "url_name", ["dashboard", "asset_list", "work_order_list", "asset_labels", "design_system"]
+    "url_name", ["dashboard", "asset_list", "work_order_list", "asset_labels", "design_system", "team"]
 )
 def test_list_queries_do_not_grow_with_rows(client, tenant_a, url_name):
     login(client, tenant_a.admin)

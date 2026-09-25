@@ -1,0 +1,51 @@
+{% extends "base.html" %}{% load i18n ui %}
+{% block title %}{{ target.user }}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>{{ target.user.full_name|default:target.user.email }}</h1>
+    <p class="muted">{{ target.user.email }} · {% if target.is_active %}<span class="badge badge--success">{% icon 'check' %}{% translate "Activo" %}</span>{% else %}<span class="badge badge--neutral">{% icon 'dot' %}{% translate "Desactivado" %}</span>{% endif %}</p>
+  </div>
+  <a class="btn btn--ghost" href="{% url 'team' %}">{% translate "Volver al equipo" %}</a>
+</div>
+
+<div class="card">
+  <form method="post">
+    {% csrf_token %}
+    {% for error in form.non_field_errors %}<div class="alert alert--error" role="alert">{% icon 'stop' %}<span>{{ error }}</span></div>{% endfor %}
+    <div class="field">
+      <label for="{{ form.role.id_for_label }}">{{ form.role.label }}</label>
+      {{ form.role }}
+      <span class="help">{% translate "Externo / contratista siempre queda limitado a las ubicaciones marcadas." %}</span>
+    </div>
+    <div class="field field--check">
+      {{ form.restricted_to_locations }}<label for="{{ form.restricted_to_locations.id_for_label }}">{{ form.restricted_to_locations.label }}</label>
+    </div>
+    <p class="help muted">{{ form.restricted_to_locations.help_text }}</p>
+    <fieldset class="field">
+      <legend class="label">{{ form.locations.label }}</legend>
+      {% for option in form.locations %}
+      <div class="field--check">{{ option.tag }}<label for="{{ option.id_for_label }}">{{ option.choice_label }}</label></div>
+      {% empty %}
+      <p class="muted">{% translate "Aún no hay ubicaciones creadas." %}</p>
+      {% endfor %}
+      {% for error in form.locations.errors %}<span class="error">{% icon 'stop' %}{{ error }}</span>{% endfor %}
+    </fieldset>
+    <button class="btn btn--primary" type="submit">{% translate "Guardar" %}</button>
+  </form>
+</div>
+
+<div class="card">
+  <form method="post" action="{% url 'member_active' target.pk %}">
+    {% csrf_token %}
+    {% if target.is_active %}
+    <input type="hidden" name="active" value="0">
+    <p class="muted">{% translate "Al desactivarlo deja de entrar a esta organización; su historial se conserva." %}</p>
+    <button class="btn btn--danger" type="submit">{% translate "Desactivar" %}</button>
+    {% else %}
+    <input type="hidden" name="active" value="1">
+    <button class="btn btn--secondary" type="submit">{% translate "Reactivar" %}</button>
+    {% endif %}
+  </form>
+</div>
+{% endblock %}

@@ -24,6 +24,7 @@ urlpatterns = [
     path("healthz", healthz, name="healthz"),
     path("accounts/", include("allauth.urls")),
     path("org/switch/", switch_organization, name="switch_organization"),
+    path("", include("apps.accounts.urls")),
     path("assets/", asset_views.asset_list_view, name="asset_list"),
     path("assets/labels/", asset_views.asset_labels_view, name="asset_labels"),
     path("assets/<uuid:pk>/", asset_views.asset_detail_view, name="asset_detail"),

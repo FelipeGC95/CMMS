@@ -75,3 +75,38 @@ def test_qr_of_other_own_organization_switches_context(client, tenant_a, tenant_
     login(client, tenant_b.admin)
     response = client.get(reverse("asset_qr", args=[tenant_a.asset.qr_token]), follow=True)
     assert response.context["asset"] == tenant_a.asset
+
+
+def test_team_views_do_not_cross_organizations(client, tenant_a, tenant_b):
+    from apps.accounts.services import invite_member
+
+    invitation = invite_member(
+        membership=tenant_a.admin, email="solo-a@correo.cl", role="viewer", base_url="http://testserver/"
+    )
+    login(client, tenant_b.admin)
+    page = client.get(reverse("team")).content.decode()
+    assert tenant_a.tech.user.email not in page and "solo-a@correo.cl" not in page
+    assert client.get(reverse("member_edit", args=[tenant_a.tech.pk])).status_code == 404
+    assert client.post(reverse("member_active", args=[tenant_a.tech.pk]), {"active": "0"}).status_code == 404
+    assert client.post(reverse("invitation_revoke", args=[invitation.pk])).status_code == 404
+    tenant_a.tech.refresh_from_db()
+    invitation.refresh_from_db()
+    assert tenant_a.tech.is_active and invitation.revoked_at is None
+
+
+def test_scope_cannot_reference_a_location_of_another_organization(tenant_a, tenant_b):
+    import pytest
+
+    from apps.accounts.services import TeamError, update_member
+    from apps.organizations.models import Location
+
+    with tenant_context(tenant_a.org):
+        foreign = Location.objects.create(code="A-SITE", name="Sitio de A")
+    with tenant_context(tenant_b.org), pytest.raises(TeamError):
+        update_member(
+            membership=tenant_b.admin,
+            target=tenant_b.tech,
+            role="technician",
+            restricted_to_locations=True,
+            locations=[foreign],
+        )

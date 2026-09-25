@@ -1,0 +1,77 @@
+{% extends "base.html" %}{% load i18n ui %}
+{% block title %}{% translate "Equipo" %}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>{% translate "Equipo" %}</h1>
+    <p class="muted">{% blocktranslate count n=page.paginator.count %}{{ n }} persona{% plural %}{{ n }} personas{% endblocktranslate %}{% if organization.plan.max_users %} · {% blocktranslate with max=organization.plan.max_users plan=organization.plan.name %}plan {{ plan }}: hasta {{ max }}{% endblocktranslate %}{% endif %}</p>
+  </div>
+</div>
+
+<div class="grid grid--2">
+  <section class="card">
+    <h2>{% translate "Invitar por correo" %}</h2>
+    <p class="muted">{% translate "Le llega un enlace válido por 7 días. Si ya tiene cuenta, se suma con la misma." %}</p>
+    <form method="post">
+      {% csrf_token %}
+      {% for error in form.non_field_errors %}<div class="alert alert--error" role="alert">{% icon 'stop' %}<span>{{ error }}</span></div>{% endfor %}
+      <div class="field">
+        <label for="{{ form.email.id_for_label }}">{{ form.email.label }}</label>
+        {{ form.email }}
+        {% for error in form.email.errors %}<span class="error">{% icon 'stop' %}{{ error }}</span>{% endfor %}
+      </div>
+      <div class="field">
+        <label for="{{ form.role.id_for_label }}">{{ form.role.label }}</label>
+        {{ form.role }}
+      </div>
+      <button class="btn btn--primary" type="submit">{% translate "Enviar invitación" %}</button>
+    </form>
+  </section>
+
+  <section class="card{% if invitations %} card--flush{% endif %}">
+    {% if invitations %}
+    <table class="table">
+      <caption class="visually-hidden">{% translate "Invitaciones pendientes" %}</caption>
+      <thead><tr><th>{% translate "Invitación pendiente" %}</th><th>{% translate "Rol" %}</th><th>{% translate "Vence" %}</th><th><span class="visually-hidden">{% translate "Acción" %}</span></th></tr></thead>
+      <tbody>
+        {% for invitation in invitations %}
+        <tr>
+          <td>{{ invitation.email }}</td>
+          <td data-label="{% translate 'Rol' %}">{{ invitation.get_role_display }}</td>
+          <td data-label="{% translate 'Vence' %}" class="num">{{ invitation.expires_at|date:"d-m-Y" }}</td>
+          <td>
+            <form method="post" action="{% url 'invitation_revoke' invitation.pk %}">
+              {% csrf_token %}
+              <button class="btn btn--ghost" type="submit">{% translate "Revocar" %}</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <h2>{% translate "Invitaciones pendientes" %}</h2>
+    <p class="muted">{% translate "No hay invitaciones pendientes." %}</p>
+    {% endif %}
+  </section>
+</div>
+
+<h2>{% translate "Miembros" %}</h2>
+<div class="card card--flush">
+  <table class="table">
+    <thead><tr><th>{% translate "Nombre" %}</th><th>{% translate "Correo" %}</th><th>{% translate "Rol" %}</th><th>{% translate "Alcance" %}</th><th>{% translate "Estado" %}</th></tr></thead>
+    <tbody>
+      {% for member in page.object_list %}
+      <tr>
+        <td><a href="{% url 'member_edit' member.pk %}">{{ member.user.full_name|default:member.user.email }}</a></td>
+        <td data-label="{% translate 'Correo' %}">{{ member.user.email }}</td>
+        <td data-label="{% translate 'Rol' %}">{{ member.get_role_display }}</td>
+        <td data-label="{% translate 'Alcance' %}">{% if member.restricted_to_locations or member.role == "external" %}{% for scope in member.scope.all %}{{ scope.location.name }}{% if not forloop.last %}, {% endif %}{% empty %}{% translate "Sin ubicaciones" %}{% endfor %}{% else %}{% translate "Toda la organización" %}{% endif %}</td>
+        <td>{% if member.is_active %}<span class="badge badge--success">{% icon 'check' %}{% translate "Activo" %}</span>{% else %}<span class="badge badge--neutral">{% icon 'dot' %}{% translate "Desactivado" %}</span>{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% include "_pagination.html" %}
+{% endblock %}

@@ -103,3 +103,35 @@ class MembershipLocation(TenantModel):
                 fields=["organization", "membership", "location"], name="uniq_membership_location"
             ),
         ]
+
+
+class Invitation(TimeStampedModel):
+    """Invitación por correo (ORG-05).
+
+    Como Membership, no hereda de TenantModel: se busca por token antes de que
+    el invitado pertenezca a la organización. Las vistas del equipo la filtran
+    siempre por la organización activa.
+    """
+
+    organization = models.ForeignKey(
+        "organizations.Organization", on_delete=models.CASCADE, related_name="invitations"
+    )
+    email = models.EmailField(_("correo"))
+    role = models.CharField(_("rol"), max_length=20, choices=Membership.Role.choices)
+    token_hash = models.CharField(max_length=64, unique=True, editable=False)
+    invited_by = models.ForeignKey(User, null=True, on_delete=models.SET_NULL, related_name="+")
+    expires_at = models.DateTimeField(_("vence"))
+    accepted_at = models.DateTimeField(_("aceptada"), null=True, blank=True)
+    revoked_at = models.DateTimeField(_("revocada"), null=True, blank=True)
+
+    class Meta:
+        verbose_name = _("invitación")
+        verbose_name_plural = _("invitaciones")
+        indexes = [models.Index(fields=["organization", "email"], name="invitation_org_email")]
+
+    def __str__(self):
+        return f"{self.email} · {self.organization}"
+
+    @property
+    def is_pending(self):
+        return self.accepted_at is None and self.revoked_at is None and self.expires_at > timezone.now()

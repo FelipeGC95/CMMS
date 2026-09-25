@@ -1,0 +1,7 @@
+{% extends "allauth/layouts/base.html" %}{% load i18n %}
+{% block head_title %}{% translate "Invitación no válida" %}{% endblock %}
+{% block content %}
+<h1>{% translate "Invitación no válida" %}</h1>
+<p>{% translate "El enlace venció, ya se usó o fue revocado. Pide a quien te invitó que te envíe uno nuevo." %}</p>
+<a class="btn btn--secondary btn--lg btn--block" href="{% url 'account_login' %}">{% translate "Ir a ingresar" %}</a>
+{% endblock %}

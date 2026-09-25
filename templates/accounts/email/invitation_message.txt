@@ -1,0 +1,10 @@
+{% load i18n %}{% autoescape off %}{% blocktranslate with org=organization.name role=invitation.get_role_display %}Hola:
+
+Te invitaron a {{ org }} en GALBUST CMMS con el rol {{ role }}.{% endblocktranslate %}{% if inviter %} {% blocktranslate with name=inviter %}Te invitó {{ name }}.{% endblocktranslate %}{% endif %}
+
+{% blocktranslate %}Para aceptar, abre este enlace:{% endblocktranslate %}
+{{ accept_url }}
+
+{% blocktranslate count days=expires_days %}El enlace vence en {{ days }} día y sirve una sola vez.{% plural %}El enlace vence en {{ days }} días y sirve una sola vez.{% endblocktranslate %}
+{% blocktranslate %}Si no esperabas esta invitación, ignora este correo.{% endblocktranslate %}
+{% endautoescape %}

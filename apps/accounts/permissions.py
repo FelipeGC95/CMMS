@@ -14,11 +14,12 @@ class Perm(StrEnum):
     WORK_ORDER_EXECUTE = "work_order.execute"  # iniciar, checklist, completar
     REQUEST_CREATE = "request.create"  # avisar falla / pedir trabajo
     METER_READING_CREATE = "meter_reading.create"  # horómetro / odómetro (choferes, operadores)
+    TEAM_MANAGE = "team.manage"  # invitar, cambiar rol y alcance, desactivar (ORG-05/06)
 
 
 ROLE_PERMISSIONS: dict[str, frozenset[Perm]] = {
     Role.ADMIN: frozenset(Perm),
-    Role.PLANNER: frozenset(Perm),
+    Role.PLANNER: frozenset(Perm) - {Perm.TEAM_MANAGE},
     Role.SUPERVISOR: frozenset(
         {Perm.WORK_ORDER_MANAGE, Perm.WORK_ORDER_EXECUTE, Perm.REQUEST_CREATE, Perm.METER_READING_CREATE}
     ),

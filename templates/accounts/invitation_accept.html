@@ -1,0 +1,34 @@
+{% extends "allauth/layouts/base.html" %}{% load i18n ui %}
+{% block head_title %}{% translate "Invitación" %}{% endblock %}
+{% block content %}
+<h1>{% blocktranslate with org=organization.name %}Únete a {{ org }}{% endblocktranslate %}</h1>
+<p>{% blocktranslate with role=invitation.get_role_display %}Te invitaron con el rol <strong>{{ role }}</strong>.{% endblocktranslate %}</p>
+
+{% if wrong_user %}
+<div class="alert alert--warning" role="alert">{% icon 'alert' %}<span>{% blocktranslate with email=invitation.email %}Esta invitación es para {{ email }}. Sal de tu cuenta e ingresa con ese correo.{% endblocktranslate %}</span></div>
+<form method="post" action="{% url 'account_logout' %}">
+  {% csrf_token %}
+  <input type="hidden" name="next" value="{{ request.path }}">
+  <button class="btn btn--secondary btn--lg btn--block" type="submit">{% translate "Salir" %}</button>
+</form>
+{% elif form %}
+<p class="muted">{% blocktranslate with email=invitation.email %}Crea tu cuenta para {{ email }}.{% endblocktranslate %}</p>
+<form method="post">
+  {% csrf_token %}
+  {% for error in form.non_field_errors %}<div class="alert alert--error" role="alert">{% icon 'stop' %}<span>{{ error }}</span></div>{% endfor %}
+  {% for field in form %}
+  <div class="field">
+    <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+    {{ field }}
+    {% for error in field.errors %}<span class="error">{% icon 'stop' %}{{ error }}</span>{% endfor %}
+  </div>
+  {% endfor %}
+  <button class="btn btn--primary btn--lg btn--block" type="submit">{% translate "Crear cuenta y unirme" %}</button>
+</form>
+{% else %}
+<form method="post">
+  {% csrf_token %}
+  <button class="btn btn--primary btn--lg btn--block" type="submit">{% translate "Unirme" %}</button>
+</form>
+{% endif %}
+{% endblock %}

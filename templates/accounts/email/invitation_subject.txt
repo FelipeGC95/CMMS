@@ -1,0 +1,1 @@
+{% load i18n %}{% autoescape off %}{% blocktranslate with org=organization.name %}[GALBUST CMMS] Te invitaron a {{ org }}{% endblocktranslate %}{% endautoescape %}
