@@ -80,11 +80,17 @@ class WorkOrder(TenantModel):
         verbose_name=_("responsable"),
     )
     due_on = models.DateField(_("fecha límite"), null=True, blank=True)
+    due_meter_value = models.DecimalField(
+        _("vence al llegar a"), max_digits=14, decimal_places=3, null=True, blank=True
+    )
     estimated_minutes = models.PositiveIntegerField(_("estimación (min)"), null=True, blank=True)
     started_at = models.DateTimeField(null=True, blank=True)
     completed_at = models.DateTimeField(null=True, blank=True)
     closed_at = models.DateTimeField(null=True, blank=True)
     completion_notes = models.TextField(_("comentario de cierre"), blank=True)
+    meter_value_at_completion = models.DecimalField(
+        _("lectura al cerrar"), max_digits=14, decimal_places=3, null=True, blank=True
+    )
     client_uuid = models.UUIDField(null=True, blank=True)
 
     class Meta:

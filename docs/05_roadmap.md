@@ -38,6 +38,15 @@ sin API, auditoría, notificaciones, medidores, versionado de planes ni
 importación Excel; archivos en disco local (servidos solo tras verificar la
 organización) en vez de R2; sin CI ni despliegue.
 
+## Hecho después de la v0.1
+
+- **Medidores y preventivos por uso (AST-07, PM-02, parte de PM-04/05):**
+  horómetro/odómetro por activo, lecturas con validación (no retroceder
+  salvo reinicio, aviso si > 24 h/día), uso diario promedio, planes por
+  calendario, por uso o mixtos (lo que ocurra primero), OT generada al
+  registrar la lectura que alcanza el umbral y reprogramación desde la
+  lectura de cierre.
+
 ## F0 · Fundaciones (4 semanas)
 
 Parte de F0 ya existe gracias a la v0.1 (tenancy, estructura de apps, tokens),

@@ -32,6 +32,36 @@
   </section>
 </div>
 
+{% if meters %}
+<section class="card mt-4" id="meters" aria-labelledby="meters-title">
+  <h2 id="meters-title">{% translate "Medidores" %}</h2>
+  <div class="grid grid--2">
+    {% for meter, form in meters %}
+    <div class="meter">
+      <div class="kpi">
+        <span class="kpi__label">{{ meter.name|default:meter.get_kind_display }}</span>
+        <span class="kpi__value">{% if meter.current_value is not None %}{{ meter.current_value|num }}<span class="kpi__unit">{{ meter.unit }}</span>{% else %}—{% endif %}</span>
+        <span class="kpi__hint">{% if meter.current_read_at %}{% blocktranslate with d=meter.current_read_at|date:"d M Y H:i" %}Leído el {{ d }}{% endblocktranslate %}{% else %}{% translate "Sin lecturas" %}{% endif %}{% if meter.avg_daily_usage %} · {% blocktranslate with u=meter.avg_daily_usage|num unit=meter.unit %}~{{ u }} {{ unit }}/día{% endblocktranslate %}{% endif %}</span>
+      </div>
+      {% if can_read_meters %}
+      <form method="post" action="{% url 'meter_reading' asset.pk meter.pk %}" class="mt-2">
+        {% csrf_token %}
+        {{ form.client_uuid }}
+        <div class="measure">
+          <label class="visually-hidden" for="{{ form.value.id_for_label }}">{{ form.value.label }}</label>
+          <input class="input num" type="number" step="any" min="0" inputmode="decimal" name="{{ form.value.html_name }}" id="{{ form.value.id_for_label }}" placeholder="{% translate 'Nueva lectura' %}" required>
+          <span class="muted">{{ meter.unit }}</span>
+          <button class="btn btn--secondary btn--lg" type="submit">{% translate "Registrar" %}</button>
+        </div>
+        <div class="field field--check">{{ form.is_reset }}<label for="{{ form.is_reset.id_for_label }}">{{ form.is_reset.label }}</label></div>
+      </form>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+
 <div class="grid grid--2 mt-4">
   <section class="card" aria-labelledby="open-title">
     <h2 id="open-title">{% translate "OT abiertas" %}</h2>
@@ -43,8 +73,11 @@
     {% if plans %}
     <ul class="list">
       {% for a in plans %}
-      <li><div class="list__main"><span class="list__title">{{ a.plan.name }}</span><span class="list__meta">{% blocktranslate with d=a.plan.interval_days %}Cada {{ d }} días{% endblocktranslate %}{% if a.last_done_on %} · {% translate "última" %} {{ a.last_done_on|date:"d M Y" }}{% endif %}</span></div>
-      <span class="badge badge--info">{% icon 'calendar' %}{{ a.next_due_on|date:"d M" }}</span></li>
+      <li><div class="list__main"><span class="list__title">{{ a.plan.name }}</span><span class="list__meta">{% translate "Cada" %} {{ a.plan.frequency_label }}{% if a.last_done_on %} · {% translate "última" %} {{ a.last_done_on|date:"d M Y" }}{% endif %}</span></div>
+      <div class="row">
+        {% if a.next_due_meter_value is not None %}<span class="badge badge--info">{% icon 'clock' %}{{ a.next_due_meter_value|num }} {{ a.meter.unit }}</span>{% endif %}
+        {% if a.next_due_on %}<span class="badge badge--info">{% icon 'calendar' %}{{ a.next_due_on|date:"d M" }}</span>{% endif %}
+      </div></li>
       {% endfor %}
     </ul>
     {% else %}<p class="muted">{% translate "Sin planes asignados." %}</p>{% endif %}

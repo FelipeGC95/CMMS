@@ -1,22 +1,25 @@
 import segno
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.core.exceptions import PermissionDenied
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.paginator import Paginator
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils.safestring import mark_safe
+from django.views.decorators.http import require_POST
 
-from apps.accounts.permissions import Perm, PermissionDeniedError
+from apps.accounts.permissions import Perm, PermissionDeniedError, has_perm
 from apps.core.decorators import membership_required
 from apps.core.middleware import SESSION_KEY
 from apps.work.forms import FailureReportForm
 from apps.work.selectors import work_order_list
 from apps.work.services import WorkOrderError, report_failure
 
-from .models import Asset
+from .forms import MeterReadingForm
+from .models import Asset, Meter
 from .selectors import asset_by_qr_token, asset_list
+from .services import record_meter_reading
 
 
 def _qr_svg(request, asset, scale=4):
@@ -48,10 +51,40 @@ def asset_detail_view(request, pk):
             "qr_svg": _qr_svg(request, asset),
             "open_work_orders": work_order_list(scope="open", asset=asset),
             "history": work_order_list(scope="done", asset=asset)[:10],
-            "plans": asset.plan_assignments.filter(is_active=True).select_related("plan"),
+            "plans": asset.plan_assignments.filter(is_active=True).select_related("plan", "meter"),
+            "meters": [
+                (meter, MeterReadingForm(prefix=str(meter.pk)))
+                for meter in asset.meters.filter(is_active=True)
+            ],
+            "can_read_meters": has_perm(request.membership, Perm.METER_READING_CREATE),
             "status_periods": asset.status_periods.all()[:10],
         },
     )
+
+
+@require_POST
+@membership_required(perm=Perm.METER_READING_CREATE)
+def meter_reading_view(request, pk, meter_pk):
+    meter = get_object_or_404(Meter.objects.select_related("asset"), pk=meter_pk, asset_id=pk)
+    form = MeterReadingForm(request.POST, prefix=str(meter.pk))
+    if not form.is_valid():
+        messages.error(request, "Ingresa una lectura válida (número mayor o igual a cero).")
+        return redirect(f"{reverse('asset_detail', args=[pk])}#meters")
+    try:
+        _, warnings = record_meter_reading(
+            meter=meter,
+            value=form.cleaned_data["value"],
+            membership=request.membership,
+            is_reset=form.cleaned_data["is_reset"],
+            client_uuid=form.cleaned_data.get("client_uuid"),
+        )
+    except ValidationError as exc:
+        messages.error(request, " ".join(exc.messages))
+    else:
+        messages.success(request, f"Lectura registrada: {meter.get_kind_display()}.")
+        for warning in warnings:
+            messages.warning(request, warning)
+    return redirect(f"{reverse('asset_detail', args=[pk])}#meters")
 
 
 @membership_required

@@ -94,6 +94,14 @@ Restricción: un solo período abierto por activo (índice único parcial `WHERE
 **`plan_resource`** — repuestos y herramientas estimados.
 `organization_id` · `version_id` · `kind` (part, tool) · `description` · `quantity` · `unit` · `part_id` (F2, nullable).
 
+> **Implementación actual (2026-09-24):** sin versionado; los disparadores
+> están en `maintenance_plan` (`interval_days`, `meter_kind`,
+> `meter_interval`) y el estado del programador en `plan_assignment`
+> (`next_due_on`, `meter_id`, `next_due_meter_value`,
+> `last_done_meter_value`). `work_order` suma `due_meter_value` y
+> `meter_value_at_completion`. Al introducir versiones se migra a
+> `plan_trigger` sin cambiar la lógica de vencimiento.
+
 **`plan_trigger`** — uno o más por versión; vence el que ocurra primero.
 `organization_id` · `version_id` · `kind` (calendar, meter) · `interval_value` · `interval_unit` (day, week, month, reading) · `meter_kind` · `tolerance_pct` · `schedule_mode` (fixed, floating).
 

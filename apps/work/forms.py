@@ -35,8 +35,25 @@ class CompleteWorkOrderForm(forms.Form):
         label=_("Causa"), queryset=FailureCode.all_tenants.none(), required=False
     )
 
-    def __init__(self, *args, with_failure=False, **kwargs):
+    meter_value = forms.DecimalField(
+        label=_("Lectura del medidor"), min_value=0, max_digits=14, decimal_places=3
+    )
+
+    def __init__(self, *args, with_failure=False, meter=None, meter_required=False, **kwargs):
         super().__init__(*args, **kwargs)
+        if meter is None:
+            del self.fields["meter_value"]
+        else:
+            field = self.fields["meter_value"]
+            field.label = f"{meter.get_kind_display()} al terminar"
+            field.required = meter_required
+            field.help_text = (
+                _("Obligatorio: el próximo preventivo se calcula desde esta lectura.")
+                if meter_required
+                else _("Opcional: actualiza la lectura del equipo.")
+            )
+            if meter.current_value is not None:
+                field.widget.attrs["placeholder"] = f"{meter.current_value.normalize():f}"
         if with_failure:
             self.fields["failure_mode"].queryset = failure_codes(FailureCode.Kind.MODE)
             self.fields["failure_cause"].queryset = failure_codes(FailureCode.Kind.CAUSE)

@@ -31,6 +31,11 @@ urlpatterns = [
     path("assets/labels/", asset_views.asset_labels_view, name="asset_labels"),
     path("assets/<uuid:pk>/", asset_views.asset_detail_view, name="asset_detail"),
     path("assets/<uuid:pk>/report/", asset_views.asset_report_view, name="asset_report"),
+    path(
+        "assets/<uuid:pk>/meters/<uuid:meter_pk>/readings/",
+        asset_views.meter_reading_view,
+        name="meter_reading",
+    ),
     path("q/<str:token>/", asset_views.asset_qr_view, name="asset_qr"),
     path("work-orders/", work_views.work_order_list_view, name="work_order_list"),
     path("work-orders/<uuid:pk>/", work_views.work_order_detail_view, name="work_order_detail"),

@@ -15,7 +15,8 @@ from django.db import transaction
 from django.utils import timezone
 
 from apps.accounts.models import Membership, User
-from apps.assets.models import Asset, AssetClass, AssetStatusPeriod
+from apps.assets.models import Asset, AssetClass, AssetStatusPeriod, Meter, MeterKind
+from apps.assets.services import record_meter_reading
 from apps.core.tenancy import tenant_context
 from apps.maintenance.models import ItemType, MaintenancePlan, PlanTaskItem
 from apps.maintenance.services import assign_plan, generate_due_work_orders
@@ -138,6 +139,55 @@ PLANS = [
             ("Arranque y marcha en vacío 15 min", ItemType.CHECK),
             ("Voltaje de salida", ItemType.MEASUREMENT, "V", 370, 400),
         ],
+    ),
+]
+
+# Medidores: activo, tipo, lectura hace 35 días, uso diario promedio.
+METERS = [
+    ("GRH-01", MeterKind.HOURS, 4200, 6.5),
+    ("GRH-02", MeterKind.HOURS, 8730, 7.5),
+    ("CMP-01", MeterKind.HOURS, 21000, 16),
+    ("CMP-02", MeterKind.HOURS, 9500, 2),
+    ("GEN-01", MeterKind.HOURS, 1830, 0.4),
+    ("VEH-01", MeterKind.KM, 48500, 140),
+]
+
+# Planes por uso (se asignan después del historial): código, nombre, clase,
+# medidor, intervalo, días (mixto) o None, minutos, ítems, {activo: faltante}.
+METER_PLANS = [
+    (
+        "PM-GRH-250",
+        "Mantención 250 h grúa horquilla",
+        "GRH",
+        MeterKind.HOURS,
+        250,
+        None,
+        120,
+        [
+            ("Cambiar aceite de motor / reductor", ItemType.CHECK),
+            ("Cambiar filtros de aceite y aire", ItemType.CHECK),
+            ("Revisar nivel de aceite hidráulico", ItemType.CHECK),
+            ("Engrasar mástil y pivotes", ItemType.CHECK),
+            ("Holgura de cadenas de elevación", ItemType.MEASUREMENT, "mm", 0, 3),
+        ],
+        # Faltante para el vencimiento: GRH-02 ya está por vencer, GRH-01 no.
+        {"GRH-01": 170, "GRH-02": 12},
+    ),
+    (
+        "PM-VEH-10K",
+        "Mantención 10.000 km camioneta",
+        "VEH",
+        MeterKind.KM,
+        10000,
+        180,
+        150,
+        [
+            ("Cambiar aceite y filtro de motor", ItemType.CHECK),
+            ("Revisar pastillas y discos de freno", ItemType.CHECK),
+            ("Rotar neumáticos", ItemType.CHECK),
+            ("Profundidad de dibujo de neumáticos", ItemType.MEASUREMENT, "mm", 1.6, 12),
+        ],
+        {"VEH-01": 1200},
     ),
 ]
 
@@ -275,22 +325,14 @@ class Command(BaseCommand):
                 interval_days=interval,
                 estimated_minutes=minutes,
             )
-            for i, item in enumerate(items, start=1):
-                text, item_type, *rng = item
-                PlanTaskItem.objects.create(
-                    plan=plan,
-                    order=i,
-                    text=text,
-                    item_type=item_type,
-                    unit=rng[0] if rng else "",
-                    min_value=Decimal(str(rng[1])) if rng else None,
-                    max_value=Decimal(str(rng[2])) if rng else None,
-                )
+            self._create_items(plan, items)
             for asset in (a for a in assets.values() if a.asset_class_id == classes[cls].id):
                 first_due = history_start + datetime.timedelta(days=random.randint(0, min(interval, 60) - 1))
                 assign_plan(plan=plan, asset=asset, starts_on=first_due)
 
+        self._seed_meters(assets, now)
         self._simulate_preventive_history(history_start, today, tech)
+        self._seed_meter_plans(assets, classes)
 
         # Fallas históricas reparadas.
         for asset_code, days_ago, hours_down, text, mode, cause in HISTORY_FAILURES:
@@ -330,6 +372,51 @@ class Command(BaseCommand):
 
         # Preventivos vigentes (próximos 14 días y atrasados).
         generate_due_work_orders(today=today)
+
+    def _seed_meters(self, assets, now):
+        """Lecturas semanales de las últimas 5 semanas, con algo de variación."""
+        for code, kind, start_value, per_day in METERS:
+            meter = Meter.objects.create(asset=assets[code], kind=kind)
+            value = Decimal(start_value)
+            for weeks_ago in range(5, -1, -1):
+                if weeks_ago < 5:
+                    value += Decimal(str(round(per_day * 7 * random.uniform(0.8, 1.2), 1)))
+                read_at = now - datetime.timedelta(days=weeks_ago * 7, hours=random.randint(1, 6))
+                record_meter_reading(meter=meter, value=value, read_at=read_at, generate_work_orders=False)
+
+    def _seed_meter_plans(self, assets, classes):
+        for code, name, cls, kind, interval, days, minutes, items, remaining in METER_PLANS:
+            plan = MaintenancePlan.objects.create(
+                code=code,
+                name=name,
+                asset_class=classes[cls],
+                meter_kind=kind,
+                meter_interval=Decimal(interval),
+                interval_days=days,
+                estimated_minutes=minutes,
+            )
+            self._create_items(plan, items)
+            for asset_code, left in remaining.items():
+                meter = assets[asset_code].meters.get(kind=kind)
+                assign_plan(
+                    plan=plan,
+                    asset=assets[asset_code],
+                    meter=meter,
+                    next_due_meter_value=meter.current_value + left,
+                )
+
+    def _create_items(self, plan, items):
+        for i, item in enumerate(items, start=1):
+            text, item_type, *rng = item
+            PlanTaskItem.objects.create(
+                plan=plan,
+                order=i,
+                text=text,
+                item_type=item_type,
+                unit=rng[0] if rng else "",
+                min_value=Decimal(str(rng[1])) if rng else None,
+                max_value=Decimal(str(rng[2])) if rng else None,
+            )
 
     def _simulate_preventive_history(self, start, today, tech):
         """Recorre los días pasados: genera las OT y cierra la mayoría a tiempo."""

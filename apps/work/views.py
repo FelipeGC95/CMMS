@@ -1,5 +1,5 @@
 from django.contrib import messages
-from django.core.exceptions import PermissionDenied
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.paginator import Paginator
 from django.http import FileResponse, Http404
 from django.shortcuts import get_object_or_404, redirect, render
@@ -17,6 +17,7 @@ from .services import (
     answer_checklist_item,
     complete_work_order,
     transition,
+    work_order_meter,
 )
 
 SCOPES = [("open", "Abiertas"), ("overdue", "Vencidas"), ("mine", "Mis OT"), ("done", "Cerradas")]
@@ -44,14 +45,24 @@ def work_order_list_view(request):
     )
 
 
+def _complete_form(work_order, data=None):
+    meter = work_order_meter(work_order)
+    plan = work_order.plan_assignment.plan if work_order.plan_assignment_id else None
+    return CompleteWorkOrderForm(
+        data,
+        with_failure=work_order.work_type == WorkOrder.Type.CORRECTIVE,
+        meter=meter,
+        meter_required=bool(plan and plan.uses_meter and meter),
+    )
+
+
 def _detail_context(request, work_order, complete_form=None):
-    is_corrective = work_order.work_type == WorkOrder.Type.CORRECTIVE
     targets = allowed_transitions(work_order=work_order, membership=request.membership)
     return {
         "wo": work_order,
         "transitions": [(s, WorkOrder.Status(s).label) for s in targets if s != WorkOrder.Status.COMPLETED],
         "can_execute": has_perm(request.membership, Perm.WORK_ORDER_EXECUTE) and work_order.is_open,
-        "complete_form": complete_form or CompleteWorkOrderForm(with_failure=is_corrective),
+        "complete_form": complete_form or _complete_form(work_order),
         "pending_required": sum(1 for i in work_order.checklist.all() if i.required and not i.result),
     }
 
@@ -122,7 +133,7 @@ def checklist_answer_view(request, pk, item_pk):
 @membership_required(perm=Perm.WORK_ORDER_EXECUTE)
 def work_order_complete_view(request, pk):
     work_order = _get_detail_or_404(pk)
-    form = CompleteWorkOrderForm(request.POST, with_failure=work_order.work_type == WorkOrder.Type.CORRECTIVE)
+    form = _complete_form(work_order, request.POST)
     if form.is_valid():
         try:
             complete_work_order(
@@ -132,9 +143,10 @@ def work_order_complete_view(request, pk):
                 notes=form.cleaned_data["notes"],
                 failure_mode=form.cleaned_data.get("failure_mode"),
                 failure_cause=form.cleaned_data.get("failure_cause"),
+                meter_value=form.cleaned_data.get("meter_value"),
             )
-        except WorkOrderError as exc:
-            messages.error(request, exc.message)
+        except ValidationError as exc:
+            messages.error(request, " ".join(exc.messages))
         else:
             messages.success(request, f"{work_order.code} completada.")
             return redirect("work_order_detail", pk=pk)

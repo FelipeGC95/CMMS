@@ -32,7 +32,9 @@ def work_order_list(*, scope: str = "open", work_type: str = "", assigned_to=Non
 
 def work_order_detail(pk):
     return (
-        WorkOrder.objects.select_related("asset", "asset__location", "assigned_to", "plan_assignment")
+        WorkOrder.objects.select_related(
+            "asset", "asset__location", "assigned_to", "plan_assignment__plan", "plan_assignment__meter"
+        )
         .prefetch_related("checklist", "attachments", "transitions__by", "labor__user")
         .get(pk=pk)
     )
