@@ -56,3 +56,11 @@ def work_order_detail(pk, *, membership):
 
 def failure_codes(kind: str):
     return FailureCode.objects.filter(kind=kind, is_active=True)
+
+
+def failure_code_list(*, kind: str = ""):
+    """Catálogo completo (activos e inactivos) para la pantalla de edición (REQ-03 CA1)."""
+    qs = FailureCode.objects.all()
+    if kind:
+        qs = qs.filter(kind=kind)
+    return qs.order_by("kind", "name")

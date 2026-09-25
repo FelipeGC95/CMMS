@@ -3,6 +3,8 @@ import uuid
 from django import forms
 from django.utils.translation import gettext_lazy as _
 
+from apps.assets.models import Asset
+
 from .models import FailureCode
 from .selectors import failure_codes
 
@@ -34,12 +36,24 @@ class CompleteWorkOrderForm(forms.Form):
     failure_cause = forms.ModelChoiceField(
         label=_("Causa"), queryset=FailureCode.all_tenants.none(), required=False
     )
+    failure_mechanism = forms.ModelChoiceField(
+        label=_("Mecanismo de falla"), queryset=FailureCode.all_tenants.none(), required=False
+    )
+    detection_method = forms.ModelChoiceField(
+        label=_("Método de detección"), queryset=FailureCode.all_tenants.none(), required=False
+    )
+    component = forms.ModelChoiceField(
+        label=_("Componente afectado"), queryset=Asset.all_tenants.none(), required=False
+    )
 
     meter_value = forms.DecimalField(
         label=_("Lectura del medidor"), min_value=0, max_digits=14, decimal_places=3
     )
 
-    def __init__(self, *args, with_failure=False, meter=None, meter_required=False, **kwargs):
+    def __init__(
+        self, *args, with_failure=False, meter=None, meter_required=False, require_failure_details=False,
+        asset=None, **kwargs,
+    ):  # fmt: skip
         super().__init__(*args, **kwargs)
         if meter is None:
             del self.fields["meter_value"]
@@ -57,9 +71,29 @@ class CompleteWorkOrderForm(forms.Form):
         if with_failure:
             self.fields["failure_mode"].queryset = failure_codes(FailureCode.Kind.MODE)
             self.fields["failure_cause"].queryset = failure_codes(FailureCode.Kind.CAUSE)
+            self.fields["failure_mechanism"].queryset = failure_codes(FailureCode.Kind.MECHANISM)
+            self.fields["detection_method"].queryset = failure_codes(FailureCode.Kind.DETECTION_METHOD)
+            if asset is not None:
+                self.fields["component"].queryset = asset.children.filter(is_active=True)
+            if require_failure_details:
+                self.fields["failure_mode"].required = True
+                self.fields["failure_cause"].required = True
         else:
             del self.fields["failure_mode"]
             del self.fields["failure_cause"]
+            del self.fields["failure_mechanism"]
+            del self.fields["detection_method"]
+            del self.fields["component"]
+
+
+class FailureCodeForm(forms.Form):
+    kind = forms.ChoiceField(label=_("Tipo"), choices=FailureCode.Kind.choices)
+    code = forms.CharField(label=_("Código"), max_length=10)
+    name = forms.CharField(label=_("Nombre"), max_length=120)
+
+
+class FailureCodeRenameForm(forms.Form):
+    name = forms.CharField(label=_("Nombre"), max_length=120)
 
 
 class LaborForm(forms.Form):

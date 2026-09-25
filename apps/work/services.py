@@ -12,9 +12,13 @@ from django.utils import timezone
 from apps.accounts.permissions import Perm, has_perm, require_perm
 from apps.assets.models import Asset, MeterReading
 from apps.assets.services import change_asset_status, record_meter_reading
+from apps.audit import services as audit
+from apps.audit.models import AuditEvent
+from apps.core.tenancy import tenant_context
 
 from .models import (
     Attachment,
+    FailureCode,
     FailureEvent,
     LaborEntry,
     LaborRate,
@@ -324,9 +328,27 @@ def complete_work_order(
     notes: str = "",
     failure_mode=None,
     failure_cause=None,
+    failure_mechanism=None,
+    detection_method=None,
+    component=None,
     meter_value=None,
 ) -> WorkOrder:
-    """Completa la OT; si se informa la lectura del medidor, la registra y reprograma desde ella."""
+    """Completa la OT; si se informa la lectura del medidor, la registra y reprograma desde ella.
+
+    Al completar una OT correctiva se pide completar la falla (REQ-03 CA2): modo
+    y causa son obligatorios si la organización lo exige (`require_failure_details`).
+    """
+    failure = FailureEvent.objects.filter(work_order=work_order).first()
+    if (
+        failure
+        and work_order.work_type == WorkOrder.Type.CORRECTIVE
+        and work_order.organization.require_failure_details
+        and not (failure_mode and failure_cause)
+    ):
+        raise WorkOrderError("Esta organización exige modo y causa de falla para cerrar una OT correctiva.")
+    if component is not None and component.parent_id != work_order.asset_id:
+        raise WorkOrderError("El componente debe ser un activo hijo del activo de la OT.")
+
     if meter_value is not None:
         meter = work_order_meter(work_order)
         if meter is not None:
@@ -344,11 +366,22 @@ def complete_work_order(
         log_labor(work_order=work_order, membership=membership, minutes=labor_minutes)
     work_order.completion_notes = notes
     work_order.save(update_fields=["completion_notes", "updated_at"])
-    failure = FailureEvent.objects.filter(work_order=work_order).first()
-    if failure and (failure_mode or failure_cause):
+    if failure and (failure_mode or failure_cause or failure_mechanism or detection_method or component):
         failure.failure_mode = failure_mode
         failure.failure_cause = failure_cause
-        failure.save(update_fields=["failure_mode", "failure_cause", "updated_at"])
+        failure.failure_mechanism = failure_mechanism
+        failure.detection_method = detection_method
+        failure.component = component
+        failure.save(
+            update_fields=[
+                "failure_mode",
+                "failure_cause",
+                "failure_mechanism",
+                "detection_method",
+                "component",
+                "updated_at",
+            ]
+        )
     if work_order.status != S.IN_PROGRESS:
         transition(work_order=work_order, to_status=S.IN_PROGRESS, membership=membership)
     return transition(work_order=work_order, to_status=S.COMPLETED, membership=membership)
@@ -460,3 +493,98 @@ def remove_cost_line(*, line, membership) -> None:
     _require_cost_editable(work_order)
     line.delete()
     recalculate_costs(work_order=work_order)
+
+
+# --- Catálogo de falla (REQ-03 CA1) --------------------------------------------
+
+# Catálogo base según la estructura de ISO 14224; cada organización lo recibe al
+# crearse y puede editarlo o desactivar códigos que no use (ver `seed_default_failure_catalog`).
+DEFAULT_FAILURE_CATALOG: list[tuple[str, str, str]] = [
+    (FailureCode.Kind.MODE, "BRD", "Falla total / no funciona"),
+    (FailureCode.Kind.MODE, "ELP", "Fuga externa de fluido"),
+    (FailureCode.Kind.MODE, "VIB", "Vibración anormal"),
+    (FailureCode.Kind.MODE, "OHE", "Sobrecalentamiento"),
+    (FailureCode.Kind.MODE, "ERO", "Operación errática"),
+    (FailureCode.Kind.MODE, "NOI", "Ruido anormal"),
+    (FailureCode.Kind.CAUSE, "DES", "Desgaste"),
+    (FailureCode.Kind.CAUSE, "LUB", "Falta de lubricación"),
+    (FailureCode.Kind.CAUSE, "ELE", "Falla eléctrica / control"),
+    (FailureCode.Kind.CAUSE, "OPE", "Error de operación"),
+    (FailureCode.Kind.CAUSE, "MAT", "Falla de material / componente"),
+    (FailureCode.Kind.CAUSE, "SUC", "Suciedad / contaminación"),
+    (FailureCode.Kind.MECHANISM, "FAT", "Fatiga"),
+    (FailureCode.Kind.MECHANISM, "COR", "Corrosión"),
+    (FailureCode.Kind.MECHANISM, "WEA", "Desgaste abrasivo"),
+    (FailureCode.Kind.MECHANISM, "OVL", "Sobrecarga"),
+    (FailureCode.Kind.MECHANISM, "CTM", "Contaminación"),
+    (FailureCode.Kind.DETECTION_METHOD, "INS", "Inspección visual"),
+    (FailureCode.Kind.DETECTION_METHOD, "OPR", "Aviso del operador"),
+    (FailureCode.Kind.DETECTION_METHOD, "MON", "Monitoreo de condición"),
+    (FailureCode.Kind.DETECTION_METHOD, "PMT", "Mantenimiento preventivo"),
+]
+
+
+def seed_default_failure_catalog(*, organization) -> list[FailureCode]:
+    """Carga el catálogo base de falla (ISO 14224) en la organización; idempotente."""
+    with tenant_context(organization):
+        existing = set(FailureCode.objects.values_list("kind", "code"))
+        codes = [
+            FailureCode(organization=organization, kind=kind, code=code, name=name)
+            for kind, code, name in DEFAULT_FAILURE_CATALOG
+            if (kind, code) not in existing
+        ]
+        return FailureCode.objects.bulk_create(codes)
+
+
+@transaction.atomic
+def create_failure_code(*, kind: str, code: str, name: str, membership) -> FailureCode:
+    require_perm(membership, Perm.WORK_ORDER_MANAGE)
+    code, name = code.strip().upper()[:10], name.strip()[:120]
+    if not code or not name:
+        raise WorkOrderError("Código y nombre son obligatorios.")
+    if FailureCode.objects.filter(kind=kind, code=code).exists():
+        raise WorkOrderError(f"Ya existe un código «{code}» de ese tipo.")
+    failure_code = FailureCode.objects.create(kind=kind, code=code, name=name)
+    audit.record(
+        action=AuditEvent.Action.CREATE,
+        target=failure_code,
+        actor=membership.user,
+        changes=audit.snapshot(failure_code),
+    )
+    return failure_code
+
+
+@transaction.atomic
+def rename_failure_code(*, failure_code: FailureCode, name: str, membership) -> FailureCode:
+    require_perm(membership, Perm.WORK_ORDER_MANAGE)
+    name = name.strip()[:120]
+    if not name:
+        raise WorkOrderError("El nombre es obligatorio.")
+    old_name = failure_code.name
+    if old_name == name:
+        return failure_code
+    failure_code.name = name
+    failure_code.save(update_fields=["name", "updated_at"])
+    audit.record(
+        action=AuditEvent.Action.UPDATE,
+        target=failure_code,
+        actor=membership.user,
+        changes={"name": [old_name, name]},
+    )
+    return failure_code
+
+
+@transaction.atomic
+def set_failure_code_active(*, failure_code: FailureCode, is_active: bool, membership) -> FailureCode:
+    require_perm(membership, Perm.WORK_ORDER_MANAGE)
+    if failure_code.is_active == is_active:
+        return failure_code
+    failure_code.is_active = is_active
+    failure_code.save(update_fields=["is_active", "updated_at"])
+    audit.record(
+        action=AuditEvent.Action.UPDATE,
+        target=failure_code,
+        actor=membership.user,
+        changes={"is_active": [not is_active, is_active]},
+    )
+    return failure_code
