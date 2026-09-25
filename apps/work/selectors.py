@@ -1,5 +1,7 @@
 from django.utils import timezone
 
+from apps.accounts.scoping import allowed_location_ids
+
 from .models import FailureCode, WorkOrder
 
 OPEN_STATUSES = [
@@ -11,8 +13,17 @@ OPEN_STATUSES = [
 ]
 
 
-def work_order_list(*, scope: str = "open", work_type: str = "", assigned_to=None, asset=None):
-    qs = WorkOrder.objects.select_related("asset", "assigned_to")
+def visible_work_orders(*, membership):
+    """OT que la membresía puede ver (ORG-06): las de activos de sus ubicaciones si tiene alcance."""
+    qs = WorkOrder.objects.all()
+    location_ids = allowed_location_ids(membership)
+    if location_ids is not None:
+        qs = qs.filter(asset__location_id__in=location_ids)
+    return qs
+
+
+def work_order_list(*, membership, scope: str = "open", work_type: str = "", assigned_to=None, asset=None):
+    qs = visible_work_orders(membership=membership).select_related("asset", "assigned_to")
     if scope == "open":
         qs = qs.filter(status__in=OPEN_STATUSES)
     elif scope == "overdue":
@@ -30,9 +41,10 @@ def work_order_list(*, scope: str = "open", work_type: str = "", assigned_to=Non
     return qs.order_by("-closed_at", "-created_at")
 
 
-def work_order_detail(pk):
+def work_order_detail(pk, *, membership):
     return (
-        WorkOrder.objects.select_related(
+        visible_work_orders(membership=membership)
+        .select_related(
             "asset", "asset__location", "assigned_to", "plan_assignment__plan", "plan_assignment__meter"
         )
         .prefetch_related("checklist", "attachments", "transitions__by", "labor__user")

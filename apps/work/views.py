@@ -10,7 +10,7 @@ from apps.core.decorators import membership_required
 
 from .forms import CompleteWorkOrderForm
 from .models import Attachment, WorkOrder, WorkOrderChecklistItem
-from .selectors import work_order_detail, work_order_list
+from .selectors import visible_work_orders, work_order_detail, work_order_list
 from .services import (
     WorkOrderError,
     allowed_transitions,
@@ -28,9 +28,11 @@ def work_order_list_view(request):
     scope = request.GET.get("scope", "open")
     work_type = request.GET.get("type", "")
     if scope == "mine":
-        qs = work_order_list(scope="open", work_type=work_type, assigned_to=request.user)
+        qs = work_order_list(
+            membership=request.membership, scope="open", work_type=work_type, assigned_to=request.user
+        )
     else:
-        qs = work_order_list(scope=scope, work_type=work_type)
+        qs = work_order_list(membership=request.membership, scope=scope, work_type=work_type)
     page = Paginator(qs, 25).get_page(request.GET.get("page"))
     return render(
         request,
@@ -67,23 +69,23 @@ def _detail_context(request, work_order, complete_form=None):
     }
 
 
-def _get_detail_or_404(pk):
+def _get_detail_or_404(request, pk):
     try:
-        return work_order_detail(pk)
+        return work_order_detail(pk, membership=request.membership)
     except WorkOrder.DoesNotExist as exc:
         raise Http404 from exc
 
 
 @membership_required
 def work_order_detail_view(request, pk):
-    work_order = _get_detail_or_404(pk)
+    work_order = _get_detail_or_404(request, pk)
     return render(request, "work/detail.html", _detail_context(request, work_order))
 
 
 @require_POST
 @membership_required
 def work_order_transition_view(request, pk):
-    work_order = get_object_or_404(WorkOrder, pk=pk)
+    work_order = get_object_or_404(visible_work_orders(membership=request.membership), pk=pk)
     try:
         transition(
             work_order=work_order,
@@ -102,7 +104,11 @@ def work_order_transition_view(request, pk):
 @membership_required(perm=Perm.WORK_ORDER_EXECUTE)
 def checklist_answer_view(request, pk, item_pk):
     item = get_object_or_404(
-        WorkOrderChecklistItem.objects.select_related("work_order"), pk=item_pk, work_order_id=pk
+        WorkOrderChecklistItem.objects.select_related("work_order").filter(
+            work_order__in=visible_work_orders(membership=request.membership)
+        ),
+        pk=item_pk,
+        work_order_id=pk,
     )
     error = None
     try:
@@ -132,7 +138,7 @@ def checklist_answer_view(request, pk, item_pk):
 @require_POST
 @membership_required(perm=Perm.WORK_ORDER_EXECUTE)
 def work_order_complete_view(request, pk):
-    work_order = _get_detail_or_404(pk)
+    work_order = _get_detail_or_404(request, pk)
     form = _complete_form(work_order, request.POST)
     if form.is_valid():
         try:
@@ -150,14 +156,16 @@ def work_order_complete_view(request, pk):
         else:
             messages.success(request, f"{work_order.code} completada.")
             return redirect("work_order_detail", pk=pk)
-    work_order = work_order_detail(pk)
+    work_order = work_order_detail(pk, membership=request.membership)
     return render(request, "work/detail.html", _detail_context(request, work_order, form), status=400)
 
 
 @membership_required
 def attachment_view(request, pk):
-    """Los archivos nunca se sirven públicamente: se verifica la organización."""
-    attachment = get_object_or_404(Attachment, pk=pk)
+    """Los archivos nunca se sirven públicamente: se verifica la organización y el alcance por sitio."""
+    attachment = get_object_or_404(
+        Attachment.objects.filter(work_order__in=visible_work_orders(membership=request.membership)), pk=pk
+    )
     return FileResponse(
         attachment.file.open("rb"), content_type=attachment.content_type, filename=attachment.filename
     )

@@ -18,7 +18,7 @@ from apps.work.services import WorkOrderError, report_failure
 
 from .forms import MeterReadingForm
 from .models import Asset, Meter
-from .selectors import asset_by_qr_token, asset_list
+from .selectors import asset_by_qr_token, asset_list, visible_assets
 from .services import record_meter_reading
 
 
@@ -32,7 +32,9 @@ def _qr_svg(request, asset, scale=4):
 def asset_list_view(request):
     search = request.GET.get("q", "").strip()
     status = request.GET.get("status", "")
-    page = Paginator(asset_list(search=search, status=status), 25).get_page(request.GET.get("page"))
+    page = Paginator(asset_list(membership=request.membership, search=search, status=status), 25).get_page(
+        request.GET.get("page")
+    )
     return render(
         request,
         "assets/list.html",
@@ -42,15 +44,18 @@ def asset_list_view(request):
 
 @membership_required
 def asset_detail_view(request, pk):
-    asset = get_object_or_404(Asset.objects.select_related("asset_class", "location", "parent"), pk=pk)
+    asset = get_object_or_404(
+        visible_assets(membership=request.membership).select_related("asset_class", "location", "parent"),
+        pk=pk,
+    )
     return render(
         request,
         "assets/detail.html",
         {
             "asset": asset,
             "qr_svg": _qr_svg(request, asset),
-            "open_work_orders": work_order_list(scope="open", asset=asset),
-            "history": work_order_list(scope="done", asset=asset)[:10],
+            "open_work_orders": work_order_list(membership=request.membership, scope="open", asset=asset),
+            "history": work_order_list(membership=request.membership, scope="done", asset=asset)[:10],
             "plans": asset.plan_assignments.filter(is_active=True).select_related("plan", "meter"),
             "meters": [
                 (meter, MeterReadingForm(prefix=str(meter.pk)))
@@ -65,7 +70,11 @@ def asset_detail_view(request, pk):
 @require_POST
 @membership_required(perm=Perm.METER_READING_CREATE)
 def meter_reading_view(request, pk, meter_pk):
-    meter = get_object_or_404(Meter.objects.select_related("asset"), pk=meter_pk, asset_id=pk)
+    meter = get_object_or_404(
+        Meter.objects.select_related("asset").filter(asset__in=visible_assets(membership=request.membership)),
+        pk=meter_pk,
+        asset_id=pk,
+    )
     form = MeterReadingForm(request.POST, prefix=str(meter.pk))
     if not form.is_valid():
         messages.error(request, "Ingresa una lectura válida (número mayor o igual a cero).")
@@ -89,7 +98,7 @@ def meter_reading_view(request, pk, meter_pk):
 
 @membership_required
 def asset_labels_view(request):
-    assets = asset_list()
+    assets = asset_list(membership=request.membership)
     labels = [(asset, _qr_svg(request, asset, scale=3)) for asset in assets]
     return render(request, "assets/labels.html", {"labels": labels})
 
@@ -101,7 +110,7 @@ def asset_qr_view(request, token):
     Si el activo es de otra organización del mismo usuario, cambia a esa
     organización; si el usuario no pertenece a ella, 404 (no se revela nada).
     """
-    asset = asset_by_qr_token(token) if request.membership else None
+    asset = asset_by_qr_token(token, membership=request.membership) if request.membership else None
     if asset is None:
         # Búsqueda entre organizaciones justificada: solo se usa el organization_id
         # para comprobar que el usuario tiene membresía en él.
@@ -112,6 +121,9 @@ def asset_qr_view(request, token):
         )
         if org_id is None or not any(m.organization_id == org_id for m in request.memberships):
             raise Http404
+        # Es de esta organización pero fuera de su alcance por sitio (ORG-06): no se revela.
+        if request.organization is not None and org_id == request.organization.pk:
+            raise Http404
         request.session[SESSION_KEY] = str(org_id)
         return redirect("asset_qr", token=token)
     return redirect("asset_report", pk=asset.pk)
@@ -119,7 +131,7 @@ def asset_qr_view(request, token):
 
 @membership_required(perm=Perm.REQUEST_CREATE)
 def asset_report_view(request, pk):
-    asset = get_object_or_404(Asset, pk=pk, is_active=True)
+    asset = get_object_or_404(visible_assets(membership=request.membership), pk=pk, is_active=True)
     form = FailureReportForm(request.POST or None, request.FILES or None)
     if request.method == "POST" and form.is_valid():
         try:
