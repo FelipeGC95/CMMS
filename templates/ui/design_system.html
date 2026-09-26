@@ -223,5 +223,33 @@
     <li><a href="#ds-lists">{% icon 'megaphone' %}{% translate "Solicitudes" %}</a></li>
     <li><a href="#ds-lists">{% icon 'clock' %}{% translate "Auditoría" %}</a></li>
   </ul>
+  <h3>{% translate "Mi cuenta (menú Más)" %}</h3>
+  <div class="account">
+    {% icon 'user' %}
+    <div class="account__text">
+      <span class="account__name">Carolina Muñoz</span>
+      <span class="account__meta">jefe@demo.cl · {% translate "Administrador" %}</span>
+    </div>
+  </div>
+  <ul class="list list--nav">
+    <li><a href="#ds-lists">{% icon 'key' %}{% translate "Cambiar contraseña" %}</a></li>
+  </ul>
+  <div class="row mt-2">
+    <button class="btn btn--secondary" type="button">{% icon 'logout' %}{% translate "Salir" %}</button>
+  </div>
+</section>
+
+<section class="mb-4" aria-labelledby="ds-masonry">
+  <h2 id="ds-masonry">{% translate "Tarjetas de alto natural en dos columnas" %}</h2>
+  <div class="masonry">
+    <div class="card"><h3>{% translate "Tarjeta corta" %}</h3><p class="muted">{% translate "Cada tarjeta conserva su alto; la siguiente se acomoda debajo, sin espacio vacío." %}</p></div>
+    <div class="card"><h3>{% translate "Uso de los cupos" %}</h3>
+      <table class="table">
+        <thead><tr><th>{% translate "Cupo" %}</th><th class="num">{% translate "En uso" %}</th><th class="num">{% translate "Máximo" %}</th></tr></thead>
+        <tbody><tr><td data-label="">{% translate "Usuarios" %}</td><td data-label="{% translate 'En uso' %}" class="num">5</td><td data-label="{% translate 'Máximo' %}" class="num">{% translate "Sin límite" %}</td></tr></tbody>
+      </table>
+    </div>
+    <div class="card"><h3>{% translate "Otra tarjeta" %}</h3><p class="muted">{% translate "Bajo 720 px queda una sola columna." %}</p></div>
+  </div>
 </section>
 {% endblock %}

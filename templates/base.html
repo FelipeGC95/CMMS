@@ -40,19 +40,20 @@
           <label class="visually-hidden" for="org-select">{% translate "Organización" %}</label>
           <select id="org-select" name="organization">
             {% for m in memberships %}
-            <option value="{{ m.organization_id }}" {% if m.organization_id == organization.id %}selected{% endif %}>{{ m.organization.name }}</option>
+            <option value="{{ m.organization_id }}" {% if m.organization_id == organization.id %}selected{% endif %}>{{ m.organization.short_name }}</option>
             {% endfor %}
           </select>
           <button class="btn-nav" type="submit">{% translate "Cambiar" %}</button>
         </form>
         {% elif organization %}
-        <span class="navbar__user">{{ organization.name }}</span>
+        <span class="navbar__org">{{ organization.short_name }}</span>
         {% endif %}
-        <a class="navbar__user" href="{% url 'account_change_password' %}" title="{% translate 'Mi cuenta: cambiar contraseña' %}">{{ user.short_name }}{% if membership %} · {{ membership.get_role_display }}{% endif %}</a>
+        {# Solo el nombre: el rol, el correo y "Cambiar contraseña" están en "Mi cuenta" de /menu/. #}
+        <a class="navbar__user" href="{% url 'menu' %}#account"><span class="visually-hidden">{% translate "Mi cuenta" %}: </span>{{ user.short_name }}</a>
         {% include "_theme_button.html" %}
         <form method="post" action="{% url 'account_logout' %}">
           {% csrf_token %}
-          <button class="btn-nav" type="submit">{% translate "Salir" %}</button>
+          <button class="btn-nav" type="submit">{% icon 'logout' %}{% translate "Salir" %}</button>
         </form>
       </div>
     </div>

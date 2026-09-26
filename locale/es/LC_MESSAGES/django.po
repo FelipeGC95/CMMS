@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-26 20:11-0300\n"
+"POT-Creation-Date: 2026-09-26 20:20-0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -3061,7 +3061,7 @@ msgstr ""
 msgid "Cambiar"
 msgstr ""
 
-msgid "Mi cuenta: cambiar contraseña"
+msgid "Mi cuenta"
 msgstr ""
 
 msgid "con tecnología de"
@@ -3450,6 +3450,29 @@ msgstr ""
 msgid "Lista de navegación (menú Más, ADR-017)"
 msgstr ""
 
+msgid "Mi cuenta (menú Más)"
+msgstr ""
+
+msgid "Cambiar contraseña"
+msgstr ""
+
+msgid "Tarjetas de alto natural en dos columnas"
+msgstr ""
+
+msgid "Tarjeta corta"
+msgstr ""
+
+msgid ""
+"Cada tarjeta conserva su alto; la siguiente se acomoda debajo, sin espacio "
+"vacío."
+msgstr ""
+
+msgid "Otra tarjeta"
+msgstr ""
+
+msgid "Bajo 720 px queda una sola columna."
+msgstr ""
+
 msgid "Secciones"
 msgstr ""
 
@@ -3469,12 +3492,6 @@ msgid "Organización activa"
 msgstr ""
 
 msgid "Cambiar de organización"
-msgstr ""
-
-msgid "Mi cuenta"
-msgstr ""
-
-msgid "Cambiar contraseña"
 msgstr ""
 
 msgid "Ítems actuales"

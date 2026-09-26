@@ -33,8 +33,8 @@
   </section>
 
   {% if memberships|length > 1 %}
-  <section class="card">
-    <h2>{% translate "Organización" %}</h2>
+  <section class="card" id="organization" aria-labelledby="menu-org-title">
+    <h2 id="menu-org-title">{% translate "Organización" %}</h2>
     <form method="post" action="{% url 'switch_organization' %}" class="stack">
       {% csrf_token %}
       <div class="field">
@@ -50,16 +50,23 @@
   </section>
   {% endif %}
 
-  <section class="card">
-    <h2>{% translate "Mi cuenta" %}</h2>
+  <section class="card" id="account" aria-labelledby="menu-account-title">
+    <h2 id="menu-account-title">{% translate "Mi cuenta" %}</h2>
+    <div class="account">
+      {% icon 'user' %}
+      <div class="account__text">
+        <span class="account__name">{{ user.full_name|default:user.email }}</span>
+        <span class="account__meta">{{ user.email }}{% if membership %} · {{ membership.get_role_display }}{% endif %}</span>
+      </div>
+    </div>
     <ul class="list list--nav">
-      <li><a href="{% url 'account_change_password' %}">{% icon 'info' %}{{ user.short_name }} · {% translate "Cambiar contraseña" %}</a></li>
+      <li><a href="{% url 'account_change_password' %}">{% icon 'key' %}{% translate "Cambiar contraseña" %}</a></li>
     </ul>
-    <div class="row">
+    <div class="row mt-2">
       {% include "_theme_button.html" with extra_class="btn btn--secondary" %}
       <form method="post" action="{% url 'account_logout' %}">
         {% csrf_token %}
-        <button class="btn btn--secondary" type="submit">{% translate "Salir" %}</button>
+        <button class="btn btn--secondary" type="submit">{% icon 'logout' %}{% translate "Salir" %}</button>
       </form>
     </div>
   </section>

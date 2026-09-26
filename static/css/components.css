@@ -60,27 +60,26 @@ svg[aria-hidden="true"], svg[role="img"] { width: 1.1em; height: 1.1em; vertical
   border-radius: var(--radius-md); padding: var(--space-1) var(--space-2); font: inherit; min-height: 36px;
 }
 .navbar select option { color: var(--galbust-ink); }
-.btn-nav { cursor: pointer; white-space: nowrap; }
-.navbar__links a, .navbar__user { white-space: nowrap; }
+.btn-nav { cursor: pointer; white-space: nowrap; display: inline-flex; align-items: center; gap: var(--space-1); }
+.navbar__links a, .navbar__user, .navbar__org { white-space: nowrap; }
 a.navbar__user { color: var(--color-nav-text); }
-/* Si falta ancho ceden primero el nombre del usuario y luego el selector de organización
-   (se recortan con "…"); los enlaces y los botones (Cambiar, tema, Salir) nunca se
-   encogen ni se montan unos sobre otros. */
+/* Si falta ancho ceden primero el nombre del usuario y la organización y luego el
+   selector de organización (se recortan con "…"); los enlaces y los botones (Cambiar,
+   tema, Salir) nunca se encogen ni se montan unos sobre otros. La barra muestra solo el
+   nombre de pila y el nombre corto de la organización: el rol y los nombres completos
+   están en /menu/. */
 .navbar__links { flex-shrink: 0; }
 .navbar__right { min-width: 0; flex-shrink: 1; }
 .navbar__right > * { flex-shrink: 0; }
-.navbar__right > .navbar__user { flex-shrink: 20; min-width: 0; }
+.navbar__right > .navbar__user, .navbar__right > .navbar__org { flex-shrink: 20; min-width: 0; }
 .navbar__right > .org-switch { flex-shrink: 1; min-width: 0; }
 .org-switch select { flex: 0 1 auto; }
 .org-switch .btn-nav { flex-shrink: 0; }
-.navbar__user { max-width: 22ch; overflow: hidden; text-overflow: ellipsis; }
+.navbar__user, .navbar__org { max-width: 22ch; overflow: hidden; text-overflow: ellipsis; }
 .org-switch { display: flex; align-items: center; gap: var(--space-1); }
-.org-switch select { max-width: 180px; min-width: 0; }
+.org-switch select { max-width: 180px; min-width: 0; text-overflow: ellipsis; }
 /* En la barra el tema es solo ícono; el nombre accesible viene de aria-label. */
 .navbar .theme-toggle__label { display: none; }
-@media (max-width: 1200px) {
-  .navbar__user { display: none; }
-}
 .theme-toggle { display: inline-flex; align-items: center; gap: var(--space-1); }
 
 main { max-width: var(--content-max); margin: 0 auto; padding: var(--space-5) var(--space-4) 96px; }
@@ -108,7 +107,7 @@ main { max-width: var(--content-max); margin: 0 auto; padding: var(--space-5) va
   .navbar__user, .org-switch .btn-nav { display: none; }
   .navbar__inner { gap: var(--space-2); }
   .navbar__right { gap: var(--space-2); }
-  .org-switch select { max-width: 40vw; }
+  .org-switch select { max-width: 50vw; }
   .bottom-nav {
     display: grid; grid-template-columns: repeat(4, 1fr);
     position: fixed; bottom: 0; left: 0; right: 0; z-index: 20;
@@ -199,6 +198,12 @@ main { max-width: var(--content-max); margin: 0 auto; padding: var(--space-5) va
 .list--nav li { padding: 0; }
 .list--nav a { display: flex; align-items: center; gap: var(--space-3); flex: 1; min-height: 48px; font-size: var(--text-md); text-decoration: none; }
 .list--nav svg { width: 20px; height: 20px; flex: none; }
+/* Cuenta del usuario en /menu/: nombre como texto, correo y rol debajo. */
+.account { display: flex; align-items: center; gap: var(--space-3); padding-bottom: var(--space-3); border-bottom: 1px solid var(--color-border); }
+.account > svg { width: 32px; height: 32px; color: var(--color-text-muted); }
+.account__text { display: flex; flex-direction: column; min-width: 0; }
+.account__name { font-weight: 600; font-size: var(--text-md); color: var(--color-text-brand); overflow-wrap: anywhere; }
+.account__meta { font-size: var(--text-sm); color: var(--color-text-muted); overflow-wrap: anywhere; }
 .list__meta { font-size: var(--text-sm); color: var(--color-text-muted); }
 
 .chips { display: flex; gap: var(--space-2); flex-wrap: wrap; margin-bottom: var(--space-4); }

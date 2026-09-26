@@ -1,3 +1,4 @@
+import re
 import uuid
 
 from django.db import models
@@ -27,6 +28,12 @@ class Plan(TimeStampedModel):
 
     def __str__(self):
         return self.name
+
+
+# Sufijo societario final ("SpA", "S.A.", "Ltda.", "EIRL"...), que se omite en la barra superior.
+LEGAL_SUFFIX = re.compile(
+    r"[\s,]+(s\.?\s?p\.?\s?a\.?|s\.?\s?a\.?|ltda\.?|limitada|e\.?\s?i\.?\s?r\.?\s?l\.?)$", re.I
+)
 
 
 def organization_logo_upload_to(instance, filename):
@@ -70,6 +77,11 @@ class Organization(TimeStampedModel):
 
     def __str__(self):
         return self.name
+
+    @property
+    def short_name(self):
+        """Nombre sin el sufijo societario, para el selector compacto de la barra superior."""
+        return LEGAL_SUFFIX.sub("", self.name.strip()) or self.name
 
 
 class Location(TenantModel):
