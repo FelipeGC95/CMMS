@@ -59,3 +59,20 @@ def test_rerun_assigns_open_work_orders_left_without_technician():
     call_command("seed_demo", verbosity=0)
 
     assert all(wo.assigned_to is not None for wo in _open_work_orders())
+
+
+def test_demo_has_an_open_corrective_from_a_failure_report_with_checklist():
+    # MVP-0 "Hecho cuando": aviso por QR → OT correctiva → checklist en el celular.
+    call_command("seed_demo", verbosity=0)
+
+    with tenant_context(Organization.objects.get(slug="alimentos-del-sur")):
+        candidates = [
+            wo
+            for wo in _open_work_orders()
+            if wo.work_type == WorkOrder.Type.CORRECTIVE and hasattr(wo, "request")
+        ]
+        with_checklist = [wo for wo in candidates if wo.checklist.filter(required=True).exists()]
+        assert with_checklist
+        wo = with_checklist[0]
+        assert wo.assigned_to.email == "tecnico@demo.cl"
+        assert wo.checklist.filter(item_type="measurement").exists()
