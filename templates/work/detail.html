@@ -12,15 +12,27 @@
       {% if wo.due_meter_value is not None %}<span class="badge badge--neutral">{% icon 'clock' %}{% translate "Vence a" %} {{ wo.due_meter_value|num }} {{ wo.plan_assignment.meter.unit }}</span>{% endif %}
     </div>
   </div>
-  {% if transitions %}
-  <form method="post" action="{% url 'work_order_transition' wo.pk %}" class="row">
-    {% csrf_token %}
+  {% if complete_action or primary_transition or transitions %}
+  {# Acción principal del estado actual arriba (también en el teléfono); transiciones secundarias al lado. #}
+  <div class="page-actions" id="wo-actions" hx-get="{% url 'work_order_detail' wo.pk %}" hx-trigger="checklist-changed from:body" hx-select="#wo-actions" hx-swap="outerHTML">
+    <form id="wo-transition" method="post" action="{% url 'work_order_transition' wo.pk %}">{% csrf_token %}</form>
+    {% if complete_action %}
+      {% if pending_required %}
+      <a class="btn btn--primary btn--lg page-actions__primary" href="#cl-title">{% icon 'list' %}{% translate "Ir al checklist" %}</a>
+      {% else %}
+      <a class="btn btn--primary btn--lg page-actions__primary" href="#complete-section">{% icon 'check' %}{% translate "Completar OT" %}</a>
+      {% endif %}
+    {% elif primary_transition %}
+    <button class="btn btn--primary btn--lg page-actions__primary" form="wo-transition" name="to" value="{{ primary_transition }}" type="submit">
+      {% if primary_transition == 'closed' %}{% icon 'check' %}{% translate "Aprobar cierre" %}{% else %}{% icon 'play' %}{% include "work/_start_label.html" %}{% endif %}
+    </button>
+    {% endif %}
     {% for value, label in transitions %}
-    <button class="btn {% if value == 'cancelled' %}btn--ghost{% elif value == 'in_progress' %}btn--primary{% else %}btn--secondary{% endif %}" name="to" value="{{ value }}" type="submit">
-      {% if value == 'in_progress' %}{% icon 'play' %}{% translate "Iniciar" %}{% elif value == 'cancelled' %}{% translate "Cancelar OT" %}{% elif value == 'closed' %}{% icon 'check' %}{% translate "Aprobar cierre" %}{% else %}{{ label }}{% endif %}
+    <button class="btn btn--lg {% if value == 'cancelled' %}btn--ghost{% else %}btn--secondary{% endif %}" form="wo-transition" name="to" value="{{ value }}" type="submit">
+      {% if value == 'in_progress' %}{% icon 'play' %}{% include "work/_start_label.html" %}{% elif value == 'cancelled' %}{% translate "Cancelar OT" %}{% elif value == 'on_hold' %}{% icon 'clock' %}{{ label }}{% else %}{{ label }}{% endif %}
     </button>
     {% endfor %}
-  </form>
+  </div>
   {% endif %}
 </div>
 
@@ -112,33 +124,32 @@
   {% endif %}
 
   {% if costs_editable and can_execute %}
-  <div class="grid grid--2">
-    <form method="post" action="{% url 'work_order_part_add' wo.pk %}" aria-label="{% translate 'Agregar repuesto o material' %}">
+  {# Formularios compactos: una fila en escritorio, dos columnas en tablet, una en el teléfono. #}
+  <div class="cost-forms">
+    <form class="inline-form inline-form--4" method="post" action="{% url 'work_order_part_add' wo.pk %}" aria-labelledby="part-add-title">
       {% csrf_token %}{{ part_form.client_uuid }}
-      <h3>{% translate "Agregar repuesto o material" %}</h3>
+      <h3 class="inline-form__title" id="part-add-title">{% translate "Agregar repuesto o material" %}</h3>
       {% for field in part_form.visible_fields %}
       <div class="field"><label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}</div>
       {% endfor %}
-      <button class="btn btn--secondary btn--lg" type="submit">{% icon 'box' %}{% translate "Agregar" %}</button>
+      <button class="btn btn--secondary btn--lg inline-form__submit" type="submit">{% icon 'box' %}{% translate "Agregar" %}</button>
     </form>
-    <div class="stack">
-      <form method="post" action="{% url 'work_order_labor_add' wo.pk %}" aria-label="{% translate 'Registrar horas' %}">
-        {% csrf_token %}
-        <h3>{% translate "Registrar horas" %}</h3>
-        <div class="field"><label for="{{ labor_form.minutes.id_for_label }}">{{ labor_form.minutes.label }}</label>{{ labor_form.minutes }}</div>
-        <button class="btn btn--secondary btn--lg" type="submit">{% icon 'clock' %}{% translate "Registrar" %}</button>
-      </form>
-      {% if can_manage %}
-      <form method="post" action="{% url 'work_order_other_cost_add' wo.pk %}" aria-label="{% translate 'Agregar otro costo' %}">
-        {% csrf_token %}
-        <h3>{% translate "Otro costo (servicio externo)" %}</h3>
-        {% for field in other_cost_form %}
-        <div class="field"><label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}</div>
-        {% endfor %}
-        <button class="btn btn--secondary btn--lg" type="submit">{% icon 'wrench' %}{% translate "Agregar" %}</button>
-      </form>
-      {% endif %}
-    </div>
+    <form class="inline-form inline-form--1" method="post" action="{% url 'work_order_labor_add' wo.pk %}" aria-labelledby="labor-add-title">
+      {% csrf_token %}
+      <h3 class="inline-form__title" id="labor-add-title">{% translate "Registrar horas" %}</h3>
+      <div class="field"><label for="{{ labor_form.minutes.id_for_label }}">{{ labor_form.minutes.label }}</label>{{ labor_form.minutes }}</div>
+      <button class="btn btn--secondary btn--lg inline-form__submit" type="submit">{% icon 'clock' %}{% translate "Registrar" %}</button>
+    </form>
+    {% if can_manage %}
+    <form class="inline-form inline-form--3" method="post" action="{% url 'work_order_other_cost_add' wo.pk %}" aria-labelledby="other-add-title">
+      {% csrf_token %}
+      <h3 class="inline-form__title" id="other-add-title">{% translate "Otro costo (servicio externo)" %}</h3>
+      {% for field in other_cost_form %}
+      <div class="field"><label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}</div>
+      {% endfor %}
+      <button class="btn btn--secondary btn--lg inline-form__submit" type="submit">{% icon 'wrench' %}{% translate "Agregar" %}</button>
+    </form>
+    {% endif %}
   </div>
   {% elif not costs_editable %}
   <p class="muted">{% translate "La OT está cerrada: los costos quedaron fijos." %}</p>

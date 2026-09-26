@@ -117,6 +117,8 @@ def work_order_list_view(request):
         date_to=filters.get("date_to"),
     )
     page = Paginator(qs, 25).get_page(request.GET.get("page"))
+    # «Buscar fecha en» solo indica dónde aplicar las fechas: no cuenta como filtro activo.
+    active_filters = sum(1 for key, value in filters.items() if value and key != "date_field")
     return render(
         request,
         "work/list.html",
@@ -128,6 +130,8 @@ def work_order_list_view(request):
             "type_links": [("", _("Todos los tipos"), _query_with(request, type=""))]
             + [(value, label, _query_with(request, type=value)) for value, label in WorkOrder.Type.choices],
             "filter_form": filter_form,
+            "active_filters": active_filters,
+            "filters_open": bool(active_filters or filter_form.errors),
         },
     )
 
@@ -209,14 +213,27 @@ def _detail_context(request, work_order, complete_form=None, assignees_form=None
         )
     attachments = list(attachments_for(target_type=TargetType.WORK_ORDER, target_id=work_order.pk))
     signatures = [a for a in attachments if a.purpose == Purpose.SIGNATURE]
+    can_execute = has_perm(request.membership, Perm.WORK_ORDER_EXECUTE) and work_order.is_open
+    pending_required = sum(1 for i in work_order.checklist.all() if i.required and not i.result)
+    transitions = [s for s in targets if s != WorkOrder.Status.COMPLETED]
+    # Acción principal visible arriba: en ejecución, ir a completar (o al checklist si faltan
+    # ítems obligatorios); si no, aprobar el cierre o iniciar/reanudar. El resto es secundario.
+    complete_action = can_execute and work_order.status == WorkOrder.Status.IN_PROGRESS
+    primary_transition = None
+    if not complete_action:
+        primary_transition = next(
+            (s for s in (WorkOrder.Status.CLOSED, WorkOrder.Status.IN_PROGRESS) if s in transitions), None
+        )
     return {
         "wo": work_order,
-        "transitions": [(s, work_order_status_label(s)) for s in targets if s != WorkOrder.Status.COMPLETED],
+        "primary_transition": primary_transition,
+        "complete_action": complete_action,
+        "transitions": [(s, work_order_status_label(s)) for s in transitions if s != primary_transition],
         "helpers": list(work_order.helpers.all()),
         "assignees_form": assignees_form if can_assign else None,
-        "can_execute": has_perm(request.membership, Perm.WORK_ORDER_EXECUTE) and work_order.is_open,
+        "can_execute": can_execute,
         "complete_form": complete_form or _complete_form(work_order),
-        "pending_required": sum(1 for i in work_order.checklist.all() if i.required and not i.result),
+        "pending_required": pending_required,
         "costs_editable": work_order.status not in COST_LOCKED_STATUSES,
         "can_manage": can_manage,
         "can_edit_checklist": can_manage and checklist_editable(work_order),
