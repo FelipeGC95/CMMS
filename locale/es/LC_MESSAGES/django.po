@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-26 18:50-0300\n"
+"POT-Creation-Date: 2026-09-26 18:52-0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2888,6 +2888,9 @@ msgstr ""
 msgid "Se creará una orden de trabajo correctiva y se avisará a mantención."
 msgstr ""
 
+msgid "¿No es un equipo? Avisar problema en una ubicación"
+msgstr ""
+
 msgid ""
 "El cambio cierra el período del estado actual y abre uno nuevo. Los períodos "
 "detenido y en mantención descuentan de la disponibilidad."
@@ -2986,6 +2989,9 @@ msgid "Pide a tu administrador que te invite."
 msgstr ""
 
 msgid "Ir a la administración de plataforma"
+msgstr ""
+
+msgid "Avisar problema"
 msgstr ""
 
 msgid "Volver a ubicaciones"
@@ -3593,9 +3599,6 @@ msgid "%(n)s OT"
 msgid_plural "%(n)s OT"
 msgstr[0] ""
 msgstr[1] ""
-
-msgid "Avisar problema"
-msgstr ""
 
 msgid "Filtro"
 msgstr ""

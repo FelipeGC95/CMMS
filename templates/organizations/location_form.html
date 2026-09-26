@@ -1,4 +1,4 @@
-{% extends "base.html" %}{% load i18n %}
+{% extends "base.html" %}{% load i18n ui accounts_tags %}
 {% block title %}{{ location.name }}{% endblock %}
 {% block content %}
 <div class="page-header">
@@ -6,7 +6,10 @@
     <p class="muted mono">{{ location.code }}</p>
     <h1>{{ location.name }}</h1>
   </div>
-  <a class="btn btn--ghost" href="{% url 'location_list' %}">{% translate "Volver a ubicaciones" %}</a>
+  <div class="row">
+    {% if membership|can:"request.create" and location.is_active %}<a class="btn btn--secondary" href="{% url 'location_report' %}?location={{ location.pk }}">{% icon 'megaphone' %}{% translate "Avisar problema" %}</a>{% endif %}
+    <a class="btn btn--ghost" href="{% url 'location_list' %}">{% translate "Volver a ubicaciones" %}</a>
+  </div>
 </div>
 
 <section class="card">

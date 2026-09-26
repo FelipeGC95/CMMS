@@ -1,4 +1,4 @@
-{% extends "base.html" %}{% load i18n ui %}
+{% extends "base.html" %}{% load i18n ui accounts_tags %}
 {% block title %}{% translate "Ubicaciones" %}{% endblock %}
 {% block content %}
 <div class="page-header">
@@ -6,7 +6,10 @@
     <h1>{% translate "Ubicaciones" %}</h1>
     <p class="muted">{% translate "Sitios, áreas y líneas en árbol. Los activos se ubican aquí." %}</p>
   </div>
-  <a class="btn btn--ghost" href="{% url 'asset_list' %}">{% translate "Volver a activos" %}</a>
+  <div class="row">
+    {% if membership|can:"request.create" %}<a class="btn btn--secondary" href="{% url 'location_report' %}">{% icon 'megaphone' %}{% translate "Avisar problema" %}</a>{% endif %}
+    <a class="btn btn--ghost" href="{% url 'asset_list' %}">{% translate "Volver a activos" %}</a>
+  </div>
 </div>
 
 <div class="grid grid--2">

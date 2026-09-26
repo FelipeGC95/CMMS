@@ -347,3 +347,20 @@ def test_invalid_transition_error_uses_the_custom_labels(custom_labels):
         with pytest.raises(WorkOrderError) as error:
             transition(work_order=wo, to_status="closed", membership=tenant_a.admin)
     assert "Por hacer → Cerrada" in error.value.message
+
+
+def test_report_problem_links_on_location_pages_and_asset_report(client, tenant_a):
+    """Accesos a "Avisar problema" en ubicaciones y desde el aviso de un activo (REQ-01 CA1)."""
+    with tenant_context(tenant_a.org):
+        area = Location.objects.create(code="BOD", name="Bodega")
+        Asset.objects.filter(pk=tenant_a.asset.pk).update(location=area)
+    report_url = reverse("location_report")
+    login(client, tenant_a.admin)
+    assert f'href="{report_url}"' in client.get(reverse("location_list")).content.decode()
+    edit_page = client.get(reverse("location_edit", args=[area.pk])).content.decode()
+    assert f'href="{report_url}?location={area.pk}"' in edit_page
+
+    login(client, tenant_a.tech)
+    page = client.get(reverse("asset_report", args=[tenant_a.asset.pk])).content.decode()
+    assert f'href="{report_url}?location={area.pk}"' in page
+    assert "¿No es un equipo? Avisar problema en una ubicación" in page

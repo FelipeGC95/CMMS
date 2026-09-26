@@ -1,4 +1,4 @@
-{% extends "base.html" %}{% load i18n ui %}
+{% extends "base.html" %}{% load i18n ui accounts_tags %}
 {% block title %}{% translate "Avisar falla" %}{% endblock %}
 {% block content %}
 <div class="narrow">
@@ -27,5 +27,8 @@
     <button class="btn btn--primary btn--lg btn--block" type="submit">{% icon 'megaphone' %}{% translate "Enviar aviso" %}</button>
     <p class="help muted mt-2">{% translate "Se creará una orden de trabajo correctiva y se avisará a mantención." %}</p>
   </form>
+  {% if membership|can:"request.create" %}
+  <p class="mt-4"><a href="{% url 'location_report' %}{% if asset.location_id %}?location={{ asset.location_id }}{% endif %}">{% icon 'megaphone' %}{% translate "¿No es un equipo? Avisar problema en una ubicación" %}</a></p>
+  {% endif %}
 </div>
 {% endblock %}
