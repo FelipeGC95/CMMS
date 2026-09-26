@@ -38,7 +38,8 @@
   </section>
 </div>
 
-<section class="card narrow mt-4" aria-labelledby="decommission-form-title">
+<div class="mt-4">
+<section class="card narrow" aria-labelledby="decommission-form-title">
   <h2 id="decommission-form-title">{% translate "Confirmar la baja" %}</h2>
   <form method="post">
     {% csrf_token %}
@@ -49,4 +50,5 @@
     </div>
   </form>
 </section>
+</div>
 {% endblock %}
