@@ -1,0 +1,1 @@
+{% load i18n %}{% if wo.status == "on_hold" %}{% translate "Reanudar" %}{% elif wo.status == "completed" %}{% translate "Reabrir" %}{% else %}{% translate "Iniciar" %}{% endif %}

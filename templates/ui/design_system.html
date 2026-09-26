@@ -182,6 +182,46 @@
   <div class="card kpi kpi--alert"><span class="kpi__label">{% translate "OT vencidas" %}</span><span class="kpi__value">4</span><span class="kpi__hint">{% translate "de 18 abiertas" %}</span></div>
 </section>
 
+<section class="card mb-4" aria-labelledby="ds-layout">
+  <h2 id="ds-layout">{% translate "Acciones de cabecera, filtros y formularios en línea" %}</h2>
+  <h3>{% translate "Acción principal del estado (detalle de OT)" %}</h3>
+  <p class="muted">{% translate "La acción principal va primero, en cian; las demás transiciones son secundarias. En el teléfono la principal ocupa todo el ancho." %}</p>
+  <div class="page-actions mb-4">
+    <a class="btn btn--primary btn--lg page-actions__primary" href="#ds-layout">{% icon 'check' %}{% translate "Completar OT" %}</a>
+    <button class="btn btn--secondary btn--lg" type="button">{% icon 'clock' %}{% translate "En espera" %}</button>
+    <button class="btn btn--ghost btn--lg" type="button">{% translate "Cancelar OT" %}</button>
+  </div>
+  <h3>{% translate "Panel de filtros" %}</h3>
+  <p class="muted">{% translate "Plegable en el teléfono (abierto si hay filtros activos); en grilla de 2 columnas en tablet y 4 en escritorio." %}</p>
+  <details class="card mb-4 filters" open>
+    <summary class="filters__summary">
+      <span class="filters__title">{% translate "Filtros" %}</span>
+      <span class="badge badge--info">{% icon 'info' %}{% blocktranslate count n=1 %}{{ n }} activo{% plural %}{{ n }} activos{% endblocktranslate %}</span>
+    </summary>
+    <div class="form-grid">
+      <div class="field"><label for="ds-f-status">{% translate "Estado" %}</label><select id="ds-f-status"><option>{% translate "Todos los estados" %}</option></select></div>
+      <div class="field"><label for="ds-f-asset">{% translate "Activo o ubicación" %}</label><input type="search" id="ds-f-asset" value="CMP-01"></div>
+      <div class="field"><label for="ds-f-from">{% translate "Desde" %}</label><input type="date" id="ds-f-from"></div>
+      <div class="row form-grid__actions"><button class="btn btn--primary" type="button">{% translate "Filtrar" %}</button></div>
+    </div>
+  </details>
+  <h3>{% translate "Formulario en línea (costos de la OT)" %}</h3>
+  <p class="muted">{% translate "Una fila en escritorio con los campos numéricos cortos; dos columnas en tablet y una en el teléfono." %}</p>
+  <div class="cost-forms">
+    <div class="inline-form inline-form--4">
+      <div class="field"><label for="ds-part">{% translate "Repuesto o material" %}</label><input type="text" id="ds-part" value="{% translate 'Filtro de aire' %}"></div>
+      <div class="field"><label for="ds-qty">{% translate "Cantidad" %}</label><input type="number" id="ds-qty" class="num" value="2"></div>
+      <div class="field"><label for="ds-unit">{% translate "Unidad" %}</label><input type="text" id="ds-unit" value="un"></div>
+      <div class="field"><label for="ds-cost">{% translate "Costo unitario" %}</label><input type="number" id="ds-cost" class="num" value="8500"></div>
+      <button class="btn btn--secondary btn--lg inline-form__submit" type="button">{% icon 'box' %}{% translate "Agregar" %}</button>
+    </div>
+    <div class="inline-form inline-form--1">
+      <div class="field"><label for="ds-min">{% translate "Minutos trabajados" %}</label><input type="number" id="ds-min" class="num" value="45"></div>
+      <button class="btn btn--secondary btn--lg inline-form__submit" type="button">{% icon 'clock' %}{% translate "Registrar" %}</button>
+    </div>
+  </div>
+</section>
+
 <section class="card mb-4" aria-labelledby="ds-lists">
   <h2 id="ds-lists">{% translate "Filtros, listas y estado vacío" %}</h2>
   <nav class="chips" aria-label="{% translate 'Ejemplo de filtro' %}">

@@ -19,9 +19,6 @@ a { color: var(--color-link); text-underline-offset: 2px; }
 :focus-visible { outline: 3px solid var(--color-focus); outline-offset: 2px; border-radius: var(--radius-sm); }
 svg[aria-hidden="true"], svg[role="img"] { width: 1.1em; height: 1.1em; vertical-align: -0.2em; flex: none; }
 .muted { color: var(--color-text-muted); }
-.mt-2 { margin-top: var(--space-2); }
-.mt-4 { margin-top: var(--space-4); }
-.mb-4 { margin-bottom: var(--space-4); }
 .narrow { max-width: 560px; margin: 0 auto; }
 .mono { font-family: var(--font-mono); font-size: 0.92em; }
 .num { font-family: var(--font-ui); font-variant-numeric: tabular-nums; }
@@ -150,7 +147,7 @@ main { max-width: var(--content-max); margin: 0 auto; padding: var(--space-5) va
   min-height: 40px; padding: var(--space-2) var(--space-4);
   border-radius: var(--radius-md); border: 2px solid transparent;
   font-family: var(--font-brand); font-weight: 500; font-size: var(--text-md);
-  text-decoration: none; cursor: pointer; transition: background var(--duration-fast);
+  line-height: 1.25; text-decoration: none; cursor: pointer; transition: background var(--duration-fast);
 }
 .btn svg { width: 20px; height: 20px; flex: none; }
 .btn--primary { background: var(--color-action-bg); color: var(--color-action-text); }
@@ -255,6 +252,55 @@ main { max-width: var(--content-max); margin: 0 auto; padding: var(--space-5) va
   .search-bar .input--narrow { flex-grow: 1; }
 }
 
+/* Grilla de filtros: una columna en el teléfono, dos en tablet y cuatro en escritorio. */
+.form-grid { display: grid; grid-template-columns: minmax(0, 1fr); column-gap: var(--space-4); align-items: start; }
+.form-grid > .alert, .form-grid > .check-group { grid-column: 1 / -1; }
+.form-grid__actions { align-self: end; margin-bottom: var(--space-4); }
+@media (min-width: 720px) {
+  .form-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (min-width: 1100px) {
+  .form-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+/* Panel de filtros plegable (<details>, sin JS): cerrado en el teléfono salvo que haya filtros
+   activos; desde 720 px el contenido se muestra siempre y el título deja de ser un botón. */
+.filters__summary { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); min-height: var(--touch-target); cursor: pointer; list-style: none; }
+.filters__summary::-webkit-details-marker { display: none; }
+.filters__summary h2 { margin: 0; }
+.filters__title { font-family: var(--font-brand); font-weight: 500; font-size: var(--text-lg); color: var(--color-text-brand); }
+.filters__summary::after { content: "+"; margin-left: auto; font-family: var(--font-ui); font-size: var(--text-xl); line-height: 1; color: var(--color-text-muted); }
+.filters[open] > .filters__summary::after { content: "\2212"; }
+.filters[open] > .filters__summary { margin-bottom: var(--space-3); }
+@media (min-width: 720px) {
+  .filters::details-content { content-visibility: visible; display: block; }
+  .filters > .filters__summary { margin-bottom: var(--space-3); cursor: default; pointer-events: none; }
+  .filters > .filters__summary::after { content: none; }
+}
+
+/* Formularios en línea (costos de la OT): una columna en el teléfono, dos en tablet y una
+   fila en escritorio con el primer campo más ancho y los numéricos cortos. */
+.cost-forms > * + * { margin-top: var(--space-4); padding-top: var(--space-4); border-top: 1px solid var(--color-border); }
+.inline-form { display: grid; grid-template-columns: minmax(0, 1fr); column-gap: var(--space-3); align-items: end; }
+.inline-form__title { grid-column: 1 / -1; }
+.inline-form__submit { justify-self: start; margin-bottom: var(--space-4); }
+@media (min-width: 720px) {
+  .inline-form { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .inline-form--1 { grid-template-columns: minmax(0, 16rem) auto; }
+}
+@media (min-width: 1100px) {
+  .inline-form--4 { grid-template-columns: minmax(0, 2fr) repeat(3, minmax(0, 1fr)) auto; }
+  .inline-form--3 { grid-template-columns: minmax(0, 2fr) minmax(0, 1.5fr) minmax(0, 1fr) auto; }
+}
+
+/* Acciones de la cabecera (detalle de OT): la principal primero y, en el teléfono, a todo el ancho. */
+.page-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; }
+.page-actions > form { display: contents; }
+@media (max-width: 720px) {
+  .page-actions { width: 100%; }
+  .page-actions > .btn { flex: 1 1 auto; }
+  .page-actions > .page-actions__primary { flex-basis: 100%; }
+}
+
 /* ---------- Alertas ---------- */
 .alert { display: flex; gap: var(--space-2); align-items: flex-start; padding: var(--space-3) var(--space-4); border-radius: var(--radius-md); margin-bottom: var(--space-4); font-weight: 500; }
 .alert svg { width: 20px; height: 20px; flex: none; margin-top: 2px; }
@@ -273,7 +319,7 @@ main { max-width: var(--content-max); margin: 0 auto; padding: var(--space-5) va
 .check-item__num { font-family: var(--font-mono); color: var(--color-text-muted); }
 .check-item form { margin: 0; }
 /* Tres resultados en una fila: caben a 360 px sin partir «No OK» en dos líneas. */
-.segmented { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-2); }
+.segmented { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-2); max-width: 36rem; }
 .segmented button {
   min-height: var(--touch-target); border-radius: var(--radius-md); border: 2px solid var(--color-border-strong);
   background: var(--color-surface); color: var(--color-text); font-family: var(--font-brand); font-weight: 500; font-size: var(--text-md);
@@ -371,3 +417,8 @@ main { max-width: var(--content-max); margin: 0 auto; padding: var(--space-5) va
   body { background: var(--color-qr-bg); }
   main { padding: 0; max-width: none; }
 }
+
+/* ---------- Utilidades (al final: ganan a los márgenes de los componentes, p. ej. .dl.mb-4) ---------- */
+.mt-2 { margin-top: var(--space-2); }
+.mt-4 { margin-top: var(--space-4); }
+.mb-4 { margin-bottom: var(--space-4); }

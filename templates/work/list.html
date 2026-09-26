@@ -23,18 +23,22 @@
   {% endfor %}
 </nav>
 
-<section class="card mb-4" aria-labelledby="filters-title">
-  <h2 id="filters-title">{% translate "Filtros" %}</h2>
-  <form method="get">
+{# Filtros plegables en el teléfono (se abren solos si hay alguno activo); en tablet y escritorio siempre visibles, en grilla. #}
+<details class="card mb-4 filters"{% if filters_open %} open{% endif %}>
+  <summary class="filters__summary">
+    <h2 id="filters-title">{% translate "Filtros" %}</h2>
+    {% if active_filters %}<span class="badge badge--info">{% icon 'info' %}{% blocktranslate count n=active_filters %}{{ n }} activo{% plural %}{{ n }} activos{% endblocktranslate %}</span>{% endif %}
+  </summary>
+  <form method="get" class="form-grid" aria-labelledby="filters-title">
     <input type="hidden" name="scope" value="{{ scope }}">
     {% if work_type %}<input type="hidden" name="type" value="{{ work_type }}">{% endif %}
     {% include "_form_fields.html" with form=filter_form %}
-    <div class="row">
+    <div class="row form-grid__actions">
       <button class="btn btn--primary" type="submit">{% translate "Filtrar" %}</button>
       <a class="btn btn--ghost" href="?scope={{ scope }}{% if work_type %}&type={{ work_type }}{% endif %}">{% translate "Limpiar filtros" %}</a>
     </div>
   </form>
-</section>
+</details>
 
 <div class="card">
   {% if page.object_list %}

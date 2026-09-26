@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-26 20:20-0300\n"
+"POT-Creation-Date: 2026-09-26 20:29-0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -3402,6 +3402,45 @@ msgstr ""
 msgid "de 18 abiertas"
 msgstr ""
 
+msgid "Acciones de cabecera, filtros y formularios en línea"
+msgstr ""
+
+msgid "Acción principal del estado (detalle de OT)"
+msgstr ""
+
+msgid ""
+"La acción principal va primero, en cian; las demás transiciones son "
+"secundarias. En el teléfono la principal ocupa todo el ancho."
+msgstr ""
+
+msgid "Completar OT"
+msgstr ""
+
+msgid "Cancelar OT"
+msgstr ""
+
+msgid "Panel de filtros"
+msgstr ""
+
+msgid ""
+"Plegable en el teléfono (abierto si hay filtros activos); en grilla de 2 "
+"columnas en tablet y 4 en escritorio."
+msgstr ""
+
+msgid "Filtros"
+msgstr ""
+
+msgid "Formulario en línea (costos de la OT)"
+msgstr ""
+
+msgid ""
+"Una fila en escritorio con los campos numéricos cortos; dos columnas en "
+"tablet y una en el teléfono."
+msgstr ""
+
+msgid "Filtro de aire"
+msgstr ""
+
 msgid "Filtros, listas y estado vacío"
 msgstr ""
 
@@ -3549,6 +3588,12 @@ msgstr ""
 msgid "Activa JavaScript para firmar en pantalla."
 msgstr ""
 
+msgid "Reanudar"
+msgstr ""
+
+msgid "Reabrir"
+msgstr ""
+
 msgid "Checklist"
 msgstr ""
 
@@ -3599,7 +3644,7 @@ msgstr ""
 msgid "Vence a"
 msgstr ""
 
-msgid "Cancelar OT"
+msgid "Ir al checklist"
 msgstr ""
 
 msgid "Aprobar cierre"
@@ -3668,9 +3713,6 @@ msgstr ""
 msgid "Registrar horas"
 msgstr ""
 
-msgid "Agregar otro costo"
-msgstr ""
-
 msgid "Otro costo (servicio externo)"
 msgstr ""
 
@@ -3714,9 +3756,6 @@ msgstr ""
 msgid "Registro de falla"
 msgstr ""
 
-msgid "Completar OT"
-msgstr ""
-
 #, python-format
 msgid "%(n)s código"
 msgid_plural "%(n)s códigos"
@@ -3756,9 +3795,6 @@ msgstr[0] ""
 msgstr[1] ""
 
 msgid "Filtro"
-msgstr ""
-
-msgid "Filtros"
 msgstr ""
 
 msgid "Limpiar filtros"
