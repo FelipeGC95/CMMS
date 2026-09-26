@@ -173,6 +173,8 @@
   <p class="empty">{% icon 'check' %} {% translate "No hay OT en esta vista." %}</p>
   <h3>{% translate "Vista previa del logo de la organización" %}</h3>
   <div class="logo-preview"><img src="{% static 'brand/galbust-horizontal-color.svg' %}" alt="{% translate 'Logo de ejemplo' %}"></div>
+  <h3>{% translate "Casilla de selección en tablas (etiquetas QR)" %}</h3>
+  <label class="check-cell"><input type="checkbox" name="ds-check"><span class="visually-hidden">{% translate "Imprimir la etiqueta de CMP-01" %}</span></label>
   <h3>{% translate "Lista de navegación (menú Más, ADR-017)" %}</h3>
   <ul class="list list--nav">
     <li><a href="#ds-lists">{% icon 'megaphone' %}{% translate "Solicitudes" %}</a></li>

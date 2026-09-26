@@ -32,6 +32,17 @@ def asset_list(*, membership, search: str = "", status: str = "", parent=None):
     return qs
 
 
+def label_assets(*, membership, ids=None, search: str = "", status: str = "", parent=None):
+    """Activos para las etiquetas QR (AST-05 CA2): los marcados (`ids`) o los del filtro.
+
+    Mismo alcance y filtros que la lista; solo trae lo que se imprime, ordenado por código.
+    """
+    qs = asset_list(membership=membership, search=search, status=status, parent=parent)
+    if ids is not None:
+        qs = qs.filter(pk__in=ids)
+    return qs.select_related(None).only("id", "code", "name", "qr_token").order_by("code")
+
+
 def asset_by_qr_token(token: str, *, membership) -> Asset | None:
     return visible_assets(membership=membership).filter(qr_token=token, is_active=True).first()
 

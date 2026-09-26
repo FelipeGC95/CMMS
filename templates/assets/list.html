@@ -10,14 +10,42 @@
   {% if not request.GET.report %}<div class="row">
     {% if can_manage %}<a class="btn btn--primary" href="{% url 'asset_create' %}{% if parent %}?parent={{ parent.pk }}{% endif %}">{% icon 'box' %}{% if parent %}{% translate "Agregar componente" %}{% else %}{% translate "Nuevo activo" %}{% endif %}</a>{% endif %}
     {% if membership|can_import_assets %}<a class="btn btn--secondary" href="{% url 'asset_import' %}">{% icon 'box' %}{% translate "Importar desde Excel" %}</a>{% endif %}
-    <a class="btn btn--ghost" href="{% url 'asset_labels' %}">{% icon 'print' %}{% translate "Imprimir etiquetas QR" %}</a>
+    {% if not labels_mode %}<a class="btn btn--ghost" href="?{% for k, v in request.GET.items %}{% if k != 'page' %}{{ k }}={{ v|urlencode }}&{% endif %}{% endfor %}labels=1">{% icon 'print' %}{% translate "Imprimir etiquetas QR" %}</a>{% endif %}
     {% if membership|can:"asset.manage" %}<a class="btn btn--ghost" href="{% url 'location_list' %}">{% translate "Ubicaciones" %}</a>
     <a class="btn btn--ghost" href="{% url 'asset_class_list' %}">{% translate "Clases de activo" %}</a>{% endif %}
   </div>{% endif %}
 </div>
 
+{% if labels_mode %}
+<section class="card mb-4" id="labels" aria-labelledby="labels-title">
+  <h2 id="labels-title">{% translate "Imprimir etiquetas QR" %}</h2>
+  <p class="muted">{% translate "Se genera un PDF A4 con varias etiquetas por hoja: QR, código, nombre y el logo de la organización. Imprime al 100 % y recorta por la línea punteada." %}</p>
+  <form id="labels-form" method="get" action="{% url 'asset_labels_pdf' %}">
+    {% if search %}<input type="hidden" name="q" value="{{ search }}">{% endif %}
+    {% if status %}<input type="hidden" name="status" value="{{ status }}">{% endif %}
+    {% if parent %}<input type="hidden" name="parent" value="{{ parent.pk }}">{% endif %}
+    <div class="field">
+      <label for="label-size">{% translate "Tamaño de etiqueta" %}</label>
+      <select class="input" id="label-size" name="size">
+        {% for key, label in label_layouts %}<option value="{{ key }}"{% if key == default_layout %} selected{% endif %}>{{ label }}</option>{% endfor %}
+      </select>
+    </div>
+    {% if labels_over_cap %}
+    <div class="alert alert--warning" role="status">{% icon 'alert' %}<span>{% blocktranslate with total=page.paginator.count max=max_labels %}La búsqueda tiene {{ total }} activos y un PDF admite hasta {{ max }} etiquetas. Filtra la lista o marca los activos de esta página.{% endblocktranslate %}</span></div>
+    {% endif %}
+    <div class="row">
+      {% if not labels_over_cap and page.paginator.count %}<button class="btn btn--primary" type="submit" name="scope" value="filtered">{% icon 'print' %}{% blocktranslate count n=page.paginator.count %}PDF de {{ n }} activo{% plural %}PDF de los {{ n }} activos{% endblocktranslate %}</button>{% endif %}
+      <button class="btn btn--secondary" type="submit" name="scope" value="selected">{% icon 'check' %}{% translate "PDF de los marcados" %}</button>
+      <a class="btn btn--ghost" href="?{% for k, v in request.GET.items %}{% if k != 'labels' and k != 'page' %}{{ k }}={{ v|urlencode }}&{% endif %}{% endfor %}">{% translate "Cancelar" %}</a>
+    </div>
+    <p class="help muted mt-2">{% translate "Las marcas valen para la página que ves; para imprimir de varias páginas, usa la búsqueda o el filtro de estado." %}</p>
+  </form>
+</section>
+{% endif %}
+
 <form class="search-bar" method="get" role="search">
   {% if request.GET.report %}<input type="hidden" name="report" value="1">{% endif %}
+  {% if labels_mode %}<input type="hidden" name="labels" value="1">{% endif %}
   {% if parent %}<input type="hidden" name="parent" value="{{ parent.pk }}">{% endif %}
   <label class="visually-hidden" for="q">{% translate "Buscar" %}</label>
   <input class="input" type="search" id="q" name="q" value="{{ search }}" placeholder="{% translate 'Buscar por código o nombre' %}">
@@ -32,10 +60,11 @@
 <div class="card card--flush">
   {% if page.object_list %}
   <table class="table">
-    <thead><tr><th>{% translate "Código" %}</th><th>{% translate "Nombre" %}</th><th>{% translate "Clase" %}</th><th>{% translate "Ubicación" %}</th><th>{% translate "Criticidad" %}</th><th>{% translate "Estado" %}</th>{% if request.GET.report %}<th><span class="visually-hidden">{% translate "Acción" %}</span></th>{% endif %}</tr></thead>
+    <thead><tr>{% if labels_mode %}<th><span class="visually-hidden">{% translate "Imprimir" %}</span></th>{% endif %}<th>{% translate "Código" %}</th><th>{% translate "Nombre" %}</th><th>{% translate "Clase" %}</th><th>{% translate "Ubicación" %}</th><th>{% translate "Criticidad" %}</th><th>{% translate "Estado" %}</th>{% if request.GET.report %}<th><span class="visually-hidden">{% translate "Acción" %}</span></th>{% endif %}</tr></thead>
     <tbody>
       {% for asset in page.object_list %}
       <tr>
+        {% if labels_mode %}<td data-label=""><label class="check-cell"><input type="checkbox" name="ids" value="{{ asset.pk }}" form="labels-form"><span class="visually-hidden">{% blocktranslate with code=asset.code %}Imprimir la etiqueta de {{ code }}{% endblocktranslate %}</span></label></td>{% endif %}
         <td class="mono" data-label="">{{ asset.code }}</td>
         <td data-label=""><a href="{% url 'asset_detail' asset.pk %}">{{ asset.name }}</a></td>
         <td data-label="{% translate 'Clase' %}">{{ asset.asset_class }}</td>

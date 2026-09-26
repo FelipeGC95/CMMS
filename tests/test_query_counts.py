@@ -58,7 +58,7 @@ def _count(client, url):
         "asset_list",
         "asset_create",
         "work_order_list",
-        "asset_labels",
+        "asset_labels_pdf",
         "design_system",
         "team",
         "location_list",
@@ -244,3 +244,13 @@ def test_checklist_screens_do_not_grow_with_items_photos_or_plans(
     _checklist_rows(tenant_a, wo, 8)
     many = _count(client, url)
     assert many == few, f"{url_name}: {few} → {many} consultas"
+
+
+def test_asset_list_in_labels_mode_does_not_grow_with_rows(client, tenant_a):
+    """Modo etiquetas de la lista (AST-05 CA2): las casillas no agregan consultas por fila."""
+    login(client, tenant_a.admin)
+    url = f"{reverse('asset_list')}?labels=1"
+    _add_rows(tenant_a, 2)
+    few = _count(client, url)
+    _add_rows(tenant_a, 10)
+    assert _count(client, url) == few

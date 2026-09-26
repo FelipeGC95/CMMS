@@ -1,11 +1,14 @@
+import uuid
+
 import segno
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.paginator import Paginator
-from django.http import Http404
+from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
+from django.utils.http import urlencode
 from django.utils.safestring import mark_safe
 from django.utils.translation import gettext as _
 from django.views.decorators.http import require_POST
@@ -25,6 +28,7 @@ from apps.work.services import WorkOrderError, report_failure
 
 from .attributes import attribute_rows
 from .forms import AssetAttachmentForm, AssetDecommissionForm, AssetForm, AssetStatusForm, MeterReadingForm
+from .labels import DEFAULT_LAYOUT, LAYOUTS, MAX_LABELS, render_labels_pdf
 from .models import Asset, Meter
 from .selectors import (
     active_attributes,
@@ -34,6 +38,7 @@ from .selectors import (
     asset_list,
     asset_scope_ids,
     asset_status_history,
+    label_assets,
     visible_assets,
 )
 from .services import (
@@ -54,8 +59,8 @@ def _qr_svg(request, asset, scale=4):
     return mark_safe(svg)  # SVG generado por segno a partir de una URL nuestra.
 
 
-@membership_required
-def asset_list_view(request):
+def _list_filters(request):
+    """Búsqueda, estado y activo padre de la lista, leídos de la URL (padre ajeno o inválido: 404)."""
     search = request.GET.get("q", "").strip()
     status = request.GET.get("status", "")
     parent = None
@@ -66,8 +71,16 @@ def asset_list_view(request):
             parent = None
         if parent is None:
             raise Http404
+    return search, status, parent
+
+
+@membership_required
+def asset_list_view(request):
+    search, status, parent = _list_filters(request)
     assets = asset_list(membership=request.membership, search=search, status=status, parent=parent)
     page = Paginator(assets, 25).get_page(request.GET.get("page"))
+    # Modo etiquetas (AST-05 CA2): casillas por fila y el formulario del PDF.
+    labels_mode = request.GET.get("labels") == "1" and not request.GET.get("report")
     return render(
         request,
         "assets/list.html",
@@ -78,6 +91,11 @@ def asset_list_view(request):
             "statuses": Asset.Status.choices,
             "parent": parent,
             "can_manage": has_perm(request.membership, Perm.ASSET_MANAGE),
+            "labels_mode": labels_mode,
+            "label_layouts": [(key, layout.label) for key, layout in LAYOUTS.items()],
+            "default_layout": DEFAULT_LAYOUT,
+            "max_labels": MAX_LABELS,
+            "labels_over_cap": labels_mode and page.paginator.count > MAX_LABELS,
         },
     )
 
@@ -316,9 +334,60 @@ def meter_reading_view(request, pk, meter_pk):
 
 @membership_required
 def asset_labels_view(request):
-    assets = asset_list(membership=request.membership)
-    labels = [(asset, _qr_svg(request, asset, scale=3)) for asset in assets]
-    return render(request, "assets/labels.html", {"labels": labels})
+    """Dirección antigua de las etiquetas: ahora se eligen en la lista y se imprimen en PDF."""
+    return redirect(f"{reverse('asset_list')}?labels=1")
+
+
+def _selected_ids(values):
+    ids = []
+    for value in values:
+        try:
+            ids.append(uuid.UUID(value))
+        except ValueError:
+            continue  # un id malformado se ignora, como uno de otra organización
+    return ids
+
+
+@membership_required
+def asset_labels_pdf_view(request):
+    """PDF de etiquetas QR, varias por hoja A4 (AST-05 CA2).
+
+    `scope=selected` imprime los activos marcados (`ids`); si no, todos los del filtro
+    actual. Siempre dentro del alcance de la membresía y con un tope de `MAX_LABELS`.
+    """
+    search, status, parent = _list_filters(request)
+    filters = {"q": search, "status": status, "parent": parent.pk if parent else ""}
+    back = f"{reverse('asset_list')}?{urlencode({**{k: v for k, v in filters.items() if v}, 'labels': 1})}"
+    ids = None
+    if request.GET.get("scope") == "selected":
+        ids = _selected_ids(request.GET.getlist("ids"))
+        if not ids:
+            messages.warning(request, _("Marca al menos un activo para imprimir sus etiquetas."))
+            return redirect(back)
+    assets = label_assets(membership=request.membership, ids=ids, search=search, status=status, parent=parent)
+    total = assets.count()
+    if total == 0:
+        messages.info(request, _("No hay activos para imprimir."))
+        return redirect(back)
+    if total > MAX_LABELS:
+        messages.error(
+            request,
+            _(
+                "Son %(total)s activos y un PDF admite hasta %(max)s etiquetas. "
+                "Filtra la lista (búsqueda, estado o activo padre) y genera varios PDF."
+            )
+            % {"total": total, "max": MAX_LABELS},
+        )
+        return redirect(back)
+    pdf = render_labels_pdf(
+        assets=assets,
+        organization=request.organization,
+        qr_url=lambda token: request.build_absolute_uri(reverse("asset_qr", args=[token])),
+        layout_key=request.GET.get("size", DEFAULT_LAYOUT),
+    )
+    response = HttpResponse(pdf, content_type="application/pdf")
+    response["Content-Disposition"] = f'inline; filename="etiquetas-qr-{request.organization.slug}.pdf"'
+    return response
 
 
 @login_required

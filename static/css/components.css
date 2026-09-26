@@ -314,12 +314,9 @@ main { max-width: var(--content-max); margin: 0 auto; padding: var(--space-5) va
 .auth__logo img { height: 96px; }
 .auth__product { font-family: var(--font-brand); font-weight: 500; color: var(--color-nav-text); letter-spacing: 0.08em; }
 
-/* ---------- Etiquetas QR imprimibles ---------- */
-.labels { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: var(--space-3); }
-.label { background: var(--color-qr-bg); color: var(--galbust-ink); border: 1px dashed var(--color-border-strong); border-radius: var(--radius-md); padding: var(--space-3); text-align: center; break-inside: avoid; }
-.label__code { font-family: var(--font-mono); font-weight: 400; font-size: var(--text-md); }
-.label__name { font-size: var(--text-xs); }
-.label__org { font-size: var(--text-xs); color: var(--galbust-blue); font-weight: 500; }
+/* ---------- Selección de etiquetas QR (AST-05 CA2) ---------- */
+.check-cell { display: inline-flex; align-items: center; justify-content: center; min-width: var(--touch-target); min-height: var(--touch-target); margin: calc(var(--space-3) * -1) 0; cursor: pointer; }
+.check-cell input { width: 24px; height: 24px; accent-color: var(--color-accent-text); }
 @media print {
   .navbar, .bottom-nav, .no-print, .footer { display: none !important; }
   body { background: var(--color-qr-bg); }
