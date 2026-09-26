@@ -70,6 +70,19 @@ def test_viewer_cannot_execute_checklist_via_view(client, tenant_a):
     assert response.status_code == 403
 
 
+def test_viewer_cannot_save_checklist_note_via_view(client, tenant_a):
+    wo = _work_order(tenant_a)
+    with tenant_context(tenant_a.org):
+        item = wo.checklist.first()
+    login(client, tenant_a.viewer)
+    url = reverse("checklist_answer", args=[wo.pk, item.pk])
+    response = client.post(url, {"note_only": "1", "note": "x"}, HTTP_HX_REQUEST="true")
+    assert response.status_code == 403
+    with tenant_context(tenant_a.org):
+        item.refresh_from_db()
+        assert item.note == ""
+
+
 def test_viewer_cannot_complete_via_view(client, tenant_a):
     wo = _work_order(tenant_a)
     login(client, tenant_a.viewer)
