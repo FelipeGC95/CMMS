@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-26 18:52-0300\n"
+"POT-Creation-Date: 2026-09-26 19:23-0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -346,6 +346,24 @@ msgid "Motivo de la baja"
 msgstr ""
 
 msgid "Por ejemplo: vendido, reemplazado o fuera de uso."
+msgstr ""
+
+#, python-format
+msgid "%(plan)s · cada %(frequency)s"
+msgstr ""
+
+msgid "Motivo de la reactivación"
+msgstr ""
+
+msgid "Por ejemplo: reparado, recuperado o vuelve a producción."
+msgstr ""
+
+msgid "Planes preventivos que se reactivan"
+msgstr ""
+
+msgid ""
+"Su próximo vencimiento se calcula desde hoy. Los no marcados siguen "
+"desactivados."
 msgstr ""
 
 msgid "Archivo Excel (.xlsx)"
@@ -833,6 +851,12 @@ msgstr ""
 msgid "El activo ya está dado de baja."
 msgstr ""
 
+msgid "El activo no está dado de baja."
+msgstr ""
+
+msgid "Elige solo planes desactivados de este activo."
+msgstr ""
+
 msgid "La lectura no puede ser negativa."
 msgstr ""
 
@@ -890,6 +914,10 @@ msgstr ""
 
 #, python-format
 msgid "Activo %(code)s dado de baja."
+msgstr ""
+
+#, python-format
+msgid "Activo %(code)s reactivado."
 msgstr ""
 
 #, python-format
@@ -2547,6 +2575,14 @@ msgstr ""
 msgid "Sin OT abiertas."
 msgstr ""
 
+msgid "Componentes activos"
+msgstr ""
+
+msgid ""
+"Estos componentes siguen operativos; dalos de baja por separado si "
+"corresponde."
+msgstr ""
+
 msgid "Confirmar la baja"
 msgstr ""
 
@@ -2876,6 +2912,18 @@ msgid "Avisar"
 msgstr ""
 
 msgid "No hay activos que coincidan."
+msgstr ""
+
+#, python-format
+msgid ""
+"%(name)s volverá a «Operativo». Los planes preventivos desactivados en la "
+"baja no se reactivan solos: marca los que correspondan."
+msgstr ""
+
+msgid "Confirmar la reactivación"
+msgstr ""
+
+msgid "El activo no tiene planes preventivos para reactivar."
 msgstr ""
 
 #, python-format

@@ -38,6 +38,24 @@
   </section>
 </div>
 
+{% if active_children %}
+<section class="card mt-4" aria-labelledby="children-title">
+  <h2 id="children-title">{% translate "Componentes activos" %}</h2>
+  <div class="alert alert--warning" role="status">{% icon 'alert' %}<span>{% translate "Estos componentes siguen operativos; dalos de baja por separado si corresponde." %}</span></div>
+  <ul class="list">
+    {% for child in active_children %}
+    <li>
+      <div class="list__main">
+        <a class="list__title" href="{% url 'asset_detail' child.pk %}">{{ child.name }}</a>
+        <span class="list__meta"><span class="mono">{{ child.code }}</span>{% if child.location %} · {{ child.location }}{% endif %}</span>
+      </div>
+      {% status_badge child %}
+    </li>
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
+
 <div class="mt-4">
 <section class="card narrow" aria-labelledby="decommission-form-title">
   <h2 id="decommission-form-title">{% translate "Confirmar la baja" %}</h2>

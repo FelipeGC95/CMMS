@@ -127,6 +127,31 @@ def decommission_asset(*, membership, asset: Asset, reason: str) -> Asset:
 
 
 @transaction.atomic
+def reactivate_asset(*, membership, asset: Asset, reason: str, assignment_ids=()) -> Asset:
+    """Reactiva un activo dado de baja (AST-04): cierra el período "de baja" y abre "operativo".
+
+    Los planes desactivados en la baja no vuelven solos: solo se reactivan las
+    asignaciones elegidas (`assignment_ids`), con el vencimiento recalculado
+    desde hoy. Los componentes no se tocan.
+    """
+    from apps.maintenance.selectors import reactivatable_assignments_for_asset
+    from apps.maintenance.services import reactivate_assignments
+
+    _require_manageable_asset(membership=membership, asset=asset)
+    asset = Asset.objects.select_for_update().get(pk=asset.pk)
+    if asset.status != Asset.Status.RETIRED:
+        raise ValidationError(gettext("El activo no está dado de baja."))
+    reason = _clean_reason(reason)
+    wanted = {str(pk) for pk in assignment_ids}
+    assignments = [a for a in reactivatable_assignments_for_asset(asset=asset) if str(a.pk) in wanted]
+    if len(assignments) != len(wanted):
+        raise ValidationError(gettext("Elige solo planes desactivados de este activo."))
+    change_asset_status(asset=asset, status=Asset.Status.OPERATIONAL, by=membership.user, reason=reason)
+    reactivate_assignments(asset=asset, assignments=assignments, by=membership.user)
+    return asset
+
+
+@transaction.atomic
 def record_meter_reading(
     *,
     meter: Meter,

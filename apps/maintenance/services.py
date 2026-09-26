@@ -263,6 +263,24 @@ def deactivate_asset_assignments(*, asset, by=None, reason: str = "") -> int:
     return len(assignments)
 
 
+@transaction.atomic
+def reactivate_assignments(*, asset, assignments, by=None) -> list[PlanAssignment]:
+    """Vuelve a activar las asignaciones elegidas al reactivar un activo (AST-04).
+
+    Reutiliza `assign_plan`: el próximo vencimiento se recalcula desde hoy con la
+    versión vigente (calendario: hoy + frecuencia; uso: lectura actual +
+    intervalo) y el cambio queda auditado. Conserva el medidor elegido si sigue
+    activo y es del tipo del plan.
+    """
+    reactivated = []
+    for assignment in assignments:
+        plan, meter = assignment.plan, assignment.meter
+        if meter is not None and (not meter.is_active or meter.kind != plan.meter_kind):
+            meter = None
+        reactivated.append(assign_plan(plan=plan, asset=asset, meter=meter, by=by))
+    return reactivated
+
+
 # --- Programador ------------------------------------------------------------
 
 

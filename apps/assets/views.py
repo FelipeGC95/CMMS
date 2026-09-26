@@ -20,14 +20,21 @@ from apps.attachments.services import AttachmentError
 from apps.attachments.services import add_attachment as add_generic_attachment
 from apps.core.decorators import membership_required
 from apps.core.middleware import SESSION_KEY
-from apps.maintenance.selectors import active_assignments_for_asset
+from apps.maintenance.selectors import active_assignments_for_asset, reactivatable_assignments_for_asset
 from apps.reporting.selectors import asset_kpis
 from apps.work.forms import FailureReportForm
 from apps.work.selectors import work_order_list
 from apps.work.services import WorkOrderError, report_failure
 
 from .attributes import attribute_rows
-from .forms import AssetAttachmentForm, AssetDecommissionForm, AssetForm, AssetStatusForm, MeterReadingForm
+from .forms import (
+    AssetAttachmentForm,
+    AssetDecommissionForm,
+    AssetForm,
+    AssetReactivateForm,
+    AssetStatusForm,
+    MeterReadingForm,
+)
 from .labels import DEFAULT_LAYOUT, LAYOUTS, MAX_LABELS, render_labels_pdf
 from .models import Asset, Meter
 from .selectors import (
@@ -44,6 +51,7 @@ from .selectors import (
 from .services import (
     create_asset,
     decommission_asset,
+    reactivate_asset,
     record_meter_reading,
     set_asset_status,
     update_asset,
@@ -207,8 +215,42 @@ def asset_decommission_view(request, pk):
             "form": form,
             "assignments": active_assignments_for_asset(asset=asset),
             "open_work_orders": work_order_list(membership=request.membership, scope="open", asset=asset),
+            # Sin cascada: los componentes siguen operativos y se dan de baja por separado.
+            "active_children": asset_children(membership=request.membership, asset=asset).exclude(
+                status=Asset.Status.RETIRED
+            ),
         },
     )
+
+
+@membership_required(perm=Perm.ASSET_MANAGE)
+def asset_reactivate_view(request, pk):
+    """Reactivar un activo dado de baja (AST-04): motivo y planes elegidos para reactivar."""
+    asset = get_object_or_404(
+        visible_assets(membership=request.membership).select_related("location"), pk=pk, is_active=True
+    )
+    if asset.status != Asset.Status.RETIRED:
+        messages.info(request, _("El activo no está dado de baja."))
+        return redirect("asset_detail", pk=asset.pk)
+    form = AssetReactivateForm(
+        request.POST or None, assignments=reactivatable_assignments_for_asset(asset=asset)
+    )
+    if request.method == "POST" and form.is_valid():
+        try:
+            reactivate_asset(
+                membership=request.membership,
+                asset=asset,
+                reason=form.cleaned_data["reason"],
+                assignment_ids=form.assignment_ids(),
+            )
+        except PermissionDeniedError as exc:
+            raise PermissionDenied from exc
+        except ValidationError as error:
+            form.add_error(None, error)
+        else:
+            messages.success(request, _("Activo %(code)s reactivado.") % {"code": asset.code})
+            return redirect("asset_detail", pk=asset.pk)
+    return render(request, "assets/reactivate.html", {"asset": asset, "form": form})
 
 
 @membership_required(perm=Perm.ASSET_MANAGE)

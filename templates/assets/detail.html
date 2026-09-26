@@ -44,6 +44,7 @@
     </div>{% endif %}
     {% endif %}
     {% if can_manage and not is_retired %}<div class="row mt-4"><a class="btn btn--ghost" href="{% url 'asset_decommission' asset.pk %}">{% icon 'x' %}{% translate "Dar de baja" %}</a></div>{% endif %}
+    {% if can_manage and is_retired %}<div class="row mt-4"><a class="btn btn--secondary" href="{% url 'asset_reactivate' asset.pk %}">{% icon 'play' %}{% translate "Reactivar" %}</a></div>{% endif %}
   </section>
   <section class="card" aria-labelledby="qr-title">
     <h2 id="qr-title">{% translate "Código QR" %}</h2>

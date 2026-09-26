@@ -7,6 +7,7 @@ urlpatterns = [
     path("assets/<uuid:pk>/edit/", views.asset_edit_view, name="asset_edit"),
     path("assets/<uuid:pk>/status/", views.asset_status_view, name="asset_status"),
     path("assets/<uuid:pk>/decommission/", views.asset_decommission_view, name="asset_decommission"),
+    path("assets/<uuid:pk>/reactivate/", views.asset_reactivate_view, name="asset_reactivate"),
     path("assets/attribute-fields/", views.asset_attribute_fields_view, name="asset_attribute_fields"),
     path("asset-classes/", class_views.asset_class_list_view, name="asset_class_list"),
     path("asset-classes/<uuid:pk>/", class_views.asset_class_detail_view, name="asset_class_detail"),

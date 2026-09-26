@@ -227,6 +227,53 @@ def test_asset_decommission_confirmation_queries_do_not_grow(client, tenant_a):
     assert many == few, f"asset_decommission: {few} → {many} consultas"
 
 
+def _add_retired_plans(tenant, n):
+    from apps.assets.services import change_asset_status
+    from apps.maintenance.models import ItemType, MaintenancePlan, PlanAssignment
+    from apps.maintenance.services import assign_plan, create_plan
+
+    with tenant_context(tenant.org):
+        for i in range(n):
+            plan = create_plan(
+                code=f"PR-{MaintenancePlan.objects.count():03d}",
+                name=f"Plan {i}",
+                interval_days=7,
+                items=[{"text": "Revisar", "item_type": ItemType.CHECK}],
+            )
+            change_asset_status(asset=tenant.asset, status="operational", reason="x")
+            assign_plan(plan=plan, asset=tenant.asset)
+            Asset.objects.create(
+                code=f"C-{Asset.objects.count():03d}",
+                name=f"Componente {i}",
+                asset_class=tenant.asset.asset_class,
+                parent=tenant.asset,
+            )
+        PlanAssignment.objects.filter(asset=tenant.asset).update(is_active=False)
+        change_asset_status(asset=tenant.asset, status="retired", reason="Baja")
+
+
+def test_asset_reactivate_confirmation_queries_do_not_grow(client, tenant_a, django_assert_max_num_queries):
+    login(client, tenant_a.admin)
+    url = reverse("asset_reactivate", args=[tenant_a.asset.pk])
+    _add_retired_plans(tenant_a, 2)
+    few = _count(client, url)
+    _add_retired_plans(tenant_a, 10)
+    many = _count(client, url)
+    assert many == few, f"asset_reactivate: {few} → {many} consultas"
+    with django_assert_max_num_queries(20):
+        assert client.get(url).status_code == 200
+
+
+def test_asset_decommission_queries_do_not_grow_with_components(client, tenant_a):
+    login(client, tenant_a.admin)
+    url = reverse("asset_decommission", args=[tenant_a.asset.pk])
+    _add_component_tree(tenant_a, 2)
+    few = _count(client, url)
+    _add_component_tree(tenant_a, 12)
+    many = _count(client, url)
+    assert many == few, f"asset_decommission (componentes): {few} → {many} consultas"
+
+
 def test_asset_edit_queries_do_not_grow_with_rows(client, tenant_a):
     login(client, tenant_a.admin)
     url = reverse("asset_edit", args=[tenant_a.asset.pk])

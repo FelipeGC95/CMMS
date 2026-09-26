@@ -238,3 +238,39 @@ class AssetDecommissionForm(forms.Form):
         widget=forms.Textarea(attrs={"rows": 3}),
         help_text=_("Por ejemplo: vendido, reemplazado o fuera de uso."),
     )
+
+
+class _AssignmentChoiceField(forms.ModelMultipleChoiceField):
+    def label_from_instance(self, obj):
+        return _("%(plan)s · cada %(frequency)s") % {
+            "plan": obj.plan.name,
+            "frequency": obj.plan.frequency_label,
+        }
+
+
+class AssetReactivateForm(forms.Form):
+    """Reactivar un activo dado de baja (AST-04): motivo y planes que vuelven a activarse."""
+
+    reason = forms.CharField(
+        label=_("Motivo de la reactivación"),
+        max_length=200,
+        widget=forms.Textarea(attrs={"rows": 3}),
+        help_text=_("Por ejemplo: reparado, recuperado o vuelve a producción."),
+    )
+    assignments = _AssignmentChoiceField(
+        label=_("Planes preventivos que se reactivan"),
+        queryset=None,
+        required=False,
+        widget=forms.CheckboxSelectMultiple,
+        help_text=_("Su próximo vencimiento se calcula desde hoy. Los no marcados siguen desactivados."),
+    )
+
+    def __init__(self, *args, assignments, **kwargs):
+        super().__init__(*args, **kwargs)
+        if assignments:
+            self.fields["assignments"].queryset = assignments
+        else:
+            del self.fields["assignments"]
+
+    def assignment_ids(self):
+        return [a.pk for a in self.cleaned_data.get("assignments", [])]
