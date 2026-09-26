@@ -15,6 +15,7 @@
 </div>
 
 {% if is_retired %}<div class="alert alert--info mb-4" role="status">{% icon 'info' %}<span>{% translate "Activo dado de baja: no genera mantenimientos preventivos y su historial se conserva." %}</span></div>{% endif %}
+{% if can_manage and missing_required_count %}<div class="alert alert--warning mb-4" role="status">{% icon 'alert' %}<span>{% blocktranslate count n=missing_required_count %}Falta {{ n }} dato técnico obligatorio.{% plural %}Faltan {{ n }} datos técnicos obligatorios.{% endblocktranslate %} <a href="{% url 'asset_attributes' asset.pk %}">{% translate "Completar" %}</a></span></div>{% endif %}
 
 <div class="grid grid--2">
   <section class="card" aria-labelledby="data-title">

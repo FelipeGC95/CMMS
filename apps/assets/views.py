@@ -26,7 +26,7 @@ from apps.work.forms import FailureReportForm
 from apps.work.selectors import work_order_list
 from apps.work.services import WorkOrderError, report_failure
 
-from .attributes import attribute_rows
+from .attributes import attribute_rows, missing_required
 from .forms import (
     AssetAttachmentForm,
     AssetDecommissionForm,
@@ -68,9 +68,13 @@ def _qr_svg(request, asset, scale=4):
 
 
 def _list_filters(request):
-    """Búsqueda, estado y activo padre de la lista, leídos de la URL (padre ajeno o inválido: 404)."""
+    """Búsqueda, estado, activo padre y "datos técnicos incompletos" de la lista, leídos de la URL.
+
+    Un padre ajeno o inválido es 404.
+    """
     search = request.GET.get("q", "").strip()
     status = request.GET.get("status", "")
+    incomplete = request.GET.get("incomplete") == "1"
     parent = None
     if request.GET.get("parent"):
         try:
@@ -79,13 +83,15 @@ def _list_filters(request):
             parent = None
         if parent is None:
             raise Http404
-    return search, status, parent
+    return search, status, parent, incomplete
 
 
 @membership_required
 def asset_list_view(request):
-    search, status, parent = _list_filters(request)
-    assets = asset_list(membership=request.membership, search=search, status=status, parent=parent)
+    search, status, parent, incomplete = _list_filters(request)
+    assets = asset_list(
+        membership=request.membership, search=search, status=status, parent=parent, incomplete=incomplete
+    )
     page = Paginator(assets, 25).get_page(request.GET.get("page"))
     # Modo etiquetas (AST-05 CA2): casillas por fila y el formulario del PDF.
     labels_mode = request.GET.get("labels") == "1" and not request.GET.get("report")
@@ -98,6 +104,7 @@ def asset_list_view(request):
             "status": status,
             "statuses": Asset.Status.choices,
             "parent": parent,
+            "incomplete": incomplete,
             "can_manage": has_perm(request.membership, Perm.ASSET_MANAGE),
             "labels_mode": labels_mode,
             "label_layouts": [(key, layout.label) for key, layout in LAYOUTS.items()],
@@ -121,6 +128,7 @@ def asset_detail_view(request, pk):
     include_components = request.GET.get("components") == "1" and children_count > 0
     ids = asset_scope_ids(membership=membership, asset=asset, include_components=include_components)
     done = work_order_list(membership=membership, scope="done").filter(asset_id__in=ids)
+    attributes = active_attributes(asset.asset_class)
     return render(
         request,
         "assets/detail.html",
@@ -137,7 +145,8 @@ def asset_detail_view(request, pk):
             ],
             "can_read_meters": has_perm(membership, Perm.METER_READING_CREATE),
             "can_manage": has_perm(membership, Perm.ASSET_MANAGE),
-            "attribute_rows": attribute_rows(asset, active_attributes(asset.asset_class)),
+            "attribute_rows": attribute_rows(asset, attributes),
+            "missing_required_count": len(missing_required(asset, attributes)),
             "include_components": include_components,
             "kpis": asset_kpis(membership=membership, asset=asset, include_components=include_components),
             "status_periods": asset_status_history(asset, asset_ids=ids)[:HISTORY_LIMIT],
@@ -397,8 +406,13 @@ def asset_labels_pdf_view(request):
     `scope=selected` imprime los activos marcados (`ids`); si no, todos los del filtro
     actual. Siempre dentro del alcance de la membresía y con un tope de `MAX_LABELS`.
     """
-    search, status, parent = _list_filters(request)
-    filters = {"q": search, "status": status, "parent": parent.pk if parent else ""}
+    search, status, parent, incomplete = _list_filters(request)
+    filters = {
+        "q": search,
+        "status": status,
+        "parent": parent.pk if parent else "",
+        "incomplete": "1" if incomplete else "",
+    }
     back = f"{reverse('asset_list')}?{urlencode({**{k: v for k, v in filters.items() if v}, 'labels': 1})}"
     ids = None
     if request.GET.get("scope") == "selected":
@@ -406,7 +420,14 @@ def asset_labels_pdf_view(request):
         if not ids:
             messages.warning(request, _("Marca al menos un activo para imprimir sus etiquetas."))
             return redirect(back)
-    assets = label_assets(membership=request.membership, ids=ids, search=search, status=status, parent=parent)
+    assets = label_assets(
+        membership=request.membership,
+        ids=ids,
+        search=search,
+        status=status,
+        parent=parent,
+        incomplete=incomplete,
+    )
     total = assets.count()
     if total == 0:
         messages.info(request, _("No hay activos para imprimir."))

@@ -297,7 +297,7 @@ main { max-width: var(--content-max); margin: 0 auto; padding: var(--space-5) va
 .signature-pad__footer { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-2); }
 .signature-pad__footer .btn { min-height: var(--touch-target); }
 .signature-image { display: block; max-width: 100%; width: 280px; height: auto; background: var(--color-signature-bg); border: 1px solid var(--color-border); border-radius: var(--radius-md); }
-.check-item__hint a { color: inherit; font-weight: 600; }
+.check-item__hint a, .alert a { color: inherit; font-weight: 600; }
 /* Cierre de correctiva: síntoma y acción, aptos para dictado (REQ-03 CA3). */
 .field--dictation textarea { min-height: 96px; resize: vertical; }
 .field-pair { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); column-gap: var(--space-4); }

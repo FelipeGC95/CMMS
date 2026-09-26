@@ -113,6 +113,32 @@ def test_work_order_list_with_filters_does_not_grow_with_rows(client, tenant_a):
     assert many == few
 
 
+def test_asset_list_incomplete_filter_is_one_bounded_query(client, tenant_a):
+    """ "Con datos técnicos incompletos" (AST-01) filtra con una subconsulta, sin consultas por fila."""
+    from apps.assets.models import AssetClassAttribute
+
+    with tenant_context(tenant_a.org):
+        AssetClassAttribute.objects.create(
+            asset_class=tenant_a.asset.asset_class,
+            key="potencia",
+            label="Potencia",
+            data_type="number",
+            required=True,
+        )
+    login(client, tenant_a.admin)
+    url = f"{reverse('asset_list')}?incomplete=1"
+    _add_rows(tenant_a, 2)
+    few = _count(client, url)
+    _add_rows(tenant_a, 10)
+    many = _count(client, url)
+    assert many == few, f"asset_list?incomplete=1: {few} → {many} consultas"
+    # El filtro va dentro de la consulta de la lista (conteo + página), no en Python.
+    with CaptureQueriesContext(connection) as ctx:
+        client.get(url)
+    filtered = [q for q in ctx.captured_queries if "->>" in q["sql"] or "json_extract" in q["sql"]]
+    assert 1 <= len(filtered) <= 2
+
+
 def test_my_work_orders_with_helpers_do_not_grow_with_rows(client, tenant_a):
     """ "Mis OT" incluye las OT donde la persona es apoyo (WO-01 CA2) sin consultas por fila."""
     login(client, tenant_a.tech)

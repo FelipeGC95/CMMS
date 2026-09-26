@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-26 19:23-0300\n"
+"POT-Creation-Date: 2026-09-26 19:31-0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2600,6 +2600,16 @@ msgid ""
 "conserva."
 msgstr ""
 
+#, python-format
+msgid "Falta %(n)s dato técnico obligatorio."
+msgid_plural "Faltan %(n)s datos técnicos obligatorios."
+msgstr[0] ""
+msgstr[1] ""
+msgstr[2] ""
+
+msgid "Completar"
+msgstr ""
+
 msgid "Ficha"
 msgstr ""
 
@@ -2899,6 +2909,12 @@ msgid "Buscar"
 msgstr ""
 
 msgid "Buscar por código o nombre"
+msgstr ""
+
+msgid "Todos los datos técnicos"
+msgstr ""
+
+msgid "Con datos técnicos incompletos"
 msgstr ""
 
 msgid "Imprimir"

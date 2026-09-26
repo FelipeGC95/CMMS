@@ -101,3 +101,11 @@ def display(attribute, value) -> str:
 def attribute_rows(asset, attributes) -> list[tuple]:
     """[(atributo, texto)] de los atributos activos de la clase del activo."""
     return [(attribute, display(attribute, asset.attributes.get(attribute.key))) for attribute in attributes]
+
+
+def missing_required(asset, attributes) -> list:
+    """Atributos obligatorios (de los activos de la clase) sin valor en el activo.
+
+    Mismo criterio que `selectors.missing_required_attributes`: clave ausente, nula o vacía.
+    """
+    return [a for a in attributes if a.required and asset.attributes.get(a.key) in (None, "")]

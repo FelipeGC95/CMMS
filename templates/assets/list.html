@@ -24,6 +24,7 @@
     {% if search %}<input type="hidden" name="q" value="{{ search }}">{% endif %}
     {% if status %}<input type="hidden" name="status" value="{{ status }}">{% endif %}
     {% if parent %}<input type="hidden" name="parent" value="{{ parent.pk }}">{% endif %}
+    {% if incomplete %}<input type="hidden" name="incomplete" value="1">{% endif %}
     <div class="field">
       <label for="label-size">{% translate "Tamaño de etiqueta" %}</label>
       <select class="input" id="label-size" name="size">
@@ -55,6 +56,11 @@
     <option value="">{% translate "Todos los estados" %}</option>
     {% for value, label in statuses %}<option value="{{ value }}" {% if value == status %}selected{% endif %}>{{ label }}</option>{% endfor %}
   </select>
+  {% if not request.GET.report %}<label class="visually-hidden" for="incomplete">{% translate "Datos técnicos" %}</label>
+  <select class="input input--narrow" id="incomplete" name="incomplete">
+    <option value="">{% translate "Todos los datos técnicos" %}</option>
+    <option value="1" {% if incomplete %}selected{% endif %}>{% translate "Con datos técnicos incompletos" %}</option>
+  </select>{% endif %}
   <button class="btn btn--secondary" type="submit">{% translate "Buscar" %}</button>
 </form>
 

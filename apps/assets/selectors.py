@@ -1,10 +1,52 @@
-from django.db.models import Count, Q
+from django.db.models import CharField, Count, Exists, F, Func, OuterRef, Q, Value
+from django.db.models.functions import Coalesce
 
 from apps.accounts.scoping import allowed_location_ids
 from apps.organizations.selectors import visible_locations
 from apps.work.models import FailureEvent
 
-from .models import Asset, AssetClass, AssetStatusPeriod
+from .models import Asset, AssetClass, AssetClassAttribute, AssetStatusPeriod
+
+
+class JSONKeyText(Func):
+    """Texto del valor de `json_field` en la clave dada por otra columna (clave dinámica).
+
+    Django solo admite claves JSON fijas; aquí la clave es la del atributo de
+    la clase. Las claves son slugs, así que es seguro armar la ruta en SQLite.
+    """
+
+    arity = 2
+    output_field = CharField()
+
+    def _compile(self, compiler):
+        (json_sql, json_params), (key_sql, key_params) = (
+            compiler.compile(expression) for expression in self.get_source_expressions()
+        )
+        return json_sql, key_sql, (*json_params, *key_params)
+
+    def as_sql(self, compiler, connection, **extra_context):  # PostgreSQL (jsonb)
+        json_sql, key_sql, params = self._compile(compiler)
+        return f"({json_sql} ->> {key_sql})", params
+
+    def as_sqlite(self, compiler, connection, **extra_context):
+        json_sql, key_sql, params = self._compile(compiler)
+        return f"json_extract({json_sql}, '$.\"' || {key_sql} || '\"')", params
+
+
+def missing_required_attributes():
+    """Atributos obligatorios y activos de la clase del activo exterior sin valor (AST-01).
+
+    Para usar en `Exists(...)` sobre una consulta de activos: sin valor es
+    clave ausente, nula o vacía. Los atributos desactivados no cuentan.
+    """
+    value = Coalesce(JSONKeyText(OuterRef("attributes"), F("key")), Value(""))
+    return (
+        AssetClassAttribute.objects.filter(
+            asset_class=OuterRef("asset_class_id"), required=True, is_active=True
+        )
+        .annotate(value=value)
+        .filter(value="")
+    )
 
 
 def visible_assets(*, membership):
@@ -19,7 +61,8 @@ def visible_assets(*, membership):
     return qs
 
 
-def asset_list(*, membership, search: str = "", status: str = "", parent=None):
+def asset_list(*, membership, search: str = "", status: str = "", parent=None, incomplete: bool = False):
+    """Activos visibles; `incomplete`: solo los que no tienen algún dato técnico obligatorio."""
     qs = (
         visible_assets(membership=membership).filter(is_active=True).select_related("asset_class", "location")
     )
@@ -29,15 +72,19 @@ def asset_list(*, membership, search: str = "", status: str = "", parent=None):
         qs = qs.filter(Q(code__icontains=search) | Q(name__icontains=search))
     if status:
         qs = qs.filter(status=status)
+    if incomplete:
+        qs = qs.filter(Exists(missing_required_attributes()))
     return qs
 
 
-def label_assets(*, membership, ids=None, search: str = "", status: str = "", parent=None):
+def label_assets(
+    *, membership, ids=None, search: str = "", status: str = "", parent=None, incomplete: bool = False
+):
     """Activos para las etiquetas QR (AST-05 CA2): los marcados (`ids`) o los del filtro.
 
     Mismo alcance y filtros que la lista; solo trae lo que se imprime, ordenado por código.
     """
-    qs = asset_list(membership=membership, search=search, status=status, parent=parent)
+    qs = asset_list(membership=membership, search=search, status=status, parent=parent, incomplete=incomplete)
     if ids is not None:
         qs = qs.filter(pk__in=ids)
     return qs.select_related(None).only("id", "code", "name", "qr_token").order_by("code")
