@@ -17,12 +17,14 @@ from apps.attachments.services import AttachmentError
 from apps.attachments.services import add_attachment as add_generic_attachment
 from apps.core.decorators import membership_required
 from apps.core.middleware import SESSION_KEY
+from apps.maintenance.selectors import active_assignments_for_asset
+from apps.reporting.selectors import asset_kpis
 from apps.work.forms import FailureReportForm
 from apps.work.selectors import work_order_list
 from apps.work.services import WorkOrderError, report_failure
 
 from .attributes import attribute_rows
-from .forms import AssetAttachmentForm, AssetForm, MeterReadingForm
+from .forms import AssetAttachmentForm, AssetDecommissionForm, AssetForm, AssetStatusForm, MeterReadingForm
 from .models import Asset, Meter
 from .selectors import (
     active_attributes,
@@ -30,10 +32,17 @@ from .selectors import (
     asset_children,
     asset_failure_history,
     asset_list,
+    asset_scope_ids,
     asset_status_history,
     visible_assets,
 )
-from .services import create_asset, record_meter_reading, update_asset
+from .services import (
+    create_asset,
+    decommission_asset,
+    record_meter_reading,
+    set_asset_status,
+    update_asset,
+)
 
 # La ficha muestra los últimos registros de cada historial; el resto, en su lista.
 HISTORY_LIMIT = 10
@@ -75,34 +84,111 @@ def asset_list_view(request):
 
 @membership_required
 def asset_detail_view(request, pk):
+    membership = request.membership
     asset = get_object_or_404(
-        visible_assets(membership=request.membership).select_related("asset_class", "location", "parent"),
+        visible_assets(membership=membership).select_related("asset_class", "location", "parent"),
         pk=pk,
     )
-    children = asset_children(membership=request.membership, asset=asset)
+    children = asset_children(membership=membership, asset=asset)
+    children_count = children.count()
+    # "Incluir componentes" (AST-03 CA2): historial y KPI del activo y sus descendientes.
+    include_components = request.GET.get("components") == "1" and children_count > 0
+    ids = asset_scope_ids(membership=membership, asset=asset, include_components=include_components)
+    done = work_order_list(membership=membership, scope="done").filter(asset_id__in=ids)
     return render(
         request,
         "assets/detail.html",
         {
             "asset": asset,
+            "is_retired": asset.status == Asset.Status.RETIRED,
             "qr_svg": _qr_svg(request, asset),
-            "open_work_orders": work_order_list(membership=request.membership, scope="open", asset=asset),
-            "history": work_order_list(membership=request.membership, scope="done", asset=asset)[:10],
-            "plans": asset.plan_assignments.filter(is_active=True).select_related("plan", "meter"),
+            "open_work_orders": work_order_list(membership=membership, scope="open", asset=asset),
+            "history": done[:HISTORY_LIMIT],
+            "plans": active_assignments_for_asset(asset=asset),
             "meters": [
                 (meter, MeterReadingForm(prefix=str(meter.pk)))
                 for meter in asset.meters.filter(is_active=True)
             ],
-            "can_read_meters": has_perm(request.membership, Perm.METER_READING_CREATE),
-            "can_manage": has_perm(request.membership, Perm.ASSET_MANAGE),
+            "can_read_meters": has_perm(membership, Perm.METER_READING_CREATE),
+            "can_manage": has_perm(membership, Perm.ASSET_MANAGE),
             "attribute_rows": attribute_rows(asset, active_attributes(asset.asset_class)),
-            "status_periods": asset_status_history(asset)[:HISTORY_LIMIT],
-            "failures": asset_failure_history(asset)[:HISTORY_LIMIT],
+            "include_components": include_components,
+            "kpis": asset_kpis(membership=membership, asset=asset, include_components=include_components),
+            "status_periods": asset_status_history(asset, asset_ids=ids)[:HISTORY_LIMIT],
+            "failures": asset_failure_history(asset, asset_ids=ids)[:HISTORY_LIMIT],
             "children": children[:HISTORY_LIMIT],
-            "children_count": children.count(),
+            "children_count": children_count,
             "history_limit": HISTORY_LIMIT,
             "attachments": attachments_for(target_type=TargetType.ASSET, target_id=asset.pk),
             "attachment_form": AssetAttachmentForm(),
+        },
+    )
+
+
+def _manageable_asset(request, pk):
+    """Activo visible y no dado de baja, para las acciones de estado (AST-04)."""
+    asset = get_object_or_404(
+        visible_assets(membership=request.membership).select_related("location"), pk=pk, is_active=True
+    )
+    if asset.status == Asset.Status.RETIRED:
+        messages.info(request, _("El activo está dado de baja."))
+        return None, redirect("asset_detail", pk=asset.pk)
+    return asset, None
+
+
+@membership_required(perm=Perm.ASSET_MANAGE)
+def asset_status_view(request, pk):
+    """Cambio manual de estado con motivo (AST-04): abre y cierra períodos de estado."""
+    asset, response = _manageable_asset(request, pk)
+    if response:
+        return response
+    form = AssetStatusForm(request.POST or None, asset=asset)
+    if request.method == "POST" and form.is_valid():
+        try:
+            set_asset_status(
+                membership=request.membership,
+                asset=asset,
+                status=form.cleaned_data["status"],
+                reason=form.cleaned_data["reason"],
+            )
+        except PermissionDeniedError as exc:
+            raise PermissionDenied from exc
+        except ValidationError as error:
+            form.add_error(None, error)
+        else:
+            asset.refresh_from_db(fields=["status"])
+            messages.success(
+                request, _("Estado cambiado a %(status)s.") % {"status": asset.get_status_display()}
+            )
+            return redirect(f"{reverse('asset_detail', args=[asset.pk])}#status-history")
+    return render(request, "assets/status_form.html", {"asset": asset, "form": form})
+
+
+@membership_required(perm=Perm.ASSET_MANAGE)
+def asset_decommission_view(request, pk):
+    """Dar de baja (AST-04 CA3): confirma mostrando los planes que se desactivan y las OT abiertas."""
+    asset, response = _manageable_asset(request, pk)
+    if response:
+        return response
+    form = AssetDecommissionForm(request.POST or None)
+    if request.method == "POST" and form.is_valid():
+        try:
+            decommission_asset(membership=request.membership, asset=asset, reason=form.cleaned_data["reason"])
+        except PermissionDeniedError as exc:
+            raise PermissionDenied from exc
+        except ValidationError as error:
+            form.add_error(None, error)
+        else:
+            messages.success(request, _("Activo %(code)s dado de baja.") % {"code": asset.code})
+            return redirect("asset_detail", pk=asset.pk)
+    return render(
+        request,
+        "assets/decommission.html",
+        {
+            "asset": asset,
+            "form": form,
+            "assignments": active_assignments_for_asset(asset=asset),
+            "open_work_orders": work_order_list(membership=request.membership, scope="open", asset=asset),
         },
     )
 
