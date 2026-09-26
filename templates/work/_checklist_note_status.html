@@ -1,0 +1,1 @@
+{% load i18n ui %}<span class="help{% if error %} error{% endif %}" id="note-status-{{ item.pk }}" role="status">{% if error %}{% icon 'stop' %}{{ error }}{% else %}{% icon 'check' %}{% translate "Observación guardada" %}{% endif %}</span>

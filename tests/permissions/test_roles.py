@@ -70,6 +70,19 @@ def test_viewer_cannot_execute_checklist_via_view(client, tenant_a):
     assert response.status_code == 403
 
 
+def test_viewer_cannot_save_checklist_note_via_view(client, tenant_a):
+    wo = _work_order(tenant_a)
+    with tenant_context(tenant_a.org):
+        item = wo.checklist.first()
+    login(client, tenant_a.viewer)
+    url = reverse("checklist_answer", args=[wo.pk, item.pk])
+    response = client.post(url, {"note_only": "1", "note": "x"}, HTTP_HX_REQUEST="true")
+    assert response.status_code == 403
+    with tenant_context(tenant_a.org):
+        item.refresh_from_db()
+        assert item.note == ""
+
+
 def test_viewer_cannot_complete_via_view(client, tenant_a):
     wo = _work_order(tenant_a)
     login(client, tenant_a.viewer)
@@ -130,3 +143,22 @@ def test_only_asset_managers_configure_locations_and_classes(client, tenant_a, r
     assert (
         client.post(reverse("location_list"), {"code": "P", "name": "P", "kind": "site"}).status_code == 403
     )
+
+
+@pytest.mark.parametrize("role", Role.values)
+def test_only_admin_manages_the_organization(role):
+    assert has_perm(Membership(role=role), Perm.ORGANIZATION_MANAGE) is (role == Role.ADMIN)
+
+
+@pytest.mark.parametrize("role", ["planner", "supervisor", "technician", "viewer", "external"])
+def test_only_admin_opens_organization_settings(client, tenant_a, role):
+    member = tenant_a.tech
+    member.role = role
+    member.save()
+    login(client, member)
+    url = reverse("organization_settings")
+    assert client.get(url).status_code == 403
+    assert client.post(url, {"require_close_approval": "on"}).status_code == 403
+    tenant_a.org.refresh_from_db()
+    assert tenant_a.org.require_close_approval is False
+    assert url not in client.get(reverse("menu")).content.decode()

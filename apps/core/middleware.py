@@ -1,5 +1,6 @@
 import zoneinfo
 
+from django.conf import settings
 from django.utils import timezone
 
 from .tenancy import tenant_context
@@ -54,3 +55,32 @@ class TenantMiddleware:
                 return self.get_response(request)
         finally:
             timezone.deactivate()
+
+
+class PrivateCacheMiddleware:
+    """Las páginas con sesión no se guardan en el caché del navegador (ORG-07 CA2).
+
+    Tras cambiar de organización o cerrar sesión, "Atrás" no debe mostrar datos
+    de la organización anterior. Se excluyen estáticos, media, /healthz y las
+    respuestas a visitantes sin sesión.
+    """
+
+    SKIPPED_PATHS = ("/healthz",)
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+        self.skipped_prefixes = tuple(
+            prefix for prefix in (settings.STATIC_URL, settings.MEDIA_URL) if prefix
+        )
+
+    def __call__(self, request):
+        response = self.get_response(request)
+        user = getattr(request, "user", None)
+        if user is None or not user.is_authenticated:
+            return response
+        path = request.path
+        if path in self.SKIPPED_PATHS or path.startswith(self.skipped_prefixes):
+            return response
+        # Reemplaza cualquier directiva previa: con sesión nada se comparte ni se guarda.
+        response["Cache-Control"] = "no-store, private"
+        return response

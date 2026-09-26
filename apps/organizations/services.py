@@ -1,4 +1,4 @@
-"""Ubicaciones en árbol (ORG-04)."""
+"""Ubicaciones en árbol (ORG-04) y configuración de la organización."""
 
 import zoneinfo
 
@@ -11,7 +11,7 @@ from apps.accounts.scoping import allowed_location_ids
 from apps.audit import services as audit
 from apps.audit.models import AuditEvent
 
-from .models import Location
+from .models import Location, Organization
 from .selectors import descendant_ids
 
 LOCATION_FIELDS = ["code", "name", "kind", "parent", "timezone", "is_active"]
@@ -94,3 +94,25 @@ def delete_location(*, membership, location):
         changes=audit.snapshot(location, LOCATION_FIELDS),
     )
     location.delete()
+
+
+# ---------- Configuración de la organización (WO-02 CA2, REQ-03 CA2) ----------
+
+SETTINGS_FIELDS = ["require_close_approval", "require_failure_details"]
+
+
+@transaction.atomic
+def update_organization_settings(*, membership, require_close_approval, require_failure_details):
+    """Pasos opcionales del cierre de OT. Solo el administrador de la organización."""
+    require_perm(membership, Perm.ORGANIZATION_MANAGE)
+    organization = Organization.objects.select_for_update().get(pk=membership.organization_id)
+    before = audit.snapshot(organization, SETTINGS_FIELDS)
+    organization.require_close_approval = require_close_approval
+    organization.require_failure_details = require_failure_details
+    changes = audit.diff(before, audit.snapshot(organization, SETTINGS_FIELDS))
+    if changes:
+        organization.save(update_fields=[*SETTINGS_FIELDS, "updated_at"])
+        audit.record(
+            action=AuditEvent.Action.UPDATE, target=organization, membership=membership, changes=changes
+        )
+    return organization

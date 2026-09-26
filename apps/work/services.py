@@ -320,11 +320,78 @@ def answer_checklist_item(
     return item
 
 
+@transaction.atomic
+def save_checklist_note(*, item: WorkOrderChecklistItem, membership, note: str) -> WorkOrderChecklistItem:
+    """Guarda solo la observación del ítem (WO-03 CA2), sin tocar su resultado.
+
+    Permite escribirla antes o después de marcar el resultado (guardado por ítem).
+    """
+    require_perm(membership, Perm.WORK_ORDER_EXECUTE)
+    if item.work_order.status in (S.COMPLETED, *WorkOrder.CLOSED_STATUSES):
+        raise WorkOrderError(_("La OT ya no admite cambios."))
+    item.note = note.strip()[:500]
+    item.save(update_fields=["note", "updated_at"])
+    return item
+
+
 def work_order_meter(work_order: WorkOrder):
     """Medidor cuya lectura se pide al cerrar: el del plan o, si no, el primero del activo."""
     if work_order.plan_assignment_id and work_order.plan_assignment.meter_id:
         return work_order.plan_assignment.meter
     return work_order.asset.meters.filter(is_active=True).order_by("kind").first()
+
+
+def failure_started_default(work_order: WorkOrder):
+    """Inicio de la falla si nadie lo informó: el aviso (si lo hubo) o la creación de la OT."""
+    request = WorkRequest.objects.filter(work_order=work_order).only("created_at").first()
+    return request.created_at if request else work_order.created_at
+
+
+def _record_failure_at_completion(
+    *,
+    work_order: WorkOrder,
+    user,
+    at,
+    impact=None,
+    started_at=None,
+    ended_at=None,
+    symptom=None,
+    details: dict,
+) -> FailureEvent:
+    """Registra (o completa) el evento de falla de una OT correctiva (REQ-03 CA1–CA3).
+
+    Si el aviso no marcó "equipo detenido" no hay evento todavía: se crea aquí,
+    ya terminado (`ended_at`), y sin tocar el estado del activo — la detención,
+    si la hubo, ya pasó.
+    """
+    failure = FailureEvent.objects.filter(work_order=work_order).first()
+    created = failure is None
+    if created:
+        failure = FailureEvent(
+            asset=work_order.asset,
+            work_order=work_order,
+            impact=FailureEvent.Impact.NONE,
+            description=work_order.description,
+            started_at=failure_started_default(work_order),
+        )
+    if impact:
+        failure.impact = impact
+    if started_at is not None:
+        failure.started_at = started_at
+    failure.ended_at = ended_at or failure.ended_at or at
+    if failure.ended_at < failure.started_at:
+        raise WorkOrderError(_("El fin de la detención no puede ser anterior a su inicio."))
+    if symptom is not None:
+        failure.description = symptom.strip()
+    if created or any(details.values()):
+        for field, value in details.items():
+            setattr(failure, field, value)
+    failure.save()
+    if created:
+        audit.record(
+            action=AuditEvent.Action.CREATE, target=failure, actor=user, changes=audit.snapshot(failure)
+        )
+    return failure
 
 
 @transaction.atomic
@@ -339,17 +406,23 @@ def complete_work_order(
     failure_mechanism=None,
     detection_method=None,
     component=None,
+    impact: str | None = None,
+    failure_started_at=None,
+    failure_ended_at=None,
+    symptom: str | None = None,
     meter_value=None,
 ) -> WorkOrder:
     """Completa la OT; si se informa la lectura del medidor, la registra y reprograma desde ella.
 
-    Al completar una OT correctiva se pide completar la falla (REQ-03 CA2): modo
-    y causa son obligatorios si la organización lo exige (`require_failure_details`).
+    Toda OT correctiva completada deja su evento de falla (REQ-03 CA2), con
+    síntoma observado (`symptom` → `failure_event.description`) y acción
+    realizada (`notes` → `completion_notes`) para el asistente (CA3, ADR-018).
+    Modo y causa son obligatorios si la organización lo exige
+    (`require_failure_details`). `failure_ended_at` por defecto es ahora.
     """
-    failure = FailureEvent.objects.filter(work_order=work_order).first()
+    is_corrective = work_order.work_type == WorkOrder.Type.CORRECTIVE
     if (
-        failure
-        and work_order.work_type == WorkOrder.Type.CORRECTIVE
+        is_corrective
         and work_order.organization.require_failure_details
         and not (failure_mode and failure_cause)
     ):
@@ -358,6 +431,8 @@ def complete_work_order(
         )
     if component is not None and component.parent_id != work_order.asset_id:
         raise WorkOrderError(_("El componente debe ser un activo hijo del activo de la OT."))
+    if impact and impact not in FailureEvent.Impact.values:
+        raise WorkOrderError(_("Impacto de falla inválido."))
 
     if meter_value is not None:
         meter = work_order_meter(work_order)
@@ -376,21 +451,22 @@ def complete_work_order(
         log_labor(work_order=work_order, membership=membership, minutes=labor_minutes)
     work_order.completion_notes = notes
     work_order.save(update_fields=["completion_notes", "updated_at"])
-    if failure and (failure_mode or failure_cause or failure_mechanism or detection_method or component):
-        failure.failure_mode = failure_mode
-        failure.failure_cause = failure_cause
-        failure.failure_mechanism = failure_mechanism
-        failure.detection_method = detection_method
-        failure.component = component
-        failure.save(
-            update_fields=[
-                "failure_mode",
-                "failure_cause",
-                "failure_mechanism",
-                "detection_method",
-                "component",
-                "updated_at",
-            ]
+    if is_corrective:
+        _record_failure_at_completion(
+            work_order=work_order,
+            user=membership.user,
+            at=timezone.now(),
+            impact=impact,
+            started_at=failure_started_at,
+            ended_at=failure_ended_at,
+            symptom=symptom,
+            details={
+                "failure_mode": failure_mode,
+                "failure_cause": failure_cause,
+                "failure_mechanism": failure_mechanism,
+                "detection_method": detection_method,
+                "component": component,
+            },
         )
     if work_order.status != S.IN_PROGRESS:
         transition(work_order=work_order, to_status=S.IN_PROGRESS, membership=membership)

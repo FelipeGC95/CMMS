@@ -1,0 +1,17 @@
+{% load i18n ui %}{% if usage %}
+<p class="row mt-4">
+  {% if usage.quota_mb is None %}
+  <span class="badge badge--neutral">{% icon 'info' %}{% translate "Almacenamiento" %}</span>
+  <span class="list__meta">{% blocktranslate with used=usage.used_mb|floatformat:1 %}{{ used }} MB usados{% endblocktranslate %}</span>
+  {% else %}
+  {% if usage.is_full %}
+  <span class="badge badge--error">{% icon 'stop' %}{% translate "Cupo lleno" %}</span>
+  {% elif usage.is_warning %}
+  <span class="badge badge--warning">{% icon 'alert' %}{% translate "Queda poco espacio" %}</span>
+  {% else %}
+  <span class="badge badge--neutral">{% icon 'info' %}{% translate "Almacenamiento" %}</span>
+  {% endif %}
+  <span class="list__meta">{% blocktranslate with used=usage.used_mb|floatformat:1 quota=usage.quota_mb %}{{ used }} MB de {{ quota }} MB usados{% endblocktranslate %}</span>
+  {% endif %}
+</p>
+{% endif %}

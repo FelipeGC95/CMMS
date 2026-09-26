@@ -16,11 +16,12 @@ class Perm(StrEnum):
     METER_READING_CREATE = "meter_reading.create"  # horómetro / odómetro (choferes, operadores)
     TEAM_MANAGE = "team.manage"  # invitar, cambiar rol y alcance, desactivar (ORG-05/06)
     AUDIT_VIEW = "audit.view"  # consultar la auditoría (X-01)
+    ORGANIZATION_MANAGE = "organization.manage"  # configuración de la organización (WO-02 CA2, REQ-03 CA2)
 
 
 ROLE_PERMISSIONS: dict[str, frozenset[Perm]] = {
     Role.ADMIN: frozenset(Perm),
-    Role.PLANNER: frozenset(Perm) - {Perm.TEAM_MANAGE, Perm.AUDIT_VIEW},
+    Role.PLANNER: frozenset(Perm) - {Perm.TEAM_MANAGE, Perm.AUDIT_VIEW, Perm.ORGANIZATION_MANAGE},
     Role.SUPERVISOR: frozenset(
         {Perm.WORK_ORDER_MANAGE, Perm.WORK_ORDER_EXECUTE, Perm.REQUEST_CREATE, Perm.METER_READING_CREATE}
     ),

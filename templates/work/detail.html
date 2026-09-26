@@ -33,7 +33,11 @@
       {% if wo.estimated_minutes %}<dt>{% translate "Estimación" %}</dt><dd class="num">{{ wo.estimated_minutes }} min</dd>{% endif %}
       {% if wo.request %}<dt>{% translate "Avisado por" %}</dt><dd>{{ wo.request.requested_by|default:"—" }} · {{ wo.request.created_at|date:"d M H:i" }}</dd>{% endif %}
       {% if wo.meter_value_at_completion is not None %}<dt>{% translate "Lectura al cerrar" %}</dt><dd class="num">{{ wo.meter_value_at_completion|num }}</dd>{% endif %}
-      {% if wo.completion_notes %}<dt>{% translate "Cierre" %}</dt><dd>{{ wo.completion_notes|linebreaksbr }}</dd>{% endif %}
+      {% if wo.work_type == "corrective" and wo.failure and not wo.is_open %}
+      <dt>{% translate "Impacto" %}</dt><dd>{{ wo.failure.get_impact_display }}{% if wo.failure.ended_at %} · {{ wo.failure.started_at|date:"d M H:i" }} – {{ wo.failure.ended_at|date:"d M H:i" }}{% endif %}</dd>
+      {% if wo.failure.description %}<dt>{% translate "Síntoma observado" %}</dt><dd>{{ wo.failure.description|linebreaksbr }}</dd>{% endif %}
+      {% endif %}
+      {% if wo.completion_notes %}<dt>{% if wo.work_type == "corrective" %}{% translate "Acción realizada" %}{% else %}{% translate "Cierre" %}{% endif %}</dt><dd>{{ wo.completion_notes|linebreaksbr }}</dd>{% endif %}
     </dl>
     {% if wo.description %}<p class="mt-4">{{ wo.description|linebreaksbr }}</p>{% endif %}
     {% if attachments %}
@@ -143,13 +147,19 @@
   <form method="post" action="{% url 'work_order_complete' wo.pk %}">
     {% csrf_token %}
     {% for error in complete_form.non_field_errors %}<div class="alert alert--error" role="alert">{% icon 'stop' %}<span>{{ error }}</span></div>{% endfor %}
+    {% if complete_form.symptom %}
+    <div class="alert alert--info" role="note">{% icon 'info' %}<span>{% translate "¿Qué viste? ¿Qué hiciste? Escríbelo o díctalo con el micrófono del teclado: queda en el historial del equipo para la próxima falla." %}</span></div>
+    {% endif %}
     {% for field in complete_form %}
-    <div class="field">
-      <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+    {% if field.name == "impact" %}<h3 class="mt-4">{% translate "Registro de falla" %}</h3>{% endif %}
+    {% if field.name == "failure_started_at" %}<div class="field-pair">{% endif %}
+    <div class="field{% if field.name == 'symptom' or field.name == 'notes' %} field--dictation{% endif %}">
+      <label for="{{ field.id_for_label }}">{{ field.label }}{% if field.field.required %} <span class="muted">({% translate "obligatorio" %})</span>{% endif %}</label>
       {{ field }}
       {% if field.help_text %}<span class="help">{{ field.help_text }}</span>{% endif %}
       {% for error in field.errors %}<span class="error">{% icon 'stop' %}{{ error }}</span>{% endfor %}
     </div>
+    {% if field.name == "failure_ended_at" %}</div>{% endif %}
     {% endfor %}
     <button class="btn btn--primary btn--lg btn--block" type="submit" {% if pending_required %}disabled{% endif %}>{% icon 'check' %}{% translate "Completar OT" %}</button>
   </form>
