@@ -20,19 +20,19 @@
 
   <section class="card" aria-labelledby="plan-title">
     <h2 id="plan-title">{% translate "Plan" %}</h2>
-    <dl class="dl mb-4">
+    <dl class="dl">
       <dt>{% translate "Plan" %}</dt><dd>{{ organization.plan.name|default:"—" }}</dd>
       <dt>{% translate "Estado" %}</dt><dd>{{ organization.get_status_display }}</dd>
       {% if organization.trial_ends_at %}<dt>{% translate "Fin de la prueba" %}</dt><dd>{{ organization.trial_ends_at|date:"j M Y" }}</dd>{% endif %}
       <dt>{% translate "Zona horaria" %}</dt><dd>{{ organization.timezone }}</dd>
     </dl>
-    <table class="table">
-      <caption class="visually-hidden">{% translate "Uso de los cupos del plan" %}</caption>
+    <h3 id="quotas-title" class="mt-4">{% translate "Uso de los cupos" %}</h3>
+    <table class="table" aria-labelledby="quotas-title">
       <thead><tr><th>{% translate "Cupo" %}</th><th class="num">{% translate "En uso" %}</th><th class="num">{% translate "Máximo" %}</th></tr></thead>
       <tbody>
         {% for quota in quotas %}
         <tr>
-          <td data-label="{% translate 'Cupo' %}">{{ quota.label }}</td>
+          <td data-label="">{{ quota.label }}</td>
           <td data-label="{% translate 'En uso' %}" class="num">{% if quota.is_over %}<span class="badge badge--warning">{% icon 'alert' %}{{ quota.used }} · {% translate "sobre el cupo" %}</span>{% else %}{{ quota.used }}{% endif %}</td>
           <td data-label="{% translate 'Máximo' %}" class="num">{% if quota.limit is None %}{% translate "Sin límite" %}{% else %}{{ quota.limit }}{% endif %}</td>
         </tr>
