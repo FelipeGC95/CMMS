@@ -28,6 +28,10 @@ class AttachmentError(ValidationError):
     pass
 
 
+class QuotaExceededError(AttachmentError):
+    """El archivo es válido pero no cabe en el cupo del plan (AST-06 CA2)."""
+
+
 def _compress_image(uploaded_file):
     """Reduce el lado mayor a ≤2000 px, respeta la orientación EXIF y descarta el resto de los metadatos
     (incluida la ubicación GPS) al no volver a escribirlos en el archivo de salida.
@@ -43,7 +47,14 @@ def _compress_image(uploaded_file):
             )
         ) from error
     image = ImageOps.exif_transpose(image)
-    if image.mode not in ("RGB", "L"):
+    if image.mode in ("RGBA", "LA", "P"):
+        # JPEG no tiene transparencia: se aplana sobre blanco (una firma PNG
+        # transparente quedaría negra sobre negro con un convert directo).
+        image = image.convert("RGBA")
+        background = Image.new("RGB", image.size, "white")
+        background.paste(image, mask=image.getchannel("A"))
+        image = background
+    elif image.mode not in ("RGB", "L"):
         image = image.convert("RGB")
     width, height = image.size
     scale = min(1.0, MAX_IMAGE_DIMENSION / max(width, height))
@@ -110,7 +121,7 @@ def _save_within_quota(
     Organization.objects.select_for_update().filter(pk=organization.pk).values_list("pk").get()
     usage = storage_usage(organization=organization)
     if not usage.allows(len(data)):
-        raise AttachmentError(
+        raise QuotaExceededError(
             _(
                 "No hay espacio para este archivo (%(size)s): la organización usa %(used)s de "
                 "%(quota)s de su plan. Pide al administrador ampliar el plan."

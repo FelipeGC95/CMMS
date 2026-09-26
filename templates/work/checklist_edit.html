@@ -1,0 +1,67 @@
+{% extends "base.html" %}{% load i18n ui %}
+{% block title %}{% translate "Checklist" %} · {{ wo.code }}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <p class="muted mono">{{ wo.code }} · {{ wo.get_work_type_display }}</p>
+    <h1>{% translate "Checklist de la OT" %}</h1>
+    <p class="muted">{{ wo.title }} · <span class="mono">{{ wo.asset.code }}</span> {{ wo.asset.name }}</p>
+  </div>
+  <a class="btn btn--primary" href="{% url 'work_order_detail' wo.pk %}">{% icon 'check' %}{% translate "Listo, volver a la OT" %}</a>
+</div>
+
+<div class="grid grid--2">
+  <section class="card" aria-labelledby="apply-title">
+    <h2 id="apply-title">{% translate "Usar el checklist de un plan" %}</h2>
+    {% if has_versions %}
+    <p class="muted">{% translate "Se copian los ítems de la versión publicada del plan. Cambios posteriores al plan no alteran esta OT." %}</p>
+    <form method="post">
+      {% csrf_token %}<input type="hidden" name="action" value="apply">
+      {% include "_form_fields.html" with form=apply_form %}
+      <button class="btn btn--primary btn--lg btn--block" type="submit">{% icon 'list' %}{% translate "Agregar ítems del plan" %}</button>
+    </form>
+    {% else %}
+    <p class="empty">{% icon 'list' %} {% translate "No hay planes con versión publicada. Agrega ítems propios." %}</p>
+    {% endif %}
+  </section>
+
+  <section class="card" aria-labelledby="item-title">
+    <h2 id="item-title">{% translate "Agregar un ítem propio" %}</h2>
+    <form method="post">
+      {% csrf_token %}<input type="hidden" name="action" value="item">
+      {% for error in item_form.non_field_errors %}<div class="alert alert--error" role="alert">{% icon 'stop' %}<span>{{ error }}</span></div>{% endfor %}
+      {% with f=item_form.text %}<div class="field"><label for="{{ f.id_for_label }}">{{ f.label }} *</label>{{ f }}{% for e in f.errors %}<span class="error">{% icon 'stop' %}{{ e }}</span>{% endfor %}</div>{% endwith %}
+      {% with f=item_form.item_type %}<div class="field"><label for="{{ f.id_for_label }}">{{ f.label }}</label>{{ f }}</div>{% endwith %}
+      <fieldset class="fieldset">
+        <legend>{% translate "Solo para mediciones (opcional)" %}</legend>
+        <div class="field-pair field-pair--3">
+          {% for f in item_form %}{% if f.name == "unit" or f.name == "min_value" or f.name == "max_value" %}
+          <div class="field"><label for="{{ f.id_for_label }}">{{ f.label }}</label>{{ f }}{% for e in f.errors %}<span class="error">{% icon 'stop' %}{{ e }}</span>{% endfor %}</div>
+          {% endif %}{% endfor %}
+        </div>
+      </fieldset>
+      {% with f=item_form.required %}<div class="field field--check">{{ f }}<label for="{{ f.id_for_label }}">{{ f.label }}</label></div>{% endwith %}
+      <button class="btn btn--secondary btn--lg btn--block" type="submit">{% icon 'check' %}{% translate "Agregar ítem" %}</button>
+    </form>
+  </section>
+</div>
+
+<section class="card mt-4" aria-labelledby="current-title">
+  <h2 id="current-title">{% translate "Ítems actuales" %}</h2>
+  {% if items %}
+  <ol class="list">
+    {% for item in items %}
+    <li>
+      <div class="list__main">
+        <span class="list__title"><span class="mono muted">{{ item.order }}.</span> {{ item.text }}</span>
+        <span class="list__meta">{% if item.item_type == "measurement" %}{% translate "Medición" %}{% if item.unit %} · {{ item.unit }}{% endif %}{% if item.min_value is not None or item.max_value is not None %} · <span class="num">{{ item.min_value|default_if_none:"—"|floatformat:"-3" }} – {{ item.max_value|default_if_none:"—"|floatformat:"-3" }}</span>{% endif %}{% else %}{% translate "Verificación" %}{% endif %}</span>
+      </div>
+      {% if item.required %}<span class="badge badge--info">{% icon 'info' %}{% translate "Obligatorio" %}</span>{% else %}<span class="badge badge--neutral">{% icon 'dot' %}{% translate "Opcional" %}</span>{% endif %}
+    </li>
+    {% endfor %}
+  </ol>
+  {% else %}
+  <p class="empty">{% icon 'list' %} {% translate "Todavía no hay ítems." %}</p>
+  {% endif %}
+</section>
+{% endblock %}

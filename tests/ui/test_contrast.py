@@ -40,6 +40,9 @@ CONTRAST_PAIRS = [
     ("--color-error", "--color-surface", TEXT),
     ("--color-text", "--color-surface-sunken", TEXT),
     ("--color-text-muted", "--color-surface-sunken", TEXT),
+    # Firma al completar la OT (WO-03 CA3): trazo y borde del lienzo.
+    ("--color-signature-ink", "--color-signature-bg", TEXT),
+    ("--color-border-strong", "--color-signature-bg", UI),
 ]
 
 

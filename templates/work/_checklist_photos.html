@@ -1,0 +1,3 @@
+{% load i18n %}{% if item.photos %}<div class="check-item__photos">
+  {% for photo in item.photos %}<a href="{% url 'attachment' photo.pk %}"><img class="thumb thumb--sm" src="{% url 'attachment' photo.pk %}" alt="{% blocktranslate with n=forloop.counter text=item.text %}Foto {{ n }} de «{{ text }}»{% endblocktranslate %}" loading="lazy"></a>{% endfor %}
+</div>{% endif %}

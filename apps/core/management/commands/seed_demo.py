@@ -387,7 +387,9 @@ class Command(BaseCommand):
             ),
             asset_stopped=True,
         )
-        transition(work_order=stopped.work_order, to_status="in_progress", membership=members["tech2"])
+        self._corrective_checklist(stopped.work_order, members)
+        # La toma el técnico de la demo: la ve en "Mis OT" y ejecuta el checklist desde el celular.
+        transition(work_order=stopped.work_order, to_status="in_progress", membership=members["tech"])
         report_failure(
             membership=members["operator"],
             asset=assets["GRH-01"],
@@ -406,6 +408,30 @@ class Command(BaseCommand):
 
         # Preventivos vigentes (próximos 14 días y atrasados).
         generate_due_work_orders(today=today)
+
+    def _corrective_checklist(self, work_order, members):
+        """Checklist de la correctiva abierta (MVP-0: aviso por QR → OT → checklist en el celular)."""
+        from apps.maintenance.models import ItemType, MaintenancePlan
+        from apps.work.services import add_checklist_item, apply_plan_checklist
+
+        plan = MaintenancePlan.objects.get(code="PM-FRI-MEN")
+        apply_plan_checklist(
+            work_order=work_order, plan_version=plan.current_version, membership=members["admin"]
+        )
+        add_checklist_item(
+            work_order=work_order,
+            membership=members["admin"],
+            text="Revisar presostato de baja y contactor del compresor",
+        )
+        add_checklist_item(
+            work_order=work_order,
+            membership=members["admin"],
+            text="Corriente del compresor en marcha",
+            item_type=ItemType.MEASUREMENT,
+            unit="A",
+            min_value=18,
+            max_value=24,
+        )
 
     def _seed_meters(self, assets, now):
         """Lecturas semanales de las últimas 5 semanas, con algo de variación."""

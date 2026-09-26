@@ -1,5 +1,6 @@
-{% extends "base.html" %}{% load i18n ui %}
+{% extends "base.html" %}{% load i18n static ui %}
 {% block title %}{{ wo.code }}{% endblock %}
+{% block extra_head %}{% if can_execute %}<script src="{% static 'js/signature-pad.js' %}" defer></script>{% endif %}{% endblock %}
 {% block content %}
 <div class="page-header">
   <div>
@@ -38,6 +39,7 @@
       {% if wo.failure.description %}<dt>{% translate "Síntoma observado" %}</dt><dd>{{ wo.failure.description|linebreaksbr }}</dd>{% endif %}
       {% endif %}
       {% if wo.completion_notes %}<dt>{% if wo.work_type == "corrective" %}{% translate "Acción realizada" %}{% else %}{% translate "Cierre" %}{% endif %}</dt><dd>{{ wo.completion_notes|linebreaksbr }}</dd>{% endif %}
+      {% if signature %}<dt>{% translate "Firma" %}</dt><dd><img class="signature-image" src="{% url 'attachment' signature.pk %}" alt="{% translate 'Firma de cierre' %}"><span class="help muted">{{ signature.uploaded_by|default:"—" }} · {{ signature.created_at|date:"d M H:i" }}</span></dd>{% endif %}
     </dl>
     {% if wo.description %}<p class="mt-4">{{ wo.description|linebreaksbr }}</p>{% endif %}
     {% if attachments %}
@@ -128,12 +130,19 @@
   {% endif %}
 </section>
 
-{% if wo.checklist.all %}
+{% if checklist_items or can_edit_checklist %}
 <section class="mt-4" aria-labelledby="cl-title">
-  <h2 id="cl-title">{% translate "Checklist" %}</h2>
+  <div class="section-header">
+    <h2 id="cl-title">{% translate "Checklist" %}</h2>
+    {% if can_edit_checklist %}<a class="btn btn--secondary" href="{% url 'work_order_checklist' wo.pk %}">{% icon 'list' %}{% if checklist_items %}{% translate "Agregar ítems" %}{% else %}{% translate "Agregar checklist" %}{% endif %}</a>{% endif %}
+  </div>
+  {% if checklist_items %}
   <ul class="checklist">
-    {% for item in wo.checklist.all %}{% include "work/_checklist_item.html" %}{% endfor %}
+    {% for item in checklist_items %}{% include "work/_checklist_item.html" %}{% endfor %}
   </ul>
+  {% else %}
+  <p class="empty">{% icon 'list' %} {% translate "Esta OT aún no tiene checklist. Agrega el de un plan o ítems propios para que el técnico lo ejecute desde el celular." %}</p>
+  {% endif %}
 </section>
 {% endif %}
 
@@ -150,7 +159,7 @@
     {% if complete_form.symptom %}
     <div class="alert alert--info" role="note">{% icon 'info' %}<span>{% translate "¿Qué viste? ¿Qué hiciste? Escríbelo o díctalo con el micrófono del teclado: queda en el historial del equipo para la próxima falla." %}</span></div>
     {% endif %}
-    {% for field in complete_form %}
+    {% for field in complete_form.visible_fields %}
     {% if field.name == "impact" %}<h3 class="mt-4">{% translate "Registro de falla" %}</h3>{% endif %}
     {% if field.name == "failure_started_at" %}<div class="field-pair">{% endif %}
     <div class="field{% if field.name == 'symptom' or field.name == 'notes' %} field--dictation{% endif %}">
@@ -161,6 +170,7 @@
     </div>
     {% if field.name == "failure_ended_at" %}</div>{% endif %}
     {% endfor %}
+    {% include "work/_signature_pad.html" with field=complete_form.signature %}
     <button class="btn btn--primary btn--lg btn--block" type="submit" {% if pending_required %}disabled{% endif %}>{% icon 'check' %}{% translate "Completar OT" %}</button>
   </form>
 </section>

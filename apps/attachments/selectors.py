@@ -17,6 +17,14 @@ def attachments_for(*, target_type: str, target_id):
     )
 
 
+def attachments_by_target(*, target_type: str, target_ids) -> dict:
+    """Adjuntos de varios objetos en una sola consulta: {target_id: [adjuntos]}."""
+    grouped: dict = {}
+    for attachment in Attachment.objects.filter(target_type=target_type, target_id__in=list(target_ids)):
+        grouped.setdefault(attachment.target_id, []).append(attachment)
+    return grouped
+
+
 def storage_bytes_used(*, organization) -> int:
     """Bytes usados por la organización (AST-06 CA2), medidos después de comprimir las imágenes."""
     # all_tenants: se filtra explícitamente por la organización recibida.

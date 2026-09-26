@@ -1,3 +1,5 @@
+import uuid
+
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.paginator import Paginator
@@ -10,11 +12,14 @@ from django.views.decorators.http import require_POST
 
 from apps.accounts.models import Membership
 from apps.accounts.permissions import Perm, PermissionDeniedError, has_perm
-from apps.attachments.models import TargetType
+from apps.attachments.models import Purpose, TargetType
 from apps.attachments.selectors import attachments_for
 from apps.core.decorators import membership_required
 
 from .forms import (
+    ApplyChecklistForm,
+    ChecklistItemForm,
+    ChecklistPhotoForm,
     CompleteWorkOrderForm,
     FailureCodeForm,
     FailureCodeRenameForm,
@@ -26,6 +31,8 @@ from .forms import (
 )
 from .models import FailureCode, FailureEvent, OtherCost, PartUsage, WorkOrder, WorkOrderChecklistItem
 from .selectors import (
+    checklist_photos,
+    checklist_plan_versions,
     failure_code_list,
     open_requests_for_asset,
     pending_requests,
@@ -38,10 +45,14 @@ from .services import (
     COST_LOCKED_STATUSES,
     WorkOrderError,
     accept_request,
+    add_checklist_item,
+    add_checklist_photo,
     add_other_cost,
     add_part_usage,
     allowed_transitions,
     answer_checklist_item,
+    apply_plan_checklist,
+    checklist_editable,
     complete_work_order,
     create_failure_code,
     create_work_order,
@@ -163,8 +174,20 @@ def _complete_form(work_order, data=None):
     )
 
 
+def _with_photos(items):
+    """Adjunta a cada ítem sus fotos (una consulta) y un client_uuid para subir otra."""
+    photos = checklist_photos(items=items)
+    for item in items:
+        item.photos = photos.get(item.pk, [])
+        item.photo_uuid = uuid.uuid4()
+    return items
+
+
 def _detail_context(request, work_order, complete_form=None):
     targets = allowed_transitions(work_order=work_order, membership=request.membership)
+    can_manage = has_perm(request.membership, Perm.WORK_ORDER_MANAGE)
+    attachments = list(attachments_for(target_type=TargetType.WORK_ORDER, target_id=work_order.pk))
+    signatures = [a for a in attachments if a.purpose == Purpose.SIGNATURE]
     return {
         "wo": work_order,
         "transitions": [(s, WorkOrder.Status(s).label) for s in targets if s != WorkOrder.Status.COMPLETED],
@@ -172,11 +195,14 @@ def _detail_context(request, work_order, complete_form=None):
         "complete_form": complete_form or _complete_form(work_order),
         "pending_required": sum(1 for i in work_order.checklist.all() if i.required and not i.result),
         "costs_editable": work_order.status not in COST_LOCKED_STATUSES,
-        "can_manage": has_perm(request.membership, Perm.WORK_ORDER_MANAGE),
+        "can_manage": can_manage,
+        "can_edit_checklist": can_manage and checklist_editable(work_order),
+        "checklist_items": _with_photos(list(work_order.checklist.all())),
         "labor_form": LaborForm(),
         "part_form": PartUsageForm(),
         "other_cost_form": OtherCostForm(),
-        "attachments": attachments_for(target_type=TargetType.WORK_ORDER, target_id=work_order.pk),
+        "attachments": [a for a in attachments if a.purpose != Purpose.SIGNATURE],
+        "signature": signatures[-1] if signatures else None,
     }
 
 
@@ -244,7 +270,7 @@ def checklist_answer_view(request, pk, item_pk):
             request,
             "work/_checklist_item.html",
             {
-                "item": item,
+                "item": _with_photos([item])[0],
                 "error": error,
                 "can_execute": True,
                 "can_manage": has_perm(request.membership, Perm.WORK_ORDER_MANAGE),
@@ -296,6 +322,7 @@ def work_order_complete_view(request, pk):
                 failure_ended_at=form.cleaned_data.get("failure_ended_at"),
                 symptom=form.cleaned_data.get("symptom"),
                 meter_value=form.cleaned_data.get("meter_value"),
+                signature=form.cleaned_data.get("signature"),
             )
         except ValidationError as exc:
             messages.error(request, " ".join(exc.messages))
@@ -304,6 +331,104 @@ def work_order_complete_view(request, pk):
             return redirect("work_order_detail", pk=pk)
     work_order = work_order_detail(pk, membership=request.membership)
     return render(request, "work/detail.html", _detail_context(request, work_order, form), status=400)
+
+
+# --- Checklist de OT no preventivas y fotos por ítem (WO-03) -------------------
+
+
+@membership_required(perm=Perm.WORK_ORDER_MANAGE)
+def work_order_checklist_view(request, pk):
+    """Agregar checklist a una OT no preventiva: desde un plan publicado o ítems propios."""
+    work_order = get_object_or_404(
+        visible_work_orders(membership=request.membership).select_related("asset"), pk=pk
+    )
+    if not checklist_editable(work_order):
+        messages.error(request, _("El checklist de esta OT ya no se puede cambiar."))
+        return redirect("work_order_detail", pk=pk)
+    versions = list(checklist_plan_versions(work_order=work_order))
+    action = request.POST.get("action") if request.method == "POST" else None
+    apply_form = ApplyChecklistForm(
+        request.POST if action == "apply" else None, versions=versions, prefix="apply"
+    )
+    item_form = ChecklistItemForm(request.POST if action == "item" else None, prefix="item")
+    form = {"apply": apply_form, "item": item_form}.get(action)
+    if form is not None and form.is_valid():
+        try:
+            if action == "apply":
+                items = apply_plan_checklist(
+                    work_order=work_order,
+                    plan_version=form.cleaned_data["plan_version"],
+                    membership=request.membership,
+                )
+                messages.success(
+                    request,
+                    _("Se agregaron %(count)s ítems del plan.") % {"count": len(items)},
+                )
+            else:
+                add_checklist_item(work_order=work_order, membership=request.membership, **form.cleaned_data)
+                messages.success(request, _("Ítem agregado."))
+        except WorkOrderError as exc:
+            messages.error(request, exc.message)
+        except PermissionDeniedError as exc:
+            raise PermissionDenied from exc
+        else:
+            return redirect("work_order_checklist", pk=pk)
+    return render(
+        request,
+        "work/checklist_edit.html",
+        {
+            "wo": work_order,
+            "items": work_order.checklist.all(),
+            "apply_form": apply_form,
+            "item_form": item_form,
+            "has_versions": bool(versions),
+        },
+        status=400 if form is not None else 200,
+    )
+
+
+@require_POST
+@membership_required(perm=Perm.WORK_ORDER_EXECUTE)
+def checklist_photo_add_view(request, pk, item_pk):
+    item = get_object_or_404(
+        WorkOrderChecklistItem.objects.select_related("work_order").filter(
+            work_order__in=visible_work_orders(membership=request.membership)
+        ),
+        pk=item_pk,
+        work_order_id=pk,
+    )
+    form = ChecklistPhotoForm(request.POST, request.FILES)
+    error = None
+    if not form.is_valid():
+        error = _("Elige una foto.")
+    else:
+        try:
+            add_checklist_photo(
+                item=item,
+                membership=request.membership,
+                uploaded_file=form.cleaned_data["photo"],
+                client_uuid=form.cleaned_data.get("client_uuid"),
+            )
+        except WorkOrderError as exc:
+            error = exc.message
+        except PermissionDeniedError as exc:
+            raise PermissionDenied from exc
+    if request.headers.get("HX-Request"):
+        return render(
+            request,
+            "work/_checklist_item.html",
+            {
+                "item": _with_photos([item])[0],
+                "error": error,
+                "can_execute": True,
+                "can_manage": has_perm(request.membership, Perm.WORK_ORDER_MANAGE),
+            },
+        )
+    if error:
+        messages.error(request, error)
+    else:
+        messages.success(request, _("Foto agregada."))
+    return redirect(f"{reverse('work_order_detail', args=[pk])}#item-{item.pk}")
 
 
 # --- Costos (WO-04) -----------------------------------------------------------

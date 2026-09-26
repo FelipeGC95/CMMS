@@ -202,3 +202,45 @@ def test_work_order_detail_query_budget(client, tenant_a, django_assert_max_num_
     login(client, tenant_a.tech)
     with django_assert_max_num_queries(25):
         assert client.get(reverse("work_order_detail", args=[wo.pk])).status_code == 200
+
+
+def _checklist_rows(tenant, wo, n):
+    """Ítems con foto en la OT y planes publicados de la clase (WO-03)."""
+    from django.core.files.uploadedfile import SimpleUploadedFile
+
+    from apps.maintenance.models import ItemType
+    from apps.maintenance.services import create_plan
+    from apps.work.services import add_checklist_item, add_checklist_photo
+    from tests.conftest import tiny_jpeg_bytes
+
+    with tenant_context(tenant.org):
+        start = wo.checklist.count()
+        for i in range(start, start + n):
+            item = add_checklist_item(work_order=wo, membership=tenant.admin, text=f"Ítem {i}")
+            photo = SimpleUploadedFile("f.jpg", tiny_jpeg_bytes(), content_type="image/jpeg")
+            add_checklist_photo(item=item, membership=tenant.tech, uploaded_file=photo)
+            create_plan(
+                code=f"PX{i}",
+                name=f"Plan {i}",
+                asset_class=tenant.asset.asset_class,
+                interval_days=30,
+                items=[{"text": "x", "item_type": ItemType.CHECK}],
+            )
+
+
+@pytest.mark.parametrize("url_name", ["work_order_detail", "work_order_checklist"])
+def test_checklist_screens_do_not_grow_with_items_photos_or_plans(
+    client, tenant_a, settings, tmp_path, url_name
+):
+    settings.MEDIA_ROOT = tmp_path
+    with tenant_context(tenant_a.org):
+        wo = report_failure(
+            membership=tenant_a.viewer, asset=tenant_a.asset, description="x", asset_stopped=False
+        ).work_order
+    login(client, tenant_a.admin)
+    url = reverse(url_name, args=[wo.pk])
+    _checklist_rows(tenant_a, wo, 2)
+    few = _count(client, url)
+    _checklist_rows(tenant_a, wo, 8)
+    many = _count(client, url)
+    assert many == few, f"{url_name}: {few} → {many} consultas"

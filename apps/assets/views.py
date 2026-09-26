@@ -370,5 +370,7 @@ def asset_report_view(request, pk):
                 request,
                 _("Aviso enviado. Se creó la %(code)s.") % {"code": work_request.work_order.code},
             )
+            if getattr(work_request, "photo_warning", ""):  # cupo lleno: el aviso va sin foto
+                messages.warning(request, work_request.photo_warning)
             return redirect("work_order_detail", pk=work_request.work_order_id)
     return render(request, "assets/report.html", {"asset": asset, "form": form})

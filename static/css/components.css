@@ -259,6 +259,33 @@ main { max-width: var(--content-max); margin: 0 auto; padding: var(--space-5) va
 .check-item__note .help svg { width: 16px; height: 16px; flex: none; }
 .check-item__note-text { margin: var(--space-2) 0 0; }
 .check-item__hint { margin: var(--space-3) 0 0; }
+.check-item__photos { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-3); }
+.thumb--sm { width: 72px; height: 72px; display: block; }
+.photo-upload { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); margin-top: var(--space-3); }
+.photo-upload__input { position: absolute; width: 1px; height: 1px; opacity: 0; overflow: hidden; }
+.photo-upload__input:focus-visible + .photo-upload__button { outline: 3px solid var(--color-focus); outline-offset: 2px; }
+.photo-upload__button { cursor: pointer; }
+.photo-upload__busy { display: none; font-size: var(--text-sm); color: var(--color-text-muted); }
+.photo-upload.htmx-request .photo-upload__busy { display: inline; }
+.photo-upload.htmx-request .photo-upload__button { opacity: 0.6; }
+
+/* Sección con título y acción a la derecha (se apilan en móvil). */
+.section-header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-2); margin-bottom: var(--space-3); }
+.section-header h2 { margin: 0; }
+.field-pair.field-pair--3 { grid-template-columns: repeat(auto-fit, minmax(min(100%, 80px), 1fr)); column-gap: var(--space-3); }
+.fieldset { border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: var(--space-3) var(--space-3) 0; margin: 0 0 var(--space-4); min-width: 0; }
+.fieldset legend { font-weight: 500; font-size: var(--text-sm); color: var(--color-text-muted); padding: 0 var(--space-1); }
+
+/* Firma al completar (WO-03 CA3): lienzo táctil, siempre tinta sobre papel. */
+.signature-pad__label { font-weight: 500; font-size: var(--text-sm); }
+.signature-pad__canvas {
+  display: block; width: 100%; max-width: 560px; height: 180px; touch-action: none; cursor: crosshair;
+  background: var(--color-signature-bg); color: var(--color-signature-ink);
+  border: 2px dashed var(--color-border-strong); border-radius: var(--radius-md);
+}
+.signature-pad__footer { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-2); }
+.signature-pad__footer .btn { min-height: var(--touch-target); }
+.signature-image { display: block; max-width: 100%; width: 280px; height: auto; background: var(--color-signature-bg); border: 1px solid var(--color-border); border-radius: var(--radius-md); }
 .check-item__hint a { color: inherit; font-weight: 600; }
 /* Cierre de correctiva: síntoma y acción, aptos para dictado (REQ-03 CA3). */
 .field--dictation textarea { min-height: 96px; resize: vertical; }
