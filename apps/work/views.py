@@ -4,6 +4,7 @@ from django.core.paginator import Paginator
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
+from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from django.views.decorators.http import require_POST
 
@@ -23,7 +24,7 @@ from .forms import (
     WorkOrderCreateForm,
     WorkOrderFilterForm,
 )
-from .models import FailureCode, OtherCost, PartUsage, WorkOrder, WorkOrderChecklistItem
+from .models import FailureCode, FailureEvent, OtherCost, PartUsage, WorkOrder, WorkOrderChecklistItem
 from .selectors import (
     failure_code_list,
     open_requests_for_asset,
@@ -44,11 +45,13 @@ from .services import (
     complete_work_order,
     create_failure_code,
     create_work_order,
+    failure_started_default,
     log_labor,
     merge_request,
     reject_request,
     remove_cost_line,
     rename_failure_code,
+    save_checklist_note,
     set_failure_code_active,
     transition,
     work_order_meter,
@@ -112,7 +115,9 @@ def work_order_list_view(request):
 @membership_required(perm=Perm.WORK_ORDER_MANAGE)
 def work_order_create_view(request):
     membership = request.membership
-    form = WorkOrderCreateForm(request.POST or None, membership=membership)
+    # Precarga por querystring (p. ej. desde una medición fuera de rango, WO-03 CA2).
+    initial = {key: request.GET[key] for key in ("work_type", "asset", "title") if request.GET.get(key)}
+    form = WorkOrderCreateForm(request.POST or None, initial=initial, membership=membership)
     if request.method == "POST" and form.is_valid():
         work_order = create_work_order(by=request.user, **form.cleaned_data)
         messages.success(request, _("%(code)s creada.") % {"code": work_order.code})
@@ -120,12 +125,37 @@ def work_order_create_view(request):
     return render(request, "work/create.html", {"form": form})
 
 
+def _failure_initial(work_order):
+    """Valores iniciales de la falla al cerrar: los del evento abierto por el aviso, si existe."""
+    failure = FailureEvent.objects.filter(work_order=work_order).first()
+    if failure is None:
+        return {
+            "impact": FailureEvent.Impact.NONE,
+            "failure_started_at": failure_started_default(work_order),
+            "failure_ended_at": timezone.now(),
+            "symptom": work_order.description,
+        }
+    return {
+        "impact": failure.impact,
+        "failure_started_at": failure.started_at,
+        "failure_ended_at": failure.ended_at or timezone.now(),
+        "symptom": failure.description,
+        "failure_mode": failure.failure_mode_id,
+        "failure_cause": failure.failure_cause_id,
+        "failure_mechanism": failure.failure_mechanism_id,
+        "detection_method": failure.detection_method_id,
+        "component": failure.component_id,
+    }
+
+
 def _complete_form(work_order, data=None):
     meter = work_order_meter(work_order)
     plan = work_order.plan_assignment.plan if work_order.plan_assignment_id else None
+    with_failure = work_order.work_type == WorkOrder.Type.CORRECTIVE
     return CompleteWorkOrderForm(
         data,
-        with_failure=work_order.work_type == WorkOrder.Type.CORRECTIVE,
+        initial=_failure_initial(work_order) if with_failure and data is None else None,
+        with_failure=with_failure,
         meter=meter,
         meter_required=bool(plan and plan.uses_meter and meter),
         require_failure_details=work_order.organization.require_failure_details,
@@ -194,6 +224,8 @@ def checklist_answer_view(request, pk, item_pk):
         pk=item_pk,
         work_order_id=pk,
     )
+    if request.POST.get("note_only"):
+        return _save_checklist_note(request, item)
     error = None
     try:
         answer_checklist_item(
@@ -209,7 +241,14 @@ def checklist_answer_view(request, pk, item_pk):
         raise PermissionDenied from exc
     if request.headers.get("HX-Request"):
         response = render(
-            request, "work/_checklist_item.html", {"item": item, "error": error, "can_execute": True}
+            request,
+            "work/_checklist_item.html",
+            {
+                "item": item,
+                "error": error,
+                "can_execute": True,
+                "can_manage": has_perm(request.membership, Perm.WORK_ORDER_MANAGE),
+            },
         )
         # La cabecera de la OT puede cambiar (pasa a "En ejecución").
         response["HX-Trigger"] = "checklist-changed"
@@ -217,6 +256,22 @@ def checklist_answer_view(request, pk, item_pk):
     if error:
         messages.error(request, error)
     return redirect("work_order_detail", pk=pk)
+
+
+def _save_checklist_note(request, item):
+    """Guardado automático de la observación del ítem (WO-03 CA2), sin tocar el resultado."""
+    error = None
+    try:
+        save_checklist_note(item=item, membership=request.membership, note=request.POST.get("note", ""))
+    except WorkOrderError as exc:
+        error = exc.message
+    except PermissionDeniedError as exc:
+        raise PermissionDenied from exc
+    if request.headers.get("HX-Request"):
+        return render(request, "work/_checklist_note_status.html", {"item": item, "error": error})
+    if error:
+        messages.error(request, error)
+    return redirect("work_order_detail", pk=item.work_order_id)
 
 
 @require_POST
@@ -236,6 +291,10 @@ def work_order_complete_view(request, pk):
                 failure_mechanism=form.cleaned_data.get("failure_mechanism"),
                 detection_method=form.cleaned_data.get("detection_method"),
                 component=form.cleaned_data.get("component"),
+                impact=form.cleaned_data.get("impact"),
+                failure_started_at=form.cleaned_data.get("failure_started_at"),
+                failure_ended_at=form.cleaned_data.get("failure_ended_at"),
+                symptom=form.cleaned_data.get("symptom"),
                 meter_value=form.cleaned_data.get("meter_value"),
             )
         except ValidationError as exc:

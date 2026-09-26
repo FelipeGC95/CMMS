@@ -1,4 +1,4 @@
-"""Alta de adjuntos: valida tamaño/tipo y comprime imágenes (AST-06 CA1)."""
+"""Alta de adjuntos: valida tamaño/tipo, comprime imágenes (AST-06 CA1) y respeta el cupo (CA2)."""
 
 import hashlib
 import io
@@ -7,10 +7,16 @@ from pathlib import Path
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.files.base import ContentFile
+from django.db import transaction
+from django.template.defaultfilters import filesizeformat
 from django.utils.translation import gettext as _
 from PIL import Image, ImageOps, UnidentifiedImageError
 
+from apps.core.tenancy import require_current_organization
+from apps.organizations.models import Organization
+
 from .models import Attachment, Purpose
+from .selectors import storage_usage
 
 MAX_IMAGE_DIMENSION = 2000
 JPEG_QUALITY = 82
@@ -77,6 +83,44 @@ def add_attachment(
     else:
         data = uploaded_file.read()
 
+    with transaction.atomic():
+        return _save_within_quota(
+            data=data,
+            target_type=target_type,
+            target_id=target_id,
+            purpose=purpose,
+            filename=filename,
+            content_type=content_type,
+            width=width,
+            height=height,
+            by=by,
+            client_uuid=client_uuid,
+        )
+
+
+def _save_within_quota(
+    *, data, target_type, target_id, purpose, filename, content_type, width, height, by, client_uuid
+) -> Attachment:
+    """Guarda el adjunto si cabe en el cupo del plan (AST-06 CA2, ORG-10 CA1).
+
+    Se mide el tamaño ya comprimido. La fila de la organización se bloquea para que dos
+    subidas simultáneas no superen el cupo entre ambas.
+    """
+    organization = require_current_organization()
+    Organization.objects.select_for_update().filter(pk=organization.pk).values_list("pk").get()
+    usage = storage_usage(organization=organization)
+    if not usage.allows(len(data)):
+        raise AttachmentError(
+            _(
+                "No hay espacio para este archivo (%(size)s): la organización usa %(used)s de "
+                "%(quota)s de su plan. Pide al administrador ampliar el plan."
+            )
+            % {
+                "size": filesizeformat(len(data)),
+                "used": filesizeformat(usage.used_bytes),
+                "quota": filesizeformat(usage.quota_bytes),
+            }
+        )
     attachment = Attachment(
         target_type=target_type,
         target_id=target_id,

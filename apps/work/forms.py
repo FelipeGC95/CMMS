@@ -9,7 +9,7 @@ from apps.assets.selectors import visible_assets
 from apps.organizations.models import Location
 from apps.organizations.selectors import visible_locations
 
-from .models import FailureCode, WorkOrder
+from .models import FailureCode, FailureEvent, WorkOrder
 from .selectors import assignable_members, failure_codes
 
 
@@ -29,10 +29,48 @@ class FailureReportForm(forms.Form):
     client_uuid = forms.UUIDField(widget=forms.HiddenInput, required=False, initial=uuid.uuid4)
 
 
+class LocalDateTimeInput(forms.DateTimeInput):
+    """`datetime-local` nativo: el teléfono muestra su selector de fecha y hora."""
+
+    input_type = "datetime-local"
+
+    def __init__(self, attrs=None):
+        super().__init__(attrs=attrs, format="%Y-%m-%dT%H:%M")
+
+
+# Campos aptos para dictado por voz (ADR-018): texto libre, sin límite corto.
+DICTATION_ATTRS = {"rows": 3, "autocapitalize": "sentences", "spellcheck": "true"}
+
+
 class CompleteWorkOrderForm(forms.Form):
-    labor_minutes = forms.IntegerField(label=_("Tiempo trabajado (minutos)"), min_value=0, max_value=24 * 60)
+    """Cierre de OT. En correctivas pide síntoma, acción y la falla (REQ-03 CA1–CA3)."""
+
+    symptom = forms.CharField(
+        label=_("Síntoma observado"),
+        help_text=_("¿Qué viste? Puedes dictarlo con el micrófono del teclado."),
+        required=False,
+        max_length=4000,
+        widget=forms.Textarea(attrs=DICTATION_ATTRS),
+    )
     notes = forms.CharField(
-        label=_("Comentario de cierre"), required=False, widget=forms.Textarea(attrs={"rows": 3})
+        label=_("Comentario de cierre"),
+        required=False,
+        max_length=4000,
+        widget=forms.Textarea(attrs=DICTATION_ATTRS),
+    )
+    labor_minutes = forms.IntegerField(label=_("Tiempo trabajado (minutos)"), min_value=0, max_value=24 * 60)
+    impact = forms.ChoiceField(label=_("Impacto"), choices=FailureEvent.Impact.choices)
+    failure_started_at = forms.DateTimeField(
+        label=_("Inicio de la detención"),
+        help_text=_("Si no hubo detención: cuándo se detectó la falla."),
+        required=False,
+        widget=LocalDateTimeInput(),
+    )
+    failure_ended_at = forms.DateTimeField(
+        label=_("Fin de la detención"),
+        help_text=_("Si lo dejas vacío, se usa la hora actual."),
+        required=False,
+        widget=LocalDateTimeInput(),
     )
     failure_mode = forms.ModelChoiceField(
         label=_("Modo de falla"), queryset=FailureCode.all_tenants.none(), required=False
@@ -54,6 +92,18 @@ class CompleteWorkOrderForm(forms.Form):
         label=_("Lectura del medidor"), min_value=0, max_digits=14, decimal_places=3
     )
 
+    FAILURE_FIELDS = (
+        "symptom",
+        "impact",
+        "failure_started_at",
+        "failure_ended_at",
+        "failure_mode",
+        "failure_cause",
+        "failure_mechanism",
+        "detection_method",
+        "component",
+    )
+
     def __init__(
         self, *args, with_failure=False, meter=None, meter_required=False, require_failure_details=False,
         asset=None, **kwargs,
@@ -63,7 +113,7 @@ class CompleteWorkOrderForm(forms.Form):
             del self.fields["meter_value"]
         else:
             field = self.fields["meter_value"]
-            field.label = f"{meter.get_kind_display()} al terminar"
+            field.label = _("%(kind)s al terminar") % {"kind": meter.get_kind_display()}
             field.required = meter_required
             field.help_text = (
                 _("Obligatorio: el próximo preventivo se calcula desde esta lectura.")
@@ -73,21 +123,32 @@ class CompleteWorkOrderForm(forms.Form):
             if meter.current_value is not None:
                 field.widget.attrs["placeholder"] = f"{meter.current_value.normalize():f}"
         if with_failure:
+            notes = self.fields["notes"]
+            notes.label = _("Acción realizada")
+            notes.help_text = _("¿Qué hiciste? Puedes dictarlo con el micrófono del teclado.")
             self.fields["failure_mode"].queryset = failure_codes(FailureCode.Kind.MODE)
             self.fields["failure_cause"].queryset = failure_codes(FailureCode.Kind.CAUSE)
             self.fields["failure_mechanism"].queryset = failure_codes(FailureCode.Kind.MECHANISM)
             self.fields["detection_method"].queryset = failure_codes(FailureCode.Kind.DETECTION_METHOD)
-            if asset is not None:
-                self.fields["component"].queryset = asset.children.filter(is_active=True)
+            components = asset.children.filter(is_active=True) if asset is not None else None
+            if components is not None and components.exists():
+                self.fields["component"].queryset = components
+            else:
+                del self.fields["component"]  # sin hijos no hay componente que elegir
             if require_failure_details:
                 self.fields["failure_mode"].required = True
                 self.fields["failure_cause"].required = True
         else:
-            del self.fields["failure_mode"]
-            del self.fields["failure_cause"]
-            del self.fields["failure_mechanism"]
-            del self.fields["detection_method"]
-            del self.fields["component"]
+            for name in self.FAILURE_FIELDS:
+                del self.fields[name]
+            self.order_fields(["labor_minutes", "notes"])
+
+    def clean(self):
+        cleaned = super().clean()
+        started, ended = cleaned.get("failure_started_at"), cleaned.get("failure_ended_at")
+        if started and ended and ended < started:
+            self.add_error("failure_ended_at", _("El fin no puede ser anterior al inicio."))
+        return cleaned
 
 
 class FailureCodeForm(forms.Form):
