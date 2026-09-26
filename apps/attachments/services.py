@@ -12,6 +12,8 @@ from django.template.defaultfilters import filesizeformat
 from django.utils.translation import gettext as _
 from PIL import Image, ImageOps, UnidentifiedImageError
 
+from apps.audit import services as audit
+from apps.audit.models import AuditEvent
 from apps.core.tenancy import require_current_organization
 from apps.organizations.models import Organization
 
@@ -148,3 +150,28 @@ def _save_within_quota(
     attachment.file.save(filename, ContentFile(data), save=False)
     attachment.save()
     return attachment
+
+
+def remove_attachment(*, attachment: Attachment, by) -> None:
+    """Borra un adjunto y su archivo; libera su espacio del cupo (AST-06 CA2, ORG-10).
+
+    Solo para adjuntos que aún son borrador (la app dueña decide cuándo, p. ej.
+    fotos de un ítem mientras la OT está abierta): el historial no se borra.
+    La auditoría guarda nombre, tamaño y huella; el archivo se elimina recién
+    al confirmar la transacción, para no perderlo si esta se revierte.
+    """
+    audit.record(
+        action=AuditEvent.Action.DELETE,
+        target=attachment,
+        actor=by,
+        changes={
+            "filename": [attachment.filename, None],
+            "size_bytes": [attachment.size_bytes, None],
+            "sha256": [attachment.sha256, None],
+            "target_id": [str(attachment.target_id), None],
+        },
+    )
+    storage, name = attachment.file.storage, attachment.file.name
+    attachment.delete()
+    if name:
+        transaction.on_commit(lambda: storage.delete(name))

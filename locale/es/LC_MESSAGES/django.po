@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-26 19:31-0300\n"
+"POT-Creation-Date: 2026-09-26 19:53-0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2036,6 +2036,9 @@ msgstr ""
 msgid "Ingresa el valor medido."
 msgstr ""
 
+msgid "Ingresa un número, por ejemplo 7,5."
+msgstr ""
+
 msgid "Resultado inválido."
 msgstr ""
 
@@ -2064,7 +2067,20 @@ msgstr ""
 msgid "La OT ya tiene el ítem «%(text)s»."
 msgstr ""
 
+msgid "Ese ítem ya no está en el checklist."
+msgstr ""
+
+#, python-format
+msgid "«%(text)s» ya tiene respuesta, observación o fotos: no se puede quitar."
+msgstr ""
+
+msgid "Movimiento inválido."
+msgstr ""
+
 msgid "Adjunta una imagen (de la cámara o de la galería)."
+msgstr ""
+
+msgid "Esa foto no es de este ítem."
 msgstr ""
 
 msgid "El fin de la detención no puede ser anterior a su inicio."
@@ -2078,6 +2094,10 @@ msgid "El componente debe ser un activo hijo del activo de la OT."
 msgstr ""
 
 msgid "Impacto de falla inválido."
+msgstr ""
+
+#, python-format
+msgid "La OT se completó sin la firma. %(reason)s"
 msgstr ""
 
 msgid "La OT está cerrada: sus costos ya no se pueden cambiar."
@@ -2239,6 +2259,13 @@ msgid "Elige una foto."
 msgstr ""
 
 msgid "Foto agregada."
+msgstr ""
+
+msgid "Foto quitada."
+msgstr ""
+
+#, python-format
+msgid "Ítem «%(text)s» quitado."
 msgstr ""
 
 msgid "Indica los minutos trabajados (1 a 1.440)."
@@ -3241,6 +3268,9 @@ msgstr ""
 msgid "Iniciar"
 msgstr ""
 
+msgid "Bajar"
+msgstr ""
+
 msgid "Estados"
 msgstr ""
 
@@ -3316,6 +3346,14 @@ msgstr ""
 msgid "Foto de ejemplo"
 msgstr ""
 
+msgid "Quitar"
+msgstr ""
+
+msgid ""
+"«Quitar» solo aparece en las fotos propias (o para un gestor) mientras la OT "
+"está abierta."
+msgstr ""
+
 msgid "Otra foto"
 msgstr ""
 
@@ -3365,6 +3403,24 @@ msgid "Filtros, listas y estado vacío"
 msgstr ""
 
 msgid "Ejemplo de filtro"
+msgstr ""
+
+msgid "Checklist del gestor: ordenar y quitar ítems"
+msgstr ""
+
+msgid "Revisar tensión de la correa"
+msgstr ""
+
+msgid "Verificación"
+msgstr ""
+
+msgid "Con respuesta"
+msgstr ""
+
+msgid "Corriente del motor"
+msgstr ""
+
+msgid "Opcional"
 msgstr ""
 
 msgid "Mantención mensual compresor"
@@ -3418,6 +3474,29 @@ msgstr ""
 msgid "Cambiar contraseña"
 msgstr ""
 
+msgid "Ítems actuales"
+msgstr ""
+
+msgid ""
+"Ordena con las flechas. Solo se quitan ítems sin respuesta, observación ni "
+"fotos."
+msgstr ""
+
+#, python-format
+msgid "¿Quitar «%(text)s» del checklist?"
+msgstr ""
+
+#, python-format
+msgid "Subir «%(text)s»"
+msgstr ""
+
+#, python-format
+msgid "Bajar «%(text)s»"
+msgstr ""
+
+msgid "Todavía no hay ítems."
+msgstr ""
+
 msgid "En rango"
 msgstr ""
 
@@ -3438,6 +3517,13 @@ msgstr ""
 
 #, python-format
 msgid "Foto %(n)s de «%(text)s»"
+msgstr ""
+
+msgid "¿Quitar esta foto?"
+msgstr ""
+
+#, python-format
+msgid "foto %(n)s"
 msgstr ""
 
 msgid "Activa JavaScript para firmar en pantalla."
@@ -3470,18 +3556,6 @@ msgid "Agregar un ítem propio"
 msgstr ""
 
 msgid "Agregar ítem"
-msgstr ""
-
-msgid "Ítems actuales"
-msgstr ""
-
-msgid "Verificación"
-msgstr ""
-
-msgid "Opcional"
-msgstr ""
-
-msgid "Todavía no hay ítems."
 msgstr ""
 
 msgid "Nueva OT"
@@ -3566,9 +3640,6 @@ msgid "Costo"
 msgstr ""
 
 msgid "h"
-msgstr ""
-
-msgid "Quitar"
 msgstr ""
 
 msgid "Agregar repuesto o material"

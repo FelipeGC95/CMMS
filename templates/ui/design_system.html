@@ -46,6 +46,8 @@
   <div class="row">
     <button class="btn btn--primary btn--lg" type="button">{% icon 'megaphone' %}{% translate "Grande (técnico, 48 px)" %}</button>
     <button class="btn btn--secondary btn--lg" type="button">{% icon 'play' %}{% translate "Iniciar" %}</button>
+    <button class="btn btn--ghost btn--icon" type="button">{% icon 'arrow-up' %}<span class="visually-hidden">{% translate "Subir" %}</span></button>
+    <button class="btn btn--ghost btn--icon" type="button">{% icon 'arrow-down' %}<span class="visually-hidden">{% translate "Bajar" %}</span></button>
   </div>
 </section>
 
@@ -102,7 +104,7 @@
       </li>
       <li class="check-item check-item--not_ok">
         <div class="check-item__text"><span class="check-item__num">2.</span><span>{% translate "Presión de trabajo" %}</span></div>
-        <div class="measure"><input class="input num" type="number" value="9.2" aria-label="{% translate 'Valor medido' %}"><span class="muted">bar</span><button class="btn btn--secondary btn--lg" type="button">{% translate "Guardar" %}</button></div>
+        <div class="measure"><input class="input num" type="text" inputmode="decimal" value="9,2" aria-label="{% translate 'Valor medido' %}"><span class="muted">bar</span><button class="btn btn--secondary btn--lg" type="button">{% translate "Guardar" %}</button></div>
         <p class="help muted">{% translate "Rango aceptable" %}: <span class="num">6,5 – 8</span> bar <span class="badge badge--error">{% icon 'stop' %}{% translate "Fuera de rango" %}</span></p>
         <div class="check-item__note">
           <label for="ds-note">{% translate "Observación (opcional)" %}</label>
@@ -113,10 +115,12 @@
       </li>
       <li class="check-item">
         <div class="check-item__text"><span class="check-item__num">3.</span><span>{% translate "Estado de la correa (fotos por ítem)" %}</span></div>
-        <div class="check-item__photos">
-          <img class="thumb thumb--sm" src="{% static 'brand/galbust-app-icon-180.png' %}" alt="{% translate 'Foto de ejemplo' %}">
-          <img class="thumb thumb--sm" src="{% static 'brand/galbust-app-icon-180.png' %}" alt="{% translate 'Foto de ejemplo' %}">
-        </div>
+        <ul class="check-item__photos">
+          <li class="check-photo"><img class="thumb thumb--sm" src="{% static 'brand/galbust-app-icon-180.png' %}" alt="{% translate 'Foto de ejemplo' %}">
+            <button class="btn btn--ghost check-photo__remove" type="button">{% icon 'x' %}{% translate "Quitar" %}</button></li>
+          <li class="check-photo"><img class="thumb thumb--sm" src="{% static 'brand/galbust-app-icon-180.png' %}" alt="{% translate 'Foto de ejemplo' %}"></li>
+        </ul>
+        <p class="help muted">{% translate "«Quitar» solo aparece en las fotos propias (o para un gestor) mientras la OT está abierta." %}</p>
         <form class="photo-upload" action="#ds-checklist">
           <input class="photo-upload__input" id="ds-photo" type="file" accept="image/*">
           <label class="btn btn--secondary btn--lg photo-upload__button" for="ds-photo">{% icon 'camera' %}{% translate "Otra foto" %}</label>
@@ -185,6 +189,26 @@
     <a class="chip" href="#ds-lists">{% translate "Vencidas" %}</a>
     <a class="chip" href="#ds-lists">{% translate "Cerradas" %}</a>
   </nav>
+  <h3>{% translate "Checklist del gestor: ordenar y quitar ítems" %}</h3>
+  <ol class="list checklist-order mb-4">
+    <li class="checklist-order__row">
+      <div class="list__main"><span class="list__title"><span class="mono muted">1.</span> {% translate "Revisar tensión de la correa" %}</span><span class="list__meta">{% translate "Verificación" %}</span>
+        <span class="checklist-order__badges"><span class="badge badge--info">{% icon 'info' %}{% translate "Obligatorio" %}</span><span class="badge badge--success">{% icon 'check' %}{% translate "Con respuesta" %}</span></span></div>
+      <div class="checklist-order__actions">
+        <button class="btn btn--ghost btn--icon" type="button" disabled>{% icon 'arrow-up' %}<span class="visually-hidden">{% translate "Subir" %}</span></button>
+        <button class="btn btn--ghost btn--icon" type="button">{% icon 'arrow-down' %}<span class="visually-hidden">{% translate "Bajar" %}</span></button>
+      </div>
+    </li>
+    <li class="checklist-order__row">
+      <div class="list__main"><span class="list__title"><span class="mono muted">2.</span> {% translate "Corriente del motor" %}</span><span class="list__meta">{% translate "Medición" %} · A · <span class="num">10 – 14,5</span></span>
+        <span class="checklist-order__badges"><span class="badge badge--neutral">{% icon 'dot' %}{% translate "Opcional" %}</span></span></div>
+      <div class="checklist-order__actions">
+        <button class="btn btn--danger btn--lg" type="button">{% icon 'x' %}{% translate "Quitar" %}</button>
+        <button class="btn btn--ghost btn--icon" type="button">{% icon 'arrow-up' %}<span class="visually-hidden">{% translate "Subir" %}</span></button>
+        <button class="btn btn--ghost btn--icon" type="button" disabled>{% icon 'arrow-down' %}<span class="visually-hidden">{% translate "Bajar" %}</span></button>
+      </div>
+    </li>
+  </ol>
   <ul class="list mb-4">
     <li><div class="list__main"><span class="list__title"><span class="mono">OT-P-00012</span> {% translate "Mantención mensual compresor" %}</span><span class="list__meta">CMP-01 · {% icon 'calendar' %} 30 Sep</span></div><span class="badge badge--neutral">{% icon 'dot' %}{% translate "Planificada" %}</span></li>
     <li><div class="list__main"><span class="list__title"><span class="mono">OT-C-00031</span> {% translate "Gotera sobre la línea 2" %}</span><span class="list__meta">{% icon 'home' %}<span class="visually-hidden">{% translate "Ubicación" %}:</span> {% translate "Bodega" %} <span class="mono">(P1-BOD)</span></span></div><span class="badge badge--warning">{% icon 'wrench' %}{% translate "Solicitada" %}</span></li>

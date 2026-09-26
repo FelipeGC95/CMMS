@@ -1,3 +1,10 @@
-{% load i18n %}{% if item.photos %}<div class="check-item__photos">
-  {% for photo in item.photos %}<a href="{% url 'attachment' photo.pk %}"><img class="thumb thumb--sm" src="{% url 'attachment' photo.pk %}" alt="{% blocktranslate with n=forloop.counter text=item.text %}Foto {{ n }} de «{{ text }}»{% endblocktranslate %}" loading="lazy"></a>{% endfor %}
-</div>{% endif %}
+{% load i18n ui %}{% if item.photos %}<ul class="check-item__photos">
+  {% for photo in item.photos %}<li class="check-photo">
+    <a href="{% url 'attachment' photo.pk %}"><img class="thumb thumb--sm" src="{% url 'attachment' photo.pk %}" alt="{% blocktranslate with n=forloop.counter text=item.text %}Foto {{ n }} de «{{ text }}»{% endblocktranslate %}" loading="lazy"></a>
+    {% if can_execute %}{% if can_manage or photo.uploaded_by_id == user.pk %}<form method="post" action="{% url 'checklist_photo_delete' item.work_order_id item.pk photo.pk %}"
+          hx-post="{% url 'checklist_photo_delete' item.work_order_id item.pk photo.pk %}" hx-target="#item-{{ item.pk }}" hx-swap="outerHTML"
+          hx-confirm="{% translate '¿Quitar esta foto?' %}">
+      {% csrf_token %}<button class="btn btn--ghost check-photo__remove" type="submit">{% icon 'x' %}{% translate "Quitar" %}<span class="visually-hidden"> {% blocktranslate with n=forloop.counter %}foto {{ n }}{% endblocktranslate %}</span></button>
+    </form>{% endif %}{% endif %}
+  </li>{% endfor %}
+</ul>{% endif %}

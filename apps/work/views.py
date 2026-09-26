@@ -12,7 +12,7 @@ from django.views.decorators.http import require_POST
 
 from apps.accounts.models import Membership
 from apps.accounts.permissions import Perm, PermissionDeniedError, has_perm
-from apps.attachments.models import Purpose, TargetType
+from apps.attachments.models import Attachment, Purpose, TargetType
 from apps.attachments.selectors import attachments_for
 from apps.core.decorators import membership_required
 from apps.ui.templatetags.ui import work_order_status_label
@@ -56,13 +56,17 @@ from .services import (
     answer_checklist_item,
     apply_plan_checklist,
     checklist_editable,
+    checklist_item_has_evidence,
     complete_work_order,
     create_failure_code,
     create_work_order,
     failure_started_default,
     log_labor,
     merge_request,
+    move_checklist_item,
     reject_request,
+    remove_checklist_item,
+    remove_checklist_photo,
     remove_cost_line,
     rename_failure_code,
     report_failure,
@@ -287,16 +291,35 @@ def work_order_assignees_view(request, pk):
     )
 
 
-@require_POST
-@membership_required(perm=Perm.WORK_ORDER_EXECUTE)
-def checklist_answer_view(request, pk, item_pk):
-    item = get_object_or_404(
+def _checklist_item_or_404(request, pk, item_pk):
+    """Ítem de una OT visible para la membresía (alcance por sitio); 404 si no."""
+    return get_object_or_404(
         WorkOrderChecklistItem.objects.select_related("work_order").filter(
             work_order__in=visible_work_orders(membership=request.membership)
         ),
         pk=item_pk,
         work_order_id=pk,
     )
+
+
+def _checklist_item_response(request, item, error=None):
+    """Tarjeta del ítem para htmx (tras responder, subir o quitar una foto)."""
+    return render(
+        request,
+        "work/_checklist_item.html",
+        {
+            "item": _with_photos([item])[0],
+            "error": error,
+            "can_execute": item.work_order.is_open,
+            "can_manage": has_perm(request.membership, Perm.WORK_ORDER_MANAGE),
+        },
+    )
+
+
+@require_POST
+@membership_required(perm=Perm.WORK_ORDER_EXECUTE)
+def checklist_answer_view(request, pk, item_pk):
+    item = _checklist_item_or_404(request, pk, item_pk)
     if request.POST.get("note_only"):
         return _save_checklist_note(request, item)
     error = None
@@ -313,16 +336,7 @@ def checklist_answer_view(request, pk, item_pk):
     except PermissionDeniedError as exc:
         raise PermissionDenied from exc
     if request.headers.get("HX-Request"):
-        response = render(
-            request,
-            "work/_checklist_item.html",
-            {
-                "item": _with_photos([item])[0],
-                "error": error,
-                "can_execute": True,
-                "can_manage": has_perm(request.membership, Perm.WORK_ORDER_MANAGE),
-            },
-        )
+        response = _checklist_item_response(request, item, error)
         # La cabecera de la OT puede cambiar (pasa a "En ejecución").
         response["HX-Trigger"] = "checklist-changed"
         return response
@@ -375,6 +389,8 @@ def work_order_complete_view(request, pk):
             messages.error(request, " ".join(exc.messages))
         else:
             messages.success(request, _("%(code)s completada.") % {"code": work_order.code})
+            if work_order.signature_warning:  # cupo lleno: se completó sin la firma
+                messages.warning(request, work_order.signature_warning)
             return redirect("work_order_detail", pk=pk)
     work_order = work_order_detail(pk, membership=request.membership)
     return render(request, "work/detail.html", _detail_context(request, work_order, form), status=400)
@@ -425,7 +441,7 @@ def work_order_checklist_view(request, pk):
         "work/checklist_edit.html",
         {
             "wo": work_order,
-            "items": work_order.checklist.all(),
+            "items": _editable_checklist(work_order),
             "apply_form": apply_form,
             "item_form": item_form,
             "has_versions": bool(versions),
@@ -437,13 +453,7 @@ def work_order_checklist_view(request, pk):
 @require_POST
 @membership_required(perm=Perm.WORK_ORDER_EXECUTE)
 def checklist_photo_add_view(request, pk, item_pk):
-    item = get_object_or_404(
-        WorkOrderChecklistItem.objects.select_related("work_order").filter(
-            work_order__in=visible_work_orders(membership=request.membership)
-        ),
-        pk=item_pk,
-        work_order_id=pk,
-    )
+    item = _checklist_item_or_404(request, pk, item_pk)
     form = ChecklistPhotoForm(request.POST, request.FILES)
     error = None
     if not form.is_valid():
@@ -461,21 +471,91 @@ def checklist_photo_add_view(request, pk, item_pk):
         except PermissionDeniedError as exc:
             raise PermissionDenied from exc
     if request.headers.get("HX-Request"):
-        return render(
-            request,
-            "work/_checklist_item.html",
-            {
-                "item": _with_photos([item])[0],
-                "error": error,
-                "can_execute": True,
-                "can_manage": has_perm(request.membership, Perm.WORK_ORDER_MANAGE),
-            },
-        )
+        return _checklist_item_response(request, item, error)
     if error:
         messages.error(request, error)
     else:
         messages.success(request, _("Foto agregada."))
     return redirect(f"{reverse('work_order_detail', args=[pk])}#item-{item.pk}")
+
+
+@require_POST
+@membership_required(perm=Perm.WORK_ORDER_EXECUTE)
+def checklist_photo_delete_view(request, pk, item_pk, photo_pk):
+    """Quita una foto del ítem: quien la subió o un gestor, con la OT abierta (WO-03 CA2)."""
+    item = _checklist_item_or_404(request, pk, item_pk)
+    photo = get_object_or_404(
+        Attachment.objects.filter(target_type=TargetType.CHECKLIST_ITEM, target_id=item.pk), pk=photo_pk
+    )
+    error = None
+    try:
+        remove_checklist_photo(item=item, photo=photo, membership=request.membership)
+    except WorkOrderError as exc:
+        error = exc.message
+    except PermissionDeniedError as exc:
+        raise PermissionDenied from exc
+    if request.headers.get("HX-Request"):
+        return _checklist_item_response(request, item, error)
+    if error:
+        messages.error(request, error)
+    else:
+        messages.success(request, _("Foto quitada."))
+    return redirect(f"{reverse('work_order_detail', args=[pk])}#item-{item.pk}")
+
+
+def _editable_checklist(work_order):
+    """Ítems de la pantalla de checklist; `locked` = ya tiene respuesta, observación o fotos."""
+    items = list(work_order.checklist.all())
+    photos = checklist_photos(items=items)
+    for item in items:
+        item.locked = checklist_item_has_evidence(item, photo_count=len(photos.get(item.pk, [])))
+    return items
+
+
+def _checklist_items_changed(request, pk, *, error=None, success=None):
+    """Tras quitar o mover: htmx recibe la lista actualizada; sin JS, vuelve a la pantalla."""
+    if request.headers.get("HX-Request"):
+        work_order = get_object_or_404(visible_work_orders(membership=request.membership), pk=pk)
+        return render(
+            request,
+            "work/_checklist_edit_items.html",
+            {"wo": work_order, "items": _editable_checklist(work_order), "error": error, "success": success},
+        )
+    if error:
+        messages.error(request, error)
+    elif success:
+        messages.success(request, success)
+    return redirect(f"{reverse('work_order_checklist', args=[pk])}#current-items")
+
+
+@require_POST
+@membership_required(perm=Perm.WORK_ORDER_MANAGE)
+def checklist_item_remove_view(request, pk, item_pk):
+    """Quita un ítem sin responder del checklist (WO-03)."""
+    item = _checklist_item_or_404(request, pk, item_pk)
+    try:
+        remove_checklist_item(item=item, membership=request.membership)
+    except WorkOrderError as exc:
+        return _checklist_items_changed(request, pk, error=exc.message)
+    except PermissionDeniedError as exc:
+        raise PermissionDenied from exc
+    return _checklist_items_changed(request, pk, success=_("Ítem «%(text)s» quitado.") % {"text": item.text})
+
+
+@require_POST
+@membership_required(perm=Perm.WORK_ORDER_MANAGE)
+def checklist_item_move_view(request, pk, item_pk):
+    """Sube o baja un ítem una posición (WO-03); botones, sin arrastrar."""
+    item = _checklist_item_or_404(request, pk, item_pk)
+    try:
+        move_checklist_item(
+            item=item, membership=request.membership, direction=request.POST.get("direction", "")
+        )
+    except WorkOrderError as exc:
+        return _checklist_items_changed(request, pk, error=exc.message)
+    except PermissionDeniedError as exc:
+        raise PermissionDenied from exc
+    return _checklist_items_changed(request, pk)
 
 
 # --- Costos (WO-04) -----------------------------------------------------------

@@ -90,6 +90,21 @@ urlpatterns = [
         name="checklist_photo_add",
     ),
     path(
+        "work-orders/<uuid:pk>/items/<uuid:item_pk>/photos/<uuid:photo_pk>/delete/",
+        work_views.checklist_photo_delete_view,
+        name="checklist_photo_delete",
+    ),
+    path(
+        "work-orders/<uuid:pk>/items/<uuid:item_pk>/remove/",
+        work_views.checklist_item_remove_view,
+        name="checklist_item_remove",
+    ),
+    path(
+        "work-orders/<uuid:pk>/items/<uuid:item_pk>/move/",
+        work_views.checklist_item_move_view,
+        name="checklist_item_move",
+    ),
+    path(
         "work-orders/<uuid:pk>/checklist/", work_views.work_order_checklist_view, name="work_order_checklist"
     ),
     path("files/<uuid:pk>/", attachment_view, name="attachment"),

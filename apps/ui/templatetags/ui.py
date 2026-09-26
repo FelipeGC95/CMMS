@@ -28,6 +28,8 @@ _ICONS = {
     "play": '<path d="M8 5.5v13l10-6.5-10-6.5z"/>',
     "contrast": '<circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 1 0 18z" fill="currentColor"/>',
     "camera": '<path d="M4 8h3l2-2.5h6L17 8h3v11H4z"/><circle cx="12" cy="13" r="3.5"/>',
+    "arrow-up": '<path d="M12 19V5M6 11l6-6 6 6"/>',
+    "arrow-down": '<path d="M12 5v14M6 13l6 6 6-6"/>',
 }
 
 
@@ -151,3 +153,16 @@ def num(value):
         return "—"
     text = f"{Decimal(value):,.3f}".rstrip("0").rstrip(".")
     return text.replace(",", " ").replace(".", ",").replace(" ", ".")
+
+
+@register.filter
+def measure(value):
+    """Medición para técnicos (WO-03): coma decimal, sin separador de miles ni ceros sobrantes.
+
+    `1.600` se ve «1,6» (no «1,600», que se lee como mil seiscientos) y `1600` se ve «1600».
+    El mismo texto sirve como valor del campo: el servicio acepta coma o punto decimal.
+    """
+    if value is None or value == "":
+        return "—"
+    text = f"{Decimal(value):.3f}".rstrip("0").rstrip(".")
+    return "0" if text == "-0" else text.replace(".", ",")
