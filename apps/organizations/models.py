@@ -95,6 +95,11 @@ class Location(TenantModel):
     # En blanco hereda la de la organización (ORG-04 CA1).
     timezone = models.CharField(_("zona horaria"), max_length=64, blank=True)
     is_active = models.BooleanField(_("activa"), default=True)
+    # Nombre con sus ancestros ("Planta › Área › Línea"), guardado para mostrar la
+    # ubicación sin recorrer `parent` fila por fila (evita N+1 en listas y selects).
+    path = models.CharField(_("ruta"), max_length=1000, blank=True, editable=False)
+
+    PATH_SEPARATOR = " › "
 
     class Meta:
         verbose_name = _("ubicación")
@@ -105,6 +110,40 @@ class Location(TenantModel):
         ]
 
     def __str__(self):
-        if self.parent_id:
-            return f"{self.parent} › {self.name}"
-        return self.name
+        return self.path or self.name
+
+    def save(self, *args, **kwargs):
+        previous_path = None
+        if not self._state.adding:
+            previous_path = Location.objects.filter(pk=self.pk).values_list("path", flat=True).first()
+        parent_path = (self.parent.path or self.parent.name) if self.parent_id else ""
+        self.path = f"{parent_path}{self.PATH_SEPARATOR}{self.name}" if parent_path else self.name
+        self.path = self.path[: self._meta.get_field("path").max_length]
+        update_fields = kwargs.get("update_fields")
+        if update_fields is not None and "path" not in update_fields:
+            kwargs["update_fields"] = [*update_fields, "path"]
+        super().save(*args, **kwargs)
+        if previous_path is not None and previous_path != self.path:
+            self._refresh_descendant_paths()
+
+    def _refresh_descendant_paths(self):
+        """Al renombrar o mover, las rutas del subárbol se recalculan en una lectura y una escritura."""
+        rows = list(Location.objects.all())
+        children: dict = {}
+        for row in rows:
+            children.setdefault(row.parent_id, []).append(row)
+        changed, pending = [], [(self.pk, self.path)]
+        seen = {self.pk}
+        max_length = self._meta.get_field("path").max_length
+        while pending:
+            parent_id, parent_path = pending.pop()
+            for child in children.get(parent_id, []):
+                if child.pk in seen:
+                    continue
+                seen.add(child.pk)
+                new_path = f"{parent_path}{self.PATH_SEPARATOR}{child.name}"[:max_length]
+                if child.path != new_path:
+                    child.path = new_path
+                    changed.append(child)
+                pending.append((child.pk, new_path))
+        Location.objects.bulk_update(changed, ["path"])

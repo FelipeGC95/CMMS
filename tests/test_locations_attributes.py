@@ -62,6 +62,27 @@ def test_moving_a_node_carries_its_descendants(in_a):
     assert next(r for r in rows if r.location == line).path == "Planta 2 › Envasado"
 
 
+def test_stored_path_follows_renames_and_moves(in_a):
+    """La ruta guardada (str) se mantiene al renombrar o mover un nodo con su subárbol."""
+    plant, area, line = _tree()
+    assert str(line) == "Planta › Envasado › Línea 1"
+    update_location(
+        membership=in_a.admin, location=plant, code="P1", name="Planta Norte", kind="site", parent=None
+    )
+    line.refresh_from_db()
+    assert str(line) == "Planta Norte › Envasado › Línea 1"
+    other = Location.objects.create(code="P2", name="Planta 2")
+    update_location(
+        membership=in_a.admin, location=area, code="A1", name="Envasado", kind="area", parent=other
+    )
+    line.refresh_from_db()
+    assert str(line) == "Planta 2 › Envasado › Línea 1"
+    # La ruta no depende de cargar el padre: se lee sin consultas adicionales.
+    fresh = Location.objects.get(pk=line.pk)
+    assert not Location.parent.is_cached(fresh)
+    assert str(fresh) == "Planta 2 › Envasado › Línea 1"
+
+
 def test_delete_only_empty_locations(in_a):
     plant, area, line = _tree()
     with pytest.raises(ValidationError):

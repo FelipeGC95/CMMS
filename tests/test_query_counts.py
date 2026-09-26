@@ -20,10 +20,19 @@ from tests.conftest import login
 def _add_rows(tenant, n):
     with tenant_context(tenant.org):
         for i in range(n):
+            # Ubicaciones en 3 niveles (sitio › área › línea): mostrar la ruta no recorre `parent`.
+            site = Location.objects.create(code=f"S-{Location.objects.count():03d}", name=f"Sitio {i}")
+            area = Location.objects.create(
+                code=f"S-{Location.objects.count():03d}", name=f"Área {i}", kind="area", parent=site
+            )
+            line = Location.objects.create(
+                code=f"S-{Location.objects.count():03d}", name=f"Línea {i}", kind="line", parent=area
+            )
             asset = Asset.objects.create(
                 code=f"A-{Asset.objects.count():03d}",
                 name=f"Equipo {i}",
                 asset_class=tenant.asset.asset_class,
+                location=line,
             )
             create_work_order(
                 work_type="corrective", title=f"OT {i}", asset=asset, assigned_to=tenant.admin.user
@@ -41,19 +50,16 @@ def _add_rows(tenant, n):
             member = Membership.objects.create(
                 user=user, organization=tenant.org, role="external", restricted_to_locations=True
             )
-            location = Location.objects.create(code=f"L-{Asset.objects.count():03d}", name=f"Sitio {i}")
-            MembershipLocation.objects.create(membership=member, location=location)
-            # OT y aviso sobre una ubicación, con apoyo (WO-01 CA2, REQ-01 CA1). Sin ubicaciones hijas:
-            # los select de ubicación del alta de activo y la lista de ubicaciones aún recorren `parent`.
-            area = location
+            MembershipLocation.objects.create(membership=member, location=site)
+            # OT y aviso sobre una ubicación, con apoyo (WO-01 CA2, REQ-01 CA1).
             create_work_order(
                 work_type="corrective",
                 title=f"OT ubicación {i}",
-                location=area,
+                location=line,
                 assigned_to=tenant.admin.user,
                 helpers=[tenant.tech.user],
             )
-            report_failure(membership=tenant.viewer, location=area, description="gotera")
+            report_failure(membership=tenant.viewer, location=line, description="gotera")
 
 
 def _count(client, url):
