@@ -1,6 +1,6 @@
 # 05 — Roadmap
 
-**Estado:** borrador v0.1 (2026-09-24)
+**Estado:** borrador v0.2 (2026-09-26): MVP‑0 hecho; sigue MVP‑1.
 
 > **Supuesto de dedicación: 15 h/semana.** Aún no está confirmado; ajústalo y
 > reescalo las semanas. Las estimaciones incluyen tests y un margen de ~20 %
@@ -82,6 +82,20 @@ organización recordada al iniciar sesión (ORG-07). Pendiente: despliegue
 organizaciones y los tests de aislamiento pasan en CI.
 
 ## MVP‑0 · Demo (10 semanas)
+
+**Estado (2026-09-26): hecho.** Todos los criterios M0 de ORG, AST, WO, REQ
+y X-07 están en `main` y desplegados en Render, incluidos los que se habían
+considerado recortables: etiquetas PDF con logo (ADR-019), OT y solicitudes
+sobre ubicación con varios responsables, nombres de estado por organización,
+checklist aplicable a correctivas, fotos por ítem y firma. La demo del "Hecho
+cuando" funciona con `seed_demo` sin atajos.
+
+Quedan fuera, a propósito: color de marca y el resto de ORG-09 (M1); el logo
+no cuenta para el cupo de almacenamiento; el PDF de etiquetas solo imprime
+texto Latin-1; las OT sobre ubicación no registran falla (`FailureEvent`
+exige activo); los responsables adicionales usan `User` en vez de
+`membership` + `is_lead` como dice 03; el catálogo `.mo` no se compila hasta
+que haya traducciones (F3).
 
 | # | Entregable | Req. | Sem. |
 |---|---|---|---|
