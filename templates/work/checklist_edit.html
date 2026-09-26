@@ -5,7 +5,7 @@
   <div>
     <p class="muted mono">{{ wo.code }} · {{ wo.get_work_type_display }}</p>
     <h1>{% translate "Checklist de la OT" %}</h1>
-    <p class="muted">{{ wo.title }} · <span class="mono">{{ wo.asset.code }}</span> {{ wo.asset.name }}</p>
+    <p class="muted">{{ wo.title }} · {% include "work/_target.html" with asset=wo.asset location=wo.location %}</p>
   </div>
   <a class="btn btn--primary" href="{% url 'work_order_detail' wo.pk %}">{% icon 'check' %}{% translate "Listo, volver a la OT" %}</a>
 </div>

@@ -31,7 +31,7 @@
         <a href="{% url 'asset_list' %}" {% nav_current '/assets/' %}>{% translate "Activos" %}</a>
         {% if membership|can:"work_order.manage" %}<a href="{% url 'request_list' %}" {% nav_current '/requests/' %}>{% translate "Solicitudes" %}</a>{% endif %}
         {# Catálogo de falla, ubicaciones, clases, equipo, auditoría y configuración viven en "Más", igual que en móvil. #}
-        <a href="{% url 'menu' %}" {% nav_current '/menu/' '/failure-codes/' '/team/' '/audit/' '/locations/' '/asset-classes/' '/settings/' %}>{% translate "Más" %}</a>
+        <a href="{% url 'menu' %}" {% nav_current '/menu/' '/report/' '/failure-codes/' '/team/' '/audit/' '/locations/' '/asset-classes/' '/settings/' %}>{% translate "Más" %}</a>
       </nav>
       <div class="navbar__right">
         {% if memberships|length > 1 %}
@@ -70,7 +70,7 @@
     <a href="{% url 'dashboard' %}" {% nav_current '/' %}>{% icon 'home' %}{% translate "Inicio" %}</a>
     <a href="{% url 'work_order_list' %}?scope=mine" {% nav_current '/work-orders/' %}>{% icon 'list' %}{% translate "Mis OT" %}</a>
     <a href="{% url 'asset_list' %}" {% nav_current '/assets/' %}>{% icon 'box' %}{% translate "Activos" %}</a>
-    <a href="{% url 'menu' %}" {% nav_current '/menu/' '/requests/' '/failure-codes/' '/team/' '/audit/' '/locations/' '/asset-classes/' '/settings/' %}>{% icon 'menu' %}{% translate "Más" %}</a>
+    <a href="{% url 'menu' %}" {% nav_current '/menu/' '/report/' '/requests/' '/failure-codes/' '/team/' '/audit/' '/locations/' '/asset-classes/' '/settings/' %}>{% icon 'menu' %}{% translate "Más" %}</a>
   </nav>
   {% endif %}
 </body>

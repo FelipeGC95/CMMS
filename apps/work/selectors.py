@@ -9,7 +9,7 @@ from apps.attachments.selectors import attachments_by_target
 from apps.maintenance.models import PlanAssignment, PlanVersion
 from apps.organizations.selectors import descendant_ids
 
-from .models import FailureCode, WorkOrder, WorkRequest
+from .models import FailureCode, WorkOrder, WorkOrderHelper, WorkRequest
 
 OPEN_STATUSES = [
     WorkOrder.Status.REQUESTED,
@@ -26,13 +26,29 @@ DATE_FILTER_LOOKUPS = {"due_on": "due_on", "created_at": "created_at__date"}
 ASSIGNABLE_ROLES = [role for role, perms in ROLE_PERMISSIONS.items() if Perm.WORK_ORDER_EXECUTE in perms]
 
 
+def in_locations(location_ids) -> Q:
+    """OT o solicitudes cuyo objetivo está en esas ubicaciones: el activo ubicado ahí o la ubicación misma."""
+    return Q(asset__location_id__in=location_ids) | Q(location_id__in=location_ids)
+
+
 def visible_work_orders(*, membership):
-    """OT que la membresía puede ver (ORG-06): las de activos de sus ubicaciones si tiene alcance."""
+    """OT que la membresía puede ver (ORG-06): con alcance, las de sus ubicaciones (y descendientes).
+
+    Una OT sobre una ubicación se ve si esa ubicación está dentro del alcance,
+    es decir, si su sitio o alguno de sus ancestros está permitido.
+    """
     qs = WorkOrder.objects.all()
     location_ids = allowed_location_ids(membership)
     if location_ids is not None:
-        qs = qs.filter(asset__location_id__in=location_ids)
+        qs = qs.filter(in_locations(location_ids))
     return qs
+
+
+def assigned_to_user(user) -> Q:
+    """OT de la persona: responsable principal o de apoyo ("Mis OT", WO-05 CA1)."""
+    return Q(assigned_to=user) | Q(
+        Exists(WorkOrderHelper.objects.filter(work_order=OuterRef("pk"), user=user))
+    )
 
 
 def work_order_list(
@@ -49,7 +65,9 @@ def work_order_list(
     date_from=None,
     date_to=None,
 ):
-    qs = visible_work_orders(membership=membership).select_related("asset", "asset__location", "assigned_to")
+    qs = visible_work_orders(membership=membership).select_related(
+        "asset", "asset__location", "location", "assigned_to"
+    )
     # Un estado puntual (p. ej. "cancelled") manda sobre el balde del scope: si no,
     # nunca sería alcanzable porque ningún scope lo incluye.
     if scope == "overdue":
@@ -65,13 +83,18 @@ def work_order_list(
     if work_type:
         qs = qs.filter(work_type=work_type)
     if assigned_to is not None:
-        qs = qs.filter(assigned_to=assigned_to)
+        qs = qs.filter(assigned_to_user(assigned_to))
     if asset is not None:
         qs = qs.filter(asset=asset)
     if asset_q:
-        qs = qs.filter(Q(asset__code__icontains=asset_q) | Q(asset__name__icontains=asset_q))
+        qs = qs.filter(
+            Q(asset__code__icontains=asset_q)
+            | Q(asset__name__icontains=asset_q)
+            | Q(location__code__icontains=asset_q)
+            | Q(location__name__icontains=asset_q)
+        )
     if location is not None:
-        qs = qs.filter(asset__location_id__in={location.pk, *descendant_ids(location)})
+        qs = qs.filter(in_locations({location.pk, *descendant_ids(location)}))
     lookup = DATE_FILTER_LOOKUPS.get(date_field, DATE_FILTER_LOOKUPS["due_on"])
     if date_from is not None:
         qs = qs.filter(**{f"{lookup}__gte": date_from})
@@ -97,12 +120,13 @@ def work_order_detail(pk, *, membership):
         .select_related(
             "asset",
             "asset__location",
+            "location",
             "assigned_to",
             "plan_assignment__plan",
             "plan_assignment__meter",
             "failure",
         )
-        .prefetch_related("checklist", "transitions__by", "labor__user", "parts", "other_costs")
+        .prefetch_related("checklist", "transitions__by", "labor__user", "parts", "other_costs", "helpers")
         .get(pk=pk)
     )
 
@@ -115,11 +139,11 @@ def failure_codes(kind: str):
 
 
 def visible_requests(*, membership):
-    """Solicitudes que la membresía puede ver (ORG-06): alcance por sitio del activo."""
+    """Solicitudes que la membresía puede ver (ORG-06): alcance por sitio del activo o de la ubicación."""
     qs = WorkRequest.objects.all()
     location_ids = allowed_location_ids(membership)
     if location_ids is not None:
-        qs = qs.filter(asset__location_id__in=location_ids)
+        qs = qs.filter(in_locations(location_ids))
     return qs
 
 
@@ -129,19 +153,19 @@ def pending_requests(*, membership):
     return (
         visible_requests(membership=membership)
         .filter(status=WorkRequest.Status.PENDING)
-        .select_related("asset", "requested_by", "work_order")
+        .select_related("asset", "location", "requested_by", "work_order")
         .order_by("created_at")
     )
 
 
-def open_requests_for_asset(*, asset, exclude=None):
-    """Otras solicitudes del mismo activo aún abiertas (candidatas para fusionar)."""
-    qs = WorkRequest.objects.filter(
-        asset=asset, status__in=(WorkRequest.Status.PENDING, WorkRequest.Status.ACCEPTED)
+def open_requests_for_target(*, work_request, membership):
+    """Otras solicitudes abiertas del mismo activo o ubicación (candidatas para fusionar)."""
+    qs = visible_requests(membership=membership).filter(
+        asset_id=work_request.asset_id,
+        location_id=work_request.location_id,
+        status__in=(WorkRequest.Status.PENDING, WorkRequest.Status.ACCEPTED),
     )
-    if exclude is not None:
-        qs = qs.exclude(pk=exclude.pk)
-    return qs.select_related("requested_by").order_by("-created_at")
+    return qs.exclude(pk=work_request.pk).select_related("requested_by").order_by("-created_at")
 
 
 def failure_code_list(*, kind: str = ""):
@@ -159,12 +183,16 @@ def checklist_plan_versions(*, work_order):
     """Versiones vigentes (publicadas) de planes activos para aplicar su checklist a la OT.
 
     Primero las sugeridas: planes asignados al activo o de su clase (`suggested`).
+    Una OT sobre una ubicación no tiene sugeridos: se listan todos.
     """
     asset = work_order.asset
-    assigned = PlanAssignment.objects.filter(plan_id=OuterRef("plan_id"), asset=asset, is_active=True)
-    suggested = Q(Exists(assigned))
-    if asset.asset_class_id:
-        suggested |= Q(plan__asset_class_id=asset.asset_class_id)
+    if asset is None:
+        suggested = Q(pk__in=[])
+    else:
+        assigned = PlanAssignment.objects.filter(plan_id=OuterRef("plan_id"), asset=asset, is_active=True)
+        suggested = Q(Exists(assigned))
+        if asset.asset_class_id:
+            suggested |= Q(plan__asset_class_id=asset.asset_class_id)
     return (
         PlanVersion.objects.filter(
             status=PlanVersion.Status.PUBLISHED, plan__is_active=True, plan__current_version=F("pk")

@@ -405,6 +405,24 @@ class Command(BaseCommand):
             estimated_minutes=180,
             by=admin.user,
         )
+        # Trabajo sobre una ubicación, sin activo (WO-01 CA2), con un técnico de apoyo;
+        # y un aviso sobre una ubicación (REQ-01 CA1).
+        create_work_order(
+            work_type=WorkOrder.Type.INSPECTION,
+            title="Revisar iluminación y extintores de la sala de calderas",
+            location=locations["CAL"],
+            priority=WorkOrder.Priority.NORMAL,
+            due_on=today + datetime.timedelta(days=3),
+            estimated_minutes=60,
+            assigned_to=tech.user,
+            helpers=[members["tech2"].user],
+            by=admin.user,
+        )
+        report_failure(
+            membership=members["operator"],
+            location=locations["BOD"],
+            description="Gotera en el techo de la bodega\nCae agua cerca de los pallets de despacho.",
+        )
 
         # Preventivos vigentes (próximos 14 días y atrasados).
         generate_due_work_orders(today=today)

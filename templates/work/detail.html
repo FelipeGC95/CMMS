@@ -28,9 +28,14 @@
   <section class="card" aria-labelledby="data-title">
     <h2 id="data-title">{% translate "Detalle" %}</h2>
     <dl class="dl">
+      {% if wo.asset_id %}
       <dt>{% translate "Activo" %}</dt><dd><a href="{% url 'asset_detail' wo.asset.pk %}"><span class="mono">{{ wo.asset.code }}</span> {{ wo.asset.name }}</a></dd>
       <dt>{% translate "Ubicación" %}</dt><dd>{{ wo.asset.location|default:"—" }}</dd>
+      {% else %}
+      <dt>{% translate "Ubicación" %}</dt><dd>{% icon 'home' %} {{ wo.location }} <span class="mono">({{ wo.location.code }})</span><br><span class="muted">{% translate "OT sobre una ubicación, sin activo" %}</span></dd>
+      {% endif %}
       <dt>{% translate "Responsable" %}</dt><dd>{{ wo.assigned_to|default:"—" }}</dd>
+      {% if helpers %}<dt>{% translate "Apoyo" %}</dt><dd><ul class="people">{% for person in helpers %}<li>{{ person }}</li>{% endfor %}</ul></dd>{% endif %}
       {% if wo.estimated_minutes %}<dt>{% translate "Estimación" %}</dt><dd class="num">{{ wo.estimated_minutes }} min</dd>{% endif %}
       {% if wo.request %}<dt>{% translate "Avisado por" %}</dt><dd>{{ wo.request.requested_by|default:"—" }} · {{ wo.request.created_at|date:"d M H:i" }}</dd>{% endif %}
       {% if wo.meter_value_at_completion is not None %}<dt>{% translate "Lectura al cerrar" %}</dt><dd class="num">{{ wo.meter_value_at_completion|num }}</dd>{% endif %}
@@ -41,6 +46,16 @@
       {% if wo.completion_notes %}<dt>{% if wo.work_type == "corrective" %}{% translate "Acción realizada" %}{% else %}{% translate "Cierre" %}{% endif %}</dt><dd>{{ wo.completion_notes|linebreaksbr }}</dd>{% endif %}
       {% if signature %}<dt>{% translate "Firma" %}</dt><dd><img class="signature-image" src="{% url 'attachment' signature.pk %}" alt="{% translate 'Firma de cierre' %}"><span class="help muted">{{ signature.uploaded_by|default:"—" }} · {{ signature.created_at|date:"d M H:i" }}</span></dd>{% endif %}
     </dl>
+    {% if assignees_form %}
+    <details class="mt-4" {% if assignees_form.errors %}open{% endif %}>
+      <summary class="btn btn--secondary">{% icon 'list' %}{% translate "Cambiar responsables" %}</summary>
+      <form method="post" action="{% url 'work_order_assignees' wo.pk %}" class="mt-2">
+        {% csrf_token %}
+        {% include "_form_fields.html" with form=assignees_form %}
+        <button class="btn btn--primary" type="submit">{% translate "Guardar responsables" %}</button>
+      </form>
+    </details>
+    {% endif %}
     {% if wo.description %}<p class="mt-4">{{ wo.description|linebreaksbr }}</p>{% endif %}
     {% if attachments %}
     <div class="row mt-4">

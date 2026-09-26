@@ -12,6 +12,7 @@ from apps.assets.selectors import visible_assets
 from apps.maintenance.models import ItemType
 from apps.organizations.models import Location
 from apps.organizations.selectors import visible_locations
+from apps.ui.templatetags.ui import work_order_status_label
 
 from .models import FailureCode, FailureEvent, WorkOrder
 from .selectors import assignable_members, failure_codes
@@ -31,6 +32,41 @@ class FailureReportForm(forms.Form):
     )
     # Generado al mostrar el formulario: un doble envío no crea dos avisos.
     client_uuid = forms.UUIDField(widget=forms.HiddenInput, required=False, initial=uuid.uuid4)
+
+
+def _location_label(location):
+    # code/name en vez de str(location): evita recorrer `parent` por cada opción (N+1).
+    return f"{location.name} ({location.code})"
+
+
+def _active_locations(membership):
+    return visible_locations(membership=membership).filter(is_active=True).order_by("code")
+
+
+class LocationRequestForm(forms.Form):
+    """Aviso sobre una ubicación (REQ-01 CA1): sin "equipo detenido", que solo aplica a un activo."""
+
+    location = forms.ModelChoiceField(
+        label=_("Ubicación"),
+        queryset=Location.all_tenants.none(),
+        empty_label=_("Elige dónde es el problema"),
+    )
+    description = forms.CharField(
+        label=_("¿Qué pasó o qué se necesita?"),
+        widget=forms.Textarea(attrs={"rows": 4, "placeholder": _("Ej: gotera sobre la línea 2")}),
+        max_length=2000,
+    )
+    photo = forms.FileField(
+        label=_("Foto (opcional)"),
+        required=False,
+        widget=forms.ClearableFileInput(attrs={"accept": "image/*", "capture": "environment"}),
+    )
+    client_uuid = forms.UUIDField(widget=forms.HiddenInput, required=False, initial=uuid.uuid4)
+
+    def __init__(self, *args, membership, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["location"].queryset = _active_locations(membership)
+        self.fields["location"].label_from_instance = _location_label
 
 
 class LocalDateTimeInput(forms.DateTimeInput):
@@ -208,11 +244,9 @@ class WorkOrderFilterForm(forms.Form):
 
     DATE_FIELD_CHOICES = [("due_on", _("Fecha límite")), ("created_at", _("Fecha de creación"))]
 
-    status = forms.ChoiceField(
-        label=_("Estado"), choices=[("", _("Todos los estados")), *WorkOrder.Status.choices], required=False
-    )
+    status = forms.ChoiceField(label=_("Estado"), choices=(), required=False)
     asset_q = forms.CharField(
-        label=_("Activo"), required=False, max_length=200, help_text=_("Código o nombre.")
+        label=_("Activo o ubicación"), required=False, max_length=200, help_text=_("Código o nombre.")
     )
     location = forms.ModelChoiceField(
         # `all_tenants`: al definir la clase no hay organización activa en el contexto.
@@ -236,9 +270,13 @@ class WorkOrderFilterForm(forms.Form):
 
     def __init__(self, *args, membership, **kwargs):
         super().__init__(*args, **kwargs)
-        # code/name en vez de str(location): evita recorrer `parent` por cada opción (N+1).
+        # Nombres de estado propios de la organización (WO-02 CA5).
+        self.fields["status"].choices = [
+            ("", _("Todos los estados")),
+            *((value, work_order_status_label(value)) for value in WorkOrder.Status.values),
+        ]
         self.fields["location"].queryset = visible_locations(membership=membership).order_by("code")
-        self.fields["location"].label_from_instance = lambda loc: f"{loc.name} ({loc.code})"
+        self.fields["location"].label_from_instance = _location_label
         self.fields["assigned_to"].queryset = assignable_members(membership=membership)
 
     def clean(self):
@@ -249,11 +287,41 @@ class WorkOrderFilterForm(forms.Form):
         return cleaned
 
 
+class HelpersField(forms.ModelMultipleChoiceField):
+    """Responsables de apoyo: casillas (más fáciles de tocar en el teléfono que una lista múltiple)."""
+
+    widget = forms.CheckboxSelectMultiple
+
+    def __init__(self, **kwargs):
+        super().__init__(
+            label=_("Apoyo"),
+            queryset=User.objects.none(),
+            required=False,
+            help_text=_("Otras personas que trabajan en la OT; también la ven en «Mis OT»."),
+            **kwargs,
+        )
+
+
 class WorkOrderCreateForm(forms.Form):
-    """Alta manual de OT (WO-01); el correlativo y el estado inicial los pone el servicio."""
+    """Alta manual de OT (WO-01); el correlativo y el estado inicial los pone el servicio.
+
+    El objetivo es un activo o una ubicación (CA2): se elige uno de los dos.
+    """
 
     work_type = forms.ChoiceField(label=_("Tipo"), choices=WorkOrder.Type.choices)
-    asset = forms.ModelChoiceField(label=_("Activo"), queryset=Asset.all_tenants.none())
+    asset = forms.ModelChoiceField(
+        label=_("Activo"),
+        queryset=Asset.all_tenants.none(),
+        required=False,
+        empty_label=_("Elige un activo"),
+    )
+    location = forms.ModelChoiceField(
+        label=_("Ubicación"),
+        queryset=Location.all_tenants.none(),
+        required=False,
+        empty_label=_("Ninguna (la OT es sobre un activo)"),
+        help_text=_("Solo si el trabajo no es sobre un activo: un área, una línea o un edificio."),
+    )
     title = forms.CharField(label=_("Título"), max_length=200)
     description = forms.CharField(
         label=_("Descripción"), required=False, widget=forms.Textarea(attrs={"rows": 4})
@@ -273,13 +341,42 @@ class WorkOrderCreateForm(forms.Form):
     assigned_to = forms.ModelChoiceField(
         label=_("Responsable"), queryset=User.objects.none(), required=False, empty_label=_("Sin asignar")
     )
+    helpers = HelpersField()
 
     def __init__(self, *args, membership, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["asset"].queryset = (
             visible_assets(membership=membership).filter(is_active=True).order_by("code")
         )
-        self.fields["assigned_to"].queryset = assignable_members(membership=membership)
+        self.fields["location"].queryset = _active_locations(membership)
+        self.fields["location"].label_from_instance = _location_label
+        members = assignable_members(membership=membership)
+        self.fields["assigned_to"].queryset = members
+        self.fields["helpers"].queryset = members
+
+    def clean(self):
+        cleaned = super().clean()
+        asset, location = cleaned.get("asset"), cleaned.get("location")
+        if asset and location:
+            self.add_error("location", _("Elige un activo o una ubicación, no ambos."))
+        elif not asset and not location and not self.has_error("asset") and not self.has_error("location"):
+            self.add_error("asset", _("Elige el activo o, si no aplica, la ubicación."))
+        return cleaned
+
+
+class AssigneesForm(forms.Form):
+    """Responsable principal y de apoyo de una OT existente (WO-01 CA2)."""
+
+    assigned_to = forms.ModelChoiceField(
+        label=_("Responsable"), queryset=User.objects.none(), required=False, empty_label=_("Sin asignar")
+    )
+    helpers = HelpersField()
+
+    def __init__(self, *args, membership, **kwargs):
+        super().__init__(*args, **kwargs)
+        members = assignable_members(membership=membership)
+        self.fields["assigned_to"].queryset = members
+        self.fields["helpers"].queryset = members
 
 
 class ApplyChecklistForm(forms.Form):

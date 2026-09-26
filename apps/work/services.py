@@ -9,6 +9,7 @@ from django.db.models import Q
 from django.utils import timezone
 from django.utils.translation import gettext as _
 
+from apps.accounts.models import Membership
 from apps.accounts.permissions import Perm, has_perm, require_perm
 from apps.assets.models import Asset, MeterReading
 from apps.assets.services import change_asset_status, record_meter_reading
@@ -19,8 +20,10 @@ from apps.attachments.models import TargetType as AttachmentTargetType
 from apps.attachments.services import AttachmentError, QuotaExceededError
 from apps.audit import services as audit
 from apps.audit.models import AuditEvent
-from apps.core.tenancy import tenant_context
+from apps.core.tenancy import require_current_organization, tenant_context
 from apps.maintenance.models import ItemType, PlanVersion
+from apps.organizations.models import Location
+from apps.ui.templatetags.ui import work_order_status_label
 
 from .models import (
     FailureCode,
@@ -31,6 +34,7 @@ from .models import (
     PartUsage,
     WorkOrder,
     WorkOrderChecklistItem,
+    WorkOrderHelper,
     WorkOrderSequence,
     WorkOrderTransition,
     WorkRequest,
@@ -67,12 +71,49 @@ def next_number(*, key: str) -> int:
     return sequence.last_number
 
 
+def _require_single_target(*, asset, location) -> None:
+    """Exactamente un objetivo: un activo o una ubicación (WO-01 CA2, REQ-01 CA1)."""
+    if (asset is None) == (location is None):
+        raise WorkOrderError(_("Elige un activo o una ubicación (solo uno)."))
+
+
+def _require_members(users, *, organization) -> None:
+    """Responsables: solo personas con membresía activa en la organización de la OT."""
+    ids = {user.pk for user in users}
+    if not ids:
+        return
+    members = set(
+        Membership.objects.filter(organization=organization, is_active=True, user_id__in=ids).values_list(
+            "user_id", flat=True
+        )
+    )
+    if ids - members:
+        raise WorkOrderError(_("Solo puedes asignar personas de esta organización."))
+
+
+def _save_helpers(*, work_order: WorkOrder, helpers) -> list:
+    """Reemplaza los responsables adicionales; el principal nunca se repite como apoyo."""
+    wanted = {user.pk: user for user in helpers if user.pk != work_order.assigned_to_id}
+    WorkOrderHelper.objects.filter(work_order=work_order).exclude(user_id__in=wanted).delete()
+    existing = set(WorkOrderHelper.objects.filter(work_order=work_order).values_list("user_id", flat=True))
+    WorkOrderHelper.objects.bulk_create(
+        [
+            WorkOrderHelper(organization=work_order.organization, work_order=work_order, user=user)
+            for pk, user in wanted.items()
+            if pk not in existing
+        ]
+    )
+    return sorted(str(user) for user in wanted.values())
+
+
 @transaction.atomic
 def create_work_order(
     *,
     work_type: str,
     title: str,
-    asset: Asset,
+    asset: Asset | None = None,
+    location: Location | None = None,
+    helpers=(),
     description: str = "",
     priority: int = WorkOrder.Priority.NORMAL,
     status: str = S.PLANNED,
@@ -86,6 +127,12 @@ def create_work_order(
     by=None,
     client_uuid=None,
 ) -> WorkOrder:
+    """Crea la OT sobre un activo o una ubicación, con su snapshot de checklist."""
+    _require_single_target(asset=asset, location=location)
+    helpers = list(helpers)
+    _require_members(
+        [*helpers, *([assigned_to] if assigned_to else [])], organization=require_current_organization()
+    )
     work_order = WorkOrder.objects.create(
         number=next_number(key=work_type),
         work_type=work_type,
@@ -94,6 +141,7 @@ def create_work_order(
         title=title[:200],
         description=description,
         asset=asset,
+        location=location,
         due_on=due_on,
         due_meter_value=due_meter_value,
         estimated_minutes=estimated_minutes,
@@ -119,11 +167,43 @@ def create_work_order(
             for item in checklist
         ]
     )
+    if helpers:
+        _save_helpers(work_order=work_order, helpers=helpers)
     WorkOrderTransition.objects.create(work_order=work_order, to_status=status, by=by)
     return work_order
 
 
-def _suggest_priority(asset: Asset, asset_stopped: bool) -> int:
+@transaction.atomic
+def set_assignees(*, work_order: WorkOrder, membership, assigned_to=None, helpers=()) -> WorkOrder:
+    """Cambia el responsable principal y los de apoyo (WO-01 CA2) y lo deja en la auditoría."""
+    require_perm(membership, Perm.WORK_ORDER_MANAGE)
+    if work_order.status in WorkOrder.CLOSED_STATUSES:
+        raise WorkOrderError(_("La OT ya no admite cambios."))
+    helpers = list(helpers)
+    _require_members(
+        [*helpers, *([assigned_to] if assigned_to else [])], organization=membership.organization
+    )
+    before_lead = str(work_order.assigned_to) if work_order.assigned_to_id else ""
+    before_helpers = sorted(str(user) for user in work_order.helpers.all())
+    work_order.assigned_to = assigned_to
+    work_order.save(update_fields=["assigned_to", "updated_at"])
+    after_helpers = _save_helpers(work_order=work_order, helpers=helpers)
+    after_lead = str(assigned_to) if assigned_to else ""
+    changes = {}
+    if before_lead != after_lead:
+        changes["assigned_to"] = [before_lead, after_lead]
+    if before_helpers != after_helpers:
+        changes["helpers"] = [before_helpers, after_helpers]
+    if changes:
+        audit.record(
+            action=AuditEvent.Action.UPDATE, target=work_order, actor=membership.user, changes=changes
+        )
+    return work_order
+
+
+def _suggest_priority(asset: Asset | None, asset_stopped: bool) -> int:
+    if asset is None:
+        return WorkOrder.Priority.NORMAL
     if asset_stopped and asset.criticality == Asset.Criticality.A:
         return WorkOrder.Priority.URGENT
     if asset_stopped:
@@ -135,13 +215,17 @@ def _suggest_priority(asset: Asset, asset_stopped: bool) -> int:
 def report_failure(
     *,
     membership,
-    asset: Asset,
     description: str,
-    asset_stopped: bool,
+    asset: Asset | None = None,
+    location: Location | None = None,
+    asset_stopped: bool = False,
     photo=None,
     client_uuid=None,
 ) -> WorkRequest:
     """Aviso de falla (REQ-01): crea la solicitud y su OT correctiva en un paso.
+
+    El aviso apunta a un activo o a una ubicación (CA1); "equipo detenido"
+    solo aplica a un activo (una ubicación no tiene estado que detener).
 
     Idempotente por `client_uuid` (reintentos desde móvil no duplican). Si la
     foto no cabe en el cupo de almacenamiento, el aviso se crea igual sin ella
@@ -153,6 +237,9 @@ def report_failure(
         existing = WorkRequest.objects.filter(client_uuid=client_uuid).first()
         if existing:
             return existing
+    _require_single_target(asset=asset, location=location)
+    if asset_stopped and asset is None:
+        raise WorkOrderError(_("«Equipo detenido» solo aplica a un activo."))
 
     user = membership.user
     now = timezone.now()
@@ -161,6 +248,7 @@ def report_failure(
         title=description.strip().splitlines()[0][:120] or "Falla reportada",
         description=description,
         asset=asset,
+        location=location,
         priority=_suggest_priority(asset, asset_stopped),
         status=S.REQUESTED,
         due_on=timezone.localdate() if asset_stopped else None,
@@ -169,6 +257,7 @@ def report_failure(
     request = WorkRequest.objects.create(
         number=next_number(key="request"),
         asset=asset,
+        location=location,
         description=description,
         asset_stopped=asset_stopped,
         requested_by=user,
@@ -176,14 +265,22 @@ def report_failure(
         client_uuid=client_uuid,
     )
     if asset_stopped:
-        FailureEvent.objects.create(
+        failure = FailureEvent.objects.create(
             asset=asset,
             work_order=work_order,
             impact=FailureEvent.Impact.TOTAL_STOP,
             description=description,
             started_at=now,
         )
-        change_asset_status(asset=asset, status=Asset.Status.STOPPED, by=user, reason=work_order.code, at=now)
+        change_asset_status(
+            asset=asset,
+            status=Asset.Status.STOPPED,
+            by=user,
+            reason=work_order.code,
+            at=now,
+            work_order=work_order,
+            failure_event=failure,
+        )
     request.photo_warning = ""
     if photo is not None:
         try:
@@ -224,7 +321,10 @@ def transition(*, work_order: WorkOrder, to_status: str, membership, comment: st
     if to_status not in allowed_transitions(work_order=work_order, membership=membership):
         raise WorkOrderError(
             _("Transición no permitida: %(from)s → %(to)s.")
-            % {"from": work_order.get_status_display(), "to": to_status}
+            % {
+                "from": work_order_status_label(work_order.status),
+                "to": work_order_status_label(to_status),
+            }
         )
     if to_status == S.COMPLETED:
         pending = work_order.checklist.filter(required=True, result="").count()
@@ -241,13 +341,15 @@ def transition(*, work_order: WorkOrder, to_status: str, membership, comment: st
         work_order.started_at = work_order.started_at or now
         if work_order.assigned_to_id is None:
             work_order.assigned_to = user
-        if work_order.asset.status == Asset.Status.STOPPED:
+        # Una OT sobre una ubicación no toca el estado de ningún activo.
+        if work_order.asset_id and work_order.asset.status == Asset.Status.STOPPED:
             change_asset_status(
                 asset=work_order.asset,
                 status=Asset.Status.IN_MAINTENANCE,
                 by=user,
                 reason=work_order.code,
                 at=now,
+                work_order=work_order,
             )
     elif to_status == S.COMPLETED:
         work_order.completed_at = now
@@ -279,17 +381,24 @@ def _close(*, work_order: WorkOrder, user, at, record=True):
     work_order.closed_at = at
     work_order.save(update_fields=["status", "closed_at", "updated_at"])
 
-    failure = FailureEvent.objects.filter(work_order=work_order, ended_at__isnull=True).first()
-    if failure:
+    # La falla de esta OT (si la hay): se cierra aquí si nadie informó su fin al completar.
+    failure = FailureEvent.objects.filter(work_order=work_order).first()
+    if failure and failure.ended_at is None:
         failure.ended_at = at
         failure.save(update_fields=["ended_at", "updated_at"])
 
     asset = work_order.asset
-    still_down = FailureEvent.objects.filter(asset=asset, ended_at__isnull=True).exists()
-    if asset.status in (Asset.Status.STOPPED, Asset.Status.IN_MAINTENANCE) and not still_down:
-        change_asset_status(
-            asset=asset, status=Asset.Status.OPERATIONAL, by=user, reason=work_order.code, at=at
-        )
+    if asset is not None and asset.status in (Asset.Status.STOPPED, Asset.Status.IN_MAINTENANCE):
+        if not FailureEvent.objects.filter(asset=asset, ended_at__isnull=True).exists():
+            change_asset_status(
+                asset=asset,
+                status=Asset.Status.OPERATIONAL,
+                by=user,
+                reason=work_order.code,
+                at=at,
+                work_order=work_order,
+                failure_event=failure,
+            )
     if work_order.plan_assignment_id:
         register_completion(
             assignment=work_order.plan_assignment,
@@ -496,6 +605,8 @@ def work_order_meter(work_order: WorkOrder):
     """Medidor cuya lectura se pide al cerrar: el del plan o, si no, el primero del activo."""
     if work_order.plan_assignment_id and work_order.plan_assignment.meter_id:
         return work_order.plan_assignment.meter
+    if work_order.asset_id is None:
+        return None  # una ubicación no tiene medidores
     return work_order.asset.meters.filter(is_active=True).order_by("kind").first()
 
 
@@ -578,10 +689,12 @@ def complete_work_order(
     realizada (`notes` → `completion_notes`) para el asistente (CA3, ADR-018).
     Modo y causa son obligatorios si la organización lo exige
     (`require_failure_details`). `failure_ended_at` por defecto es ahora.
+    Una correctiva sobre una ubicación no deja evento de falla: los eventos
+    (y MTBF/MTTR) son por activo.
     `signature` (opcional, WO-03 CA3) es la imagen de la firma: queda como
     adjunto de la OT con propósito "firma".
     """
-    is_corrective = work_order.work_type == WorkOrder.Type.CORRECTIVE
+    is_corrective = work_order.work_type == WorkOrder.Type.CORRECTIVE and work_order.asset_id is not None
     if (
         is_corrective
         and work_order.organization.require_failure_details
@@ -590,7 +703,7 @@ def complete_work_order(
         raise WorkOrderError(
             _("Esta organización exige modo y causa de falla para cerrar una OT correctiva.")
         )
-    if component is not None and component.parent_id != work_order.asset_id:
+    if component is not None and (work_order.asset_id is None or component.parent_id != work_order.asset_id):
         raise WorkOrderError(_("El componente debe ser un activo hijo del activo de la OT."))
     if impact and impact not in FailureEvent.Impact.values:
         raise WorkOrderError(_("Impacto de falla inválido."))
@@ -839,8 +952,8 @@ def merge_request(*, work_request: WorkRequest, into: WorkRequest, membership) -
     _require_pending_request(work_request)
     if into.pk == work_request.pk:
         raise WorkOrderError(_("Una solicitud no se puede fusionar consigo misma."))
-    if into.asset_id != work_request.asset_id:
-        raise WorkOrderError(_("Solo se puede fusionar con una solicitud del mismo activo."))
+    if (into.asset_id, into.location_id) != (work_request.asset_id, work_request.location_id):
+        raise WorkOrderError(_("Solo se puede fusionar con una solicitud del mismo activo o ubicación."))
     if into.status not in (R.PENDING, R.ACCEPTED):
         raise WorkOrderError(_("La solicitud #%(number)s no está abierta.") % {"number": into.number})
 

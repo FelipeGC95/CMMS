@@ -15,6 +15,12 @@ def attachment_upload_to(instance, filename):
     return f"org/{instance.organization_id}/{uuid.uuid4().hex}{ext}"
 
 
+# Una OT o solicitud apunta a un activo o a una ubicación, nunca a ambos ni a ninguno.
+ASSET_XOR_LOCATION = models.Q(asset__isnull=False, location__isnull=True) | models.Q(
+    asset__isnull=True, location__isnull=False
+)
+
+
 class WorkOrderSequence(TenantModel):
     """Correlativos por organización y tipo, sin huecos por concurrencia."""
 
@@ -68,8 +74,22 @@ class WorkOrder(TenantModel):
     )
     title = models.CharField(_("título"), max_length=200)
     description = models.TextField(_("descripción"), blank=True)
+    # Objetivo de la OT (WO-01 CA2): un activo o una ubicación, exactamente uno.
     asset = models.ForeignKey(
-        "assets.Asset", on_delete=models.PROTECT, related_name="work_orders", verbose_name=_("activo")
+        "assets.Asset",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="work_orders",
+        verbose_name=_("activo"),
+    )
+    location = models.ForeignKey(
+        "organizations.Location",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="work_orders",
+        verbose_name=_("ubicación"),
     )
     plan_assignment = models.ForeignKey(
         "maintenance.PlanAssignment",
@@ -93,6 +113,14 @@ class WorkOrder(TenantModel):
         blank=True,
         related_name="assigned_work_orders",
         verbose_name=_("responsable"),
+    )
+    # Otros responsables además del principal (WO-01 CA2); ven la OT en "Mis OT".
+    helpers = models.ManyToManyField(
+        "accounts.User",
+        through="WorkOrderHelper",
+        blank=True,
+        related_name="helped_work_orders",
+        verbose_name=_("apoyo"),
     )
     due_on = models.DateField(_("fecha límite"), null=True, blank=True)
     due_meter_value = models.DecimalField(
@@ -131,10 +159,12 @@ class WorkOrder(TenantModel):
                 & ~models.Q(status__in=["closed", "cancelled"]),
                 name="uniq_open_work_order_per_assignment",
             ),
+            models.CheckConstraint(condition=ASSET_XOR_LOCATION, name="work_order_asset_xor_location"),
         ]
         indexes = [
             models.Index(fields=["organization", "status", "due_on"]),
             models.Index(fields=["organization", "asset", "completed_at"]),
+            models.Index(fields=["organization", "location", "completed_at"], name="wo_org_location_idx"),
         ]
 
     def __str__(self):
@@ -147,6 +177,26 @@ class WorkOrder(TenantModel):
     @property
     def is_open(self):
         return self.status not in self.CLOSED_STATUSES and self.status != self.Status.COMPLETED
+
+    @property
+    def target(self):
+        """Activo o ubicación sobre el que se trabaja (WO-01 CA2)."""
+        return self.asset if self.asset_id else self.location
+
+
+class WorkOrderHelper(TenantModel):
+    """Responsable adicional de una OT (WO-01 CA2); el principal sigue en `assigned_to`."""
+
+    work_order = models.ForeignKey(WorkOrder, on_delete=models.CASCADE, related_name="helper_links")
+    user = models.ForeignKey("accounts.User", on_delete=models.CASCADE, related_name="+")
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["organization", "work_order", "user"], name="uniq_work_order_helper"
+            ),
+        ]
+        indexes = [models.Index(fields=["organization", "user"], name="wo_helper_org_user_idx")]
 
 
 class WorkOrderTransition(TenantModel):
@@ -395,7 +445,18 @@ class WorkRequest(TenantModel):
         MERGED = "merged", _("Fusionada")
 
     number = models.PositiveIntegerField(editable=False)
-    asset = models.ForeignKey("assets.Asset", on_delete=models.PROTECT, related_name="requests")
+    # Activo o ubicación (REQ-01 CA1), exactamente uno; "detenido" solo aplica a un activo.
+    asset = models.ForeignKey(
+        "assets.Asset", on_delete=models.PROTECT, null=True, blank=True, related_name="requests"
+    )
+    location = models.ForeignKey(
+        "organizations.Location",
+        verbose_name=_("ubicación"),
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="requests",
+    )
     description = models.TextField()
     asset_stopped = models.BooleanField(default=False)
     requested_by = models.ForeignKey("accounts.User", on_delete=models.SET_NULL, null=True, related_name="+")
@@ -427,6 +488,11 @@ class WorkRequest(TenantModel):
         ordering = ["-created_at"]
         constraints = [
             models.UniqueConstraint(fields=["organization", "client_uuid"], name="uniq_request_client_uuid"),
+            models.CheckConstraint(condition=ASSET_XOR_LOCATION, name="request_asset_xor_location"),
+            models.CheckConstraint(
+                condition=models.Q(asset_stopped=False) | models.Q(asset__isnull=False),
+                name="request_stopped_needs_asset",
+            ),
         ]
         indexes = [
             models.Index(fields=["organization", "status", "created_at"], name="request_org_status_idx"),
