@@ -1,3 +1,5 @@
+import uuid
+
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 
@@ -27,6 +29,11 @@ class Plan(TimeStampedModel):
         return self.name
 
 
+def organization_logo_upload_to(instance, filename):
+    """Mismo prefijo por organización que los adjuntos (ADR-014); nombre nuevo en cada cambio."""
+    return f"org/{instance.pk}/logo-{uuid.uuid4().hex}.png"
+
+
 class Organization(TimeStampedModel):
     """Tenant raíz. Todo dato de negocio pertenece a una organización."""
 
@@ -53,6 +60,8 @@ class Organization(TimeStampedModel):
     # Nombres visibles propios de los estados de OT (WO-02 CA5): {"in_progress": "En faena"}.
     # Solo claves de `WorkOrder.Status`; una clave ausente usa el nombre traducido por defecto.
     work_order_status_labels = models.JSONField(_("nombres de los estados de OT"), default=dict, blank=True)
+    # Logo para etiquetas QR y reportes (ORG-09, parte mínima). PNG normalizado por el servicio.
+    logo = models.ImageField(_("logo"), upload_to=organization_logo_upload_to, blank=True)
 
     class Meta:
         verbose_name = _("organización")

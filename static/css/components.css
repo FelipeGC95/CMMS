@@ -298,6 +298,8 @@ main { max-width: var(--content-max); margin: 0 auto; padding: var(--space-5) va
 .timeline { list-style: none; margin: 0; padding: 0; font-size: var(--text-sm); }
 .timeline li { padding: var(--space-2) 0 var(--space-2) var(--space-4); border-left: 2px solid var(--color-border); position: relative; }
 .timeline li::before { content: ""; position: absolute; left: -6px; top: 14px; width: 10px; height: 10px; border-radius: 50%; background: var(--color-nav-active); }
+.logo-preview { background: var(--color-qr-bg); display: inline-block; padding: var(--space-3); border: 1px solid var(--color-border); border-radius: var(--radius-md); line-height: 0; margin-bottom: var(--space-3); max-width: 100%; }
+.logo-preview img { max-height: 80px; max-width: 100%; width: auto; }
 .qr { background: var(--color-qr-bg); display: inline-block; padding: var(--space-2); border-radius: var(--radius-md); line-height: 0; }
 .empty { text-align: center; padding: var(--space-6) var(--space-4); color: var(--color-text-muted); }
 .thumb { width: 96px; height: 96px; object-fit: cover; border-radius: var(--radius-md); border: 1px solid var(--color-border); }

@@ -30,6 +30,22 @@
     </form>
   </section>
 
+  <section class="card" id="logo" aria-labelledby="logo-title">
+    <h2 id="logo-title">{% translate "Logo" %}</h2>
+    <p class="muted">{% translate "Se imprime en las etiquetas QR de los activos. Sin logo, las etiquetas llevan el nombre de la organización." %}</p>
+    {% if organization.logo %}
+    <div class="logo-preview"><img src="{% url 'organization_logo' %}?v={{ organization.updated_at|date:'U' }}" alt="{% blocktranslate with name=organization.name %}Logo de {{ name }}{% endblocktranslate %}"></div>
+    {% else %}
+    <p class="empty">{% translate "Aún no hay logo." %}</p>
+    {% endif %}
+    <form method="post" action="{% url 'organization_settings' %}#logo" enctype="multipart/form-data">
+      {% csrf_token %}
+      <input type="hidden" name="section" value="logo">
+      {% include "_form_fields.html" with form=logo_form %}
+      <button class="btn btn--primary" type="submit">{% translate "Guardar logo" %}</button>
+    </form>
+  </section>
+
   <section class="card" aria-labelledby="plan-title">
     <h2 id="plan-title">{% translate "Plan" %}</h2>
     <dl class="dl">

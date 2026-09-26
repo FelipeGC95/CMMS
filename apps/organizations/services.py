@@ -1,10 +1,13 @@
 """Ubicaciones en árbol (ORG-04) y configuración de la organización."""
 
+import io
 import zoneinfo
 
 from django.core.exceptions import ValidationError
+from django.core.files.base import ContentFile
 from django.db import transaction
 from django.utils.translation import gettext as _
+from PIL import Image, ImageOps, UnidentifiedImageError
 
 from apps.accounts.permissions import Perm, require_perm
 from apps.accounts.scoping import allowed_location_ids
@@ -167,5 +170,86 @@ def update_work_order_status_labels(*, membership, labels):
         organization.save(update_fields=["work_order_status_labels", "updated_at"])
         audit.record(
             action=AuditEvent.Action.UPDATE, target=organization, membership=membership, changes=changes
+        )
+    return organization
+
+
+# ---------- Logo de la organización (ORG-09, parte mínima; AST-05 CA2) ----------
+
+LOGO_MAX_BYTES = 1024 * 1024
+LOGO_MAX_DIMENSION = 600  # px del lado mayor: sobra para una etiqueta impresa a 300 ppp.
+LOGO_MAX_PIXELS = 40_000_000  # antes de decodificar: evita imágenes "bomba" dentro de 1 MB.
+LOGO_FORMATS = {"PNG", "JPEG", "WEBP"}
+
+
+def _normalize_logo(uploaded_file) -> bytes:
+    """Valida el logo y lo guarda como PNG de ≤600 px (conserva la transparencia, sin metadatos)."""
+    if uploaded_file.size > LOGO_MAX_BYTES:
+        raise ValidationError(_("El logo debe pesar hasta 1 MB."))
+    invalid = ValidationError(_("El logo debe ser una imagen PNG, JPEG o WebP."))
+    try:
+        image = Image.open(uploaded_file)
+        if image.format not in LOGO_FORMATS:
+            raise invalid
+        width, height = image.size
+        if width * height > LOGO_MAX_PIXELS:
+            raise ValidationError(_("El logo tiene demasiados píxeles; redúcelo e inténtalo de nuevo."))
+        image.load()
+    except (UnidentifiedImageError, Image.DecompressionBombError, OSError) as error:
+        raise invalid from error
+    image = ImageOps.exif_transpose(image)
+    image = image.convert("RGBA" if "A" in image.getbands() or "transparency" in image.info else "RGB")
+    image.thumbnail((LOGO_MAX_DIMENSION, LOGO_MAX_DIMENSION), Image.LANCZOS)
+    buffer = io.BytesIO()
+    image.save(buffer, format="PNG", optimize=True)
+    return buffer.getvalue()
+
+
+def _replace_logo(organization, *, data: bytes | None):
+    """Cambia el archivo del logo; el anterior se borra del almacenamiento tras el commit."""
+    old_name = organization.logo.name
+    if data is None:
+        organization.logo = ""
+    else:
+        organization.logo.save("logo.png", ContentFile(data), save=False)
+    organization.save(update_fields=["logo", "updated_at"])
+    if old_name:
+        storage = organization.logo.storage
+        transaction.on_commit(lambda: storage.delete(old_name))
+
+
+@transaction.atomic
+def set_organization_logo(*, membership, uploaded_file):
+    """Sube o reemplaza el logo. Solo el administrador de la organización.
+
+    No cuenta para el cupo de almacenamiento: es un único PNG pequeño (≤600 px) que se
+    reemplaza en cada cambio, no un adjunto que se acumula.
+    """
+    require_perm(membership, Perm.ORGANIZATION_MANAGE)
+    data = _normalize_logo(uploaded_file)
+    organization = Organization.objects.select_for_update().get(pk=membership.organization_id)
+    before = organization.logo.name
+    _replace_logo(organization, data=data)
+    audit.record(
+        action=AuditEvent.Action.UPDATE,
+        target=organization,
+        membership=membership,
+        changes={"logo": [before, organization.logo.name]},
+    )
+    return organization
+
+
+@transaction.atomic
+def remove_organization_logo(*, membership):
+    require_perm(membership, Perm.ORGANIZATION_MANAGE)
+    organization = Organization.objects.select_for_update().get(pk=membership.organization_id)
+    if organization.logo:
+        before = organization.logo.name
+        _replace_logo(organization, data=None)
+        audit.record(
+            action=AuditEvent.Action.UPDATE,
+            target=organization,
+            membership=membership,
+            changes={"logo": [before, ""]},
         )
     return organization

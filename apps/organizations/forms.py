@@ -55,3 +55,21 @@ class WorkOrderStatusLabelsForm(forms.Form):
                 required=False,
                 widget=forms.TextInput(attrs={"placeholder": default}),
             )
+
+
+class OrganizationLogoForm(forms.Form):
+    """Logo para las etiquetas QR (ORG-09, parte mínima). Se valida y ajusta en el servicio."""
+
+    logo = forms.FileField(
+        label=_("Archivo del logo"),
+        required=False,
+        help_text=_("PNG, JPEG o WebP, hasta 1 MB. Se ajusta a 600 px; un fondo transparente se mantiene."),
+        widget=forms.FileInput(attrs={"accept": "image/png,image/jpeg,image/webp"}),
+    )
+    remove = forms.BooleanField(label=_("Quitar el logo actual"), required=False)
+
+    def clean(self):
+        data = super().clean()
+        if not data.get("logo") and not data.get("remove"):
+            raise forms.ValidationError(_("Elige un archivo de imagen para el logo."))
+        return data

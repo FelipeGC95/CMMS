@@ -1,6 +1,7 @@
 from django.contrib import messages
 from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
+from django.http import FileResponse, Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils.translation import gettext as _
 from django.views.decorators.http import require_POST
@@ -10,7 +11,7 @@ from apps.accounts.scoping import is_scoped
 from apps.core.decorators import membership_required
 
 from . import services
-from .forms import LocationForm, OrganizationSettingsForm, WorkOrderStatusLabelsForm
+from .forms import LocationForm, OrganizationLogoForm, OrganizationSettingsForm, WorkOrderStatusLabelsForm
 from .models import Location
 from .selectors import descendant_ids, location_tree, organization_quotas, visible_locations
 
@@ -117,6 +118,25 @@ def organization_settings_view(request):
         services.update_organization_settings(membership=membership, **form.cleaned_data)
         messages.success(request, _("Configuración guardada."))
         return redirect("organization_settings")
+    logo_form = OrganizationLogoForm(
+        request.POST if section == "logo" else None, request.FILES if section == "logo" else None
+    )
+    if not organization.logo:
+        del logo_form.fields["remove"]
+    if section == "logo" and logo_form.is_valid():
+        try:
+            if logo_form.cleaned_data.get("logo"):
+                services.set_organization_logo(
+                    membership=membership, uploaded_file=logo_form.cleaned_data["logo"]
+                )
+                messages.success(request, _("Logo guardado."))
+            else:
+                services.remove_organization_logo(membership=membership)
+                messages.success(request, _("Logo quitado."))
+        except ValidationError as error:
+            logo_form.add_error("logo", error)
+        else:
+            return redirect("organization_settings")
     if section == "status_labels" and labels_form.is_valid():
         try:
             services.update_work_order_status_labels(membership=membership, labels=labels_form.cleaned_data)
@@ -128,5 +148,19 @@ def organization_settings_view(request):
     return render(
         request,
         "organizations/settings.html",
-        {"form": form, "labels_form": labels_form, "quotas": organization_quotas(membership=membership)},
+        {
+            "form": form,
+            "labels_form": labels_form,
+            "logo_form": logo_form,
+            "quotas": organization_quotas(membership=membership),
+        },
     )
+
+
+@membership_required
+def organization_logo_view(request):
+    """Logo de la organización activa, solo con sesión (sin URL pública, ADR-014)."""
+    logo = request.organization.logo
+    if not logo:
+        raise Http404
+    return FileResponse(logo.open("rb"), content_type="image/png")
