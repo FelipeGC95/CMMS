@@ -141,7 +141,7 @@
     <div class="card kpi">
       <span class="kpi__label">{% translate "Disponibilidad" %}</span>
       <span class="kpi__value">{{ kpis.availability_pct|pct }}<span class="kpi__unit">%</span></span>
-      <span class="kpi__hint">{% translate "Tiempo operativo / tiempo calendario" %}</span>
+      <span class="kpi__hint">{% if kpis.calendar_hours %}{% translate "Tiempo operativo / tiempo calendario" %}{% else %}{% translate "Sin tiempo en servicio en el período: el activo estuvo de baja." %}{% endif %}</span>
     </div>
     <div class="card kpi">
       <span class="kpi__label">MTBF</span>
