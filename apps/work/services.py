@@ -265,14 +265,22 @@ def report_failure(
         client_uuid=client_uuid,
     )
     if asset_stopped:
-        FailureEvent.objects.create(
+        failure = FailureEvent.objects.create(
             asset=asset,
             work_order=work_order,
             impact=FailureEvent.Impact.TOTAL_STOP,
             description=description,
             started_at=now,
         )
-        change_asset_status(asset=asset, status=Asset.Status.STOPPED, by=user, reason=work_order.code, at=now)
+        change_asset_status(
+            asset=asset,
+            status=Asset.Status.STOPPED,
+            by=user,
+            reason=work_order.code,
+            at=now,
+            work_order=work_order,
+            failure_event=failure,
+        )
     request.photo_warning = ""
     if photo is not None:
         try:
@@ -341,6 +349,7 @@ def transition(*, work_order: WorkOrder, to_status: str, membership, comment: st
                 by=user,
                 reason=work_order.code,
                 at=now,
+                work_order=work_order,
             )
     elif to_status == S.COMPLETED:
         work_order.completed_at = now
@@ -372,8 +381,9 @@ def _close(*, work_order: WorkOrder, user, at, record=True):
     work_order.closed_at = at
     work_order.save(update_fields=["status", "closed_at", "updated_at"])
 
-    failure = FailureEvent.objects.filter(work_order=work_order, ended_at__isnull=True).first()
-    if failure:
+    # La falla de esta OT (si la hay): se cierra aquí si nadie informó su fin al completar.
+    failure = FailureEvent.objects.filter(work_order=work_order).first()
+    if failure and failure.ended_at is None:
         failure.ended_at = at
         failure.save(update_fields=["ended_at", "updated_at"])
 
@@ -381,7 +391,13 @@ def _close(*, work_order: WorkOrder, user, at, record=True):
     if asset is not None and asset.status in (Asset.Status.STOPPED, Asset.Status.IN_MAINTENANCE):
         if not FailureEvent.objects.filter(asset=asset, ended_at__isnull=True).exists():
             change_asset_status(
-                asset=asset, status=Asset.Status.OPERATIONAL, by=user, reason=work_order.code, at=at
+                asset=asset,
+                status=Asset.Status.OPERATIONAL,
+                by=user,
+                reason=work_order.code,
+                at=at,
+                work_order=work_order,
+                failure_event=failure,
             )
     if work_order.plan_assignment_id:
         register_completion(
