@@ -213,6 +213,8 @@ def assign_plan(
     version = plan.current_version
     if version is None:
         raise PlanVersionError(_("«%(plan)s» no tiene una versión publicada.") % {"plan": plan})
+    if asset.status == "retired":  # dado de baja: ya no recibe preventivos (AST-04 CA3)
+        raise ValidationError(_("%(asset)s está dado de baja.") % {"asset": asset.code})
     defaults = {"is_active": True, "next_due_on": None, "meter": None, "next_due_meter_value": None}
     if version.interval_days:
         defaults["next_due_on"] = starts_on or timezone.localdate() + datetime.timedelta(
@@ -239,6 +241,26 @@ def assign_plan(
         action = AuditEvent.Action.CREATE if created else AuditEvent.Action.UPDATE
         audit.record(action=action, target=assignment, actor=by, changes=changes)
     return assignment
+
+
+@transaction.atomic
+def deactivate_asset_assignments(*, asset, by=None, reason: str = "") -> int:
+    """Desactiva las asignaciones de plan del activo (al darlo de baja, AST-04 CA3).
+
+    No se borran: conservan su historial (última ejecución) y quedan auditadas.
+    Las OT preventivas ya generadas no se tocan.
+    """
+    assignments = list(PlanAssignment.objects.select_for_update().filter(asset=asset, is_active=True))
+    for assignment in assignments:
+        assignment.is_active = False
+        assignment.save(update_fields=["is_active", "updated_at"])
+        audit.record(
+            action=AuditEvent.Action.UPDATE,
+            target=assignment,
+            actor=by,
+            changes={"is_active": [True, False], "reason": reason[:200]},
+        )
+    return len(assignments)
 
 
 # --- Programador ------------------------------------------------------------

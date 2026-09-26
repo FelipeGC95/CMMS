@@ -4,7 +4,7 @@ from apps.accounts.scoping import allowed_location_ids
 from apps.organizations.selectors import visible_locations
 from apps.work.models import FailureEvent
 
-from .models import Asset, AssetClass
+from .models import Asset, AssetClass, AssetStatusPeriod
 
 
 def visible_assets(*, membership):
@@ -53,15 +53,46 @@ def asset_children(*, membership, asset):
     return asset_list(membership=membership, parent=asset)
 
 
-def asset_status_history(asset):
-    """Cambios de estado del activo, del más reciente al más antiguo (AST-02 CA2)."""
-    return asset.status_periods.select_related("changed_by").order_by("-started_at")
+# Límite de niveles al recorrer la jerarquía (igual que la validación de ciclos).
+MAX_HIERARCHY_DEPTH = 100
 
 
-def asset_failure_history(asset):
-    """Fallas del activo o en las que fue el componente afectado (AST-02 CA2)."""
+def asset_scope_ids(*, membership, asset, include_components: bool = False) -> list:
+    """Ids del activo y, con `include_components`, de todos sus descendientes visibles (AST-03 CA2).
+
+    Recorre la jerarquía por niveles: una consulta por nivel, sin importar
+    cuántos componentes tenga cada uno. Solo devuelve descendientes dentro del
+    alcance por sitio de la membresía (ORG-06).
+    """
+    if not include_components:
+        return [asset.pk]
+    found, frontier, depth = set(), [asset.pk], 0
+    while frontier and depth < MAX_HIERARCHY_DEPTH:
+        children = set(Asset.objects.filter(parent_id__in=frontier).values_list("id", flat=True)) - found
+        children.discard(asset.pk)
+        found |= children
+        frontier, depth = list(children), depth + 1
+    visible = set(visible_assets(membership=membership).filter(pk__in=found).values_list("id", flat=True))
+    return [asset.pk, *sorted(visible)] if found else [asset.pk]
+
+
+def asset_status_history(asset, *, asset_ids=None):
+    """Cambios de estado del activo (o de `asset_ids`), del más reciente al más antiguo (AST-02 CA2)."""
     return (
-        FailureEvent.objects.filter(Q(asset=asset) | Q(component=asset))
+        AssetStatusPeriod.objects.filter(asset_id__in=asset_ids or [asset.pk])
+        .select_related("asset", "changed_by", "work_order")
+        .order_by("-started_at")
+    )
+
+
+def asset_failure_history(asset, *, asset_ids=None):
+    """Fallas del activo o en las que fue el componente afectado (AST-02 CA2).
+
+    Con `asset_ids` (activo + componentes) incluye las de todos ellos.
+    """
+    ids = asset_ids or [asset.pk]
+    return (
+        FailureEvent.objects.filter(Q(asset_id__in=ids) | Q(component_id__in=ids))
         .select_related("asset", "component", "failure_mode", "work_order")
         .order_by("-started_at")
     )

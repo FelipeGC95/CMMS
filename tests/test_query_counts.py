@@ -158,6 +158,69 @@ def test_asset_detail_queries_do_not_grow_with_components_and_failures(client, t
     assert many == few, f"asset_detail: {few} → {many} consultas"
 
 
+def _add_component_tree(tenant, n):
+    """Por cada vuelta, un sistema bajo el activo y un componente bajo ese sistema (3 niveles),
+    con fallas, cambios de estado y OT cerradas: "incluir componentes" los recorre todos."""
+    from apps.assets.services import change_asset_status
+
+    with tenant_context(tenant.org):
+        for _ in range(n):
+            system = Asset.objects.create(
+                code=f"S-{Asset.objects.count():03d}",
+                name="Sistema",
+                asset_class=tenant.asset.asset_class,
+                parent=tenant.asset,
+            )
+            part = Asset.objects.create(
+                code=f"P-{Asset.objects.count():03d}",
+                name="Pieza",
+                asset_class=tenant.asset.asset_class,
+                parent=system,
+            )
+            report_failure(membership=tenant.viewer, asset=part, description="z", asset_stopped=True)
+            change_asset_status(asset=system, status="in_maintenance", reason="Revisión")
+            wo = create_work_order(work_type="corrective", title="Cerrada", asset=part, status="closed")
+            assert wo.status == "closed"
+
+
+def test_asset_detail_with_components_queries_do_not_grow(client, tenant_a, django_assert_max_num_queries):
+    login(client, tenant_a.admin)
+    url = f"{reverse('asset_detail', args=[tenant_a.asset.pk])}?components=1"
+    _add_component_tree(tenant_a, 2)
+    few = _count(client, url)
+    _add_component_tree(tenant_a, 12)
+    many = _count(client, url)
+    assert many == few, f"asset_detail?components=1: {few} → {many} consultas"
+    with django_assert_max_num_queries(40):
+        assert client.get(url).status_code == 200
+
+
+def _add_plans_and_open_orders(tenant, n):
+    from apps.maintenance.models import ItemType, MaintenancePlan
+    from apps.maintenance.services import assign_plan, create_plan
+
+    with tenant_context(tenant.org):
+        for i in range(n):
+            plan = create_plan(
+                code=f"PX-{MaintenancePlan.objects.count():03d}",
+                name=f"Plan {i}",
+                interval_days=7,
+                items=[{"text": "Revisar", "item_type": ItemType.CHECK}],
+            )
+            assign_plan(plan=plan, asset=tenant.asset)
+            create_work_order(work_type="corrective", title=f"Abierta {i}", asset=tenant.asset)
+
+
+def test_asset_decommission_confirmation_queries_do_not_grow(client, tenant_a):
+    login(client, tenant_a.admin)
+    url = reverse("asset_decommission", args=[tenant_a.asset.pk])
+    _add_plans_and_open_orders(tenant_a, 2)
+    few = _count(client, url)
+    _add_plans_and_open_orders(tenant_a, 10)
+    many = _count(client, url)
+    assert many == few, f"asset_decommission: {few} → {many} consultas"
+
+
 def test_asset_edit_queries_do_not_grow_with_rows(client, tenant_a):
     login(client, tenant_a.admin)
     url = reverse("asset_edit", args=[tenant_a.asset.pk])

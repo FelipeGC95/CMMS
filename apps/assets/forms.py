@@ -11,7 +11,7 @@ from apps.attachments.models import Purpose
 from apps.organizations.models import Location
 
 from .attributes import build_form_fields, field_name, initial_values
-from .models import Asset, AssetClass, AttributeType
+from .models import MANUAL_STATUSES, Asset, AssetClass, AttributeType
 from .selectors import active_attributes, asset_form_choices
 
 
@@ -209,3 +209,32 @@ class AssetForm(forms.Form):
             kwargs[name] = kwargs[name] or ""
         kwargs["attributes"] = {a.key: data.get(field_name(a)) for a in self.attributes}
         return kwargs
+
+
+class AssetStatusForm(forms.Form):
+    """Cambio manual de estado (AST-04): ofrece los estados manuales distintos del actual."""
+
+    status = forms.ChoiceField(label=_("Nuevo estado"))
+    reason = forms.CharField(
+        label=_("Motivo"),
+        max_length=200,
+        widget=forms.Textarea(attrs={"rows": 3}),
+        help_text=_("Queda en el historial de estados del activo."),
+    )
+
+    def __init__(self, *args, asset, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["status"].choices = [
+            (value, label)
+            for value, label in Asset.Status.choices
+            if value in MANUAL_STATUSES and value != asset.status
+        ]
+
+
+class AssetDecommissionForm(forms.Form):
+    reason = forms.CharField(
+        label=_("Motivo de la baja"),
+        max_length=200,
+        widget=forms.Textarea(attrs={"rows": 3}),
+        help_text=_("Por ejemplo: vendido, reemplazado o fuera de uso."),
+    )

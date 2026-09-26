@@ -1,0 +1,54 @@
+{% extends "base.html" %}{% load i18n ui %}
+{% block title %}{% translate "Dar de baja" %} {{ asset.code }}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <p class="muted mono">{{ asset.code }}</p>
+    <h1>{% translate "Dar de baja" %}</h1>
+    <div class="row"><span class="muted">{% translate "Estado actual" %}</span>{% status_badge asset %}</div>
+  </div>
+  <a class="btn btn--ghost" href="{% url 'asset_detail' asset.pk %}">{% translate "Volver al activo" %}</a>
+</div>
+
+<div class="alert alert--warning mb-4" role="status">{% icon 'alert' %}<span>{% blocktranslate with name=asset.name %}{{ name }} quedará «De baja»: no generará más mantenimientos preventivos. Su ficha, historial y documentos se conservan.{% endblocktranslate %}</span></div>
+
+<div class="grid grid--2">
+  <section class="card" aria-labelledby="plans-off-title">
+    <h2 id="plans-off-title">{% translate "Planes que se desactivan" %}</h2>
+    {% if assignments %}
+    <ul class="list">
+      {% for a in assignments %}
+      <li>
+        <div class="list__main">
+          <span class="list__title">{{ a.plan.name }}</span>
+          <span class="list__meta"><span class="mono">{{ a.plan.code }}</span> · {% translate "Cada" %} {{ a.plan.frequency_label }}{% if a.next_due_on %} · {% icon 'calendar' %} {{ a.next_due_on|date:"d M Y" }}{% endif %}</span>
+        </div>
+        <span class="badge badge--neutral">{% icon 'x' %}{% translate "Se desactiva" %}</span>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}<p class="muted">{% translate "El activo no tiene planes preventivos activos." %}</p>{% endif %}
+  </section>
+  <section class="card" aria-labelledby="open-wo-title">
+    <h2 id="open-wo-title">{% translate "OT abiertas" %}</h2>
+    {% if open_work_orders %}
+    <div class="alert alert--warning" role="status">{% icon 'alert' %}<span>{% translate "Estas OT no se modifican: ciérralas o cancélalas por separado si ya no corresponden." %}</span></div>
+    <ul class="list">{% for wo in open_work_orders %}{% include "work/_wo_item.html" %}{% endfor %}</ul>
+    {% else %}<p class="muted">{% translate "Sin OT abiertas." %}</p>{% endif %}
+  </section>
+</div>
+
+<div class="mt-4">
+<section class="card narrow" aria-labelledby="decommission-form-title">
+  <h2 id="decommission-form-title">{% translate "Confirmar la baja" %}</h2>
+  <form method="post">
+    {% csrf_token %}
+    {% include "_form_fields.html" with form=form %}
+    <div class="row">
+      <button class="btn btn--danger btn--lg" type="submit">{% icon 'x' %}{% translate "Dar de baja" %}</button>
+      <a class="btn btn--ghost btn--lg" href="{% url 'asset_detail' asset.pk %}">{% translate "Cancelar" %}</a>
+    </div>
+  </form>
+</section>
+</div>
+{% endblock %}

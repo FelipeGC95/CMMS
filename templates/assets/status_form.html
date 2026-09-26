@@ -1,0 +1,24 @@
+{% extends "base.html" %}{% load i18n ui %}
+{% block title %}{% translate "Cambiar estado" %} {{ asset.code }}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <p class="muted mono">{{ asset.code }}</p>
+    <h1>{% translate "Cambiar estado" %}</h1>
+    <div class="row"><span class="muted">{% translate "Estado actual" %}</span>{% status_badge asset %}</div>
+  </div>
+  <a class="btn btn--ghost" href="{% url 'asset_detail' asset.pk %}">{% translate "Volver al activo" %}</a>
+</div>
+
+<section class="card narrow" aria-labelledby="status-form-title">
+  <h2 id="status-form-title">{{ asset.name }}</h2>
+  <p class="muted">{% translate "El cambio cierra el período del estado actual y abre uno nuevo. Los períodos detenido y en mantención descuentan de la disponibilidad." %}</p>
+  <form method="post">
+    {% csrf_token %}
+    {% include "_form_fields.html" with form=form %}
+    <div class="row">
+      <button class="btn btn--primary btn--lg" type="submit">{% translate "Cambiar estado" %}</button>
+    </div>
+  </form>
+</section>
+{% endblock %}

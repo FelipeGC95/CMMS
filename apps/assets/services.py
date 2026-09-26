@@ -15,6 +15,7 @@ from apps.organizations.models import Location
 
 from . import attributes as attribute_values
 from .models import (
+    MANUAL_STATUSES,
     Asset,
     AssetClass,
     AssetClassAttribute,
@@ -36,24 +37,92 @@ class MeterReadingError(ValidationError):
 
 
 @transaction.atomic
-def change_asset_status(*, asset: Asset, status: str, by=None, reason: str = "", at=None) -> Asset:
-    """Cierra el período de estado vigente y abre uno nuevo."""
+def change_asset_status(
+    *,
+    asset: Asset,
+    status: str,
+    by=None,
+    reason: str = "",
+    at=None,
+    work_order=None,
+    failure_event=None,
+) -> Asset:
+    """Cierra el período de estado vigente y abre uno nuevo (AST-04 CA2).
+
+    `work_order` y `failure_event` enlazan el período con la OT o la falla que
+    lo explica. Primitiva sin permisos: la usan los flujos de OT y avisos; los
+    cambios manuales pasan por `set_asset_status`.
+    """
     if asset.status == status:
         return asset
     at = at or timezone.now()
     AssetStatusPeriod.objects.filter(asset=asset, ended_at__isnull=True).update(ended_at=at)
     AssetStatusPeriod.objects.create(
-        asset=asset, status=status, started_at=at, reason=reason[:200], changed_by=by
+        asset=asset,
+        status=status,
+        started_at=at,
+        reason=reason[:200],
+        changed_by=by,
+        work_order=work_order,
+        failure_event=failure_event,
     )
     previous = asset.status
     asset.status = status
     asset.save(update_fields=["status", "updated_at"])
-    audit.record(
-        action=AuditEvent.Action.TRANSITION,
-        target=asset,
-        actor=by,
-        changes={"status": [previous, status], "reason": reason[:200]},
-    )
+    changes = {"status": [previous, status], "reason": reason[:200]}
+    if work_order is not None:
+        changes["work_order"] = str(work_order.pk)
+    if failure_event is not None:
+        changes["failure_event"] = str(failure_event.pk)
+    audit.record(action=AuditEvent.Action.TRANSITION, target=asset, actor=by, changes=changes)
+    return asset
+
+
+def _require_manageable_asset(*, membership, asset: Asset) -> None:
+    """Permiso `asset.manage` y activo dentro de la organización y del alcance por sitio."""
+    require_perm(membership, Perm.ASSET_MANAGE)
+    if not visible_assets(membership=membership).filter(pk=asset.pk).exists():
+        raise PermissionDeniedError(Perm.ASSET_MANAGE)
+
+
+def _clean_reason(reason: str) -> str:
+    reason = (reason or "").strip()
+    if not reason:
+        raise ValidationError({"reason": gettext("Indica el motivo del cambio.")})
+    return reason[:200]
+
+
+@transaction.atomic
+def set_asset_status(*, membership, asset: Asset, status: str, reason: str) -> Asset:
+    """Cambio manual de estado (AST-04): operativo, detenido o en mantención, con motivo."""
+    _require_manageable_asset(membership=membership, asset=asset)
+    asset = Asset.objects.select_for_update().get(pk=asset.pk)
+    if asset.status == Asset.Status.RETIRED:
+        raise ValidationError(gettext("El activo está dado de baja: su estado ya no se puede cambiar."))
+    if status not in MANUAL_STATUSES:
+        raise ValidationError({"status": gettext("Elige un estado válido.")})
+    if status == asset.status:
+        raise ValidationError({"status": gettext("El activo ya está en ese estado.")})
+    return change_asset_status(asset=asset, status=status, by=membership.user, reason=_clean_reason(reason))
+
+
+@transaction.atomic
+def decommission_asset(*, membership, asset: Asset, reason: str) -> Asset:
+    """Da de baja el activo (AST-04 CA3): estado "de baja" y planes desactivados.
+
+    No borra nada: el activo, su historial y sus OT se conservan. Las OT
+    abiertas no se tocan (la confirmación las muestra como aviso). Sin
+    asignaciones activas y en estado de baja, el activo no genera preventivos.
+    """
+    from apps.maintenance.services import deactivate_asset_assignments
+
+    _require_manageable_asset(membership=membership, asset=asset)
+    asset = Asset.objects.select_for_update().get(pk=asset.pk)
+    if asset.status == Asset.Status.RETIRED:
+        raise ValidationError(gettext("El activo ya está dado de baja."))
+    reason = _clean_reason(reason)
+    change_asset_status(asset=asset, status=Asset.Status.RETIRED, by=membership.user, reason=reason)
+    deactivate_asset_assignments(asset=asset, by=membership.user, reason=reason)
     return asset
 
 

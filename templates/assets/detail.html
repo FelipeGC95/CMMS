@@ -8,10 +8,13 @@
     <div class="row">{% status_badge asset %}<span class="badge badge--neutral">{% translate "Criticidad" %} {{ asset.criticality }}</span></div>
   </div>
   <div class="row">
+    {% if can_manage and not is_retired %}<a class="btn btn--secondary btn--lg" href="{% url 'asset_status' asset.pk %}">{% icon 'contrast' %}{% translate "Cambiar estado" %}</a>{% endif %}
     {% if can_manage %}<a class="btn btn--secondary btn--lg" href="{% url 'asset_edit' asset.pk %}">{% icon 'wrench' %}{% translate "Editar" %}</a>{% endif %}
     <a class="btn btn--primary btn--lg" href="{% url 'asset_report' asset.pk %}">{% icon 'megaphone' %}{% translate "Avisar falla" %}</a>
   </div>
 </div>
+
+{% if is_retired %}<div class="alert alert--info mb-4" role="status">{% icon 'info' %}<span>{% translate "Activo dado de baja: no genera mantenimientos preventivos y su historial se conserva." %}</span></div>{% endif %}
 
 <div class="grid grid--2">
   <section class="card" aria-labelledby="data-title">
@@ -40,6 +43,7 @@
       <a class="btn btn--ghost" href="{% url 'asset_class_detail' asset.asset_class_id %}">{% translate "Atributos de la clase" %}</a>
     </div>{% endif %}
     {% endif %}
+    {% if can_manage and not is_retired %}<div class="row mt-4"><a class="btn btn--ghost" href="{% url 'asset_decommission' asset.pk %}">{% icon 'x' %}{% translate "Dar de baja" %}</a></div>{% endif %}
   </section>
   <section class="card" aria-labelledby="qr-title">
     <h2 id="qr-title">{% translate "Código QR" %}</h2>
@@ -123,6 +127,33 @@
   {% if can_manage %}<div class="row mt-2"><a class="btn btn--ghost" href="{% url 'asset_create' %}?parent={{ asset.pk }}">{% icon 'box' %}{% translate "Agregar componente" %}</a></div>{% endif %}
 </section>
 
+<section class="mt-4" id="indicators" aria-labelledby="kpi-title">
+  <div class="card__header"><h2 id="kpi-title">{% translate "Indicadores e historial" %}</h2><span class="muted">{% translate "últimos 30 días" %}</span></div>
+  {% if children_count %}
+  <nav class="chips" aria-label="{% translate 'Alcance del historial y los indicadores' %}">
+    <a class="chip" href="{% url 'asset_detail' asset.pk %}#indicators"{% if not include_components %} aria-current="true"{% endif %}>{% translate "Solo este activo" %}</a>
+    <a class="chip" href="{% url 'asset_detail' asset.pk %}?components=1#indicators"{% if include_components %} aria-current="true"{% endif %}>{% translate "Incluir componentes" %}</a>
+  </nav>
+  {% endif %}
+  <div class="grid grid--kpi">
+    <div class="card kpi">
+      <span class="kpi__label">{% translate "Disponibilidad" %}</span>
+      <span class="kpi__value">{{ kpis.availability_pct|pct }}<span class="kpi__unit">%</span></span>
+      <span class="kpi__hint">{% translate "Tiempo operativo / tiempo calendario" %}</span>
+    </div>
+    <div class="card kpi">
+      <span class="kpi__label">MTBF</span>
+      <span class="kpi__value">{{ kpis.mtbf_hours|hours:0 }}<span class="kpi__unit">h</span></span>
+      <span class="kpi__hint">{% blocktranslate count n=kpis.failures %}Tiempo medio entre fallas · {{ n }} falla{% plural %}Tiempo medio entre fallas · {{ n }} fallas{% endblocktranslate %}</span>
+    </div>
+    <div class="card kpi">
+      <span class="kpi__label">MTTR</span>
+      <span class="kpi__value">{{ kpis.mttr_hours|hours }}<span class="kpi__unit">h</span></span>
+      <span class="kpi__hint">{% translate "Tiempo medio de reparación" %}</span>
+    </div>
+  </div>
+</section>
+
 <section class="card mt-4" aria-labelledby="hist-title">
   <h2 id="hist-title">{% translate "Historial" %}</h2>
   {% if history %}<ul class="list">{% for wo in history %}{% include "work/_wo_item.html" %}{% endfor %}</ul>
@@ -138,7 +169,7 @@
       <li>
         <div class="list__main">
           <span class="list__title">{% if failure.failure_mode %}{{ failure.failure_mode.name }}{% elif failure.description %}{{ failure.description|truncatechars:80 }}{% else %}{% translate "Falla sin describir" %}{% endif %}</span>
-          <span class="list__meta">{{ failure.started_at|date:"d M Y H:i" }}{% if failure.asset_id != asset.pk %} · {% translate "en" %} {{ failure.asset.code }}{% elif failure.component %} · {% translate "componente" %} {{ failure.component.code }}{% endif %}{% if failure.work_order %} · <a href="{% url 'work_order_detail' failure.work_order_id %}">{{ failure.work_order.code }}</a>{% endif %}</span>
+          <span class="list__meta">{{ failure.started_at|date:"d M Y H:i" }}{% if failure.asset_id != asset.pk %} · {% translate "en" %} {{ failure.asset.code }}{% if failure.component and failure.component_id != asset.pk %} · {% translate "componente" %} {{ failure.component.code }}{% endif %}{% elif failure.component %} · {% translate "componente" %} {{ failure.component.code }}{% endif %}{% if failure.work_order %} · <a href="{% url 'work_order_detail' failure.work_order_id %}">{{ failure.work_order.code }}</a>{% endif %}</span>
         </div>
         <span class="badge badge--{% if failure.impact == 'total_stop' %}error{% elif failure.impact == 'partial' %}warning{% else %}neutral{% endif %}">{% if failure.impact == 'none' %}{% icon 'dot' %}{% else %}{% icon 'alert' %}{% endif %}{{ failure.get_impact_display }}</span>
       </li>
@@ -156,7 +187,7 @@
       <li>
         <div class="list__main">
           <span class="list__title">{% if period.ended_at %}{% blocktranslate with start=period.started_at|date:"d M Y H:i" end=period.ended_at|date:"d M Y H:i" %}{{ start }} a {{ end }}{% endblocktranslate %}{% else %}{% blocktranslate with start=period.started_at|date:"d M Y H:i" %}Desde el {{ start }} (vigente){% endblocktranslate %}{% endif %}</span>
-          {% if period.reason or period.changed_by %}<span class="list__meta">{{ period.reason }}{% if period.reason and period.changed_by %} · {% endif %}{% if period.changed_by %}{{ period.changed_by.short_name }}{% endif %}</span>{% endif %}
+          <span class="list__meta">{% if period.asset_id != asset.pk %}{% translate "en" %} <span class="mono">{{ period.asset.code }}</span> · {% endif %}{{ period.reason|default:_("Sin motivo") }}{% if period.work_order %} · <a href="{% url 'work_order_detail' period.work_order_id %}">{{ period.work_order.code }}</a>{% endif %}{% if period.changed_by %} · {{ period.changed_by.short_name }}{% endif %}</span>
         </div>
         {% status_badge period %}
       </li>
