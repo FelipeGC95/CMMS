@@ -13,8 +13,20 @@
     <h2 id="closing-title">{% translate "Cierre de órdenes de trabajo" %}</h2>
     <form method="post">
       {% csrf_token %}
+      <input type="hidden" name="section" value="closing">
       {% include "_form_fields.html" with form=form %}
       <button class="btn btn--primary" type="submit">{% translate "Guardar" %}</button>
+    </form>
+  </section>
+
+  <section class="card" id="status-labels" aria-labelledby="labels-title">
+    <h2 id="labels-title">{% translate "Nombres de los estados de OT" %}</h2>
+    <p class="muted">{% translate "Cambia cómo se ven los estados en tu organización. En blanco se usa el nombre por defecto; el ícono de cada estado no cambia." %}</p>
+    <form method="post" action="{% url 'organization_settings' %}#status-labels">
+      {% csrf_token %}
+      <input type="hidden" name="section" value="status_labels">
+      {% include "_form_fields.html" with form=labels_form %}
+      <button class="btn btn--primary" type="submit">{% translate "Guardar nombres" %}</button>
     </form>
   </section>
 

@@ -2,6 +2,7 @@ from django import forms
 from django.utils.translation import gettext_lazy as _
 
 from .models import Location
+from .services import STATUS_LABEL_MAX_LENGTH
 
 
 class LocationForm(forms.Form):
@@ -40,3 +41,17 @@ class OrganizationSettingsForm(forms.Form):
         required=False,
         help_text=_("Al completar una OT correctiva, el modo y la causa de la falla son obligatorios."),
     )
+
+
+class WorkOrderStatusLabelsForm(forms.Form):
+    """Un campo por estado de OT; en blanco usa el nombre por defecto (WO-02 CA5)."""
+
+    def __init__(self, *args, choices, **kwargs):
+        super().__init__(*args, **kwargs)
+        for key, default in choices:
+            self.fields[key] = forms.CharField(
+                label=default,
+                max_length=STATUS_LABEL_MAX_LENGTH,
+                required=False,
+                widget=forms.TextInput(attrs={"placeholder": default}),
+            )

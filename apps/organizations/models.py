@@ -50,6 +50,9 @@ class Organization(TimeStampedModel):
     require_failure_details = models.BooleanField(
         _("exige modo y causa de falla para cerrar una OT correctiva"), default=False
     )
+    # Nombres visibles propios de los estados de OT (WO-02 CA5): {"in_progress": "En faena"}.
+    # Solo claves de `WorkOrder.Status`; una clave ausente usa el nombre traducido por defecto.
+    work_order_status_labels = models.JSONField(_("nombres de los estados de OT"), default=dict, blank=True)
 
     class Meta:
         verbose_name = _("organización")

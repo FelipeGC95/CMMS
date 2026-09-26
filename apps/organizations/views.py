@@ -10,7 +10,7 @@ from apps.accounts.scoping import is_scoped
 from apps.core.decorators import membership_required
 
 from . import services
-from .forms import LocationForm, OrganizationSettingsForm
+from .forms import LocationForm, OrganizationSettingsForm, WorkOrderStatusLabelsForm
 from .models import Location
 from .selectors import descendant_ids, location_tree, organization_quotas, visible_locations
 
@@ -103,14 +103,30 @@ def organization_settings_view(request):
     """Configuración de la organización para su administrador (WO-02 CA2, REQ-03 CA2)."""
     membership = request.membership
     organization = membership.organization
+    # Dos formularios en la página; el botón de envío indica cuál se guarda.
+    section = request.POST.get("section", "closing") if request.method == "POST" else None
     initial = {field: getattr(organization, field) for field in services.SETTINGS_FIELDS}
-    form = OrganizationSettingsForm(request.POST or None, initial=initial)
-    if request.method == "POST" and form.is_valid():
+    form = OrganizationSettingsForm(request.POST if section == "closing" else None, initial=initial)
+    labels_form = WorkOrderStatusLabelsForm(
+        request.POST if section == "status_labels" else None,
+        initial=organization.work_order_status_labels or {},
+        choices=services.work_order_status_choices(),
+        prefix="label",
+    )
+    if section == "closing" and form.is_valid():
         services.update_organization_settings(membership=membership, **form.cleaned_data)
         messages.success(request, _("Configuración guardada."))
         return redirect("organization_settings")
+    if section == "status_labels" and labels_form.is_valid():
+        try:
+            services.update_work_order_status_labels(membership=membership, labels=labels_form.cleaned_data)
+        except ValidationError as error:
+            labels_form.add_error(None, error)
+        else:
+            messages.success(request, _("Nombres de los estados guardados."))
+            return redirect("organization_settings")
     return render(
         request,
         "organizations/settings.html",
-        {"form": form, "quotas": organization_quotas(membership=membership)},
+        {"form": form, "labels_form": labels_form, "quotas": organization_quotas(membership=membership)},
     )

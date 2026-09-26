@@ -116,3 +116,56 @@ def update_organization_settings(*, membership, require_close_approval, require_
             action=AuditEvent.Action.UPDATE, target=organization, membership=membership, changes=changes
         )
     return organization
+
+
+# ---------- Nombres visibles de los estados de OT (WO-02 CA5) ----------
+
+STATUS_LABEL_MAX_LENGTH = 40
+
+
+def work_order_status_choices():
+    """[(estado, nombre por defecto traducido)] en el orden del ciclo de vida."""
+    # Import diferido: los modelos de `organizations` no dependen de `work`.
+    from apps.work.models import WorkOrder
+
+    return list(WorkOrder.Status.choices)
+
+
+@transaction.atomic
+def update_work_order_status_labels(*, membership, labels):
+    """Guarda nombres propios para los estados de OT. En blanco vuelve al nombre por defecto.
+
+    `labels` es un dict {estado: nombre}; solo se aceptan estados de `WorkOrder.Status`.
+    """
+    require_perm(membership, Perm.ORGANIZATION_MANAGE)
+    known = [key for key, _label in work_order_status_choices()]
+    unknown = sorted(set(labels) - set(known))
+    if unknown:
+        raise ValidationError(_("Estado de OT desconocido: %(keys)s.") % {"keys": ", ".join(unknown)})
+    cleaned = {}
+    for key in known:
+        value = labels.get(key) or ""
+        if not isinstance(value, str):
+            raise ValidationError(_("El nombre de un estado debe ser texto."))
+        value = " ".join(value.split())
+        if len(value) > STATUS_LABEL_MAX_LENGTH:
+            raise ValidationError(
+                _("El nombre de un estado admite hasta %(max)s caracteres.")
+                % {"max": STATUS_LABEL_MAX_LENGTH}
+            )
+        if value:
+            cleaned[key] = value
+    organization = Organization.objects.select_for_update().get(pk=membership.organization_id)
+    before = organization.work_order_status_labels or {}
+    changes = {
+        f"work_order_status_labels.{key}": [before.get(key, ""), cleaned.get(key, "")]
+        for key in known
+        if before.get(key, "") != cleaned.get(key, "")
+    }
+    if changes:
+        organization.work_order_status_labels = cleaned
+        organization.save(update_fields=["work_order_status_labels", "updated_at"])
+        audit.record(
+            action=AuditEvent.Action.UPDATE, target=organization, membership=membership, changes=changes
+        )
+    return organization
