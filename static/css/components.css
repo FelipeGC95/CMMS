@@ -95,6 +95,9 @@ main { max-width: var(--content-max); margin: 0 auto; padding: var(--space-5) va
 /* min(100%, …): a 360 px la tarjeta es más angosta que 320 px y la columna se salía por la derecha. */
 .grid--2 { grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); }
 .stack > * + * { margin-top: var(--space-4); }
+/* Tarjetas de alto natural en dos columnas (configuración): sin huecos bajo las cortas. */
+.masonry { columns: 2 320px; column-gap: var(--space-4); }
+.masonry > * { break-inside: avoid; margin: 0 0 var(--space-4); }
 .row { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; }
 
 .bottom-nav { display: none; }
@@ -181,6 +184,8 @@ main { max-width: var(--content-max); margin: 0 auto; padding: var(--space-5) va
 .table a { font-weight: 500; }
 /* Los códigos no se cortan a media palabra (CAL-01-M1). */
 .table td.mono { white-space: nowrap; }
+/* Cifras y encabezados de columnas numéricas en una línea ("En uso", "Sin límite"). */
+.table th.num, .table td.num { white-space: nowrap; }
 @media (max-width: 720px) {
   .table td.mono { white-space: normal; overflow-wrap: anywhere; }
   .table thead { display: none; }
