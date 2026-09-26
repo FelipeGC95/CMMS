@@ -92,7 +92,12 @@ def work_order_detail(pk, *, membership):
     return (
         visible_work_orders(membership=membership)
         .select_related(
-            "asset", "asset__location", "assigned_to", "plan_assignment__plan", "plan_assignment__meter"
+            "asset",
+            "asset__location",
+            "assigned_to",
+            "plan_assignment__plan",
+            "plan_assignment__meter",
+            "failure",
         )
         .prefetch_related("checklist", "transitions__by", "labor__user", "parts", "other_costs")
         .get(pk=pk)
