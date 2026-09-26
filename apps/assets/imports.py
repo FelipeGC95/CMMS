@@ -18,6 +18,7 @@ from decimal import Decimal, InvalidOperation
 from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.utils import timezone
+from django.utils.translation import gettext, gettext_lazy
 from openpyxl import Workbook, load_workbook
 from openpyxl.styles import Font, PatternFill
 from openpyxl.utils.exceptions import InvalidFileException
@@ -31,27 +32,52 @@ from .services import record_meter_reading
 
 MAX_ROWS = 2000
 MAX_FILE_BYTES = 5 * 1024 * 1024
-SHEET_NAME = "Activos"
+SHEET_NAME = gettext_lazy("Activos")
 
 # (clave interna, encabezado de la plantilla, obligatorio, ayuda)
 COLUMNS = [
-    ("code", "Código", True, "Único por activo. Si ya existe, la fila actualiza ese activo."),
-    ("name", "Nombre", True, "Ej: Grúa horquilla eléctrica 2,5 t"),
-    ("asset_class", "Clase", True, "Nombre o código de la clase. Si no existe, se crea."),
-    ("location", "Ubicación", False, "Nombre o código del sitio/área. Si no existe, se crea como sitio."),
+    (
+        "code",
+        gettext_lazy("Código"),
+        True,
+        gettext_lazy("Único por activo. Si ya existe, la fila actualiza ese activo."),
+    ),
+    ("name", gettext_lazy("Nombre"), True, gettext_lazy("Ej: Grúa horquilla eléctrica 2,5 t")),
+    (
+        "asset_class",
+        gettext_lazy("Clase"),
+        True,
+        gettext_lazy("Nombre o código de la clase. Si no existe, se crea."),
+    ),
+    (
+        "location",
+        gettext_lazy("Ubicación"),
+        False,
+        gettext_lazy("Nombre o código del sitio/área. Si no existe, se crea como sitio."),
+    ),
     (
         "parent",
-        "Activo padre",
+        gettext_lazy("Activo padre"),
         False,
-        "Código del activo del que es parte (puede estar en el mismo archivo).",
+        gettext_lazy("Código del activo del que es parte (puede estar en el mismo archivo)."),
     ),
-    ("criticality", "Criticidad", False, "A (alta), B (media) o C (baja). Por defecto B."),
-    ("manufacturer", "Fabricante", False, ""),
-    ("model", "Modelo", False, ""),
-    ("serial_number", "N° de serie", False, ""),
-    ("year", "Año", False, "Año de fabricación, ej: 2019."),
-    ("meter_kind", "Medidor", False, "Horómetro, Odómetro o Ciclos (opcional)."),
-    ("meter_value", "Lectura actual", False, "Lectura del medidor hoy (opcional)."),
+    (
+        "criticality",
+        gettext_lazy("Criticidad"),
+        False,
+        gettext_lazy("A (alta), B (media) o C (baja). Por defecto B."),
+    ),
+    ("manufacturer", gettext_lazy("Fabricante"), False, ""),
+    ("model", gettext_lazy("Modelo"), False, ""),
+    ("serial_number", gettext_lazy("N° de serie"), False, ""),
+    ("year", gettext_lazy("Año"), False, gettext_lazy("Año de fabricación, ej: 2019.")),
+    ("meter_kind", gettext_lazy("Medidor"), False, gettext_lazy("Horómetro, Odómetro o Ciclos (opcional).")),
+    (
+        "meter_value",
+        gettext_lazy("Lectura actual"),
+        False,
+        gettext_lazy("Lectura del medidor hoy (opcional)."),
+    ),
 ]
 HEADER_ALIASES = {
     "codigo": "code",
@@ -78,6 +104,8 @@ HEADER_ALIASES = {
     "lectura_actual": "meter_value",
     "lectura": "meter_value",
 }
+# Valores de entrada reconocidos (el texto de las celdas es dato, no interfaz): al
+# traducir la plantilla (F3) se agregan aquí los alias del otro idioma.
 CRITICALITY_ALIASES = {"a": "A", "alta": "A", "b": "B", "media": "B", "c": "C", "baja": "C"}
 METER_ALIASES = {
     "horometro": MeterKind.HOURS,
@@ -113,20 +141,23 @@ def _cell_text(value) -> str:
 def parse_workbook(uploaded_file) -> list[dict]:
     """Lee la primera hoja con encabezados reconocibles. Devuelve filas como texto."""
     if uploaded_file.size > MAX_FILE_BYTES:
-        raise ImportFileError("El archivo supera 5 MB.")
+        raise ImportFileError(gettext("El archivo supera 5 MB."))
     try:
         workbook = load_workbook(uploaded_file, read_only=True, data_only=True)
     except (InvalidFileException, zipfile.BadZipFile, KeyError, OSError, ValueError) as exc:
         raise ImportFileError(
-            "No se pudo leer el archivo. Usa un Excel .xlsx (idealmente la plantilla)."
+            gettext("No se pudo leer el archivo. Usa un Excel .xlsx (idealmente la plantilla).")
         ) from exc
-    sheet = workbook[SHEET_NAME] if SHEET_NAME in workbook.sheetnames else workbook.worksheets[0]
+    sheet_name = str(SHEET_NAME)
+    sheet = workbook[sheet_name] if sheet_name in workbook.sheetnames else workbook.worksheets[0]
     rows = sheet.iter_rows(values_only=True)
     header = next(rows, None) or ()
     keys = [HEADER_ALIASES.get(_normalize(h)) if h is not None else None for h in header]
     missing = [label for key, label, required, _ in COLUMNS if required and key not in keys]
     if missing:
-        raise ImportFileError(f"Faltan columnas obligatorias: {', '.join(missing)}.")
+        raise ImportFileError(
+            gettext("Faltan columnas obligatorias: %(columns)s.") % {"columns": ", ".join(map(str, missing))}
+        )
 
     parsed = []
     for number, values in enumerate(rows, start=2):
@@ -134,12 +165,14 @@ def parse_workbook(uploaded_file) -> list[dict]:
         if not any(row.values()):
             continue
         if len(parsed) >= MAX_ROWS:
-            raise ImportFileError(f"El archivo tiene más de {MAX_ROWS} filas; divídelo en partes.")
+            raise ImportFileError(
+                gettext("El archivo tiene más de %(max)s filas; divídelo en partes.") % {"max": MAX_ROWS}
+            )
         row["_row"] = number
         parsed.append(row)
     workbook.close()
     if not parsed:
-        raise ImportFileError("El archivo no tiene filas con datos.")
+        raise ImportFileError(gettext("El archivo no tiene filas con datos."))
     return parsed
 
 
@@ -221,93 +254,102 @@ def build_preview(raw_rows: list[dict], *, membership=None) -> Preview:
         errors, notes, data = result.errors, result.notes, result.data
 
         if not code:
-            errors.append("Falta el código.")
+            errors.append(gettext("Falta el código."))
         elif len(code) > 30:
-            errors.append("El código tiene más de 30 caracteres.")
+            errors.append(gettext("El código tiene más de 30 caracteres."))
         elif code.lower() in seen:
-            errors.append("Código repetido en el archivo.")
+            errors.append(gettext("Código repetido en el archivo."))
         seen.add(code.lower())
         current = existing.get(code.lower())
         if current:
             result.action = "update"
         if not name and not current:
-            errors.append("Falta el nombre.")
+            errors.append(gettext("Falta el nombre."))
         elif len(name) > 150:
-            errors.append("El nombre tiene más de 150 caracteres.")
+            errors.append(gettext("El nombre tiene más de 150 caracteres."))
 
         class_value = raw.get("asset_class", "")
         if class_value:
             if len(class_value) > 120:
-                errors.append("La clase tiene más de 120 caracteres.")
+                errors.append(gettext("La clase tiene más de 120 caracteres."))
             elif not _match(class_value, classes):
                 result.new_class = class_value
-                notes.append(f"Clase nueva: {class_value}")
+                notes.append(gettext("Clase nueva: %(name)s") % {"name": class_value})
         elif not current:
-            errors.append("Falta la clase.")
+            errors.append(gettext("Falta la clase."))
 
         location_value = raw.get("location", "")
         if location_value and not _match(location_value, locations):
             if len(location_value) > 150:
-                errors.append("La ubicación tiene más de 150 caracteres.")
+                errors.append(gettext("La ubicación tiene más de 150 caracteres."))
             else:
                 result.new_location = location_value
-                notes.append(f"Ubicación nueva: {location_value}")
+                notes.append(gettext("Ubicación nueva: %(name)s") % {"name": location_value})
 
         if allowed is not None:
             target = _match(location_value, locations) if location_value else None
             if location_value and target is None:
-                errors.append("Tu acceso está limitado a ciertos sitios: no puedes crear ubicaciones.")
+                errors.append(
+                    gettext("Tu acceso está limitado a ciertos sitios: no puedes crear ubicaciones.")
+                )
             elif target is not None and target.id not in allowed:
-                errors.append(f"«{location_value}» está fuera de los sitios a los que tienes acceso.")
+                errors.append(
+                    gettext("«%(name)s» está fuera de los sitios a los que tienes acceso.")
+                    % {"name": location_value}
+                )
             elif target is None and not current:
-                errors.append("Indica una ubicación de los sitios a los que tienes acceso.")
+                errors.append(gettext("Indica una ubicación de los sitios a los que tienes acceso."))
             if current and current.location_id not in allowed:
-                errors.append("El activo existente está en un sitio al que no tienes acceso.")
+                errors.append(gettext("El activo existente está en un sitio al que no tienes acceso."))
 
         parent = raw.get("parent", "")
         if parent:
             if parent.lower() == code.lower():
-                errors.append("Un activo no puede ser padre de sí mismo.")
+                errors.append(gettext("Un activo no puede ser padre de sí mismo."))
             elif parent.lower() not in existing and parent.lower() not in file_codes:
-                errors.append(f"No existe el activo padre «{parent}».")
+                errors.append(gettext("No existe el activo padre «%(code)s».") % {"code": parent})
 
         criticality = raw.get("criticality", "")
         if criticality:
             data["criticality"] = CRITICALITY_ALIASES.get(_normalize(criticality))
             if not data["criticality"]:
-                errors.append("Criticidad inválida: usa A, B o C.")
+                errors.append(gettext("Criticidad inválida: usa A, B o C."))
 
         year = raw.get("year", "")
         if year:
             if not year.isdigit() or not 1900 <= int(year) <= this_year + 1:
-                errors.append("Año inválido.")
+                errors.append(gettext("Año inválido."))
 
         meter_kind, meter_value = raw.get("meter_kind", ""), raw.get("meter_value", "")
         if meter_kind:
             data["meter_kind"] = METER_ALIASES.get(_normalize(meter_kind))
             if not data["meter_kind"]:
-                errors.append("Medidor inválido: usa Horómetro, Odómetro o Ciclos.")
+                errors.append(gettext("Medidor inválido: usa Horómetro, Odómetro o Ciclos."))
         if meter_value:
             try:
                 value = Decimal(meter_value.replace(",", "."))
                 if value < 0:
                     raise InvalidOperation
             except InvalidOperation:
-                errors.append("La lectura debe ser un número mayor o igual a cero.")
+                errors.append(gettext("La lectura debe ser un número mayor o igual a cero."))
             else:
                 if not meter_kind:
-                    errors.append("Indica el medidor de la lectura.")
+                    errors.append(gettext("Indica el medidor de la lectura."))
                 elif current and data.get("meter_kind"):
                     meter = next((m for m in current.meters.all() if m.kind == data["meter_kind"]), None)
                     if meter and meter.current_value is not None and value < meter.current_value:
                         notes.append(
-                            f"Lectura menor que la actual ({meter.current_value.normalize():f}): se omitirá."
+                            gettext("Lectura menor que la actual (%(value)s): se omitirá.")
+                            % {"value": f"{meter.current_value.normalize():f}"}
                         )
                         meter_value = ""
 
         for key in ("manufacturer", "model", "serial_number"):
             if len(raw.get(key, "")) > 100:
-                errors.append(f"{dict((k, lbl) for k, lbl, *_ in COLUMNS)[key]}: máximo 100 caracteres.")
+                errors.append(
+                    gettext("%(column)s: máximo 100 caracteres.")
+                    % {"column": dict((k, lbl) for k, lbl, *_ in COLUMNS)[key]}
+                )
 
         if errors:
             result.action = "error"
@@ -407,7 +449,9 @@ def apply_import(session_data: dict, *, assign_class_plans: bool = True) -> Impo
         if data.get("parent"):
             parent = existing[data["parent"].lower()]
             if _creates_cycle(asset, parent):
-                result.warnings.append(f"Fila {row['row']}: se omitió el padre para evitar un ciclo.")
+                result.warnings.append(
+                    gettext("Fila %(row)s: se omitió el padre para evitar un ciclo.") % {"row": row["row"]}
+                )
             else:
                 asset.parent = parent
                 asset.save(update_fields=["parent", "updated_at"])
@@ -432,7 +476,8 @@ def apply_import(session_data: dict, *, assign_class_plans: bool = True) -> Impo
                     assign_plan(plan=plan, asset=asset)
                 except ValidationError:
                     result.warnings.append(
-                        f"{asset.code}: no se asignó «{plan.name}» (falta el medidor que usa el plan)."
+                        gettext("%(code)s: no se asignó «%(plan)s» (falta el medidor que usa el plan).")
+                        % {"code": asset.code, "plan": plan.name}
                     )
                 else:
                     result.plans_assigned += 1
@@ -455,18 +500,18 @@ def build_template() -> bytes:
     """Plantilla .xlsx con encabezados, un ejemplo, listas desplegables e instrucciones."""
     wb = Workbook()
     ws = wb.active
-    ws.title = SHEET_NAME
+    ws.title = str(SHEET_NAME)
     header_fill = PatternFill("solid", fgColor="0B2E4F")
-    for col, (_, label, required, _help) in enumerate(COLUMNS, start=1):
-        cell = ws.cell(row=1, column=col, value=f"{label}{' *' if required else ''}".replace(" *", ""))
+    for col, (_key, label, _required, _help) in enumerate(COLUMNS, start=1):
+        cell = ws.cell(row=1, column=col, value=str(label))
         cell.font = Font(bold=True, color="FFFFFF")
         cell.fill = header_fill
         ws.column_dimensions[cell.column_letter].width = max(14, len(label) + 6)
     example = [
         "GRH-01",
-        "Grúa horquilla eléctrica 2,5 t",
-        "Grúa horquilla",
-        "Bodega",
+        gettext("Grúa horquilla eléctrica 2,5 t"),
+        gettext("Grúa horquilla"),
+        gettext("Bodega"),
         "",
         "B",
         "Toyota",
@@ -490,20 +535,27 @@ def build_template() -> bytes:
     dropdown(["A", "B", "C"], "criticality")
     dropdown(["Horómetro", "Odómetro", "Ciclos"], "meter_kind")
 
-    help_sheet = wb.create_sheet("Instrucciones")
+    help_sheet = wb.create_sheet(gettext("Instrucciones"))
     help_sheet.column_dimensions["A"].width = 18
     help_sheet.column_dimensions["B"].width = 90
-    help_sheet.append(["Columna", "Cómo llenarla"])
+    help_sheet.append([gettext("Columna"), gettext("Cómo llenarla")])
     for cell in help_sheet[1]:
         cell.font = Font(bold=True)
     for _, label, required, help_text in COLUMNS:
-        help_sheet.append([label + (" (obligatoria)" if required else ""), help_text])
+        column = gettext("%(column)s (obligatoria)") % {"column": label} if required else str(label)
+        help_sheet.append([column, str(help_text)])
     help_sheet.append([])
-    help_sheet.append(["", "Borra la fila de ejemplo (en cursiva) antes de subir el archivo."])
-    help_sheet.append(["", f"Máximo {MAX_ROWS} filas por archivo. Antes de guardar verás una vista previa."])
+    help_sheet.append(["", gettext("Borra la fila de ejemplo (en cursiva) antes de subir el archivo.")])
+    help_sheet.append(
+        [
+            "",
+            gettext("Máximo %(max)s filas por archivo. Antes de guardar verás una vista previa.")
+            % {"max": MAX_ROWS},
+        ]
+    )
 
-    reference = wb.create_sheet("Clases y ubicaciones")
-    reference.append(["Clases existentes", "Ubicaciones existentes"])
+    reference = wb.create_sheet(gettext("Clases y ubicaciones"))
+    reference.append([gettext("Clases existentes"), gettext("Ubicaciones existentes")])
     for cell in reference[1]:
         cell.font = Font(bold=True)
     classes = list(AssetClass.objects.filter(is_active=True).values_list("name", flat=True))

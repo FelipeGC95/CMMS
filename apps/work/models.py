@@ -24,10 +24,12 @@ ASSET_XOR_LOCATION = models.Q(asset__isnull=False, location__isnull=True) | mode
 class WorkOrderSequence(TenantModel):
     """Correlativos por organización y tipo, sin huecos por concurrencia."""
 
-    key = models.CharField(max_length=20)
-    last_number = models.PositiveIntegerField(default=0)
+    key = models.CharField(max_length=20, verbose_name=_("clave"))
+    last_number = models.PositiveIntegerField(default=0, verbose_name=_("último número"))
 
     class Meta:
+        verbose_name = _("correlativo")
+        verbose_name_plural = _("correlativos")
         constraints = [
             models.UniqueConstraint(fields=["organization", "key"], name="uniq_sequence_key"),
         ]
@@ -97,6 +99,7 @@ class WorkOrder(TenantModel):
         null=True,
         blank=True,
         related_name="work_orders",
+        verbose_name=_("asignación de plan"),
     )
     # Versión del plan con que se generó (inmutable, ADR-016); el checklist va copiado aparte.
     plan_version = models.ForeignKey(
@@ -105,6 +108,7 @@ class WorkOrder(TenantModel):
         null=True,
         blank=True,
         related_name="work_orders",
+        verbose_name=_("versión del plan"),
     )
     assigned_to = models.ForeignKey(
         "accounts.User",
@@ -127,9 +131,9 @@ class WorkOrder(TenantModel):
         _("vence al llegar a"), max_digits=14, decimal_places=3, null=True, blank=True
     )
     estimated_minutes = models.PositiveIntegerField(_("estimación (min)"), null=True, blank=True)
-    started_at = models.DateTimeField(null=True, blank=True)
-    completed_at = models.DateTimeField(null=True, blank=True)
-    closed_at = models.DateTimeField(null=True, blank=True)
+    started_at = models.DateTimeField(null=True, blank=True, verbose_name=_("fecha de inicio"))
+    completed_at = models.DateTimeField(null=True, blank=True, verbose_name=_("fecha de término"))
+    closed_at = models.DateTimeField(null=True, blank=True, verbose_name=_("fecha de cierre"))
     completion_notes = models.TextField(_("comentario de cierre"), blank=True)
     # Totales (WO-04 CA3): se recalculan con cada registro y quedan fijos al cerrar.
     labor_cost = models.DecimalField(_("mano de obra"), max_digits=14, decimal_places=2, default=0)
@@ -139,7 +143,7 @@ class WorkOrder(TenantModel):
     meter_value_at_completion = models.DecimalField(
         _("lectura al cerrar"), max_digits=14, decimal_places=3, null=True, blank=True
     )
-    client_uuid = models.UUIDField(null=True, blank=True)
+    client_uuid = models.UUIDField(null=True, blank=True, verbose_name=_("UUID del cliente"))
 
     class Meta:
         verbose_name = _("orden de trabajo")
@@ -187,10 +191,16 @@ class WorkOrder(TenantModel):
 class WorkOrderHelper(TenantModel):
     """Responsable adicional de una OT (WO-01 CA2); el principal sigue en `assigned_to`."""
 
-    work_order = models.ForeignKey(WorkOrder, on_delete=models.CASCADE, related_name="helper_links")
-    user = models.ForeignKey("accounts.User", on_delete=models.CASCADE, related_name="+")
+    work_order = models.ForeignKey(
+        WorkOrder, on_delete=models.CASCADE, related_name="helper_links", verbose_name=_("OT")
+    )
+    user = models.ForeignKey(
+        "accounts.User", on_delete=models.CASCADE, related_name="+", verbose_name=_("usuario")
+    )
 
     class Meta:
+        verbose_name = _("apoyo de OT")
+        verbose_name_plural = _("apoyos de OT")
         constraints = [
             models.UniqueConstraint(
                 fields=["organization", "work_order", "user"], name="uniq_work_order_helper"
@@ -200,15 +210,24 @@ class WorkOrderHelper(TenantModel):
 
 
 class WorkOrderTransition(TenantModel):
-    work_order = models.ForeignKey(WorkOrder, on_delete=models.CASCADE, related_name="transitions")
-    from_status = models.CharField(max_length=20, blank=True)
-    to_status = models.CharField(max_length=20)
-    by = models.ForeignKey(
-        "accounts.User", on_delete=models.SET_NULL, null=True, blank=True, related_name="+"
+    work_order = models.ForeignKey(
+        WorkOrder, on_delete=models.CASCADE, related_name="transitions", verbose_name=_("OT")
     )
-    comment = models.CharField(max_length=500, blank=True)
+    from_status = models.CharField(max_length=20, blank=True, verbose_name=_("estado anterior"))
+    to_status = models.CharField(max_length=20, verbose_name=_("estado nuevo"))
+    by = models.ForeignKey(
+        "accounts.User",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+        verbose_name=_("por"),
+    )
+    comment = models.CharField(max_length=500, blank=True, verbose_name=_("comentario"))
 
     class Meta:
+        verbose_name = _("cambio de estado de OT")
+        verbose_name_plural = _("cambios de estado de OT")
         ordering = ["created_at"]
 
 
@@ -220,23 +239,40 @@ class WorkOrderChecklistItem(TenantModel):
         NOT_OK = "not_ok", _("No OK")
         NA = "na", _("N.A.")
 
-    work_order = models.ForeignKey(WorkOrder, on_delete=models.CASCADE, related_name="checklist")
-    order = models.PositiveSmallIntegerField(default=0)
-    text = models.CharField(max_length=250)
-    item_type = models.CharField(max_length=20, choices=ItemType.choices, default=ItemType.CHECK)
-    unit = models.CharField(max_length=20, blank=True)
-    min_value = models.DecimalField(max_digits=14, decimal_places=3, null=True, blank=True)
-    max_value = models.DecimalField(max_digits=14, decimal_places=3, null=True, blank=True)
-    required = models.BooleanField(default=True)
-    result = models.CharField(max_length=10, choices=Result.choices, blank=True)
-    value_number = models.DecimalField(max_digits=14, decimal_places=3, null=True, blank=True)
-    note = models.CharField(max_length=500, blank=True)
-    answered_by = models.ForeignKey(
-        "accounts.User", on_delete=models.SET_NULL, null=True, blank=True, related_name="+"
+    work_order = models.ForeignKey(
+        WorkOrder, on_delete=models.CASCADE, related_name="checklist", verbose_name=_("OT")
     )
-    answered_at = models.DateTimeField(null=True, blank=True)
+    order = models.PositiveSmallIntegerField(default=0, verbose_name=_("orden"))
+    text = models.CharField(max_length=250, verbose_name=_("texto"))
+    item_type = models.CharField(
+        max_length=20, choices=ItemType.choices, default=ItemType.CHECK, verbose_name=_("tipo")
+    )
+    unit = models.CharField(max_length=20, blank=True, verbose_name=_("unidad"))
+    min_value = models.DecimalField(
+        max_digits=14, decimal_places=3, null=True, blank=True, verbose_name=_("mínimo")
+    )
+    max_value = models.DecimalField(
+        max_digits=14, decimal_places=3, null=True, blank=True, verbose_name=_("máximo")
+    )
+    required = models.BooleanField(default=True, verbose_name=_("obligatorio"))
+    result = models.CharField(max_length=10, choices=Result.choices, blank=True, verbose_name=_("resultado"))
+    value_number = models.DecimalField(
+        max_digits=14, decimal_places=3, null=True, blank=True, verbose_name=_("valor")
+    )
+    note = models.CharField(max_length=500, blank=True, verbose_name=_("nota"))
+    answered_by = models.ForeignKey(
+        "accounts.User",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+        verbose_name=_("respondido por"),
+    )
+    answered_at = models.DateTimeField(null=True, blank=True, verbose_name=_("fecha de respuesta"))
 
     class Meta:
+        verbose_name = _("ítem del checklist de OT")
+        verbose_name_plural = _("ítems del checklist de OT")
         ordering = ["order"]
 
 
@@ -278,13 +314,19 @@ class LaborRate(TenantModel):
 
 
 class LaborEntry(TenantModel):
-    work_order = models.ForeignKey(WorkOrder, on_delete=models.CASCADE, related_name="labor")
-    user = models.ForeignKey("accounts.User", on_delete=models.PROTECT, related_name="+")
-    minutes = models.PositiveIntegerField()
+    work_order = models.ForeignKey(
+        WorkOrder, on_delete=models.CASCADE, related_name="labor", verbose_name=_("OT")
+    )
+    user = models.ForeignKey(
+        "accounts.User", on_delete=models.PROTECT, related_name="+", verbose_name=_("técnico")
+    )
+    minutes = models.PositiveIntegerField(verbose_name=_("minutos"))
     # Copia de la tarifa vigente al registrar (WO-04 CA1).
     hourly_cost = models.DecimalField(_("costo por hora"), default=0, **MONEY)
 
     class Meta:
+        verbose_name = _("registro de mano de obra")
+        verbose_name_plural = _("registros de mano de obra")
         ordering = ["created_at"]
 
     @property
@@ -295,17 +337,26 @@ class LaborEntry(TenantModel):
 class PartUsage(TenantModel):
     """Repuesto o material consumido en la OT (WO-04 CA2; catálogo en F2)."""
 
-    work_order = models.ForeignKey(WorkOrder, on_delete=models.CASCADE, related_name="parts")
+    work_order = models.ForeignKey(
+        WorkOrder, on_delete=models.CASCADE, related_name="parts", verbose_name=_("OT")
+    )
     description = models.CharField(_("repuesto o material"), max_length=200)
     quantity = models.DecimalField(_("cantidad"), max_digits=12, decimal_places=3)
     unit = models.CharField(_("unidad"), max_length=20, blank=True)
     unit_cost = models.DecimalField(_("costo unitario"), **MONEY)
     created_by = models.ForeignKey(
-        "accounts.User", on_delete=models.SET_NULL, null=True, blank=True, related_name="+"
+        "accounts.User",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+        verbose_name=_("registrado por"),
     )
-    client_uuid = models.UUIDField(null=True, blank=True)
+    client_uuid = models.UUIDField(null=True, blank=True, verbose_name=_("UUID del cliente"))
 
     class Meta:
+        verbose_name = _("repuesto usado")
+        verbose_name_plural = _("repuestos usados")
         ordering = ["created_at"]
         constraints = [
             models.UniqueConstraint(
@@ -321,15 +372,24 @@ class PartUsage(TenantModel):
 class OtherCost(TenantModel):
     """Otro costo de la OT, por ejemplo un servicio externo (WO-04 CA2)."""
 
-    work_order = models.ForeignKey(WorkOrder, on_delete=models.CASCADE, related_name="other_costs")
+    work_order = models.ForeignKey(
+        WorkOrder, on_delete=models.CASCADE, related_name="other_costs", verbose_name=_("OT")
+    )
     description = models.CharField(_("descripción"), max_length=200)
     supplier = models.CharField(_("proveedor"), max_length=150, blank=True)
     amount = models.DecimalField(_("monto"), **MONEY)
     created_by = models.ForeignKey(
-        "accounts.User", on_delete=models.SET_NULL, null=True, blank=True, related_name="+"
+        "accounts.User",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+        verbose_name=_("registrado por"),
     )
 
     class Meta:
+        verbose_name = _("otro costo")
+        verbose_name_plural = _("otros costos")
         ordering = ["created_at"]
 
     @property
@@ -353,7 +413,7 @@ class FailureCode(TenantModel):
     kind = models.CharField(_("tipo"), max_length=20, choices=Kind.choices)
     code = models.CharField(_("código"), max_length=10)
     name = models.CharField(_("nombre"), max_length=120)
-    is_active = models.BooleanField(default=True)
+    is_active = models.BooleanField(default=True, verbose_name=_("activo"))
 
     class Meta:
         verbose_name = _("código de falla")
@@ -373,7 +433,9 @@ class FailureEvent(TenantModel):
         PARTIAL = "partial", _("Detención parcial")
         NONE = "none", _("Sin detención")
 
-    asset = models.ForeignKey("assets.Asset", on_delete=models.PROTECT, related_name="failures")
+    asset = models.ForeignKey(
+        "assets.Asset", on_delete=models.PROTECT, related_name="failures", verbose_name=_("activo")
+    )
     # Activo hijo afectado (opcional): ej. un motor dentro de una envasadora.
     component = models.ForeignKey(
         "assets.Asset",
@@ -384,10 +446,15 @@ class FailureEvent(TenantModel):
         related_name="+",
     )
     work_order = models.OneToOneField(
-        WorkOrder, on_delete=models.SET_NULL, null=True, blank=True, related_name="failure"
+        WorkOrder,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="failure",
+        verbose_name=_("OT"),
     )
-    impact = models.CharField(max_length=20, choices=Impact.choices)
-    description = models.TextField(blank=True)
+    impact = models.CharField(max_length=20, choices=Impact.choices, verbose_name=_("impacto"))
+    description = models.TextField(blank=True, verbose_name=_("descripción"))
     failure_mode = models.ForeignKey(
         FailureCode,
         verbose_name=_("modo de falla"),
@@ -420,10 +487,12 @@ class FailureEvent(TenantModel):
         blank=True,
         related_name="+",
     )
-    started_at = models.DateTimeField()
-    ended_at = models.DateTimeField(null=True, blank=True)
+    started_at = models.DateTimeField(verbose_name=_("inicio"))
+    ended_at = models.DateTimeField(null=True, blank=True, verbose_name=_("término"))
 
     class Meta:
+        verbose_name = _("falla")
+        verbose_name_plural = _("fallas")
         ordering = ["-started_at"]
         indexes = [models.Index(fields=["organization", "asset", "started_at"])]
 
@@ -444,10 +513,15 @@ class WorkRequest(TenantModel):
         REJECTED = "rejected", _("Rechazada")
         MERGED = "merged", _("Fusionada")
 
-    number = models.PositiveIntegerField(editable=False)
+    number = models.PositiveIntegerField(editable=False, verbose_name=_("número"))
     # Activo o ubicación (REQ-01 CA1), exactamente uno; "detenido" solo aplica a un activo.
     asset = models.ForeignKey(
-        "assets.Asset", on_delete=models.PROTECT, null=True, blank=True, related_name="requests"
+        "assets.Asset",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="requests",
+        verbose_name=_("activo"),
     )
     location = models.ForeignKey(
         "organizations.Location",
@@ -457,11 +531,22 @@ class WorkRequest(TenantModel):
         blank=True,
         related_name="requests",
     )
-    description = models.TextField()
-    asset_stopped = models.BooleanField(default=False)
-    requested_by = models.ForeignKey("accounts.User", on_delete=models.SET_NULL, null=True, related_name="+")
+    description = models.TextField(verbose_name=_("descripción"))
+    asset_stopped = models.BooleanField(default=False, verbose_name=_("equipo detenido"))
+    requested_by = models.ForeignKey(
+        "accounts.User",
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name="+",
+        verbose_name=_("solicitado por"),
+    )
     work_order = models.OneToOneField(
-        WorkOrder, on_delete=models.SET_NULL, null=True, blank=True, related_name="request"
+        WorkOrder,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="request",
+        verbose_name=_("OT"),
     )
     status = models.CharField(_("estado"), max_length=10, choices=Status.choices, default=Status.PENDING)
     decided_by = models.ForeignKey(
@@ -482,9 +567,11 @@ class WorkRequest(TenantModel):
         blank=True,
         related_name="merged_requests",
     )
-    client_uuid = models.UUIDField(null=True, blank=True)
+    client_uuid = models.UUIDField(null=True, blank=True, verbose_name=_("UUID del cliente"))
 
     class Meta:
+        verbose_name = _("solicitud")
+        verbose_name_plural = _("solicitudes")
         ordering = ["-created_at"]
         constraints = [
             models.UniqueConstraint(fields=["organization", "client_uuid"], name="uniq_request_client_uuid"),

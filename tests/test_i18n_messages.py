@@ -14,7 +14,7 @@ import pathlib
 import pytest
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parent.parent
-VIEW_FILES = sorted((REPO_ROOT / "apps").glob("*/views.py"))
+VIEW_FILES = sorted((REPO_ROOT / "apps").glob("*/*views.py"))
 MESSAGE_METHODS = {"success", "error", "warning", "info", "debug"}
 
 
@@ -22,6 +22,8 @@ def _is_unmarked_literal(node: ast.AST) -> bool:
     """Un string o f-string escrito directamente en la llamada, sin pasar por gettext."""
     if isinstance(node, ast.JoinedStr):  # f"..."
         return True
+    if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Add):  # "Texto: " + algo
+        return _is_unmarked_literal(node.left) or _is_unmarked_literal(node.right)
     return isinstance(node, ast.Constant) and isinstance(node.value, str)
 
 

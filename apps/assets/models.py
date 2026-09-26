@@ -139,7 +139,9 @@ class Asset(TenantModel):
     in_service_on = models.DateField(_("fecha de puesta en servicio"), null=True, blank=True)
     # Valores de los atributos de la clase por `key` (AST-01); JSON serializable (número y fecha como texto).
     attributes = models.JSONField(_("atributos"), default=dict, blank=True)
-    qr_token = models.CharField(max_length=32, unique=True, default=new_qr_token, editable=False)
+    qr_token = models.CharField(
+        max_length=32, unique=True, default=new_qr_token, editable=False, verbose_name=_("token QR")
+    )
     is_active = models.BooleanField(_("activo"), default=True)
 
     class Meta:
@@ -165,23 +167,42 @@ MANUAL_STATUSES = (Asset.Status.OPERATIONAL, Asset.Status.STOPPED, Asset.Status.
 class AssetStatusPeriod(TenantModel):
     """Período continuo en un estado. Base del cálculo de disponibilidad."""
 
-    asset = models.ForeignKey(Asset, on_delete=models.CASCADE, related_name="status_periods")
-    status = models.CharField(max_length=20, choices=Asset.Status.choices)
-    started_at = models.DateTimeField()
-    ended_at = models.DateTimeField(null=True, blank=True)
-    reason = models.CharField(max_length=200, blank=True)
+    asset = models.ForeignKey(
+        Asset, on_delete=models.CASCADE, related_name="status_periods", verbose_name=_("activo")
+    )
+    status = models.CharField(max_length=20, choices=Asset.Status.choices, verbose_name=_("estado"))
+    started_at = models.DateTimeField(verbose_name=_("inicio"))
+    ended_at = models.DateTimeField(null=True, blank=True, verbose_name=_("término"))
+    reason = models.CharField(max_length=200, blank=True, verbose_name=_("motivo"))
     # OT y falla que explican el cambio (AST-04 CA2); opcionales en cambios manuales.
     work_order = models.ForeignKey(
-        "work.WorkOrder", on_delete=models.SET_NULL, null=True, blank=True, related_name="+"
+        "work.WorkOrder",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+        verbose_name=_("OT"),
     )
     failure_event = models.ForeignKey(
-        "work.FailureEvent", on_delete=models.SET_NULL, null=True, blank=True, related_name="+"
+        "work.FailureEvent",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+        verbose_name=_("falla"),
     )
     changed_by = models.ForeignKey(
-        "accounts.User", on_delete=models.SET_NULL, null=True, blank=True, related_name="+"
+        "accounts.User",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+        verbose_name=_("cambiado por"),
     )
 
     class Meta:
+        verbose_name = _("período de estado")
+        verbose_name_plural = _("períodos de estado")
         ordering = ["-started_at"]
         constraints = [
             models.UniqueConstraint(
@@ -206,7 +227,9 @@ METER_DEFAULT_UNITS = {MeterKind.HOURS: "h", MeterKind.KM: "km", MeterKind.CYCLE
 class Meter(TenantModel):
     """Medidor de uso de un activo (AST-07)."""
 
-    asset = models.ForeignKey(Asset, on_delete=models.CASCADE, related_name="meters")
+    asset = models.ForeignKey(
+        Asset, on_delete=models.CASCADE, related_name="meters", verbose_name=_("activo")
+    )
     kind = models.CharField(_("tipo"), max_length=10, choices=MeterKind.choices)
     unit = models.CharField(_("unidad"), max_length=20, blank=True)
     name = models.CharField(_("nombre"), max_length=80, blank=True)
@@ -214,10 +237,17 @@ class Meter(TenantModel):
     current_value = models.DecimalField(
         _("lectura actual"), max_digits=14, decimal_places=3, null=True, blank=True, editable=False
     )
-    current_read_at = models.DateTimeField(null=True, blank=True, editable=False)
+    current_read_at = models.DateTimeField(
+        null=True, blank=True, editable=False, verbose_name=_("fecha de la lectura actual")
+    )
     # Uso diario promedio (últimos 30 días): proyecta vencimientos por uso.
     avg_daily_usage = models.DecimalField(
-        max_digits=14, decimal_places=3, null=True, blank=True, editable=False
+        max_digits=14,
+        decimal_places=3,
+        null=True,
+        blank=True,
+        editable=False,
+        verbose_name=_("uso diario promedio"),
     )
     is_active = models.BooleanField(_("activo"), default=True)
 
@@ -245,20 +275,36 @@ class MeterReading(TenantModel):
         API = "api", _("API")
         WORK_ORDER = "work_order", _("Cierre de OT")
 
-    meter = models.ForeignKey(Meter, on_delete=models.CASCADE, related_name="readings")
+    meter = models.ForeignKey(
+        Meter, on_delete=models.CASCADE, related_name="readings", verbose_name=_("medidor")
+    )
     value = models.DecimalField(_("lectura"), max_digits=14, decimal_places=3)
     read_at = models.DateTimeField(_("fecha de lectura"))
-    source = models.CharField(max_length=20, choices=Source.choices, default=Source.MANUAL)
+    source = models.CharField(
+        max_length=20, choices=Source.choices, default=Source.MANUAL, verbose_name=_("origen")
+    )
     is_reset = models.BooleanField(_("reinicio o cambio de medidor"), default=False)
     work_order = models.ForeignKey(
-        "work.WorkOrder", on_delete=models.SET_NULL, null=True, blank=True, related_name="+"
+        "work.WorkOrder",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+        verbose_name=_("OT"),
     )
     created_by = models.ForeignKey(
-        "accounts.User", on_delete=models.SET_NULL, null=True, blank=True, related_name="+"
+        "accounts.User",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+        verbose_name=_("registrada por"),
     )
-    client_uuid = models.UUIDField(null=True, blank=True)
+    client_uuid = models.UUIDField(null=True, blank=True, verbose_name=_("UUID del cliente"))
 
     class Meta:
+        verbose_name = _("lectura de medidor")
+        verbose_name_plural = _("lecturas de medidor")
         ordering = ["-read_at"]
         indexes = [models.Index(fields=["meter", "-read_at"])]
         constraints = [

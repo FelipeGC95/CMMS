@@ -1,5 +1,6 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
+from django.utils.translation import gettext_lazy as _
 
 from .models import Membership, User
 
@@ -19,7 +20,7 @@ class UserAdmin(PlatformOnlyMixin, BaseUserAdmin):
     list_filter = ["is_active", "is_staff"]
     fieldsets = [
         (None, {"fields": ["email", "password", "full_name"]}),
-        ("Permisos", {"fields": ["is_active", "is_staff", "is_superuser", "user_permissions"]}),
+        (_("Permisos"), {"fields": ["is_active", "is_staff", "is_superuser", "user_permissions"]}),
     ]
     add_fieldsets = [
         (None, {"classes": ["wide"], "fields": ["email", "full_name", "password1", "password2"]})

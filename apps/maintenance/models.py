@@ -114,7 +114,8 @@ class DraftContentMixin:
         version = PlanVersion.all_tenants.filter(pk=self.version_id).only("status", "number").first()
         if version is not None and not version.is_draft:
             raise ImmutableVersionError(
-                f"La versión {version.number} está publicada: crea un borrador para cambiar su contenido."
+                _("La versión %(number)s está publicada: crea un borrador para cambiar su contenido.")
+                % {"number": version.number}
             )
 
     def save(self, *args, **kwargs):
@@ -136,12 +137,19 @@ class PlanVersion(TenantModel):
         FLOATING = "floating", _("Flotante (desde la ejecución real)")
         FIXED = "fixed", _("Fijo (desde lo programado)")
 
-    plan = models.ForeignKey(MaintenancePlan, on_delete=models.CASCADE, related_name="versions")
+    plan = models.ForeignKey(
+        MaintenancePlan, on_delete=models.CASCADE, related_name="versions", verbose_name=_("plan")
+    )
     number = models.PositiveIntegerField(_("versión"))
     status = models.CharField(_("estado"), max_length=12, choices=Status.choices, default=Status.DRAFT)
     published_at = models.DateTimeField(_("publicada el"), null=True, blank=True)
     published_by = models.ForeignKey(
-        "accounts.User", on_delete=models.SET_NULL, null=True, blank=True, related_name="+"
+        "accounts.User",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+        verbose_name=_("publicada por"),
     )
     change_note = models.CharField(_("qué cambió"), max_length=300, blank=True)
     estimated_minutes = models.PositiveIntegerField(_("duración estimada (min)"), default=60)
@@ -215,8 +223,11 @@ class PlanVersion(TenantModel):
                 changed = [f for f in self.CONTENT_FIELDS if stored[f] != getattr(self, f)]
                 if changed:
                     raise ImmutableVersionError(
-                        f"La versión {self.number} de «{self.plan}» está publicada: "
-                        "crea un borrador para cambiarla."
+                        _(
+                            "La versión %(number)s de «%(plan)s» está publicada: "
+                            "crea un borrador para cambiarla."
+                        )
+                        % {"number": self.number, "plan": self.plan}
                     )
         super().save(*args, **kwargs)
 
@@ -228,7 +239,9 @@ class PlanResource(DraftContentMixin, TenantModel):
         PART = "part", _("Repuesto")
         TOOL = "tool", _("Herramienta")
 
-    version = models.ForeignKey(PlanVersion, on_delete=models.CASCADE, related_name="resources")
+    version = models.ForeignKey(
+        PlanVersion, on_delete=models.CASCADE, related_name="resources", verbose_name=_("versión")
+    )
     kind = models.CharField(_("tipo"), max_length=10, choices=Kind.choices, default=Kind.PART)
     description = models.CharField(_("descripción"), max_length=200)
     quantity = models.DecimalField(_("cantidad"), max_digits=12, decimal_places=3, default=1)
@@ -244,7 +257,9 @@ class PlanResource(DraftContentMixin, TenantModel):
 
 
 class PlanTaskItem(DraftContentMixin, TenantModel):
-    version = models.ForeignKey(PlanVersion, on_delete=models.CASCADE, related_name="items")
+    version = models.ForeignKey(
+        PlanVersion, on_delete=models.CASCADE, related_name="items", verbose_name=_("versión")
+    )
     order = models.PositiveSmallIntegerField(_("orden"), default=0)
     text = models.CharField(_("tarea"), max_length=250)
     item_type = models.CharField(_("tipo"), max_length=20, choices=ItemType.choices, default=ItemType.CHECK)
@@ -265,17 +280,32 @@ class PlanTaskItem(DraftContentMixin, TenantModel):
 class PlanAssignment(TenantModel):
     """Plan aplicado a un activo. Guarda el estado del programador."""
 
-    plan = models.ForeignKey(MaintenancePlan, on_delete=models.CASCADE, related_name="assignments")
-    asset = models.ForeignKey("assets.Asset", on_delete=models.CASCADE, related_name="plan_assignments")
+    plan = models.ForeignKey(
+        MaintenancePlan, on_delete=models.CASCADE, related_name="assignments", verbose_name=_("plan")
+    )
+    asset = models.ForeignKey(
+        "assets.Asset", on_delete=models.CASCADE, related_name="plan_assignments", verbose_name=_("activo")
+    )
     meter = models.ForeignKey(
-        "assets.Meter", on_delete=models.SET_NULL, null=True, blank=True, related_name="plan_assignments"
+        "assets.Meter",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="plan_assignments",
+        verbose_name=_("medidor"),
     )
     next_due_on = models.DateField(_("próximo vencimiento"), null=True, blank=True)
     next_due_meter_value = models.DecimalField(
         _("próximo vencimiento (medidor)"), max_digits=14, decimal_places=3, null=True, blank=True
     )
     last_done_on = models.DateField(_("última ejecución"), null=True, blank=True)
-    last_done_meter_value = models.DecimalField(max_digits=14, decimal_places=3, null=True, blank=True)
+    last_done_meter_value = models.DecimalField(
+        max_digits=14,
+        decimal_places=3,
+        null=True,
+        blank=True,
+        verbose_name=_("lectura de la última ejecución"),
+    )
     is_active = models.BooleanField(_("activa"), default=True)
 
     class Meta:

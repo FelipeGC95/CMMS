@@ -44,9 +44,11 @@ class Attachment(TenantModel):
     # Solo para imágenes; en blanco para documentos (AST-06 CA1).
     width = models.PositiveIntegerField(_("ancho (px)"), null=True, blank=True)
     height = models.PositiveIntegerField(_("alto (px)"), null=True, blank=True)
-    sha256 = models.CharField(max_length=64, blank=True)
-    uploaded_by = models.ForeignKey("accounts.User", on_delete=models.SET_NULL, null=True, related_name="+")
-    client_uuid = models.UUIDField(null=True, blank=True)
+    sha256 = models.CharField(max_length=64, blank=True, verbose_name=_("SHA-256"))
+    uploaded_by = models.ForeignKey(
+        "accounts.User", on_delete=models.SET_NULL, null=True, related_name="+", verbose_name=_("subido por")
+    )
+    client_uuid = models.UUIDField(null=True, blank=True, verbose_name=_("UUID del cliente"))
 
     class Meta:
         verbose_name = _("adjunto")

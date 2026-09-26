@@ -30,10 +30,15 @@ class User(AbstractBaseUser, PermissionsMixin, TimeStampedModel):
     full_name = models.CharField(_("nombre completo"), max_length=150, blank=True)
     is_active = models.BooleanField(_("activo"), default=True)
     is_staff = models.BooleanField(_("acceso al panel de administración"), default=False)
-    date_joined = models.DateTimeField(default=timezone.now)
+    date_joined = models.DateTimeField(default=timezone.now, verbose_name=_("fecha de registro"))
     # Se abre al iniciar sesión (ORG-07); el middleware valida que siga siendo miembro.
     last_organization = models.ForeignKey(
-        "organizations.Organization", null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+        "organizations.Organization",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+        verbose_name=_("última organización"),
     )
 
     objects = UserManager()
@@ -69,7 +74,9 @@ class Membership(TimeStampedModel):
         VIEWER = "viewer", _("Solo lectura")
         EXTERNAL = "external", _("Externo / contratista")
 
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="memberships")
+    user = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name="memberships", verbose_name=_("usuario")
+    )
     organization = models.ForeignKey(
         "organizations.Organization", on_delete=models.CASCADE, related_name="memberships"
     )
@@ -92,8 +99,12 @@ class Membership(TimeStampedModel):
 class MembershipLocation(TenantModel):
     """Alcance por sitio de una membresía (ORG-06). El acceso incluye las ubicaciones hijas."""
 
-    membership = models.ForeignKey(Membership, on_delete=models.CASCADE, related_name="scope")
-    location = models.ForeignKey("organizations.Location", on_delete=models.CASCADE, related_name="+")
+    membership = models.ForeignKey(
+        Membership, on_delete=models.CASCADE, related_name="scope", verbose_name=_("membresía")
+    )
+    location = models.ForeignKey(
+        "organizations.Location", on_delete=models.CASCADE, related_name="+", verbose_name=_("ubicación")
+    )
 
     class Meta:
         verbose_name = _("ubicación permitida")
@@ -118,8 +129,12 @@ class Invitation(TimeStampedModel):
     )
     email = models.EmailField(_("correo"))
     role = models.CharField(_("rol"), max_length=20, choices=Membership.Role.choices)
-    token_hash = models.CharField(max_length=64, unique=True, editable=False)
-    invited_by = models.ForeignKey(User, null=True, on_delete=models.SET_NULL, related_name="+")
+    token_hash = models.CharField(
+        max_length=64, unique=True, editable=False, verbose_name=_("hash del token")
+    )
+    invited_by = models.ForeignKey(
+        User, null=True, on_delete=models.SET_NULL, related_name="+", verbose_name=_("invitado por")
+    )
     expires_at = models.DateTimeField(_("vence"))
     accepted_at = models.DateTimeField(_("aceptada"), null=True, blank=True)
     revoked_at = models.DateTimeField(_("revocada"), null=True, blank=True)

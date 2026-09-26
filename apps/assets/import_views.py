@@ -6,6 +6,7 @@ from django import forms
 from django.contrib import messages
 from django.http import HttpResponse
 from django.shortcuts import redirect, render
+from django.utils.translation import gettext, ngettext
 from django.utils.translation import gettext_lazy as _
 from django.views.decorators.http import require_POST
 
@@ -60,19 +61,39 @@ def asset_import_confirm_view(request, token):
     """Paso 2: guarda las filas válidas de la vista previa guardada en la sesión."""
     pending = request.session.pop(SESSION_PREFIX + token, None)
     if pending is None or pending["organization"] != str(request.organization.id):
-        messages.error(request, "La vista previa expiró o es de otra organización. Sube el archivo de nuevo.")
+        messages.error(
+            request, gettext("La vista previa expiró o es de otra organización. Sube el archivo de nuevo.")
+        )
         return redirect("asset_import")
     result = apply_import(pending, assign_class_plans=request.POST.get("assign_plans") == "on")
-    parts = [f"{result.created} activos creados", f"{result.updated} actualizados"]
-    if result.classes_created:
-        parts.append(f"{result.classes_created} clases nuevas")
-    if result.locations_created:
-        parts.append(f"{result.locations_created} ubicaciones nuevas")
-    if result.readings:
-        parts.append(f"{result.readings} lecturas de medidor")
-    if result.plans_assigned:
-        parts.append(f"{result.plans_assigned} planes preventivos asignados")
-    messages.success(request, "Importación lista: " + ", ".join(parts) + ".")
+    counts = [
+        (result.created, ngettext("%(n)s activo creado", "%(n)s activos creados", result.created), True),
+        (result.updated, ngettext("%(n)s actualizado", "%(n)s actualizados", result.updated), True),
+        (
+            result.classes_created,
+            ngettext("%(n)s clase nueva", "%(n)s clases nuevas", result.classes_created),
+            False,
+        ),
+        (
+            result.locations_created,
+            ngettext("%(n)s ubicación nueva", "%(n)s ubicaciones nuevas", result.locations_created),
+            False,
+        ),
+        (
+            result.readings,
+            ngettext("%(n)s lectura de medidor", "%(n)s lecturas de medidor", result.readings),
+            False,
+        ),
+        (
+            result.plans_assigned,
+            ngettext(
+                "%(n)s plan preventivo asignado", "%(n)s planes preventivos asignados", result.plans_assigned
+            ),
+            False,
+        ),
+    ]
+    parts = [text % {"n": n} for n, text, always in counts if always or n]
+    messages.success(request, gettext("Importación lista: %(summary)s.") % {"summary": ", ".join(parts)})
     for warning in result.warnings[:10]:
         messages.warning(request, warning)
     return redirect("asset_list")

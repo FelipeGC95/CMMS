@@ -75,7 +75,7 @@ def create_plan(
     audit.record(action=AuditEvent.Action.CREATE, target=plan, actor=by, changes=audit.snapshot(plan))
     version = PlanVersion.objects.create(plan=plan, number=1, **version_fields)
     _add_content(version, items=items, resources=resources)
-    publish_version(version=version, by=by, change_note="Versión inicial")
+    publish_version(version=version, by=by, change_note=_("Versión inicial"))
     plan.refresh_from_db()
     return plan
 

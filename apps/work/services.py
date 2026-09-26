@@ -8,6 +8,7 @@ from django.db import transaction
 from django.db.models import Q
 from django.utils import timezone
 from django.utils.translation import gettext as _
+from django.utils.translation import gettext_lazy
 
 from apps.accounts.models import Membership
 from apps.accounts.permissions import Perm, has_perm, require_perm
@@ -245,7 +246,7 @@ def report_failure(
     now = timezone.now()
     work_order = create_work_order(
         work_type=WorkOrder.Type.CORRECTIVE,
-        title=description.strip().splitlines()[0][:120] or "Falla reportada",
+        title=description.strip().splitlines()[0][:120] or _("Falla reportada"),
         description=description,
         asset=asset,
         location=location,
@@ -374,7 +375,7 @@ def _close(*, work_order: WorkOrder, user, at, record=True):
             from_status=work_order.status,
             to_status=S.CLOSED,
             by=user,
-            comment="Cierre automático (la organización no exige aprobación)",
+            comment=_("Cierre automático (la organización no exige aprobación)"),
         )
     recalculate_costs(work_order=work_order)  # los totales quedan fijos al cerrar (WO-04 CA3)
     work_order.status = S.CLOSED
@@ -980,28 +981,29 @@ def merge_request(*, work_request: WorkRequest, into: WorkRequest, membership) -
 
 # Catálogo base según la estructura de ISO 14224; cada organización lo recibe al
 # crearse y puede editarlo o desactivar códigos que no use (ver `seed_default_failure_catalog`).
+# Los nombres se guardan en el idioma activo al crear la organización.
 DEFAULT_FAILURE_CATALOG: list[tuple[str, str, str]] = [
-    (FailureCode.Kind.MODE, "BRD", "Falla total / no funciona"),
-    (FailureCode.Kind.MODE, "ELP", "Fuga externa de fluido"),
-    (FailureCode.Kind.MODE, "VIB", "Vibración anormal"),
-    (FailureCode.Kind.MODE, "OHE", "Sobrecalentamiento"),
-    (FailureCode.Kind.MODE, "ERO", "Operación errática"),
-    (FailureCode.Kind.MODE, "NOI", "Ruido anormal"),
-    (FailureCode.Kind.CAUSE, "DES", "Desgaste"),
-    (FailureCode.Kind.CAUSE, "LUB", "Falta de lubricación"),
-    (FailureCode.Kind.CAUSE, "ELE", "Falla eléctrica / control"),
-    (FailureCode.Kind.CAUSE, "OPE", "Error de operación"),
-    (FailureCode.Kind.CAUSE, "MAT", "Falla de material / componente"),
-    (FailureCode.Kind.CAUSE, "SUC", "Suciedad / contaminación"),
-    (FailureCode.Kind.MECHANISM, "FAT", "Fatiga"),
-    (FailureCode.Kind.MECHANISM, "COR", "Corrosión"),
-    (FailureCode.Kind.MECHANISM, "WEA", "Desgaste abrasivo"),
-    (FailureCode.Kind.MECHANISM, "OVL", "Sobrecarga"),
-    (FailureCode.Kind.MECHANISM, "CTM", "Contaminación"),
-    (FailureCode.Kind.DETECTION_METHOD, "INS", "Inspección visual"),
-    (FailureCode.Kind.DETECTION_METHOD, "OPR", "Aviso del operador"),
-    (FailureCode.Kind.DETECTION_METHOD, "MON", "Monitoreo de condición"),
-    (FailureCode.Kind.DETECTION_METHOD, "PMT", "Mantenimiento preventivo"),
+    (FailureCode.Kind.MODE, "BRD", gettext_lazy("Falla total / no funciona")),
+    (FailureCode.Kind.MODE, "ELP", gettext_lazy("Fuga externa de fluido")),
+    (FailureCode.Kind.MODE, "VIB", gettext_lazy("Vibración anormal")),
+    (FailureCode.Kind.MODE, "OHE", gettext_lazy("Sobrecalentamiento")),
+    (FailureCode.Kind.MODE, "ERO", gettext_lazy("Operación errática")),
+    (FailureCode.Kind.MODE, "NOI", gettext_lazy("Ruido anormal")),
+    (FailureCode.Kind.CAUSE, "DES", gettext_lazy("Desgaste")),
+    (FailureCode.Kind.CAUSE, "LUB", gettext_lazy("Falta de lubricación")),
+    (FailureCode.Kind.CAUSE, "ELE", gettext_lazy("Falla eléctrica / control")),
+    (FailureCode.Kind.CAUSE, "OPE", gettext_lazy("Error de operación")),
+    (FailureCode.Kind.CAUSE, "MAT", gettext_lazy("Falla de material / componente")),
+    (FailureCode.Kind.CAUSE, "SUC", gettext_lazy("Suciedad / contaminación")),
+    (FailureCode.Kind.MECHANISM, "FAT", gettext_lazy("Fatiga")),
+    (FailureCode.Kind.MECHANISM, "COR", gettext_lazy("Corrosión")),
+    (FailureCode.Kind.MECHANISM, "WEA", gettext_lazy("Desgaste abrasivo")),
+    (FailureCode.Kind.MECHANISM, "OVL", gettext_lazy("Sobrecarga")),
+    (FailureCode.Kind.MECHANISM, "CTM", gettext_lazy("Contaminación")),
+    (FailureCode.Kind.DETECTION_METHOD, "INS", gettext_lazy("Inspección visual")),
+    (FailureCode.Kind.DETECTION_METHOD, "OPR", gettext_lazy("Aviso del operador")),
+    (FailureCode.Kind.DETECTION_METHOD, "MON", gettext_lazy("Monitoreo de condición")),
+    (FailureCode.Kind.DETECTION_METHOD, "PMT", gettext_lazy("Mantenimiento preventivo")),
 ]
 
 
@@ -1010,7 +1012,7 @@ def seed_default_failure_catalog(*, organization) -> list[FailureCode]:
     with tenant_context(organization):
         existing = set(FailureCode.objects.values_list("kind", "code"))
         codes = [
-            FailureCode(organization=organization, kind=kind, code=code, name=name)
+            FailureCode(organization=organization, kind=kind, code=code, name=str(name))
             for kind, code, name in DEFAULT_FAILURE_CATALOG
             if (kind, code) not in existing
         ]

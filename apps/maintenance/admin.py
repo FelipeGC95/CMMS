@@ -2,6 +2,8 @@ from django.contrib import admin, messages
 from django.core.exceptions import ValidationError
 from django.shortcuts import redirect
 from django.urls import reverse
+from django.utils.translation import gettext
+from django.utils.translation import gettext_lazy as _
 
 from apps.core.admin import TenantAdmin, TenantInline
 
@@ -26,7 +28,7 @@ class PlanVersionInline(TenantInline):
     def has_add_permission(self, request, obj=None):
         return False
 
-    @admin.display(description="Frecuencia")
+    @admin.display(description=_("Frecuencia"))
     def frequency_label(self, obj):
         return obj.frequency_label
 
@@ -43,16 +45,16 @@ class MaintenancePlanAdmin(TenantAdmin):
     inlines = [PlanVersionInline, PlanAssignmentInline]
     actions = ["edit_in_draft"]
 
-    @admin.display(description="Frecuencia")
+    @admin.display(description=_("Frecuencia"))
     def frequency_label(self, obj):
-        return obj.frequency_label or "— (sin versión publicada)"
+        return obj.frequency_label or gettext("— (sin versión publicada)")
 
-    @admin.action(description="Editar en un borrador (crea o abre la próxima versión)")
+    @admin.action(description=_("Editar en un borrador (crea o abre la próxima versión)"))
     def edit_in_draft(self, request, queryset):
         drafts = [start_draft(plan=plan) for plan in queryset]
         if len(drafts) == 1:
             return redirect(reverse("admin:maintenance_planversion_change", args=[drafts[0].pk]))
-        self.message_user(request, f"{len(drafts)} borradores listos para editar.")
+        self.message_user(request, gettext("%(n)s borradores listos para editar.") % {"n": len(drafts)})
 
     def save_formset(self, request, form, formset, change):
         if formset.model is not PlanAssignment:
@@ -114,15 +116,15 @@ class PlanVersionAdmin(TenantAdmin):
     fieldsets = [
         (None, {"fields": ["plan", "number", "status", "published_at", "published_by", "change_note"]}),
         (
-            "Frecuencia (vence lo que ocurra primero)",
+            _("Frecuencia (vence lo que ocurra primero)"),
             {"fields": ["interval_days", "meter_kind", "meter_interval", "schedule_mode", "tolerance_pct"]},
         ),
-        ("Ejecución", {"fields": ["estimated_minutes", "instructions"]}),
+        (_("Ejecución"), {"fields": ["estimated_minutes", "instructions"]}),
     ]
     inlines = [PlanTaskItemInline, PlanResourceInline]
     actions = ["publish"]
 
-    @admin.display(description="Frecuencia")
+    @admin.display(description=_("Frecuencia"))
     def frequency_label(self, obj):
         return obj.frequency_label
 
@@ -138,7 +140,7 @@ class PlanVersionAdmin(TenantAdmin):
     def has_delete_permission(self, request, obj=None):
         return obj is not None and obj.is_draft and super().has_delete_permission(request, obj)
 
-    @admin.action(description="Publicar (pasa a ser la versión vigente)")
+    @admin.action(description=_("Publicar (pasa a ser la versión vigente)"))
     def publish(self, request, queryset):
         for version in queryset:
             try:
@@ -146,4 +148,6 @@ class PlanVersionAdmin(TenantAdmin):
             except ValidationError as exc:
                 self.message_user(request, f"{version}: {' '.join(exc.messages)}", messages.ERROR)
             else:
-                self.message_user(request, f"{version} publicada.", messages.SUCCESS)
+                self.message_user(
+                    request, gettext("%(version)s publicada.") % {"version": version}, messages.SUCCESS
+                )

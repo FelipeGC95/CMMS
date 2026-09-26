@@ -24,10 +24,10 @@ from apps.maintenance.models import PlanAssignment
 from apps.organizations.models import Location
 from tests.conftest import login
 
-HEADERS = [label for _, label, *_ in COLUMNS]
+HEADERS = [str(label) for _, label, *_ in COLUMNS]
 
 
-def xlsx(rows, headers=HEADERS, sheet=SHEET_NAME):
+def xlsx(rows, headers=HEADERS, sheet=str(SHEET_NAME)):
     wb = Workbook()
     ws = wb.active
     ws.title = sheet
@@ -61,9 +61,9 @@ def preview_of(rows, membership=None):
 
 def test_template_has_headers_dropdowns_and_reference_sheets(in_a):
     wb = load_workbook(io.BytesIO(build_template()))
-    assert wb.sheetnames == [SHEET_NAME, "Instrucciones", "Clases y ubicaciones"]
-    assert [c.value for c in wb[SHEET_NAME][1]] == HEADERS
-    assert wb[SHEET_NAME].data_validations.dataValidation
+    assert wb.sheetnames == [str(SHEET_NAME), "Instrucciones", "Clases y ubicaciones"]
+    assert [c.value for c in wb[str(SHEET_NAME)][1]] == HEADERS
+    assert wb[str(SHEET_NAME)].data_validations.dataValidation
     assert wb["Clases y ubicaciones"]["A2"].value == "Compresor"
 
 
