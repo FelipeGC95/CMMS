@@ -31,6 +31,8 @@ jobs:
           enable-cache: true
       - name: Dependencias (lock al día)
         run: uv sync --locked
+      - name: GNU gettext (catálogo de traducciones al día, X-07)
+        run: sudo apt-get install -y --no-install-recommends gettext
       - name: Lint y formato
         run: |
           uv run ruff check .
@@ -43,6 +45,8 @@ jobs:
       - name: Migraciones al día
         run: uv run python manage.py makemigrations --check --dry-run
       - name: Tests (PostgreSQL)
+        env:
+          REQUIRE_GETTEXT: "1"
         run: uv run pytest
       - name: Chequeos de despliegue
         env:

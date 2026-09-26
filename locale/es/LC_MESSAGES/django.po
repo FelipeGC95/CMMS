@@ -1,0 +1,3662 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-09-26 18:43-0300\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=3; plural=n == 1 ? 0 : n != 0 && n % 1000000 == 0 ? "
+"1 : 2;\n"
+
+msgid "Permisos"
+msgstr ""
+
+msgid "Correo"
+msgstr ""
+
+msgid "Rol"
+msgstr ""
+
+msgid "Limitar a ciertas ubicaciones"
+msgstr ""
+
+msgid ""
+"Solo verá activos, OT e indicadores de las ubicaciones marcadas y las que "
+"dependen de ellas."
+msgstr ""
+
+msgid "Ubicaciones"
+msgstr ""
+
+msgid "Elige al menos una ubicación para limitar el acceso."
+msgstr ""
+
+msgid "Nombre completo"
+msgstr ""
+
+msgid "Contraseña"
+msgstr ""
+
+msgid "Repite la contraseña"
+msgstr ""
+
+msgid "Las contraseñas no coinciden."
+msgstr ""
+
+msgid "correo"
+msgstr ""
+
+msgid "nombre completo"
+msgstr ""
+
+msgid "activo"
+msgstr ""
+
+msgid "acceso al panel de administración"
+msgstr ""
+
+msgid "fecha de registro"
+msgstr ""
+
+msgid "última organización"
+msgstr ""
+
+msgid "usuario"
+msgstr ""
+
+msgid "usuarios"
+msgstr ""
+
+msgid "Administrador"
+msgstr ""
+
+msgid "Planificador"
+msgstr ""
+
+msgid "Supervisor"
+msgstr ""
+
+msgid "Técnico"
+msgstr ""
+
+msgid "Solo lectura"
+msgstr ""
+
+msgid "Externo / contratista"
+msgstr ""
+
+msgid "rol"
+msgstr ""
+
+msgid "activa"
+msgstr ""
+
+msgid "limitado a ciertas ubicaciones"
+msgstr ""
+
+msgid "membresía"
+msgstr ""
+
+msgid "membresías"
+msgstr ""
+
+msgid "ubicación"
+msgstr ""
+
+msgid "ubicación permitida"
+msgstr ""
+
+msgid "ubicaciones permitidas"
+msgstr ""
+
+msgid "hash del token"
+msgstr ""
+
+msgid "invitado por"
+msgstr ""
+
+msgid "vence"
+msgstr ""
+
+msgid "aceptada"
+msgstr ""
+
+msgid "revocada"
+msgstr ""
+
+msgid "invitación"
+msgstr ""
+
+msgid "invitaciones"
+msgstr ""
+
+#, python-format
+msgid ""
+"Tu plan %(plan)s permite hasta %(max)s usuarios, contando las invitaciones "
+"pendientes. Revoca una invitación, desactiva a alguien o cambia de plan."
+msgstr ""
+
+msgid "Rol no válido."
+msgstr ""
+
+#, python-format
+msgid "%(email)s ya es parte del equipo."
+msgstr ""
+
+msgid "Esta invitación ya no es válida."
+msgstr ""
+
+#, python-format
+msgid "Esta invitación es para %(email)s."
+msgstr ""
+
+msgid ""
+"Ya existe una cuenta con este correo: ingresa para aceptar la invitación."
+msgstr ""
+
+msgid "La organización necesita al menos un administrador activo."
+msgstr ""
+
+msgid "Miembro no encontrado."
+msgstr ""
+
+msgid "Ubicación no válida."
+msgstr ""
+
+msgid "No puedes desactivar tu propia cuenta."
+msgstr ""
+
+#, python-format
+msgid "Invitación enviada a %(email)s."
+msgstr ""
+
+#, python-format
+msgid "Invitación a %(email)s revocada."
+msgstr ""
+
+msgid "Cambios guardados."
+msgstr ""
+
+msgid "Miembro reactivado."
+msgstr ""
+
+msgid "Miembro desactivado."
+msgstr ""
+
+#, python-format
+msgid "Te uniste a %(org)s."
+msgstr ""
+
+#, python-format
+msgid "Ingresa con %(email)s para aceptar la invitación."
+msgstr ""
+
+msgid "Sí"
+msgstr ""
+
+msgid "No"
+msgstr ""
+
+#, python-format
+msgid "%(label)s debe ser un número."
+msgstr ""
+
+#, python-format
+msgid "%(label)s debe ser una fecha."
+msgstr ""
+
+#, python-format
+msgid "%(label)s debe ser Sí o No."
+msgstr ""
+
+#, python-format
+msgid "%(label)s: opción no válida."
+msgstr ""
+
+msgid "Clase creada: agrega sus atributos."
+msgstr ""
+
+msgid "Atributo agregado."
+msgstr ""
+
+msgid "Atributo actualizado."
+msgstr ""
+
+msgid "Datos técnicos guardados."
+msgstr ""
+
+msgid "Tipo"
+msgstr ""
+
+msgid "Archivo"
+msgstr ""
+
+msgid "Fotos o documentos, hasta 20 MB."
+msgstr ""
+
+msgid "Lectura actual"
+msgstr ""
+
+msgid "Se cambió o reinició el medidor"
+msgstr ""
+
+msgid "Márcalo solo si el medidor volvió a cero o se reemplazó."
+msgstr ""
+
+msgid "Código"
+msgstr ""
+
+msgid "Nombre"
+msgstr ""
+
+msgid "Categoría ISO 14224"
+msgstr ""
+
+msgid "Nivel típico"
+msgstr ""
+
+msgid "Activa"
+msgstr ""
+
+msgid "Unidad"
+msgstr ""
+
+msgid "Ej.: kg, kW, bar."
+msgstr ""
+
+msgid "Opciones de la lista"
+msgstr ""
+
+msgid "Solo para el tipo lista: una opción por línea."
+msgstr ""
+
+msgid "Obligatorio"
+msgstr ""
+
+msgid ""
+"Una opción por línea. Quitar una opción no borra los valores ya guardados."
+msgstr ""
+
+msgid "Orden"
+msgstr ""
+
+msgid "Visible"
+msgstr ""
+
+msgid "Oculto: no se muestra ni se pide, pero sus valores se conservan."
+msgstr ""
+
+msgid "Clase"
+msgstr ""
+
+msgid "Criticidad"
+msgstr ""
+
+msgid "Ubicación"
+msgstr ""
+
+msgid "Sin ubicación"
+msgstr ""
+
+msgid "Parte de (activo padre)"
+msgstr ""
+
+msgid "— (activo principal)"
+msgstr ""
+
+msgid "Para registrar un componente dentro de un equipo o sistema."
+msgstr ""
+
+msgid "Fabricante"
+msgstr ""
+
+msgid "Modelo"
+msgstr ""
+
+msgid "N.º de serie"
+msgstr ""
+
+msgid "Año de fabricación"
+msgstr ""
+
+msgid "Fecha de puesta en servicio"
+msgstr ""
+
+msgid "Nuevo estado"
+msgstr ""
+
+msgid "Motivo"
+msgstr ""
+
+msgid "Queda en el historial de estados del activo."
+msgstr ""
+
+msgid "Motivo de la baja"
+msgstr ""
+
+msgid "Por ejemplo: vendido, reemplazado o fuera de uso."
+msgstr ""
+
+msgid "Archivo Excel (.xlsx)"
+msgstr ""
+
+msgid ""
+"La vista previa expiró o es de otra organización. Sube el archivo de nuevo."
+msgstr ""
+
+#, python-format
+msgid "%(n)s activo creado"
+msgid_plural "%(n)s activos creados"
+msgstr[0] ""
+msgstr[1] ""
+
+#, python-format
+msgid "%(n)s actualizado"
+msgid_plural "%(n)s actualizados"
+msgstr[0] ""
+msgstr[1] ""
+
+#, python-format
+msgid "%(n)s clase nueva"
+msgid_plural "%(n)s clases nuevas"
+msgstr[0] ""
+msgstr[1] ""
+
+#, python-format
+msgid "%(n)s ubicación nueva"
+msgid_plural "%(n)s ubicaciones nuevas"
+msgstr[0] ""
+msgstr[1] ""
+
+#, python-format
+msgid "%(n)s lectura de medidor"
+msgid_plural "%(n)s lecturas de medidor"
+msgstr[0] ""
+msgstr[1] ""
+
+#, python-format
+msgid "%(n)s plan preventivo asignado"
+msgid_plural "%(n)s planes preventivos asignados"
+msgstr[0] ""
+msgstr[1] ""
+
+#, python-format
+msgid "Importación lista: %(summary)s."
+msgstr ""
+
+msgid "Activos"
+msgstr ""
+
+msgid "Único por activo. Si ya existe, la fila actualiza ese activo."
+msgstr ""
+
+msgid "Ej: Grúa horquilla eléctrica 2,5 t"
+msgstr ""
+
+msgid "Nombre o código de la clase. Si no existe, se crea."
+msgstr ""
+
+msgid "Nombre o código del sitio/área. Si no existe, se crea como sitio."
+msgstr ""
+
+msgid "Activo padre"
+msgstr ""
+
+msgid "Código del activo del que es parte (puede estar en el mismo archivo)."
+msgstr ""
+
+msgid "A (alta), B (media) o C (baja). Por defecto B."
+msgstr ""
+
+msgid "N° de serie"
+msgstr ""
+
+msgid "Año"
+msgstr ""
+
+msgid "Año de fabricación, ej: 2019."
+msgstr ""
+
+msgid "Medidor"
+msgstr ""
+
+msgid "Horómetro, Odómetro o Ciclos (opcional)."
+msgstr ""
+
+msgid "Lectura del medidor hoy (opcional)."
+msgstr ""
+
+msgid "El archivo supera 5 MB."
+msgstr ""
+
+msgid ""
+"No se pudo leer el archivo. Usa un Excel .xlsx (idealmente la plantilla)."
+msgstr ""
+
+#, python-format
+msgid "Faltan columnas obligatorias: %(columns)s."
+msgstr ""
+
+#, python-format
+msgid "El archivo tiene más de %(max)s filas; divídelo en partes."
+msgstr ""
+
+msgid "El archivo no tiene filas con datos."
+msgstr ""
+
+msgid "Falta el código."
+msgstr ""
+
+msgid "El código tiene más de 30 caracteres."
+msgstr ""
+
+msgid "Código repetido en el archivo."
+msgstr ""
+
+msgid "Falta el nombre."
+msgstr ""
+
+msgid "El nombre tiene más de 150 caracteres."
+msgstr ""
+
+msgid "La clase tiene más de 120 caracteres."
+msgstr ""
+
+#, python-format
+msgid "Clase nueva: %(name)s"
+msgstr ""
+
+msgid "Falta la clase."
+msgstr ""
+
+msgid "La ubicación tiene más de 150 caracteres."
+msgstr ""
+
+#, python-format
+msgid "Ubicación nueva: %(name)s"
+msgstr ""
+
+msgid "Tu acceso está limitado a ciertos sitios: no puedes crear ubicaciones."
+msgstr ""
+
+#, python-format
+msgid "«%(name)s» está fuera de los sitios a los que tienes acceso."
+msgstr ""
+
+msgid "Indica una ubicación de los sitios a los que tienes acceso."
+msgstr ""
+
+msgid "El activo existente está en un sitio al que no tienes acceso."
+msgstr ""
+
+msgid "Un activo no puede ser padre de sí mismo."
+msgstr ""
+
+#, python-format
+msgid "No existe el activo padre «%(code)s»."
+msgstr ""
+
+msgid "Criticidad inválida: usa A, B o C."
+msgstr ""
+
+msgid "Año inválido."
+msgstr ""
+
+msgid "Medidor inválido: usa Horómetro, Odómetro o Ciclos."
+msgstr ""
+
+msgid "La lectura debe ser un número mayor o igual a cero."
+msgstr ""
+
+msgid "Indica el medidor de la lectura."
+msgstr ""
+
+#, python-format
+msgid "Lectura menor que la actual (%(value)s): se omitirá."
+msgstr ""
+
+#, python-format
+msgid "%(column)s: máximo 100 caracteres."
+msgstr ""
+
+#, python-format
+msgid "Fila %(row)s: se omitió el padre para evitar un ciclo."
+msgstr ""
+
+#, python-format
+msgid "%(code)s: no se asignó «%(plan)s» (falta el medidor que usa el plan)."
+msgstr ""
+
+msgid "Grúa horquilla eléctrica 2,5 t"
+msgstr ""
+
+msgid "Grúa horquilla"
+msgstr ""
+
+msgid "Bodega"
+msgstr ""
+
+msgid "Instrucciones"
+msgstr ""
+
+msgid "Columna"
+msgstr ""
+
+msgid "Cómo llenarla"
+msgstr ""
+
+#, python-format
+msgid "%(column)s (obligatoria)"
+msgstr ""
+
+msgid "Borra la fila de ejemplo (en cursiva) antes de subir el archivo."
+msgstr ""
+
+#, python-format
+msgid ""
+"Máximo %(max)s filas por archivo. Antes de guardar verás una vista previa."
+msgstr ""
+
+msgid "Clases y ubicaciones"
+msgstr ""
+
+msgid "Clases existentes"
+msgstr ""
+
+msgid "Ubicaciones existentes"
+msgstr ""
+
+msgid "Pequeñas · 24 por hoja"
+msgstr ""
+
+msgid "Grandes · 10 por hoja"
+msgstr ""
+
+#, python-format
+msgid "Etiquetas QR · %(name)s"
+msgstr ""
+
+msgid "Rotativo"
+msgstr ""
+
+msgid "Mecánico"
+msgstr ""
+
+msgid "Eléctrico"
+msgstr ""
+
+msgid "Instrumentación"
+msgstr ""
+
+msgid "Vehículo"
+msgstr ""
+
+msgid "Seguridad"
+msgstr ""
+
+msgid "Otro"
+msgstr ""
+
+msgid "Equipo"
+msgstr ""
+
+msgid "Sistema"
+msgstr ""
+
+msgid "Componente"
+msgstr ""
+
+msgid "código"
+msgstr ""
+
+msgid "nombre"
+msgstr ""
+
+msgid "categoría ISO 14224"
+msgstr ""
+
+msgid "nivel típico"
+msgstr ""
+
+msgid "clase de activo"
+msgstr ""
+
+msgid "clases de activo"
+msgstr ""
+
+msgid "Texto"
+msgstr ""
+
+msgid "Número"
+msgstr ""
+
+msgid "Fecha"
+msgstr ""
+
+msgid "Sí / No"
+msgstr ""
+
+msgid "Lista"
+msgstr ""
+
+msgid "clase"
+msgstr ""
+
+msgid "clave"
+msgstr ""
+
+msgid "tipo"
+msgstr ""
+
+msgid "unidad"
+msgstr ""
+
+msgid "opciones"
+msgstr ""
+
+msgid "obligatorio"
+msgstr ""
+
+msgid "orden"
+msgstr ""
+
+msgid "atributo de clase"
+msgstr ""
+
+msgid "atributos de clase"
+msgstr ""
+
+msgid "Operativo"
+msgstr ""
+
+msgid "Detenido"
+msgstr ""
+
+msgid "En mantención"
+msgstr ""
+
+msgid "De baja"
+msgstr ""
+
+msgid "A · Alta"
+msgstr ""
+
+msgid "B · Media"
+msgstr ""
+
+msgid "C · Baja"
+msgstr ""
+
+msgid "activo padre"
+msgstr ""
+
+msgid "estado"
+msgstr ""
+
+msgid "criticidad"
+msgstr ""
+
+msgid "fabricante"
+msgstr ""
+
+msgid "modelo"
+msgstr ""
+
+msgid "n.º de serie"
+msgstr ""
+
+msgid "año"
+msgstr ""
+
+msgid "fecha de puesta en servicio"
+msgstr ""
+
+msgid "atributos"
+msgstr ""
+
+msgid "token QR"
+msgstr ""
+
+msgid "activos"
+msgstr ""
+
+msgid "inicio"
+msgstr ""
+
+msgid "término"
+msgstr ""
+
+msgid "motivo"
+msgstr ""
+
+msgid "OT"
+msgstr ""
+
+msgid "falla"
+msgstr ""
+
+msgid "cambiado por"
+msgstr ""
+
+msgid "período de estado"
+msgstr ""
+
+msgid "períodos de estado"
+msgstr ""
+
+msgid "Horómetro (h)"
+msgstr ""
+
+msgid "Odómetro (km)"
+msgstr ""
+
+msgid "Ciclos"
+msgstr ""
+
+msgid "acumulativo"
+msgstr ""
+
+msgid "lectura actual"
+msgstr ""
+
+msgid "fecha de la lectura actual"
+msgstr ""
+
+msgid "uso diario promedio"
+msgstr ""
+
+msgid "medidor"
+msgstr ""
+
+msgid "medidores"
+msgstr ""
+
+msgid "Manual"
+msgstr ""
+
+msgid "Importación"
+msgstr ""
+
+msgid "API"
+msgstr ""
+
+msgid "Cierre de OT"
+msgstr ""
+
+msgid "lectura"
+msgstr ""
+
+msgid "fecha de lectura"
+msgstr ""
+
+msgid "origen"
+msgstr ""
+
+msgid "reinicio o cambio de medidor"
+msgstr ""
+
+msgid "registrada por"
+msgstr ""
+
+msgid "UUID del cliente"
+msgstr ""
+
+msgid "lectura de medidor"
+msgstr ""
+
+msgid "lecturas de medidor"
+msgstr ""
+
+msgid "Indica el motivo del cambio."
+msgstr ""
+
+msgid "El activo está dado de baja: su estado ya no se puede cambiar."
+msgstr ""
+
+msgid "Elige un estado válido."
+msgstr ""
+
+msgid "El activo ya está en ese estado."
+msgstr ""
+
+msgid "El activo ya está dado de baja."
+msgstr ""
+
+msgid "La lectura no puede ser negativa."
+msgstr ""
+
+#, python-format
+msgid ""
+"La lectura (%(value)s) es menor que la actual (%(previous)s). Si se cambió o "
+"reinició el medidor, márcalo."
+msgstr ""
+
+msgid "Uso mayor a 24 h por día desde la lectura anterior: revisa el valor."
+msgstr ""
+
+#, python-format
+msgid "Ya existe una clase con el código %(code)s."
+msgstr ""
+
+msgid "Una lista necesita al menos una opción."
+msgstr ""
+
+msgid "Tipo de atributo no válido."
+msgstr ""
+
+#, python-format
+msgid "%(label)s es obligatorio."
+msgstr ""
+
+msgid "Indica el código."
+msgstr ""
+
+#, python-format
+msgid "Ya existe un activo con el código %(code)s."
+msgstr ""
+
+msgid "Elige una clase de activo válida."
+msgstr ""
+
+msgid "Elige una ubicación válida."
+msgstr ""
+
+msgid "Esa ubicación está fuera de los sitios a los que tienes acceso."
+msgstr ""
+
+msgid "Elige un activo padre válido."
+msgstr ""
+
+msgid "Un activo no puede depender de sí mismo ni de uno de sus componentes."
+msgstr ""
+
+msgid "El activo está dado de baja."
+msgstr ""
+
+#, python-format
+msgid "Estado cambiado a %(status)s."
+msgstr ""
+
+#, python-format
+msgid "Activo %(code)s dado de baja."
+msgstr ""
+
+#, python-format
+msgid "Activo %(code)s creado."
+msgstr ""
+
+msgid "Adjunto guardado."
+msgstr ""
+
+msgid "Revisa el archivo: es obligatorio y debe pesar hasta 20 MB."
+msgstr ""
+
+msgid "Ingresa una lectura válida (número mayor o igual a cero)."
+msgstr ""
+
+#, python-format
+msgid "Lectura registrada: %(kind)s."
+msgstr ""
+
+msgid "Marca al menos un activo para imprimir sus etiquetas."
+msgstr ""
+
+msgid "No hay activos para imprimir."
+msgstr ""
+
+#, python-format
+msgid ""
+"Son %(total)s activos y un PDF admite hasta %(max)s etiquetas. Filtra la "
+"lista (búsqueda, estado o activo padre) y genera varios PDF."
+msgstr ""
+
+#, python-format
+msgid "Aviso enviado. Se creó la %(code)s."
+msgstr ""
+
+msgid "Adjuntos"
+msgstr ""
+
+msgid "Activo"
+msgstr ""
+
+msgid "Orden de trabajo"
+msgstr ""
+
+msgid "Ítem de checklist"
+msgstr ""
+
+msgid "Foto"
+msgstr ""
+
+msgid "Documento"
+msgstr ""
+
+msgid "Firma"
+msgstr ""
+
+msgid "tipo de objeto"
+msgstr ""
+
+msgid "id del objeto"
+msgstr ""
+
+msgid "propósito"
+msgstr ""
+
+msgid "archivo"
+msgstr ""
+
+msgid "tipo MIME"
+msgstr ""
+
+msgid "tamaño (bytes)"
+msgstr ""
+
+msgid "ancho (px)"
+msgstr ""
+
+msgid "alto (px)"
+msgstr ""
+
+msgid "SHA-256"
+msgstr ""
+
+msgid "subido por"
+msgstr ""
+
+msgid "adjunto"
+msgstr ""
+
+msgid "adjuntos"
+msgstr ""
+
+msgid ""
+"No se pudo leer la imagen (formato no compatible, por ejemplo HEIC en "
+"algunos equipos). Conviértela a JPEG o PNG e inténtalo de nuevo."
+msgstr ""
+
+msgid "El archivo supera el tamaño máximo (20 MB)."
+msgstr ""
+
+msgid "Tipo de archivo no permitido."
+msgstr ""
+
+#, python-format
+msgid ""
+"No hay espacio para este archivo (%(size)s): la organización usa %(used)s de "
+"%(quota)s de su plan. Pide al administrador ampliar el plan."
+msgstr ""
+
+msgid "Auditoría"
+msgstr ""
+
+msgid "Desde"
+msgstr ""
+
+msgid "Hasta"
+msgstr ""
+
+msgid "Persona"
+msgstr ""
+
+msgid "Acción"
+msgstr ""
+
+msgid "Todas"
+msgstr ""
+
+msgid "Tipo de objeto"
+msgstr ""
+
+msgid "Todos"
+msgstr ""
+
+msgid "Usuario"
+msgstr ""
+
+msgid "Token de API"
+msgstr ""
+
+msgid "Creación"
+msgstr ""
+
+msgid "Edición"
+msgstr ""
+
+msgid "Eliminación"
+msgstr ""
+
+msgid "Cambio de estado"
+msgstr ""
+
+msgid "Inicio de sesión"
+msgstr ""
+
+msgid "Creación en administración"
+msgstr ""
+
+msgid "Edición en administración"
+msgstr ""
+
+msgid "Eliminación en administración"
+msgstr ""
+
+msgid "actor"
+msgstr ""
+
+msgid "tipo de actor"
+msgstr ""
+
+msgid "acción"
+msgstr ""
+
+msgid "ID del objeto"
+msgstr ""
+
+msgid "objeto"
+msgstr ""
+
+msgid "cambios"
+msgstr ""
+
+msgid "IP"
+msgstr ""
+
+msgid "navegador"
+msgstr ""
+
+msgid "ID de petición"
+msgstr ""
+
+msgid "evento de auditoría"
+msgstr ""
+
+msgid "eventos de auditoría"
+msgstr ""
+
+msgid "Frecuencia"
+msgstr ""
+
+msgid "— (sin versión publicada)"
+msgstr ""
+
+msgid "Editar en un borrador (crea o abre la próxima versión)"
+msgstr ""
+
+#, python-format
+msgid "%(n)s borradores listos para editar."
+msgstr ""
+
+msgid "Frecuencia (vence lo que ocurra primero)"
+msgstr ""
+
+msgid "Ejecución"
+msgstr ""
+
+msgid "Publicar (pasa a ser la versión vigente)"
+msgstr ""
+
+#, python-format
+msgid "%(version)s publicada."
+msgstr ""
+
+msgid "Verificación (OK / No OK / N.A.)"
+msgstr ""
+
+msgid "Medición"
+msgstr ""
+
+msgid "versión vigente"
+msgstr ""
+
+msgid "plan preventivo"
+msgstr ""
+
+msgid "planes preventivos"
+msgstr ""
+
+#, python-format
+msgid ""
+"La versión %(number)s está publicada: crea un borrador para cambiar su "
+"contenido."
+msgstr ""
+
+msgid "Borrador"
+msgstr ""
+
+msgid "Publicada"
+msgstr ""
+
+msgid "Reemplazada"
+msgstr ""
+
+msgid "Flotante (desde la ejecución real)"
+msgstr ""
+
+msgid "Fijo (desde lo programado)"
+msgstr ""
+
+msgid "plan"
+msgstr ""
+
+msgid "versión"
+msgstr ""
+
+msgid "publicada el"
+msgstr ""
+
+msgid "publicada por"
+msgstr ""
+
+msgid "qué cambió"
+msgstr ""
+
+msgid "duración estimada (min)"
+msgstr ""
+
+msgid "instrucciones"
+msgstr ""
+
+msgid "cada cuántos días"
+msgstr ""
+
+msgid "cada cuántas unidades del medidor"
+msgstr ""
+
+msgid "reprogramación"
+msgstr ""
+
+msgid "tolerancia de cumplimiento (%)"
+msgstr ""
+
+msgid "versión de plan"
+msgstr ""
+
+msgid "versiones de plan"
+msgstr ""
+
+#, python-format
+msgid "%(n)s días"
+msgstr ""
+
+msgid "Define una frecuencia en días, por medidor o ambas."
+msgstr ""
+
+msgid "Para disparar por medidor indica el tipo y la frecuencia."
+msgstr ""
+
+#, python-format
+msgid ""
+"La versión %(number)s de «%(plan)s» está publicada: crea un borrador para "
+"cambiarla."
+msgstr ""
+
+msgid "Repuesto"
+msgstr ""
+
+msgid "Herramienta"
+msgstr ""
+
+msgid "descripción"
+msgstr ""
+
+msgid "cantidad"
+msgstr ""
+
+msgid "repuesto o herramienta"
+msgstr ""
+
+msgid "repuestos y herramientas"
+msgstr ""
+
+msgid "tarea"
+msgstr ""
+
+msgid "mínimo"
+msgstr ""
+
+msgid "máximo"
+msgstr ""
+
+msgid "ítem de checklist"
+msgstr ""
+
+msgid "checklist"
+msgstr ""
+
+msgid "próximo vencimiento"
+msgstr ""
+
+msgid "próximo vencimiento (medidor)"
+msgstr ""
+
+msgid "última ejecución"
+msgstr ""
+
+msgid "lectura de la última ejecución"
+msgstr ""
+
+msgid "asignación de plan"
+msgstr ""
+
+msgid "asignaciones de planes"
+msgstr ""
+
+msgid "Versión inicial"
+msgstr ""
+
+#, python-format
+msgid "La versión %(number)s ya está publicada."
+msgstr ""
+
+msgid "Agrega al menos un ítem al checklist antes de publicar."
+msgstr ""
+
+#, python-format
+msgid "«%(plan)s» no tiene una versión publicada."
+msgstr ""
+
+#, python-format
+msgid "%(asset)s está dado de baja."
+msgstr ""
+
+#, python-format
+msgid "%(asset)s no tiene un medidor de tipo «%(kind)s»."
+msgstr ""
+
+msgid "correo del administrador"
+msgstr ""
+
+msgid ""
+"Al guardar se le envía una invitación como administrador, válida por 7 días "
+"(ORG-01). Si ya tiene una invitación pendiente, se reemplaza."
+msgstr ""
+
+#, python-format
+msgid "Invitación de administrador enviada a %(email)s."
+msgstr ""
+
+msgid "Dentro de"
+msgstr ""
+
+msgid "— (ubicación principal)"
+msgstr ""
+
+msgid "Zona horaria"
+msgstr ""
+
+msgid "En blanco usa la de la organización. Ej.: America/Santiago."
+msgstr ""
+
+msgid "Requiere aprobación para cerrar OT"
+msgstr ""
+
+msgid ""
+"Si está apagado, una OT completada pasa a cerrada automáticamente. Si está "
+"encendido, un supervisor o planificador la revisa y la cierra."
+msgstr ""
+
+msgid "Exigir modo y causa de falla"
+msgstr ""
+
+msgid ""
+"Al completar una OT correctiva, el modo y la causa de la falla son "
+"obligatorios."
+msgstr ""
+
+msgid "Archivo del logo"
+msgstr ""
+
+msgid ""
+"PNG, JPEG o WebP, hasta 1 MB. Se ajusta a 600 px; un fondo transparente se "
+"mantiene."
+msgstr ""
+
+msgid "Quitar el logo actual"
+msgstr ""
+
+msgid "Elige un archivo de imagen para el logo."
+msgstr ""
+
+msgid "máximo de activos"
+msgstr ""
+
+msgid "máximo de usuarios"
+msgstr ""
+
+msgid "almacenamiento máximo (MB)"
+msgstr ""
+
+msgid "módulos incluidos"
+msgstr ""
+
+msgid "planes"
+msgstr ""
+
+msgid "En prueba"
+msgstr ""
+
+msgid "Suspendida"
+msgstr ""
+
+msgid "Eliminación solicitada"
+msgstr ""
+
+msgid "identificador"
+msgstr ""
+
+msgid "fin de la prueba"
+msgstr ""
+
+msgid "zona horaria"
+msgstr ""
+
+msgid "requiere aprobación para cerrar OT"
+msgstr ""
+
+msgid "exige modo y causa de falla para cerrar una OT correctiva"
+msgstr ""
+
+msgid "nombres de los estados de OT"
+msgstr ""
+
+msgid "logo"
+msgstr ""
+
+msgid "organización"
+msgstr ""
+
+msgid "organizaciones"
+msgstr ""
+
+msgid "Sitio"
+msgstr ""
+
+msgid "Área"
+msgstr ""
+
+msgid "Línea"
+msgstr ""
+
+msgid "ubicación padre"
+msgstr ""
+
+msgid "ubicaciones"
+msgstr ""
+
+msgid "Usuarios"
+msgstr ""
+
+msgid "Almacenamiento (MB)"
+msgstr ""
+
+msgid "Esa ubicación está fuera de tu alcance."
+msgstr ""
+
+msgid "Elige una ubicación padre dentro de tu alcance."
+msgstr ""
+
+msgid "El código y el nombre son obligatorios."
+msgstr ""
+
+msgid "Zona horaria no válida (ej. America/Santiago)."
+msgstr ""
+
+#, python-format
+msgid "Ya existe una ubicación con el código %(code)s."
+msgstr ""
+
+msgid "Una ubicación no puede quedar dentro de sí misma."
+msgstr ""
+
+msgid ""
+"No se puede eliminar: tiene ubicaciones o activos dentro. Desactívala en su "
+"lugar."
+msgstr ""
+
+#, python-format
+msgid "Estado de OT desconocido: %(keys)s."
+msgstr ""
+
+msgid "El nombre de un estado debe ser texto."
+msgstr ""
+
+#, python-format
+msgid "El nombre de un estado admite hasta %(max)s caracteres."
+msgstr ""
+
+msgid "El logo debe pesar hasta 1 MB."
+msgstr ""
+
+msgid "El logo debe ser una imagen PNG, JPEG o WebP."
+msgstr ""
+
+msgid "El logo tiene demasiados píxeles; redúcelo e inténtalo de nuevo."
+msgstr ""
+
+#, python-format
+msgid "Ubicación %(name)s creada."
+msgstr ""
+
+msgid "Ubicación eliminada."
+msgstr ""
+
+msgid "Configuración guardada."
+msgstr ""
+
+msgid "Logo guardado."
+msgstr ""
+
+msgid "Logo quitado."
+msgstr ""
+
+msgid "Nombres de los estados guardados."
+msgstr ""
+
+msgid "¿Qué pasó?"
+msgstr ""
+
+msgid "Ej: pierde aceite por el costado"
+msgstr ""
+
+msgid "El equipo está detenido"
+msgstr ""
+
+msgid "Foto (opcional)"
+msgstr ""
+
+msgid "Elige dónde es el problema"
+msgstr ""
+
+msgid "¿Qué pasó o qué se necesita?"
+msgstr ""
+
+msgid "Ej: gotera sobre la línea 2"
+msgstr ""
+
+msgid "Síntoma observado"
+msgstr ""
+
+msgid "¿Qué viste? Puedes dictarlo con el micrófono del teclado."
+msgstr ""
+
+msgid "Comentario de cierre"
+msgstr ""
+
+msgid "Tiempo trabajado (minutos)"
+msgstr ""
+
+msgid "Impacto"
+msgstr ""
+
+msgid "Inicio de la detención"
+msgstr ""
+
+msgid "Si no hubo detención: cuándo se detectó la falla."
+msgstr ""
+
+msgid "Fin de la detención"
+msgstr ""
+
+msgid "Si lo dejas vacío, se usa la hora actual."
+msgstr ""
+
+msgid "Modo de falla"
+msgstr ""
+
+msgid "Causa"
+msgstr ""
+
+msgid "Mecanismo de falla"
+msgstr ""
+
+msgid "Método de detección"
+msgstr ""
+
+msgid "Componente afectado"
+msgstr ""
+
+msgid "Lectura del medidor"
+msgstr ""
+
+#, python-format
+msgid "%(kind)s al terminar"
+msgstr ""
+
+msgid "Obligatorio: el próximo preventivo se calcula desde esta lectura."
+msgstr ""
+
+msgid "Opcional: actualiza la lectura del equipo."
+msgstr ""
+
+msgid "Acción realizada"
+msgstr ""
+
+msgid "¿Qué hiciste? Puedes dictarlo con el micrófono del teclado."
+msgstr ""
+
+msgid "La firma no es válida. Bórrala y vuelve a firmar."
+msgstr ""
+
+msgid "El fin no puede ser anterior al inicio."
+msgstr ""
+
+msgid "Minutos trabajados"
+msgstr ""
+
+msgid "Repuesto o material"
+msgstr ""
+
+msgid "Cantidad"
+msgstr ""
+
+msgid "Costo unitario"
+msgstr ""
+
+msgid "Descripción"
+msgstr ""
+
+msgid "Proveedor"
+msgstr ""
+
+msgid "Monto"
+msgstr ""
+
+msgid "Fecha límite"
+msgstr ""
+
+msgid "Fecha de creación"
+msgstr ""
+
+msgid "Estado"
+msgstr ""
+
+msgid "Activo o ubicación"
+msgstr ""
+
+msgid "Código o nombre."
+msgstr ""
+
+msgid "Todos los sitios"
+msgstr ""
+
+msgid "Responsable"
+msgstr ""
+
+msgid "Buscar fecha en"
+msgstr ""
+
+msgid "Todos los estados"
+msgstr ""
+
+msgid "La fecha «desde» no puede ser posterior a «hasta»."
+msgstr ""
+
+msgid "Apoyo"
+msgstr ""
+
+msgid "Otras personas que trabajan en la OT; también la ven en «Mis OT»."
+msgstr ""
+
+msgid "Elige un activo"
+msgstr ""
+
+msgid "Ninguna (la OT es sobre un activo)"
+msgstr ""
+
+msgid ""
+"Solo si el trabajo no es sobre un activo: un área, una línea o un edificio."
+msgstr ""
+
+msgid "Título"
+msgstr ""
+
+msgid "Prioridad"
+msgstr ""
+
+msgid "Estimación (minutos)"
+msgstr ""
+
+msgid "Sin asignar"
+msgstr ""
+
+msgid "Elige un activo o una ubicación, no ambos."
+msgstr ""
+
+msgid "Elige el activo o, si no aplica, la ubicación."
+msgstr ""
+
+msgid "Plan"
+msgstr ""
+
+#, python-format
+msgid "%(plan)s · v%(number)s (%(count)s ítems)"
+msgstr ""
+
+msgid "Elige un plan"
+msgstr ""
+
+msgid "Sugeridos para este activo"
+msgstr ""
+
+msgid "Otros planes"
+msgstr ""
+
+msgid "Planes"
+msgstr ""
+
+msgid "Tarea"
+msgstr ""
+
+msgid "Mínimo"
+msgstr ""
+
+msgid "Máximo"
+msgstr ""
+
+msgid "Obligatorio para completar la OT"
+msgstr ""
+
+msgid "El máximo no puede ser menor que el mínimo."
+msgstr ""
+
+msgid "último número"
+msgstr ""
+
+msgid "correlativo"
+msgstr ""
+
+msgid "correlativos"
+msgstr ""
+
+msgid "Preventiva"
+msgstr ""
+
+msgid "Correctiva"
+msgstr ""
+
+msgid "Predictiva / condición"
+msgstr ""
+
+msgid "Mejora"
+msgstr ""
+
+msgid "Inspección"
+msgstr ""
+
+msgid "Solicitada"
+msgstr ""
+
+msgid "Planificada"
+msgstr ""
+
+msgid "Programada"
+msgstr ""
+
+msgid "En ejecución"
+msgstr ""
+
+msgid "En espera"
+msgstr ""
+
+msgid "Completada"
+msgstr ""
+
+msgid "Cerrada"
+msgstr ""
+
+msgid "Cancelada"
+msgstr ""
+
+msgid "Urgente"
+msgstr ""
+
+msgid "Alta"
+msgstr ""
+
+msgid "Normal"
+msgstr ""
+
+msgid "Baja"
+msgstr ""
+
+msgid "número"
+msgstr ""
+
+msgid "prioridad"
+msgstr ""
+
+msgid "título"
+msgstr ""
+
+msgid "versión del plan"
+msgstr ""
+
+msgid "responsable"
+msgstr ""
+
+msgid "apoyo"
+msgstr ""
+
+msgid "fecha límite"
+msgstr ""
+
+msgid "vence al llegar a"
+msgstr ""
+
+msgid "estimación (min)"
+msgstr ""
+
+msgid "fecha de inicio"
+msgstr ""
+
+msgid "fecha de término"
+msgstr ""
+
+msgid "fecha de cierre"
+msgstr ""
+
+msgid "comentario de cierre"
+msgstr ""
+
+msgid "mano de obra"
+msgstr ""
+
+msgid "repuestos"
+msgstr ""
+
+msgid "otros costos"
+msgstr ""
+
+msgid "costo total"
+msgstr ""
+
+msgid "lectura al cerrar"
+msgstr ""
+
+msgid "orden de trabajo"
+msgstr ""
+
+msgid "órdenes de trabajo"
+msgstr ""
+
+msgid "apoyo de OT"
+msgstr ""
+
+msgid "apoyos de OT"
+msgstr ""
+
+msgid "estado anterior"
+msgstr ""
+
+msgid "estado nuevo"
+msgstr ""
+
+msgid "por"
+msgstr ""
+
+msgid "comentario"
+msgstr ""
+
+msgid "cambio de estado de OT"
+msgstr ""
+
+msgid "cambios de estado de OT"
+msgstr ""
+
+msgid "OK"
+msgstr ""
+
+msgid "No OK"
+msgstr ""
+
+msgid "N.A."
+msgstr ""
+
+msgid "texto"
+msgstr ""
+
+msgid "resultado"
+msgstr ""
+
+msgid "valor"
+msgstr ""
+
+msgid "nota"
+msgstr ""
+
+msgid "respondido por"
+msgstr ""
+
+msgid "fecha de respuesta"
+msgstr ""
+
+msgid "ítem del checklist de OT"
+msgstr ""
+
+msgid "ítems del checklist de OT"
+msgstr ""
+
+msgid "persona (vacío = tarifa general)"
+msgstr ""
+
+msgid "costo por hora"
+msgstr ""
+
+msgid "tarifa de mano de obra"
+msgstr ""
+
+msgid "tarifas de mano de obra"
+msgstr ""
+
+msgid "Tarifa general"
+msgstr ""
+
+msgid "técnico"
+msgstr ""
+
+msgid "minutos"
+msgstr ""
+
+msgid "registro de mano de obra"
+msgstr ""
+
+msgid "registros de mano de obra"
+msgstr ""
+
+msgid "repuesto o material"
+msgstr ""
+
+msgid "costo unitario"
+msgstr ""
+
+msgid "registrado por"
+msgstr ""
+
+msgid "repuesto usado"
+msgstr ""
+
+msgid "repuestos usados"
+msgstr ""
+
+msgid "proveedor"
+msgstr ""
+
+msgid "monto"
+msgstr ""
+
+msgid "otro costo"
+msgstr ""
+
+msgid "código de falla"
+msgstr ""
+
+msgid "códigos de falla"
+msgstr ""
+
+msgid "Detención total"
+msgstr ""
+
+msgid "Detención parcial"
+msgstr ""
+
+msgid "Sin detención"
+msgstr ""
+
+msgid "componente"
+msgstr ""
+
+msgid "impacto"
+msgstr ""
+
+msgid "modo de falla"
+msgstr ""
+
+msgid "causa"
+msgstr ""
+
+msgid "mecanismo de falla"
+msgstr ""
+
+msgid "método de detección"
+msgstr ""
+
+msgid "fallas"
+msgstr ""
+
+msgid "Pendiente"
+msgstr ""
+
+msgid "Aceptada"
+msgstr ""
+
+msgid "Rechazada"
+msgstr ""
+
+msgid "Fusionada"
+msgstr ""
+
+msgid "equipo detenido"
+msgstr ""
+
+msgid "solicitado por"
+msgstr ""
+
+msgid "decidida por"
+msgstr ""
+
+msgid "decidida el"
+msgstr ""
+
+msgid "motivo de rechazo"
+msgstr ""
+
+msgid "fusionada en"
+msgstr ""
+
+msgid "solicitud"
+msgstr ""
+
+msgid "solicitudes"
+msgstr ""
+
+msgid "Elige un activo o una ubicación (solo uno)."
+msgstr ""
+
+msgid "Solo puedes asignar personas de esta organización."
+msgstr ""
+
+msgid "La OT ya no admite cambios."
+msgstr ""
+
+msgid "«Equipo detenido» solo aplica a un activo."
+msgstr ""
+
+msgid "Falla reportada"
+msgstr ""
+
+#, python-format
+msgid "El aviso se envió sin la foto. %(reason)s"
+msgstr ""
+
+#, python-format
+msgid "Transición no permitida: %(from)s → %(to)s."
+msgstr ""
+
+#, python-format
+msgid "Faltan %(pending)s ítems obligatorios del checklist."
+msgstr ""
+
+msgid "Cierre automático (la organización no exige aprobación)"
+msgstr ""
+
+msgid "Ingresa el valor medido."
+msgstr ""
+
+msgid "Resultado inválido."
+msgstr ""
+
+msgid "El checklist de una OT preventiva viene de su plan y no se cambia."
+msgstr ""
+
+msgid "Elige un plan con una versión publicada."
+msgstr ""
+
+msgid "Ese plan no tiene ítems de checklist."
+msgstr ""
+
+msgid "Ese checklist ya está aplicado en la OT."
+msgstr ""
+
+msgid "Escribe la tarea del ítem."
+msgstr ""
+
+msgid "Tipo de ítem inválido."
+msgstr ""
+
+msgid "El mínimo no puede ser mayor que el máximo."
+msgstr ""
+
+#, python-format
+msgid "La OT ya tiene el ítem «%(text)s»."
+msgstr ""
+
+msgid "Adjunta una imagen (de la cámara o de la galería)."
+msgstr ""
+
+msgid "El fin de la detención no puede ser anterior a su inicio."
+msgstr ""
+
+msgid ""
+"Esta organización exige modo y causa de falla para cerrar una OT correctiva."
+msgstr ""
+
+msgid "El componente debe ser un activo hijo del activo de la OT."
+msgstr ""
+
+msgid "Impacto de falla inválido."
+msgstr ""
+
+msgid "La OT está cerrada: sus costos ya no se pueden cambiar."
+msgstr ""
+
+msgid "Indica los minutos trabajados."
+msgstr ""
+
+msgid "La cantidad debe ser mayor que cero y el costo no puede ser negativo."
+msgstr ""
+
+msgid "El monto no puede ser negativo."
+msgstr ""
+
+#, python-format
+msgid "La solicitud #%(number)s ya fue decidida."
+msgstr ""
+
+#, python-format
+msgid ""
+"La %(code)s ya fue completada: la solicitud no se puede rechazar ni fusionar."
+msgstr ""
+
+msgid "El motivo de rechazo es obligatorio."
+msgstr ""
+
+#, python-format
+msgid "Solicitud rechazada: %(reason)s"
+msgstr ""
+
+msgid "Una solicitud no se puede fusionar consigo misma."
+msgstr ""
+
+msgid "Solo se puede fusionar con una solicitud del mismo activo o ubicación."
+msgstr ""
+
+#, python-format
+msgid "La solicitud #%(number)s no está abierta."
+msgstr ""
+
+#, python-format
+msgid "Fusionada con la solicitud #%(number)s"
+msgstr ""
+
+msgid "Falla total / no funciona"
+msgstr ""
+
+msgid "Fuga externa de fluido"
+msgstr ""
+
+msgid "Vibración anormal"
+msgstr ""
+
+msgid "Sobrecalentamiento"
+msgstr ""
+
+msgid "Operación errática"
+msgstr ""
+
+msgid "Ruido anormal"
+msgstr ""
+
+msgid "Desgaste"
+msgstr ""
+
+msgid "Falta de lubricación"
+msgstr ""
+
+msgid "Falla eléctrica / control"
+msgstr ""
+
+msgid "Error de operación"
+msgstr ""
+
+msgid "Falla de material / componente"
+msgstr ""
+
+msgid "Suciedad / contaminación"
+msgstr ""
+
+msgid "Fatiga"
+msgstr ""
+
+msgid "Corrosión"
+msgstr ""
+
+msgid "Desgaste abrasivo"
+msgstr ""
+
+msgid "Sobrecarga"
+msgstr ""
+
+msgid "Contaminación"
+msgstr ""
+
+msgid "Inspección visual"
+msgstr ""
+
+msgid "Aviso del operador"
+msgstr ""
+
+msgid "Monitoreo de condición"
+msgstr ""
+
+msgid "Mantenimiento preventivo"
+msgstr ""
+
+msgid "Código y nombre son obligatorios."
+msgstr ""
+
+#, python-format
+msgid "Ya existe un código «%(code)s» de ese tipo."
+msgstr ""
+
+msgid "El nombre es obligatorio."
+msgstr ""
+
+msgid "Abiertas"
+msgstr ""
+
+msgid "Vencidas"
+msgstr ""
+
+msgid "Mis OT"
+msgstr ""
+
+msgid "Cerradas"
+msgstr ""
+
+msgid "Todos los tipos"
+msgstr ""
+
+#, python-format
+msgid "%(code)s creada."
+msgstr ""
+
+#, python-format
+msgid "%(code)s: %(status)s."
+msgstr ""
+
+msgid "Responsables actualizados."
+msgstr ""
+
+#, python-format
+msgid "%(code)s completada."
+msgstr ""
+
+msgid "El checklist de esta OT ya no se puede cambiar."
+msgstr ""
+
+#, python-format
+msgid "Se agregaron %(count)s ítems del plan."
+msgstr ""
+
+msgid "Ítem agregado."
+msgstr ""
+
+msgid "Elige una foto."
+msgstr ""
+
+msgid "Foto agregada."
+msgstr ""
+
+msgid "Indica los minutos trabajados (1 a 1.440)."
+msgstr ""
+
+msgid ""
+"Revisa el repuesto: descripción, cantidad y costo unitario son obligatorios."
+msgstr ""
+
+msgid "Revisa el costo: descripción y monto son obligatorios."
+msgstr ""
+
+#, python-format
+msgid "Solicitud #%(number)s aceptada."
+msgstr ""
+
+#, python-format
+msgid "Solicitud #%(number)s rechazada."
+msgstr ""
+
+#, python-format
+msgid "Solicitud #%(number)s fusionada con #%(into)s."
+msgstr ""
+
+msgid "Código agregado."
+msgstr ""
+
+msgid "Revisa el tipo, código y nombre."
+msgstr ""
+
+#, python-format
+msgid "%(code)s actualizado."
+msgstr ""
+
+msgid "No hay opciones."
+msgstr ""
+
+msgid "Paginación"
+msgstr ""
+
+msgid "Anterior"
+msgstr ""
+
+msgid "Siguiente"
+msgstr ""
+
+msgid "Tema"
+msgstr ""
+
+msgid "Claro"
+msgstr ""
+
+msgid "Oscuro"
+msgstr ""
+
+msgid "Ingresar"
+msgstr ""
+
+#, python-format
+msgid ""
+"Hola:\n"
+"\n"
+"Te invitaron a %(org)s en GALBUST CMMS con el rol %(role)s."
+msgstr ""
+
+#, python-format
+msgid "Te invitó %(name)s."
+msgstr ""
+
+msgid "Para aceptar, abre este enlace:"
+msgstr ""
+
+#, python-format
+msgid "El enlace vence en %(days)s día y sirve una sola vez."
+msgid_plural "El enlace vence en %(days)s días y sirve una sola vez."
+msgstr[0] ""
+msgstr[1] ""
+
+msgid "Si no esperabas esta invitación, ignora este correo."
+msgstr ""
+
+#, python-format
+msgid "[GALBUST CMMS] Te invitaron a %(org)s"
+msgstr ""
+
+msgid "Invitación"
+msgstr ""
+
+#, python-format
+msgid "Únete a %(org)s"
+msgstr ""
+
+#, python-format
+msgid "Te invitaron con el rol <strong>%(role)s</strong>."
+msgstr ""
+
+#, python-format
+msgid ""
+"Esta invitación es para %(email)s. Sal de tu cuenta e ingresa con ese correo."
+msgstr ""
+
+msgid "Salir"
+msgstr ""
+
+#, python-format
+msgid "Crea tu cuenta para %(email)s."
+msgstr ""
+
+msgid "Crear cuenta y unirme"
+msgstr ""
+
+msgid "Unirme"
+msgstr ""
+
+msgid "Invitación no válida"
+msgstr ""
+
+msgid ""
+"El enlace venció, ya se usó o fue revocado. Pide a quien te invitó que te "
+"envíe uno nuevo."
+msgstr ""
+
+msgid "Ir a ingresar"
+msgstr ""
+
+msgid "Desactivado"
+msgstr ""
+
+msgid "Volver al equipo"
+msgstr ""
+
+msgid ""
+"Externo / contratista siempre queda limitado a las ubicaciones marcadas."
+msgstr ""
+
+msgid "Aún no hay ubicaciones creadas."
+msgstr ""
+
+msgid "Guardar"
+msgstr ""
+
+msgid ""
+"Al desactivarlo deja de entrar a esta organización; su historial se conserva."
+msgstr ""
+
+msgid "Desactivar"
+msgstr ""
+
+msgid "Reactivar"
+msgstr ""
+
+#, python-format
+msgid "%(n)s persona"
+msgid_plural "%(n)s personas"
+msgstr[0] ""
+msgstr[1] ""
+
+#, python-format
+msgid "plan %(plan)s: hasta %(max)s"
+msgstr ""
+
+msgid "Invitar por correo"
+msgstr ""
+
+msgid ""
+"Le llega un enlace válido por 7 días. Si ya tiene cuenta, se suma con la "
+"misma."
+msgstr ""
+
+msgid "Enviar invitación"
+msgstr ""
+
+msgid "Invitaciones pendientes"
+msgstr ""
+
+msgid "Invitación pendiente"
+msgstr ""
+
+msgid "Vence"
+msgstr ""
+
+msgid "Revocar"
+msgstr ""
+
+msgid "No hay invitaciones pendientes."
+msgstr ""
+
+msgid "Miembros"
+msgstr ""
+
+msgid "Alcance"
+msgstr ""
+
+msgid "Sin ubicaciones"
+msgstr ""
+
+msgid "Toda la organización"
+msgstr ""
+
+msgid "La clase elegida no tiene atributos técnicos."
+msgstr ""
+
+msgid "Elige una clase para ver sus atributos."
+msgstr ""
+
+msgid "Datos técnicos"
+msgstr ""
+
+msgid "Volver al activo"
+msgstr ""
+
+msgid "Editar"
+msgstr ""
+
+msgid "Nuevo activo"
+msgstr ""
+
+msgid "Editar activo"
+msgstr ""
+
+msgid ""
+"Solo el código, el nombre y la clase son obligatorios; el resto se puede "
+"completar después."
+msgstr ""
+
+msgid "Volver a activos"
+msgstr ""
+
+msgid "Datos básicos"
+msgstr ""
+
+msgid "Ubicación y jerarquía"
+msgstr ""
+
+msgid "Fabricación"
+msgstr ""
+
+msgid "Dependen de la clase elegida."
+msgstr ""
+
+msgid "Guardar cambios"
+msgstr ""
+
+msgid "Crear activo"
+msgstr ""
+
+msgid "Volver a la clase"
+msgstr ""
+
+msgid "Volver a clases"
+msgstr ""
+
+msgid "Atributos"
+msgstr ""
+
+msgid "Unidad / opciones"
+msgstr ""
+
+msgid "Oculto"
+msgstr ""
+
+msgid ""
+"Sin atributos: agrega los datos técnicos que quieres registrar (capacidad, "
+"potencia…)."
+msgstr ""
+
+msgid "Agregar atributo"
+msgstr ""
+
+msgid ""
+"El tipo no se puede cambiar después: los valores guardados siguen siendo "
+"válidos."
+msgstr ""
+
+msgid "Agregar"
+msgstr ""
+
+msgid "Datos de la clase"
+msgstr ""
+
+msgid "Clases de activo"
+msgstr ""
+
+msgid "Cada clase define los datos técnicos que se registran en sus activos."
+msgstr ""
+
+msgid "Categoría"
+msgstr ""
+
+msgid "Inactiva"
+msgstr ""
+
+msgid "Aún no hay clases."
+msgstr ""
+
+msgid "Nueva clase"
+msgstr ""
+
+msgid "Crear"
+msgstr ""
+
+msgid "Dar de baja"
+msgstr ""
+
+msgid "Estado actual"
+msgstr ""
+
+#, python-format
+msgid ""
+"%(name)s quedará «De baja»: no generará más mantenimientos preventivos. Su "
+"ficha, historial y documentos se conservan."
+msgstr ""
+
+msgid "Planes que se desactivan"
+msgstr ""
+
+msgid "Cada"
+msgstr ""
+
+msgid "Se desactiva"
+msgstr ""
+
+msgid "El activo no tiene planes preventivos activos."
+msgstr ""
+
+msgid "OT abiertas"
+msgstr ""
+
+msgid ""
+"Estas OT no se modifican: ciérralas o cancélalas por separado si ya no "
+"corresponden."
+msgstr ""
+
+msgid "Sin OT abiertas."
+msgstr ""
+
+msgid "Confirmar la baja"
+msgstr ""
+
+msgid "Cancelar"
+msgstr ""
+
+msgid "Cambiar estado"
+msgstr ""
+
+msgid "Avisar falla"
+msgstr ""
+
+msgid ""
+"Activo dado de baja: no genera mantenimientos preventivos y su historial se "
+"conserva."
+msgstr ""
+
+msgid "Ficha"
+msgstr ""
+
+msgid "Parte de"
+msgstr ""
+
+msgid "Puesta en servicio"
+msgstr ""
+
+#, python-format
+msgid "La clase %(cls)s aún no tiene atributos."
+msgstr ""
+
+msgid "Editar datos técnicos"
+msgstr ""
+
+msgid "Atributos de la clase"
+msgstr ""
+
+msgid "Código QR"
+msgstr ""
+
+msgid ""
+"Pega esta etiqueta en el equipo. Al escanearla con la cámara del celular se "
+"abre directamente el aviso de falla."
+msgstr ""
+
+msgid "Medidores"
+msgstr ""
+
+#, python-format
+msgid "Leído el %(d)s"
+msgstr ""
+
+msgid "Sin lecturas"
+msgstr ""
+
+#, python-format
+msgid "~%(u)s %(unit)s/día"
+msgstr ""
+
+msgid "Nueva lectura"
+msgstr ""
+
+msgid "Registrar"
+msgstr ""
+
+msgid "Planes preventivos"
+msgstr ""
+
+msgid "última"
+msgstr ""
+
+msgid "Sin planes asignados."
+msgstr ""
+
+msgid "Componentes"
+msgstr ""
+
+#, python-format
+msgid "Ver los %(n)s componentes"
+msgstr ""
+
+msgid "Este activo no tiene componentes registrados."
+msgstr ""
+
+msgid "Agregar componente"
+msgstr ""
+
+msgid "Indicadores e historial"
+msgstr ""
+
+msgid "últimos 30 días"
+msgstr ""
+
+msgid "Alcance del historial y los indicadores"
+msgstr ""
+
+msgid "Solo este activo"
+msgstr ""
+
+msgid "Incluir componentes"
+msgstr ""
+
+msgid "Disponibilidad"
+msgstr ""
+
+msgid "Tiempo operativo / tiempo calendario"
+msgstr ""
+
+#, python-format
+msgid "Tiempo medio entre fallas · %(n)s falla"
+msgid_plural "Tiempo medio entre fallas · %(n)s fallas"
+msgstr[0] ""
+msgstr[1] ""
+
+msgid "Tiempo medio de reparación"
+msgstr ""
+
+msgid "Historial"
+msgstr ""
+
+msgid "Aún no hay trabajos cerrados."
+msgstr ""
+
+msgid "Fallas"
+msgstr ""
+
+msgid "Falla sin describir"
+msgstr ""
+
+msgid "en"
+msgstr ""
+
+msgid "Sin fallas registradas."
+msgstr ""
+
+msgid "Cambios de estado"
+msgstr ""
+
+#, python-format
+msgid "%(start)s a %(end)s"
+msgstr ""
+
+#, python-format
+msgid "Desde el %(start)s (vigente)"
+msgstr ""
+
+msgid "Sin motivo"
+msgstr ""
+
+msgid "Sin cambios de estado registrados."
+msgstr ""
+
+msgid "Documentos y fotos"
+msgstr ""
+
+msgid "Sin documentos ni fotos."
+msgstr ""
+
+msgid "Subir"
+msgstr ""
+
+msgid "Importar activos"
+msgstr ""
+
+msgid "Importar activos desde Excel"
+msgstr ""
+
+msgid "Descarga la plantilla"
+msgstr ""
+
+msgid ""
+"Trae las columnas, listas desplegables, instrucciones y las clases y "
+"ubicaciones que ya tienes."
+msgstr ""
+
+msgid "Descargar plantilla"
+msgstr ""
+
+msgid "Llénala con tus equipos"
+msgstr ""
+
+#, python-format
+msgid ""
+"Solo código, nombre y clase son obligatorios. Si una clase o ubicación no "
+"existe, se crea sola. Si el código ya existe, se actualiza ese activo. "
+"Máximo %(max_rows)s filas."
+msgstr ""
+
+msgid "Súbela y revisa la vista previa"
+msgstr ""
+
+msgid "Nada se guarda hasta que confirmes."
+msgstr ""
+
+msgid "Revisar archivo"
+msgstr ""
+
+msgid "Vista previa de importación"
+msgstr ""
+
+msgid "Revisa antes de guardar"
+msgstr ""
+
+msgid "Todavía no se ha guardado nada."
+msgstr ""
+
+msgid "Resumen"
+msgstr ""
+
+msgid "Activos nuevos"
+msgstr ""
+
+msgid "Se actualizan"
+msgstr ""
+
+msgid "Con errores (se omiten)"
+msgstr ""
+
+msgid "Se crearán estas clases:"
+msgstr ""
+
+msgid "Se crearán estas ubicaciones:"
+msgstr ""
+
+msgid "Fila"
+msgstr ""
+
+msgid "Resultado"
+msgstr ""
+
+msgid "Detalle"
+msgstr ""
+
+msgid "Nuevo"
+msgstr ""
+
+msgid "Actualiza"
+msgstr ""
+
+msgid "Error"
+msgstr ""
+
+msgid "Asignar a los activos nuevos los planes preventivos de su clase"
+msgstr ""
+
+#, python-format
+msgid "Importar %(n)s fila"
+msgid_plural "Importar %(n)s filas"
+msgstr[0] ""
+msgstr[1] ""
+
+msgid "Subir otro archivo"
+msgstr ""
+
+msgid ""
+"No hay filas válidas para importar. Corrige el archivo y vuelve a subirlo."
+msgstr ""
+
+msgid "¿Qué equipo falla?"
+msgstr ""
+
+msgid "Componentes de"
+msgstr ""
+
+msgid "Elige el equipo o escanea su código QR con la cámara."
+msgstr ""
+
+#, python-format
+msgid "%(n)s activo"
+msgid_plural "%(n)s activos"
+msgstr[0] ""
+msgstr[1] ""
+
+msgid "Importar desde Excel"
+msgstr ""
+
+msgid "Imprimir etiquetas QR"
+msgstr ""
+
+#, python-format
+msgid ""
+"Se genera un PDF A4 con varias etiquetas por hoja: QR, código, nombre y el "
+"logo de la organización. Imprime al 100 %% y recorta por la línea punteada."
+msgstr ""
+
+msgid "Tamaño de etiqueta"
+msgstr ""
+
+msgid ""
+"Pequeñas: 66 × 36 mm. Grandes: 99 × 57 mm, para equipos que se escanean a "
+"distancia."
+msgstr ""
+
+#, python-format
+msgid ""
+"La búsqueda tiene %(total)s activos y un PDF admite hasta %(max)s etiquetas. "
+"Filtra la lista o marca los activos de esta página."
+msgstr ""
+
+#, python-format
+msgid "PDF de %(n)s activo"
+msgid_plural "PDF de los %(n)s activos"
+msgstr[0] ""
+msgstr[1] ""
+
+msgid "PDF de los marcados"
+msgstr ""
+
+msgid ""
+"Las marcas valen para la página que ves; para imprimir de varias páginas, "
+"usa la búsqueda o el filtro de estado."
+msgstr ""
+
+msgid "Buscar"
+msgstr ""
+
+msgid "Buscar por código o nombre"
+msgstr ""
+
+msgid "Imprimir"
+msgstr ""
+
+#, python-format
+msgid "Imprimir la etiqueta de %(code)s"
+msgstr ""
+
+msgid "Avisar"
+msgstr ""
+
+msgid "No hay activos que coincidan."
+msgstr ""
+
+#, python-format
+msgid "Avisar falla en %(name)s"
+msgstr ""
+
+msgid "Enviar aviso"
+msgstr ""
+
+msgid "Se creará una orden de trabajo correctiva y se avisará a mantención."
+msgstr ""
+
+msgid ""
+"El cambio cierra el período del estado actual y abre uno nuevo. Los períodos "
+"detenido y en mantención descuentan de la disponibilidad."
+msgstr ""
+
+msgid "Almacenamiento"
+msgstr ""
+
+#, python-format
+msgid "%(used)s MB usados"
+msgstr ""
+
+msgid "Cupo lleno"
+msgstr ""
+
+msgid "Queda poco espacio"
+msgstr ""
+
+#, python-format
+msgid "%(used)s MB de %(quota)s MB usados"
+msgstr ""
+
+#, python-format
+msgid "%(n)s evento"
+msgid_plural "%(n)s eventos"
+msgstr[0] ""
+msgstr[1] ""
+
+msgid "Registro de solo lectura: nadie puede editarlo ni borrarlo."
+msgstr ""
+
+msgid "Filtrar"
+msgstr ""
+
+msgid "Limpiar"
+msgstr ""
+
+msgid "Eventos de auditoría"
+msgstr ""
+
+msgid "Objeto"
+msgstr ""
+
+msgid "Campos"
+msgstr ""
+
+msgid "No hay eventos con estos filtros."
+msgstr ""
+
+msgid "Saltar al contenido"
+msgstr ""
+
+msgid "GALBUST CMMS, inicio"
+msgstr ""
+
+msgid "Principal"
+msgstr ""
+
+msgid "Inicio"
+msgstr ""
+
+msgid "Órdenes de trabajo"
+msgstr ""
+
+msgid "Solicitudes"
+msgstr ""
+
+msgid "Más"
+msgstr ""
+
+msgid "Organización"
+msgstr ""
+
+msgid "Cambiar"
+msgstr ""
+
+msgid "Mi cuenta: cambiar contraseña"
+msgstr ""
+
+msgid "con tecnología de"
+msgstr ""
+
+msgid "Sistema de diseño"
+msgstr ""
+
+msgid "Navegación móvil"
+msgstr ""
+
+msgid "Sin organización"
+msgstr ""
+
+msgid "Tu usuario no pertenece a ninguna organización activa"
+msgstr ""
+
+msgid "Pide a tu administrador que te invite."
+msgstr ""
+
+msgid "Ir a la administración de plataforma"
+msgstr ""
+
+msgid "Volver a ubicaciones"
+msgstr ""
+
+msgid "Al moverla, las ubicaciones y activos que contiene se mueven con ella."
+msgstr ""
+
+msgid ""
+"Solo se puede eliminar si no contiene ubicaciones ni activos; si no, "
+"desactívala."
+msgstr ""
+
+msgid "Eliminar"
+msgstr ""
+
+msgid "Sitios, áreas y líneas en árbol. Los activos se ubican aquí."
+msgstr ""
+
+msgid "Árbol de ubicaciones"
+msgstr ""
+
+msgid "Aún no hay ubicaciones. Crea la primera: tu planta o sitio principal."
+msgstr ""
+
+msgid "Nueva ubicación"
+msgstr ""
+
+msgid "Configuración"
+msgstr ""
+
+msgid "Cierre de órdenes de trabajo"
+msgstr ""
+
+msgid "Nombres de los estados de OT"
+msgstr ""
+
+msgid ""
+"Cambia cómo se ven los estados en tu organización. En blanco se usa el "
+"nombre por defecto; el ícono de cada estado no cambia."
+msgstr ""
+
+msgid "Guardar nombres"
+msgstr ""
+
+msgid "Logo"
+msgstr ""
+
+msgid ""
+"Se imprime en las etiquetas QR de los activos. Sin logo, las etiquetas "
+"llevan el nombre de la organización."
+msgstr ""
+
+#, python-format
+msgid "Logo de %(name)s"
+msgstr ""
+
+msgid "Aún no hay logo."
+msgstr ""
+
+msgid "Guardar logo"
+msgstr ""
+
+msgid "Fin de la prueba"
+msgstr ""
+
+msgid "Uso de los cupos"
+msgstr ""
+
+msgid "Cupo"
+msgstr ""
+
+msgid "En uso"
+msgstr ""
+
+msgid "sobre el cupo"
+msgstr ""
+
+msgid "Sin límite"
+msgstr ""
+
+msgid "Para cambiar de plan o de cupos, escríbenos a soporte."
+msgstr ""
+
+#, python-format
+msgid "Hola, %(name)s"
+msgstr ""
+
+msgid "Mis OT abiertas"
+msgstr ""
+
+msgid "Ver todas"
+msgstr ""
+
+msgid "Indicadores"
+msgstr ""
+
+msgid "Cumplimiento preventivo"
+msgstr ""
+
+msgid "OT preventivas cerradas a tiempo"
+msgstr ""
+
+msgid "Equipos detenidos"
+msgstr ""
+
+msgid "Detenidos o en mantención"
+msgstr ""
+
+msgid "OT vencidas"
+msgstr ""
+
+#, python-format
+msgid "de %(n)s abiertas"
+msgstr ""
+
+msgid "OT prioritarias"
+msgstr ""
+
+msgid "Ver backlog"
+msgstr ""
+
+msgid "No hay OT abiertas."
+msgstr ""
+
+msgid "Equipos fuera de servicio"
+msgstr ""
+
+msgid "Todos los equipos operativos."
+msgstr ""
+
+msgid ""
+"Tokens y componentes base. Cambia el tema en la barra superior para revisar "
+"ambos modos."
+msgstr ""
+
+msgid "Colores"
+msgstr ""
+
+msgid ""
+"Los componentes usan solo tokens semánticos. Contraste AA verificado por "
+"tests/ui/test_contrast.py."
+msgstr ""
+
+msgid "Muestra"
+msgstr ""
+
+msgid "Tipografía"
+msgstr ""
+
+msgid "Título de página"
+msgstr ""
+
+msgid "Título de tarjeta"
+msgstr ""
+
+msgid ""
+"Texto corrido para descripciones y ayudas. La mantención preventiva evita "
+"detenciones."
+msgstr ""
+
+msgid "Botones"
+msgstr ""
+
+msgid "Primario"
+msgstr ""
+
+msgid "Secundario"
+msgstr ""
+
+msgid "Fantasma"
+msgstr ""
+
+msgid "Destructivo"
+msgstr ""
+
+msgid "Deshabilitado"
+msgstr ""
+
+msgid "Grande (técnico, 48 px)"
+msgstr ""
+
+msgid "Iniciar"
+msgstr ""
+
+msgid "Estados"
+msgstr ""
+
+msgid "Siempre ícono + texto; nunca solo color."
+msgstr ""
+
+msgid "Alertas"
+msgstr ""
+
+msgid "Aviso enviado. Se creó la OT-C-00042."
+msgstr ""
+
+msgid "Faltan 2 ítems obligatorios del checklist."
+msgstr ""
+
+msgid "Transición no permitida."
+msgstr ""
+
+msgid "La OT se generó automáticamente desde el plan."
+msgstr ""
+
+msgid "Formularios"
+msgstr ""
+
+msgid "Pierde aceite por el costado"
+msgstr ""
+
+msgid "Texto de ayuda."
+msgstr ""
+
+msgid "Presión"
+msgstr ""
+
+msgid "Fuera de rango (6,5 – 8 bar)."
+msgstr ""
+
+msgid "Checklist (vista de técnico)"
+msgstr ""
+
+msgid "Purgar condensado del estanque"
+msgstr ""
+
+msgid "Presión de trabajo"
+msgstr ""
+
+msgid "Valor medido"
+msgstr ""
+
+msgid "Rango aceptable"
+msgstr ""
+
+msgid "Fuera de rango"
+msgstr ""
+
+msgid "Observación (opcional)"
+msgstr ""
+
+msgid "Válvula de alivio con fuga leve"
+msgstr ""
+
+msgid "Observación guardada"
+msgstr ""
+
+msgid "Valor fuera de rango. Si requiere reparación, crea una OT correctiva."
+msgstr ""
+
+msgid "Crear correctiva"
+msgstr ""
+
+msgid "Estado de la correa (fotos por ítem)"
+msgstr ""
+
+msgid "Foto de ejemplo"
+msgstr ""
+
+msgid "Otra foto"
+msgstr ""
+
+msgid "Firma al completar"
+msgstr ""
+
+msgid "Acción de sección"
+msgstr ""
+
+msgid "opcional"
+msgstr ""
+
+msgid "Firma con el dedo dentro del recuadro."
+msgstr ""
+
+msgid "Firma lista: se guarda al completar la OT."
+msgstr ""
+
+msgid "Borrar firma"
+msgstr ""
+
+msgid "Firma registrada"
+msgstr ""
+
+msgid "Ejemplo de firma registrada"
+msgstr ""
+
+msgid "Grupo de campos"
+msgstr ""
+
+msgid "Solo para mediciones (opcional)"
+msgstr ""
+
+msgid "Grupo de casillas (selección múltiple)"
+msgstr ""
+
+msgid "Responsables en el detalle"
+msgstr ""
+
+msgid "Tarjetas KPI"
+msgstr ""
+
+msgid "de 18 abiertas"
+msgstr ""
+
+msgid "Filtros, listas y estado vacío"
+msgstr ""
+
+msgid "Ejemplo de filtro"
+msgstr ""
+
+msgid "Mantención mensual compresor"
+msgstr ""
+
+msgid "Gotera sobre la línea 2"
+msgstr ""
+
+msgid "No hay OT en esta vista."
+msgstr ""
+
+msgid "Vista previa del logo de la organización"
+msgstr ""
+
+msgid "Logo de ejemplo"
+msgstr ""
+
+msgid "Casilla de selección en tablas (etiquetas QR)"
+msgstr ""
+
+msgid "Imprimir la etiqueta de CMP-01"
+msgstr ""
+
+msgid "Lista de navegación (menú Más, ADR-017)"
+msgstr ""
+
+msgid "Secciones"
+msgstr ""
+
+msgid "Avisar problema en una ubicación"
+msgstr ""
+
+msgid "Catálogo de falla"
+msgstr ""
+
+msgid "Configuración de la organización"
+msgstr ""
+
+msgid "Administración de la plataforma"
+msgstr ""
+
+msgid "Organización activa"
+msgstr ""
+
+msgid "Cambiar de organización"
+msgstr ""
+
+msgid "Mi cuenta"
+msgstr ""
+
+msgid "Cambiar contraseña"
+msgstr ""
+
+msgid "En rango"
+msgstr ""
+
+msgid "Agregar foto"
+msgstr ""
+
+msgid "Subiendo foto…"
+msgstr ""
+
+msgid "Subir foto"
+msgstr ""
+
+msgid "Sin respuesta"
+msgstr ""
+
+msgid "Observación"
+msgstr ""
+
+#, python-format
+msgid "Foto %(n)s de «%(text)s»"
+msgstr ""
+
+msgid "Activa JavaScript para firmar en pantalla."
+msgstr ""
+
+msgid "Checklist"
+msgstr ""
+
+msgid "Checklist de la OT"
+msgstr ""
+
+msgid "Listo, volver a la OT"
+msgstr ""
+
+msgid "Usar el checklist de un plan"
+msgstr ""
+
+msgid ""
+"Se copian los ítems de la versión publicada del plan. Cambios posteriores al "
+"plan no alteran esta OT."
+msgstr ""
+
+msgid "Agregar ítems del plan"
+msgstr ""
+
+msgid "No hay planes con versión publicada. Agrega ítems propios."
+msgstr ""
+
+msgid "Agregar un ítem propio"
+msgstr ""
+
+msgid "Agregar ítem"
+msgstr ""
+
+msgid "Ítems actuales"
+msgstr ""
+
+msgid "Verificación"
+msgstr ""
+
+msgid "Opcional"
+msgstr ""
+
+msgid "Todavía no hay ítems."
+msgstr ""
+
+msgid "Nueva OT"
+msgstr ""
+
+msgid "Nueva orden de trabajo"
+msgstr ""
+
+msgid "El número correlativo lo asigna el sistema al guardar."
+msgstr ""
+
+msgid "Volver a OT"
+msgstr ""
+
+msgid "Crear OT"
+msgstr ""
+
+msgid "Límite"
+msgstr ""
+
+msgid "Vence a"
+msgstr ""
+
+msgid "Cancelar OT"
+msgstr ""
+
+msgid "Aprobar cierre"
+msgstr ""
+
+msgid "OT sobre una ubicación, sin activo"
+msgstr ""
+
+msgid "Estimación"
+msgstr ""
+
+msgid "min"
+msgstr ""
+
+msgid "Avisado por"
+msgstr ""
+
+msgid "Lectura al cerrar"
+msgstr ""
+
+msgid "Cierre"
+msgstr ""
+
+msgid "Firma de cierre"
+msgstr ""
+
+msgid "Cambiar responsables"
+msgstr ""
+
+msgid "Guardar responsables"
+msgstr ""
+
+msgid "Foto adjunta"
+msgstr ""
+
+msgid "Registro"
+msgstr ""
+
+msgid "Creada"
+msgstr ""
+
+msgid "Costos"
+msgstr ""
+
+msgid "Mano de obra"
+msgstr ""
+
+msgid "Repuestos y materiales"
+msgstr ""
+
+msgid "Otros costos"
+msgstr ""
+
+msgid "Concepto"
+msgstr ""
+
+msgid "Costo"
+msgstr ""
+
+msgid "h"
+msgstr ""
+
+msgid "Quitar"
+msgstr ""
+
+msgid "Agregar repuesto o material"
+msgstr ""
+
+msgid "Registrar horas"
+msgstr ""
+
+msgid "Agregar otro costo"
+msgstr ""
+
+msgid "Otro costo (servicio externo)"
+msgstr ""
+
+msgid "La OT está cerrada: los costos quedaron fijos."
+msgstr ""
+
+msgid "Agregar ítems"
+msgstr ""
+
+msgid "Agregar checklist"
+msgstr ""
+
+msgid ""
+"Esta OT aún no tiene checklist. Agrega el de un plan o ítems propios para "
+"que el técnico lo ejecute desde el celular."
+msgstr ""
+
+msgid "Terminar trabajo"
+msgstr ""
+
+#, python-format
+msgid ""
+"Costo registrado hasta ahora: $ %(total)s. Los minutos que ingreses se suman "
+"a la mano de obra."
+msgstr ""
+
+msgid "Ver costos"
+msgstr ""
+
+#, python-format
+msgid "Falta %(n)s ítem obligatorio del checklist."
+msgid_plural "Faltan %(n)s ítems obligatorios del checklist."
+msgstr[0] ""
+msgstr[1] ""
+
+msgid ""
+"¿Qué viste? ¿Qué hiciste? Escríbelo o díctalo con el micrófono del teclado: "
+"queda en el historial del equipo para la próxima falla."
+msgstr ""
+
+msgid "Registro de falla"
+msgstr ""
+
+msgid "Completar OT"
+msgstr ""
+
+#, python-format
+msgid "%(n)s código"
+msgid_plural "%(n)s códigos"
+msgstr[0] ""
+msgstr[1] ""
+
+msgid ""
+"Modo, causa, mecanismo y método de detección (ISO 14224). Editable; nunca se "
+"borra, se desactiva."
+msgstr ""
+
+msgid "Códigos de falla"
+msgstr ""
+
+msgid "Acciones"
+msgstr ""
+
+msgid "Inactivo"
+msgstr ""
+
+msgid "Renombrar"
+msgstr ""
+
+msgid "Activar"
+msgstr ""
+
+msgid "No hay códigos de este tipo todavía."
+msgstr ""
+
+msgid "Agregar código"
+msgstr ""
+
+#, python-format
+msgid "%(n)s OT"
+msgid_plural "%(n)s OT"
+msgstr[0] ""
+msgstr[1] ""
+
+msgid "Avisar problema"
+msgstr ""
+
+msgid "Filtro"
+msgstr ""
+
+msgid "Filtros"
+msgstr ""
+
+msgid "Limpiar filtros"
+msgstr ""
+
+msgid ""
+"Para un equipo, avisa desde su ficha o su código QR: así queda en su "
+"historial y puedes marcarlo como detenido."
+msgstr ""
+
+msgid ""
+"Se creará una orden de trabajo correctiva sobre la ubicación y se avisará a "
+"mantención."
+msgstr ""
+
+#, python-format
+msgid "%(n)s solicitud pendiente"
+msgid_plural "%(n)s solicitudes pendientes"
+msgstr[0] ""
+msgstr[1] ""
+
+msgid "Solicitudes pendientes"
+msgstr ""
+
+msgid "Solicitada por"
+msgstr ""
+
+msgid "Aceptar"
+msgstr ""
+
+msgid "Rechazar"
+msgstr ""
+
+msgid "Motivo del rechazo"
+msgstr ""
+
+msgid "Motivo del rechazo (obligatorio)"
+msgstr ""
+
+msgid "Confirmar rechazo"
+msgstr ""
+
+msgid "Fusionar"
+msgstr ""
+
+msgid "No hay solicitudes pendientes."
+msgstr ""
+
+msgid "Fusionar solicitud"
+msgstr ""
+
+msgid "Fusionar con"
+msgstr ""
+
+msgid "Elige la solicitud que se mantiene"
+msgstr ""
+
+msgid "No hay otras solicitudes abiertas de este activo."
+msgstr ""
+
+msgid "Volver"
+msgstr ""

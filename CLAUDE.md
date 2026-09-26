@@ -35,6 +35,7 @@ uv run python manage.py generate_preventive_work_orders
 uv run pytest
 uv run ruff check . ; uv run ruff format .
 uv run python manage.py makemigrations --check --dry-run
+uv run python manage.py makemessages                  # regenera locale/es/…/django.po (requiere GNU gettext)
 uv add <paquete>  /  uv add --dev <paquete>            # dependencias (pre-commit regenera requirements*.txt)
 ```
 
