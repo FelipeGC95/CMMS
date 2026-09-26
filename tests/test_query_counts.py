@@ -56,6 +56,7 @@ def _count(client, url):
     [
         "dashboard",
         "asset_list",
+        "asset_create",
         "work_order_list",
         "asset_labels",
         "design_system",
@@ -92,6 +93,41 @@ def test_work_order_list_with_filters_does_not_grow_with_rows(client, tenant_a):
     few = _count(client, f"{url}?{urlencode(params)}")
     _add_rows(tenant_a, 10)
     many = _count(client, f"{url}?{urlencode(params)}")
+    assert many == few
+
+
+def _add_components(tenant, n):
+    """Componentes del activo de conftest, cada uno con una falla (AST-02 CA2 / AST-03)."""
+    with tenant_context(tenant.org):
+        for _ in range(n):
+            child = Asset.objects.create(
+                code=f"C-{Asset.objects.count():03d}",
+                name="Componente",
+                asset_class=tenant.asset.asset_class,
+                parent=tenant.asset,
+                location=Location.objects.create(code=f"CL-{Asset.objects.count():03d}", name="Área"),
+            )
+            report_failure(membership=tenant.viewer, asset=tenant.asset, description="x", asset_stopped=True)
+            report_failure(membership=tenant.viewer, asset=child, description="y", asset_stopped=False)
+
+
+def test_asset_detail_queries_do_not_grow_with_components_and_failures(client, tenant_a):
+    login(client, tenant_a.admin)
+    url = reverse("asset_detail", args=[tenant_a.asset.pk])
+    _add_components(tenant_a, 2)
+    few = _count(client, url)
+    _add_components(tenant_a, 12)
+    many = _count(client, url)
+    assert many == few, f"asset_detail: {few} → {many} consultas"
+
+
+def test_asset_edit_queries_do_not_grow_with_rows(client, tenant_a):
+    login(client, tenant_a.admin)
+    url = reverse("asset_edit", args=[tenant_a.asset.pk])
+    _add_rows(tenant_a, 2)
+    few = _count(client, url)
+    _add_rows(tenant_a, 10)
+    many = _count(client, url)
     assert many == few
 
 

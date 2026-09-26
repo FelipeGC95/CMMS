@@ -1,0 +1,39 @@
+{% extends "base.html" %}{% load i18n ui %}
+{% block title %}{% if asset %}{% translate "Editar" %} {{ asset.code }}{% else %}{% translate "Nuevo activo" %}{% endif %}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    {% if asset %}<p class="muted mono">{{ asset.code }}</p>{% endif %}
+    <h1>{% if asset %}{% translate "Editar activo" %}{% else %}{% translate "Nuevo activo" %}{% endif %}</h1>
+    {% if not asset %}<p class="muted">{% translate "Solo el código, el nombre y la clase son obligatorios; el resto se puede completar después." %}</p>{% endif %}
+  </div>
+  <a class="btn btn--ghost" href="{% if asset %}{% url 'asset_detail' asset.pk %}{% else %}{% url 'asset_list' %}{% endif %}">{% if asset %}{% translate "Volver al activo" %}{% else %}{% translate "Volver a activos" %}{% endif %}</a>
+</div>
+
+<form method="post">
+  {% csrf_token %}
+  {% for error in form.non_field_errors %}<div class="alert alert--error" role="alert">{% icon 'stop' %}<span>{{ error }}</span></div>{% endfor %}
+  <div class="grid grid--2">
+    <section class="card" aria-labelledby="basic-title">
+      <h2 id="basic-title">{% translate "Datos básicos" %}</h2>
+      {% for field in form.basic_fields %}{% include "assets/_asset_field.html" %}{% endfor %}
+    </section>
+    <section class="card" aria-labelledby="place-title">
+      <h2 id="place-title">{% translate "Ubicación y jerarquía" %}</h2>
+      {% for field in form.place_fields %}{% include "assets/_asset_field.html" %}{% endfor %}
+    </section>
+    <section class="card" aria-labelledby="make-title">
+      <h2 id="make-title">{% translate "Fabricación" %}</h2>
+      {% for field in form.make_fields %}{% include "assets/_asset_field.html" %}{% endfor %}
+    </section>
+    <section class="card" aria-labelledby="attributes-title">
+      <h2 id="attributes-title">{% translate "Datos técnicos" %}</h2>
+      <p class="help muted">{% translate "Dependen de la clase elegida." %}</p>
+      <div id="asset-attributes" aria-live="polite">{% include "assets/_asset_attribute_fields.html" %}</div>
+    </section>
+  </div>
+  <div class="row mt-4">
+    <button class="btn btn--primary btn--lg" type="submit">{% if asset %}{% translate "Guardar cambios" %}{% else %}{% translate "Crear activo" %}{% endif %}</button>
+  </div>
+</form>
+{% endblock %}
