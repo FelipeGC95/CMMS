@@ -6,9 +6,10 @@
     <h1>{% translate "Órdenes de trabajo" %}</h1>
     <p class="muted">{% blocktranslate count n=page.paginator.count %}{{ n }} OT{% plural %}{{ n }} OT{% endblocktranslate %}</p>
   </div>
-  {% if membership|can:"work_order.manage" %}
-  <a class="btn btn--primary" href="{% url 'work_order_create' %}">{% translate "Nueva OT" %}</a>
-  {% endif %}
+  <div class="row">
+    {% if membership|can:"request.create" %}<a class="btn btn--secondary" href="{% url 'location_report' %}">{% icon 'megaphone' %}{% translate "Avisar problema" %}</a>{% endif %}
+    {% if membership|can:"work_order.manage" %}<a class="btn btn--primary" href="{% url 'work_order_create' %}">{% translate "Nueva OT" %}</a>{% endif %}
+  </div>
 </div>
 
 <nav class="chips" aria-label="{% translate 'Filtro' %}">

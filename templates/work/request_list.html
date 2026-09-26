@@ -15,7 +15,7 @@
     <thead>
       <tr>
         <th>{% translate "Fecha" %}</th>
-        <th>{% translate "Activo" %}</th>
+        <th>{% translate "Activo o ubicación" %}</th>
         <th>{% translate "Descripción" %}</th>
         <th>{% translate "Detenido" %}</th>
         <th>{% translate "Solicitada por" %}</th>
@@ -26,7 +26,7 @@
       {% for req in page.object_list %}
       <tr>
         <td data-label="{% translate 'Fecha' %}" class="num">{{ req.created_at|date:"d-m-Y H:i" }}</td>
-        <td data-label="{% translate 'Activo' %}"><a href="{% url 'asset_detail' req.asset_id %}">{{ req.asset.code }} · {{ req.asset.name }}</a></td>
+        <td data-label="{% translate 'Activo o ubicación' %}">{% if req.asset_id %}<a href="{% url 'asset_detail' req.asset_id %}">{% include "work/_target.html" with asset=req.asset %}</a>{% else %}{% include "work/_target.html" with location=req.location %}{% endif %}</td>
         <td data-label="{% translate 'Descripción' %}">{{ req.description|truncatechars:120 }}</td>
         <td data-label="{% translate 'Detenido' %}">{% if req.asset_stopped %}{% icon 'stop' %} {% translate "Sí" %}{% else %}—{% endif %}</td>
         <td data-label="{% translate 'Solicitada por' %}">{{ req.requested_by|default:_("Sistema") }}</td>

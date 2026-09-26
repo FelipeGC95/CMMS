@@ -15,15 +15,18 @@ from apps.accounts.permissions import Perm, PermissionDeniedError, has_perm
 from apps.attachments.models import Purpose, TargetType
 from apps.attachments.selectors import attachments_for
 from apps.core.decorators import membership_required
+from apps.ui.templatetags.ui import work_order_status_label
 
 from .forms import (
     ApplyChecklistForm,
+    AssigneesForm,
     ChecklistItemForm,
     ChecklistPhotoForm,
     CompleteWorkOrderForm,
     FailureCodeForm,
     FailureCodeRenameForm,
     LaborForm,
+    LocationRequestForm,
     OtherCostForm,
     PartUsageForm,
     WorkOrderCreateForm,
@@ -34,7 +37,7 @@ from .selectors import (
     checklist_photos,
     checklist_plan_versions,
     failure_code_list,
-    open_requests_for_asset,
+    open_requests_for_target,
     pending_requests,
     visible_requests,
     visible_work_orders,
@@ -62,7 +65,9 @@ from .services import (
     reject_request,
     remove_cost_line,
     rename_failure_code,
+    report_failure,
     save_checklist_note,
+    set_assignees,
     set_failure_code_active,
     transition,
     work_order_meter,
@@ -127,12 +132,17 @@ def work_order_list_view(request):
 def work_order_create_view(request):
     membership = request.membership
     # Precarga por querystring (p. ej. desde una medición fuera de rango, WO-03 CA2).
-    initial = {key: request.GET[key] for key in ("work_type", "asset", "title") if request.GET.get(key)}
+    keys = ("work_type", "asset", "location", "title")
+    initial = {key: request.GET[key] for key in keys if request.GET.get(key)}
     form = WorkOrderCreateForm(request.POST or None, initial=initial, membership=membership)
     if request.method == "POST" and form.is_valid():
-        work_order = create_work_order(by=request.user, **form.cleaned_data)
-        messages.success(request, _("%(code)s creada.") % {"code": work_order.code})
-        return redirect("work_order_detail", pk=work_order.pk)
+        try:
+            work_order = create_work_order(by=request.user, **form.cleaned_data)
+        except WorkOrderError as exc:
+            form.add_error(None, exc.message)
+        else:
+            messages.success(request, _("%(code)s creada.") % {"code": work_order.code})
+            return redirect("work_order_detail", pk=work_order.pk)
     return render(request, "work/create.html", {"form": form})
 
 
@@ -162,7 +172,8 @@ def _failure_initial(work_order):
 def _complete_form(work_order, data=None):
     meter = work_order_meter(work_order)
     plan = work_order.plan_assignment.plan if work_order.plan_assignment_id else None
-    with_failure = work_order.work_type == WorkOrder.Type.CORRECTIVE
+    # Los eventos de falla son por activo: una correctiva sobre una ubicación no los pide.
+    with_failure = work_order.work_type == WorkOrder.Type.CORRECTIVE and work_order.asset_id is not None
     return CompleteWorkOrderForm(
         data,
         initial=_failure_initial(work_order) if with_failure and data is None else None,
@@ -183,14 +194,22 @@ def _with_photos(items):
     return items
 
 
-def _detail_context(request, work_order, complete_form=None):
+def _detail_context(request, work_order, complete_form=None, assignees_form=None):
     targets = allowed_transitions(work_order=work_order, membership=request.membership)
     can_manage = has_perm(request.membership, Perm.WORK_ORDER_MANAGE)
+    can_assign = can_manage and work_order.status not in WorkOrder.CLOSED_STATUSES
+    if can_assign and assignees_form is None:
+        assignees_form = AssigneesForm(
+            initial={"assigned_to": work_order.assigned_to_id, "helpers": list(work_order.helpers.all())},
+            membership=request.membership,
+        )
     attachments = list(attachments_for(target_type=TargetType.WORK_ORDER, target_id=work_order.pk))
     signatures = [a for a in attachments if a.purpose == Purpose.SIGNATURE]
     return {
         "wo": work_order,
-        "transitions": [(s, WorkOrder.Status(s).label) for s in targets if s != WorkOrder.Status.COMPLETED],
+        "transitions": [(s, work_order_status_label(s)) for s in targets if s != WorkOrder.Status.COMPLETED],
+        "helpers": list(work_order.helpers.all()),
+        "assignees_form": assignees_form if can_assign else None,
         "can_execute": has_perm(request.membership, Perm.WORK_ORDER_EXECUTE) and work_order.is_open,
         "complete_form": complete_form or _complete_form(work_order),
         "pending_required": sum(1 for i in work_order.checklist.all() if i.required and not i.result),
@@ -235,9 +254,37 @@ def work_order_transition_view(request, pk):
     else:
         messages.success(
             request,
-            _("%(code)s: %(status)s.") % {"code": work_order.code, "status": work_order.get_status_display()},
+            _("%(code)s: %(status)s.")
+            % {"code": work_order.code, "status": work_order_status_label(work_order.status)},
         )
     return redirect("work_order_detail", pk=pk)
+
+
+@require_POST
+@membership_required(perm=Perm.WORK_ORDER_MANAGE)
+def work_order_assignees_view(request, pk):
+    """Cambia el responsable principal y los de apoyo (WO-01 CA2)."""
+    work_order = _get_detail_or_404(request, pk)
+    form = AssigneesForm(request.POST, membership=request.membership)
+    if form.is_valid():
+        try:
+            set_assignees(
+                work_order=work_order,
+                membership=request.membership,
+                assigned_to=form.cleaned_data["assigned_to"],
+                helpers=form.cleaned_data["helpers"],
+            )
+        except WorkOrderError as exc:
+            messages.error(request, exc.message)
+        except PermissionDeniedError as exc:
+            raise PermissionDenied from exc
+        else:
+            messages.success(request, _("Responsables actualizados."))
+            return redirect("work_order_detail", pk=pk)
+    work_order = work_order_detail(pk, membership=request.membership)
+    return render(
+        request, "work/detail.html", _detail_context(request, work_order, assignees_form=form), status=400
+    )
 
 
 @require_POST
@@ -340,7 +387,7 @@ def work_order_complete_view(request, pk):
 def work_order_checklist_view(request, pk):
     """Agregar checklist a una OT no preventiva: desde un plan publicado o ítems propios."""
     work_order = get_object_or_404(
-        visible_work_orders(membership=request.membership).select_related("asset"), pk=pk
+        visible_work_orders(membership=request.membership).select_related("asset", "location"), pk=pk
     )
     if not checklist_editable(work_order):
         messages.error(request, _("El checklist de esta OT ya no se puede cambiar."))
@@ -510,6 +557,40 @@ def cost_line_delete_view(request, pk, kind, line_pk):
     return _run_cost_action(request, pk, lambda: remove_cost_line(line=line, membership=request.membership))
 
 
+# --- Solicitudes (REQ-01) --------------------------------------------------------
+
+
+@membership_required(perm=Perm.REQUEST_CREATE)
+def location_report_view(request):
+    """Avisar un problema en una ubicación (REQ-01 CA1); el de un activo está en su ficha."""
+    membership = request.membership
+    initial = {"location": request.GET["location"]} if request.GET.get("location") else None
+    form = LocationRequestForm(
+        request.POST or None, request.FILES or None, initial=initial, membership=membership
+    )
+    if request.method == "POST" and form.is_valid():
+        try:
+            work_request = report_failure(
+                membership=membership,
+                location=form.cleaned_data["location"],
+                description=form.cleaned_data["description"],
+                photo=form.cleaned_data.get("photo"),
+                client_uuid=form.cleaned_data.get("client_uuid"),
+            )
+        except PermissionDeniedError as exc:
+            raise PermissionDenied from exc
+        except WorkOrderError as exc:
+            form.add_error(None, exc.message)
+        else:
+            messages.success(
+                request, _("Aviso enviado. Se creó la %(code)s.") % {"code": work_request.work_order.code}
+            )
+            if getattr(work_request, "photo_warning", ""):  # cupo lleno: el aviso va sin foto
+                messages.warning(request, work_request.photo_warning)
+            return redirect("work_order_detail", pk=work_request.work_order_id)
+    return render(request, "work/location_report.html", {"form": form})
+
+
 # --- Bandeja de solicitudes (REQ-01 CA3) ---------------------------------------
 
 
@@ -554,7 +635,7 @@ def request_reject_view(request, pk):
 @membership_required(perm=Perm.WORK_ORDER_MANAGE)
 def request_merge_view(request, pk):
     work_request = _get_request_or_404(request, pk)
-    candidates = open_requests_for_asset(asset=work_request.asset, exclude=work_request)
+    candidates = open_requests_for_target(work_request=work_request, membership=request.membership)
     if request.method == "POST":
         into = get_object_or_404(candidates, pk=request.POST.get("into", ""))
         try:

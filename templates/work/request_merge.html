@@ -4,7 +4,7 @@
 <div class="page-header">
   <div>
     <h1>{% translate "Fusionar solicitud" %}</h1>
-    <p class="muted">{{ work_request.asset.code }} · {{ work_request.asset.name }} — {{ work_request.description|truncatechars:200 }}</p>
+    <p class="muted">{% include "work/_target.html" with asset=work_request.asset location=work_request.location %} — {{ work_request.description|truncatechars:200 }}</p>
   </div>
 </div>
 

@@ -151,6 +151,20 @@
         <div class="field"><label for="ds-max">{% translate "Máximo" %}</label><input type="number" id="ds-max" class="num" value="14"></div>
       </div>
     </fieldset>
+    <h3>{% translate "Grupo de casillas (selección múltiple)" %}</h3>
+    <fieldset class="check-group">
+      <legend>{% translate "Apoyo" %}</legend>
+      <span class="help">{% translate "Otras personas que trabajan en la OT; también la ven en «Mis OT»." %}</span>
+      <div class="check-group__options">
+        <label class="check-group__option" for="ds-helper-1"><input type="checkbox" id="ds-helper-1" checked><span>Ana Técnica</span></label>
+        <label class="check-group__option" for="ds-helper-2"><input type="checkbox" id="ds-helper-2"><span>Pedro Supervisor</span></label>
+      </div>
+    </fieldset>
+    <h3>{% translate "Responsables en el detalle" %}</h3>
+    <dl class="dl">
+      <dt>{% translate "Responsable" %}</dt><dd>Ana Técnica</dd>
+      <dt>{% translate "Apoyo" %}</dt><dd><ul class="people"><li>Pedro Supervisor</li><li>Luis Eléctrico</li></ul></dd>
+    </dl>
   </section>
 </div>
 
@@ -169,6 +183,7 @@
   </nav>
   <ul class="list mb-4">
     <li><div class="list__main"><span class="list__title"><span class="mono">OT-P-00012</span> {% translate "Mantención mensual compresor" %}</span><span class="list__meta">CMP-01 · {% icon 'calendar' %} 30 Sep</span></div><span class="badge badge--neutral">{% icon 'dot' %}{% translate "Planificada" %}</span></li>
+    <li><div class="list__main"><span class="list__title"><span class="mono">OT-C-00031</span> {% translate "Gotera sobre la línea 2" %}</span><span class="list__meta">{% icon 'home' %}<span class="visually-hidden">{% translate "Ubicación" %}:</span> {% translate "Bodega" %} <span class="mono">(P1-BOD)</span></span></div><span class="badge badge--warning">{% icon 'wrench' %}{% translate "Solicitada" %}</span></li>
   </ul>
   <p class="empty">{% icon 'check' %} {% translate "No hay OT en esta vista." %}</p>
   <h3>{% translate "Lista de navegación (menú Más, ADR-017)" %}</h3>

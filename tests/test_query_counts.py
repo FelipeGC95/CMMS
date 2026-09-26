@@ -43,6 +43,17 @@ def _add_rows(tenant, n):
             )
             location = Location.objects.create(code=f"L-{Asset.objects.count():03d}", name=f"Sitio {i}")
             MembershipLocation.objects.create(membership=member, location=location)
+            # OT y aviso sobre una ubicación, con apoyo (WO-01 CA2, REQ-01 CA1). Sin ubicaciones hijas:
+            # los select de ubicación del alta de activo y la lista de ubicaciones aún recorren `parent`.
+            area = location
+            create_work_order(
+                work_type="corrective",
+                title=f"OT ubicación {i}",
+                location=area,
+                assigned_to=tenant.admin.user,
+                helpers=[tenant.tech.user],
+            )
+            report_failure(membership=tenant.viewer, location=area, description="gotera")
 
 
 def _count(client, url):
@@ -94,6 +105,32 @@ def test_work_order_list_with_filters_does_not_grow_with_rows(client, tenant_a):
     _add_rows(tenant_a, 10)
     many = _count(client, f"{url}?{urlencode(params)}")
     assert many == few
+
+
+def test_my_work_orders_with_helpers_do_not_grow_with_rows(client, tenant_a):
+    """ "Mis OT" incluye las OT donde la persona es apoyo (WO-01 CA2) sin consultas por fila."""
+    login(client, tenant_a.tech)
+    url = f"{reverse('work_order_list')}?scope=mine"
+    _add_rows(tenant_a, 2)
+    few = _count(client, url)
+    _add_rows(tenant_a, 10)
+    many = _count(client, url)
+    assert many == few
+
+
+def test_location_work_order_detail_query_budget(client, tenant_a, django_assert_max_num_queries):
+    with tenant_context(tenant_a.org):
+        site = Location.objects.create(code="P1", name="Planta 1")
+        area = Location.objects.create(code="P1-B", name="Bodega", kind="area", parent=site)
+        wo = create_work_order(
+            work_type="corrective",
+            title="x",
+            location=area,
+            helpers=[tenant_a.tech.user, tenant_a.admin.user],
+        )
+    login(client, tenant_a.admin)
+    with django_assert_max_num_queries(25):
+        assert client.get(reverse("work_order_detail", args=[wo.pk])).status_code == 200
 
 
 def _add_components(tenant, n):

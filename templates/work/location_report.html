@@ -1,0 +1,23 @@
+{% extends "base.html" %}{% load i18n ui %}
+{% block title %}{% translate "Avisar problema" %}{% endblock %}
+{% block content %}
+<div class="narrow">
+  <h1>{% translate "Avisar problema en una ubicación" %}</h1>
+  <p class="muted mb-4">{% translate "Para un equipo, avisa desde su ficha o su código QR: así queda en su historial y puedes marcarlo como detenido." %}</p>
+
+  <form class="card" method="post" enctype="multipart/form-data" novalidate>
+    {% csrf_token %}
+    {{ form.client_uuid }}
+    {% for error in form.non_field_errors %}<div class="alert alert--error" role="alert">{% icon 'stop' %}<span>{{ error }}</span></div>{% endfor %}
+    {% for field in form.visible_fields %}
+    <div class="field">
+      <label for="{{ field.id_for_label }}">{% if field.name == "photo" %}{% icon 'camera' %} {% endif %}{{ field.label }}</label>
+      {{ field }}
+      {% for error in field.errors %}<span class="error">{% icon 'stop' %}{{ error }}</span>{% endfor %}
+    </div>
+    {% endfor %}
+    <button class="btn btn--primary btn--lg btn--block" type="submit">{% icon 'megaphone' %}{% translate "Enviar aviso" %}</button>
+    <p class="help muted mt-2">{% translate "Se creará una orden de trabajo correctiva sobre la ubicación y se avisará a mantención." %}</p>
+  </form>
+</div>
+{% endblock %}

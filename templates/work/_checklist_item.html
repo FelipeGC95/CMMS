@@ -41,7 +41,7 @@
   </form>
   {% if item.item_type == "measurement" and item.result == "not_ok" %}
   <div class="alert alert--warning check-item__hint" role="status">{% icon 'alert' %}<span>{% translate "Valor fuera de rango. Si requiere reparación, crea una OT correctiva." %}
-    {% if can_manage %}<a href="{% url 'work_order_create' %}?work_type=corrective&amp;asset={{ item.work_order.asset_id }}&amp;title={{ item.text|urlencode }}">{% translate "Crear correctiva" %}</a>{% else %}<a href="{% url 'asset_report' item.work_order.asset_id %}">{% translate "Avisar falla" %}</a>{% endif %}</span></div>
+    {% if can_manage %}<a href="{% url 'work_order_create' %}?work_type=corrective&amp;{% if item.work_order.asset_id %}asset={{ item.work_order.asset_id }}{% else %}location={{ item.work_order.location_id }}{% endif %}&amp;title={{ item.text|urlencode }}">{% translate "Crear correctiva" %}</a>{% elif item.work_order.asset_id %}<a href="{% url 'asset_report' item.work_order.asset_id %}">{% translate "Avisar falla" %}</a>{% else %}<a href="{% url 'location_report' %}?location={{ item.work_order.location_id }}">{% translate "Avisar falla" %}</a>{% endif %}</span></div>
   {% endif %}
   {% else %}
     {% if item.result %}<span class="badge badge--{% if item.result == 'ok' %}success{% elif item.result == 'not_ok' %}error{% else %}neutral{% endif %}">{% if item.result == 'ok' %}{% icon 'check' %}{% elif item.result == 'not_ok' %}{% icon 'x' %}{% else %}{% icon 'dot' %}{% endif %}{{ item.get_result_display }}{% if item.value_number is not None %} · {{ item.value_number|floatformat:"-3" }} {{ item.unit }}{% endif %}</span>

@@ -65,6 +65,9 @@ urlpatterns = [
         work_views.work_order_complete_view,
         name="work_order_complete",
     ),
+    path(
+        "work-orders/<uuid:pk>/assignees/", work_views.work_order_assignees_view, name="work_order_assignees"
+    ),
     path("work-orders/<uuid:pk>/labor/", work_views.labor_add_view, name="work_order_labor_add"),
     path("work-orders/<uuid:pk>/parts/", work_views.part_add_view, name="work_order_part_add"),
     path(
@@ -90,6 +93,7 @@ urlpatterns = [
     ),
     path("files/<uuid:pk>/", attachment_view, name="attachment"),
     path("requests/", work_views.request_list_view, name="request_list"),
+    path("report/", work_views.location_report_view, name="location_report"),
     path("requests/<uuid:pk>/accept/", work_views.request_accept_view, name="request_accept"),
     path("requests/<uuid:pk>/reject/", work_views.request_reject_view, name="request_reject"),
     path("requests/<uuid:pk>/merge/", work_views.request_merge_view, name="request_merge"),

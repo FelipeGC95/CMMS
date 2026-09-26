@@ -1,10 +1,17 @@
-{% load ui %}{# Campos de un formulario con el sistema de diseño: {% include "_form_fields.html" with form=form %} #}
+{% load i18n ui %}{# Campos de un formulario con el sistema de diseño: {% include "_form_fields.html" with form=form %} #}
 {% for error in form.non_field_errors %}<div class="alert alert--error" role="alert">{% icon 'stop' %}<span>{{ error }}</span></div>{% endfor %}
 {% for field in form.hidden_fields %}{{ field }}{% endfor %}
 {% for field in form.visible_fields %}
 {% if field.widget_type == "checkbox" %}
 <div class="field field--check">{{ field }}<label for="{{ field.id_for_label }}">{{ field.label }}</label></div>
 {% if field.help_text %}<p class="help muted">{{ field.help_text }}</p>{% endif %}
+{% elif field.widget_type == "checkboxselectmultiple" %}
+<fieldset class="check-group">
+  <legend>{{ field.label }}{% if field.field.required %} *{% endif %}</legend>
+  {% if field.help_text %}<span class="help">{{ field.help_text }}</span>{% endif %}
+  <div class="check-group__options">{% for choice in field %}<label class="check-group__option" for="{{ choice.id_for_label }}">{{ choice.tag }}<span>{{ choice.choice_label }}</span></label>{% empty %}<span class="help">{% translate "No hay opciones." %}</span>{% endfor %}</div>
+  {% for error in field.errors %}<span class="error">{% icon 'stop' %}{{ error }}</span>{% endfor %}
+</fieldset>
 {% else %}
 <div class="field">
   <label for="{{ field.id_for_label }}">{{ field.label }}{% if field.field.required %} *{% endif %}</label>
