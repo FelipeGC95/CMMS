@@ -130,3 +130,22 @@ def test_only_asset_managers_configure_locations_and_classes(client, tenant_a, r
     assert (
         client.post(reverse("location_list"), {"code": "P", "name": "P", "kind": "site"}).status_code == 403
     )
+
+
+@pytest.mark.parametrize("role", Role.values)
+def test_only_admin_manages_the_organization(role):
+    assert has_perm(Membership(role=role), Perm.ORGANIZATION_MANAGE) is (role == Role.ADMIN)
+
+
+@pytest.mark.parametrize("role", ["planner", "supervisor", "technician", "viewer", "external"])
+def test_only_admin_opens_organization_settings(client, tenant_a, role):
+    member = tenant_a.tech
+    member.role = role
+    member.save()
+    login(client, member)
+    url = reverse("organization_settings")
+    assert client.get(url).status_code == 403
+    assert client.post(url, {"require_close_approval": "on"}).status_code == 403
+    tenant_a.org.refresh_from_db()
+    assert tenant_a.org.require_close_approval is False
+    assert url not in client.get(reverse("menu")).content.decode()

@@ -10,9 +10,9 @@ from apps.accounts.scoping import is_scoped
 from apps.core.decorators import membership_required
 
 from . import services
-from .forms import LocationForm
+from .forms import LocationForm, OrganizationSettingsForm
 from .models import Location
-from .selectors import descendant_ids, location_tree, visible_locations
+from .selectors import descendant_ids, location_tree, organization_quotas, visible_locations
 
 
 def _form_values(form):
@@ -96,3 +96,21 @@ def location_delete_view(request, pk):
         return redirect("location_edit", pk=pk)
     messages.success(request, _("Ubicación eliminada."))
     return redirect("location_list")
+
+
+@membership_required(perm=Perm.ORGANIZATION_MANAGE)
+def organization_settings_view(request):
+    """Configuración de la organización para su administrador (WO-02 CA2, REQ-03 CA2)."""
+    membership = request.membership
+    organization = membership.organization
+    initial = {field: getattr(organization, field) for field in services.SETTINGS_FIELDS}
+    form = OrganizationSettingsForm(request.POST or None, initial=initial)
+    if request.method == "POST" and form.is_valid():
+        services.update_organization_settings(membership=membership, **form.cleaned_data)
+        messages.success(request, _("Configuración guardada."))
+        return redirect("organization_settings")
+    return render(
+        request,
+        "organizations/settings.html",
+        {"form": form, "quotas": organization_quotas(membership=membership)},
+    )

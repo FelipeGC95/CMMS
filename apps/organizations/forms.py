@@ -24,3 +24,19 @@ class LocationForm(forms.Form):
         self.fields["parent"].queryset = parents
         # Con alcance por sitio no se crean ubicaciones principales.
         self.fields["parent"].required = parent_required
+
+
+class OrganizationSettingsForm(forms.Form):
+    require_close_approval = forms.BooleanField(
+        label=_("Requiere aprobación para cerrar OT"),
+        required=False,
+        help_text=_(
+            "Si está apagado, una OT completada pasa a cerrada automáticamente. "
+            "Si está encendido, un supervisor o planificador la revisa y la cierra."
+        ),
+    )
+    require_failure_details = forms.BooleanField(
+        label=_("Exigir modo y causa de falla"),
+        required=False,
+        help_text=_("Al completar una OT correctiva, el modo y la causa de la falla son obligatorios."),
+    )
