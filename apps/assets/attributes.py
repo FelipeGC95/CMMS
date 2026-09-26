@@ -59,7 +59,8 @@ def to_json(attribute, value):
     kind = attribute.data_type
     if kind == AttributeType.NUMBER:
         try:
-            return str(Decimal(str(value)).normalize())
+            # Formato fijo: normalize() a secas guarda 30 como "3E+1".
+            return f"{Decimal(str(value)).normalize():f}"
         except InvalidOperation as error:
             raise ValueError(_("%(label)s debe ser un número.") % {"label": attribute.label}) from error
     if kind == AttributeType.DATE:

@@ -1,6 +1,8 @@
 from django.db.models import Count, Q
 
 from apps.accounts.scoping import allowed_location_ids
+from apps.organizations.selectors import visible_locations
+from apps.work.models import FailureEvent
 
 from .models import Asset, AssetClass
 
@@ -17,10 +19,12 @@ def visible_assets(*, membership):
     return qs
 
 
-def asset_list(*, membership, search: str = "", status: str = ""):
+def asset_list(*, membership, search: str = "", status: str = "", parent=None):
     qs = (
         visible_assets(membership=membership).filter(is_active=True).select_related("asset_class", "location")
     )
+    if parent is not None:
+        qs = qs.filter(parent=parent)
     if search:
         qs = qs.filter(Q(code__icontains=search) | Q(name__icontains=search))
     if status:
@@ -42,3 +46,31 @@ def asset_class_list():
 
 def active_attributes(asset_class):
     return list(asset_class.attributes.filter(is_active=True).order_by("order", "label"))
+
+
+def asset_children(*, membership, asset):
+    """Componentes directos del activo (AST-03) que la membresía puede ver."""
+    return asset_list(membership=membership, parent=asset)
+
+
+def asset_status_history(asset):
+    """Cambios de estado del activo, del más reciente al más antiguo (AST-02 CA2)."""
+    return asset.status_periods.select_related("changed_by").order_by("-started_at")
+
+
+def asset_failure_history(asset):
+    """Fallas del activo o en las que fue el componente afectado (AST-02 CA2)."""
+    return (
+        FailureEvent.objects.filter(Q(asset=asset) | Q(component=asset))
+        .select_related("asset", "component", "failure_mode", "work_order")
+        .order_by("-started_at")
+    )
+
+
+def asset_form_choices(*, membership):
+    """Opciones del formulario de activo: clases activas, ubicaciones y padres dentro del alcance."""
+    return {
+        "classes": AssetClass.objects.filter(is_active=True).order_by("name"),
+        "locations": visible_locations(membership=membership).filter(is_active=True).order_by("name"),
+        "parents": visible_assets(membership=membership).filter(is_active=True).order_by("code"),
+    }

@@ -17,6 +17,7 @@
       {% if membership|can:"work_order.manage" %}<li><a href="{% url 'request_list' %}">{% icon 'megaphone' %}{% translate "Solicitudes" %}</a></li>{% endif %}
       {% if membership|can:"work_order.manage" %}<li><a href="{% url 'failure_code_list' %}">{% icon 'alert' %}{% translate "Catálogo de falla" %}</a></li>{% endif %}
       {% if membership|can:"asset.manage" %}
+      <li><a href="{% url 'asset_create' %}">{% icon 'box' %}{% translate "Nuevo activo" %}</a></li>
       <li><a href="{% url 'location_list' %}">{% icon 'home' %}{% translate "Ubicaciones" %}</a></li>
       <li><a href="{% url 'asset_class_list' %}">{% icon 'box' %}{% translate "Clases de activo" %}</a></li>
       {% endif %}

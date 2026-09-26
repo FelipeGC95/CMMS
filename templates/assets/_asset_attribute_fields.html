@@ -1,0 +1,4 @@
+{% load i18n %}{# Atributos de la clase elegida; htmx lo reemplaza al cambiar la clase. #}
+{% for field in form.attribute_fields %}{% include "assets/_asset_field.html" with field=field %}{% empty %}
+<p class="muted">{% if form.class_chosen %}{% translate "La clase elegida no tiene atributos técnicos." %}{% else %}{% translate "Elige una clase para ver sus atributos." %}{% endif %}</p>
+{% endfor %}
