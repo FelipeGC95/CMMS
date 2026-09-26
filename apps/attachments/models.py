@@ -22,11 +22,13 @@ def attachment_upload_to(instance, filename):
 class TargetType(models.TextChoices):
     ASSET = "asset", _("Activo")
     WORK_ORDER = "work_order", _("Orden de trabajo")
+    CHECKLIST_ITEM = "checklist_item", _("Ítem de checklist")
 
 
 class Purpose(models.TextChoices):
     PHOTO = "photo", _("Foto")
     DOCUMENT = "document", _("Documento")
+    SIGNATURE = "signature", _("Firma")
 
 
 class Attachment(TenantModel):

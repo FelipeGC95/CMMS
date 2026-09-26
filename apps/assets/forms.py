@@ -9,7 +9,12 @@ from .models import AssetClass, AttributeType
 
 
 class AssetAttachmentForm(forms.Form):
-    purpose = forms.ChoiceField(label=_("Tipo"), choices=Purpose.choices, initial=Purpose.DOCUMENT)
+    # La firma (Purpose.SIGNATURE) solo nace al completar una OT, no se sube a mano.
+    purpose = forms.ChoiceField(
+        label=_("Tipo"),
+        choices=[(p.value, p.label) for p in (Purpose.PHOTO, Purpose.DOCUMENT)],
+        initial=Purpose.DOCUMENT,
+    )
     file = forms.FileField(label=_("Archivo"), help_text=_("Fotos o documentos, hasta 20 MB."))
     # Generado al mostrar el formulario: un doble envío no duplica el adjunto.
     client_uuid = forms.UUIDField(widget=forms.HiddenInput, required=False, initial=uuid.uuid4)

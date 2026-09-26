@@ -12,6 +12,13 @@ def _target_is_visible(*, target_type: str, target_id, membership) -> bool:
         from apps.work.selectors import visible_work_orders
 
         return visible_work_orders(membership=membership).filter(pk=target_id).exists()
+    if target_type == TargetType.CHECKLIST_ITEM:
+        from apps.work.models import WorkOrderChecklistItem
+        from apps.work.selectors import visible_work_orders
+
+        return WorkOrderChecklistItem.objects.filter(
+            pk=target_id, work_order__in=visible_work_orders(membership=membership)
+        ).exists()
     if target_type == TargetType.ASSET:
         from apps.assets.selectors import visible_assets
 
