@@ -1,6 +1,6 @@
 {% extends "base.html" %}{% load static i18n ui %}
 {% block title %}{% translate "Sistema de diseño" %}{% endblock %}
-{% block extra_head %}<link rel="stylesheet" href="{% url 'design_system_css' %}">{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% url 'design_system_css' %}"><script src="{% static 'js/signature-pad.js' %}" defer></script>{% endblock %}
 {% block content %}
 <div class="page-header">
   <div>
@@ -107,7 +107,50 @@
         </div>
         <div class="alert alert--warning check-item__hint" role="status">{% icon 'alert' %}<span>{% translate "Valor fuera de rango. Si requiere reparación, crea una OT correctiva." %} <a href="#ds-checklist">{% translate "Crear correctiva" %}</a></span></div>
       </li>
+      <li class="check-item">
+        <div class="check-item__text"><span class="check-item__num">3.</span><span>{% translate "Estado de la correa (fotos por ítem)" %}</span></div>
+        <div class="check-item__photos">
+          <img class="thumb thumb--sm" src="{% static 'brand/galbust-app-icon-180.png' %}" alt="{% translate 'Foto de ejemplo' %}">
+          <img class="thumb thumb--sm" src="{% static 'brand/galbust-app-icon-180.png' %}" alt="{% translate 'Foto de ejemplo' %}">
+        </div>
+        <form class="photo-upload" action="#ds-checklist">
+          <input class="photo-upload__input" id="ds-photo" type="file" accept="image/*">
+          <label class="btn btn--secondary btn--lg photo-upload__button" for="ds-photo">{% icon 'camera' %}{% translate "Otra foto" %}</label>
+        </form>
+      </li>
     </ul>
+  </section>
+</div>
+
+<div class="grid grid--2 mb-4">
+  <section class="card" aria-labelledby="ds-signature">
+    <div class="section-header">
+      <h2 id="ds-signature">{% translate "Firma al completar" %}</h2>
+      <a class="btn btn--secondary" href="#ds-signature">{% icon 'list' %}{% translate "Acción de sección" %}</a>
+    </div>
+    <div class="field signature-pad" data-signature-pad>
+      <span class="signature-pad__label" id="ds-sign-label">{% translate "Firma" %} <span class="muted">({% translate "opcional" %})</span></span>
+      <canvas class="signature-pad__canvas" data-signature-canvas role="img" aria-labelledby="ds-sign-label"></canvas>
+      <input type="hidden" name="ds-signature">
+      <div class="signature-pad__footer">
+        <span class="help" data-signature-status data-empty="{% translate 'Firma con el dedo dentro del recuadro.' %}" data-signed="{% translate 'Firma lista: se guarda al completar la OT.' %}">{% translate "Firma con el dedo dentro del recuadro." %}</span>
+        <button class="btn btn--ghost" type="button" data-signature-clear>{% icon 'x' %}{% translate "Borrar firma" %}</button>
+      </div>
+    </div>
+    <h3>{% translate "Firma registrada" %}</h3>
+    <img class="signature-image" src="{% static 'brand/galbust-horizontal-monocromo.svg' %}" alt="{% translate 'Ejemplo de firma registrada' %}">
+  </section>
+
+  <section class="card" aria-labelledby="ds-fieldset">
+    <h2 id="ds-fieldset">{% translate "Grupo de campos" %}</h2>
+    <fieldset class="fieldset">
+      <legend>{% translate "Solo para mediciones (opcional)" %}</legend>
+      <div class="field-pair field-pair--3">
+        <div class="field"><label for="ds-unit">{% translate "Unidad" %}</label><input type="text" id="ds-unit" value="A"></div>
+        <div class="field"><label for="ds-min">{% translate "Mínimo" %}</label><input type="number" id="ds-min" class="num" value="10"></div>
+        <div class="field"><label for="ds-max">{% translate "Máximo" %}</label><input type="number" id="ds-max" class="num" value="14"></div>
+      </div>
+    </fieldset>
   </section>
 </div>
 
