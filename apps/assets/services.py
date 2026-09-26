@@ -7,9 +7,11 @@ from django.utils import timezone
 from django.utils.text import slugify
 from django.utils.translation import gettext
 
-from apps.accounts.permissions import Perm, require_perm
+from apps.accounts.permissions import Perm, PermissionDeniedError, require_perm
+from apps.accounts.scoping import allowed_location_ids
 from apps.audit import services as audit
 from apps.audit.models import AuditEvent
+from apps.organizations.models import Location
 
 from . import attributes as attribute_values
 from .models import (
@@ -22,6 +24,7 @@ from .models import (
     MeterKind,
     MeterReading,
 )
+from .selectors import visible_assets
 
 # Más de 24 h de uso por día en un horómetro indica un error de digitación.
 MAX_HOURS_PER_DAY = Decimal("24")
@@ -283,21 +286,7 @@ def set_asset_attributes(*, membership, asset, values: dict) -> Asset:
     Los valores de atributos desactivados o de otra clase se conservan (AST-01 CA3).
     """
     require_perm(membership, Perm.ASSET_MANAGE)
-    attributes = list(asset.asset_class.attributes.filter(is_active=True))
-    stored = dict(asset.attributes)
-    errors = []
-    for attribute in attributes:
-        try:
-            value = attribute_values.to_json(attribute, values.get(attribute.key))
-        except ValueError as error:
-            errors.append(str(error))
-            continue
-        if value is None:
-            if attribute.required:
-                errors.append(gettext("%(label)s es obligatorio.") % {"label": attribute.label})
-            stored.pop(attribute.key, None)
-        else:
-            stored[attribute.key] = value
+    stored, errors = _merge_attribute_values(asset.asset_class, asset.attributes, values)
     if errors:
         raise ValidationError(errors)
     changes = audit.diff(asset.attributes, stored)
@@ -310,4 +299,228 @@ def set_asset_attributes(*, membership, asset, values: dict) -> Asset:
             membership=membership,
             changes={"attributes": changes},
         )
+    return asset
+
+
+def _merge_attribute_values(asset_class, stored: dict, values: dict, *, enforce_required=True):
+    """Aplica `values` (por clave) sobre `stored` con los atributos activos de la clase.
+
+    Devuelve (nuevo_dict, errores). Los valores de atributos desactivados o de
+    otra clase se conservan (AST-01 CA3).
+    """
+    stored = dict(stored)
+    errors = []
+    for attribute in asset_class.attributes.filter(is_active=True):
+        try:
+            value = attribute_values.to_json(attribute, values.get(attribute.key))
+        except ValueError as error:
+            errors.append(str(error))
+            continue
+        if value is None:
+            if attribute.required and enforce_required:
+                errors.append(gettext("%(label)s es obligatorio.") % {"label": attribute.label})
+            stored.pop(attribute.key, None)
+        else:
+            stored[attribute.key] = value
+    return stored, errors
+
+
+# ---------- Alta y edición de activos (AST-02) y jerarquía (AST-03) ----------
+
+ASSET_FIELDS = [
+    "code",
+    "name",
+    "asset_class",
+    "location",
+    "parent",
+    "criticality",
+    "manufacturer",
+    "model",
+    "serial_number",
+    "year",
+    "in_service_on",
+]
+MAX_HIERARCHY_DEPTH = 100
+
+
+def creates_cycle(*, asset: Asset, parent: Asset) -> bool:
+    """True si `parent` es el propio activo o uno de sus descendientes (AST-03 CA1)."""
+    node_id, steps = parent.pk, 0
+    while node_id is not None and steps < MAX_HIERARCHY_DEPTH:
+        if node_id == asset.pk:
+            return True
+        node_id = Asset.objects.filter(pk=node_id).values_list("parent_id", flat=True).first()
+        steps += 1
+    return node_id is not None  # jerarquía anormalmente profunda: se trata como ciclo
+
+
+def _validate_asset(*, membership, asset, code, asset_class, location, parent, criticality, year):
+    """Reglas comunes de alta y edición. Lanza ValidationError por campo.
+
+    Toda referencia debe ser de la organización del contexto (el manager
+    filtra por ella) y, con alcance por sitio, estar dentro de sus sitios.
+    """
+    errors = {}
+    if not code:
+        errors["code"] = gettext("Indica el código.")
+    else:
+        duplicate = Asset.objects.filter(code__iexact=code)
+        if asset is not None:
+            duplicate = duplicate.exclude(pk=asset.pk)
+        if duplicate.exists():
+            errors["code"] = gettext("Ya existe un activo con el código %(code)s.") % {"code": code}
+
+    unchanged_class = asset is not None and asset_class.pk == asset.asset_class_id
+    classes = AssetClass.objects.all() if unchanged_class else AssetClass.objects.filter(is_active=True)
+    if not classes.filter(pk=asset_class.pk).exists():
+        errors["asset_class"] = gettext("Elige una clase de activo válida.")
+
+    if criticality not in Asset.Criticality.values:
+        errors["criticality"] = gettext("Criticidad inválida: usa A, B o C.")
+    if year is not None and not 1900 <= year <= timezone.localdate().year + 1:
+        errors["year"] = gettext("Año inválido.")
+
+    allowed = allowed_location_ids(membership)
+    if location is None:
+        if allowed is not None:
+            errors["location"] = gettext("Indica una ubicación de los sitios a los que tienes acceso.")
+    else:
+        unchanged_location = asset is not None and location.pk == asset.location_id
+        locations = Location.objects.all() if unchanged_location else Location.objects.filter(is_active=True)
+        if not locations.filter(pk=location.pk).exists():
+            errors["location"] = gettext("Elige una ubicación válida.")
+        elif allowed is not None and location.pk not in allowed:
+            errors["location"] = gettext("Esa ubicación está fuera de los sitios a los que tienes acceso.")
+
+    if parent is not None:
+        unchanged_parent = asset is not None and parent.pk == asset.parent_id
+        parents = visible_assets(membership=membership)
+        if not unchanged_parent:
+            parents = parents.filter(is_active=True)
+        if not parents.filter(pk=parent.pk).exists():
+            errors["parent"] = gettext("Elige un activo padre válido.")
+        elif asset is not None and creates_cycle(asset=asset, parent=parent):
+            errors["parent"] = gettext(
+                "Un activo no puede depender de sí mismo ni de uno de sus componentes."
+            )
+    if errors:
+        raise ValidationError(errors)
+
+
+@transaction.atomic
+def create_asset(
+    *,
+    membership,
+    code: str,
+    name: str,
+    asset_class: AssetClass,
+    location=None,
+    parent: Asset | None = None,
+    criticality: str = Asset.Criticality.B,
+    manufacturer: str = "",
+    model: str = "",
+    serial_number: str = "",
+    year: int | None = None,
+    in_service_on: datetime.date | None = None,
+    attributes: dict | None = None,
+) -> Asset:
+    """Alta de activo (AST-02). Solo código, nombre y clase son obligatorios (CA3).
+
+    Los atributos obligatorios de la clase no bloquean el alta rápida: se
+    exigen al editar la ficha.
+    """
+    require_perm(membership, Perm.ASSET_MANAGE)
+    code, name = code.strip(), name.strip()
+    _validate_asset(
+        membership=membership,
+        asset=None,
+        code=code,
+        asset_class=asset_class,
+        location=location,
+        parent=parent,
+        criticality=criticality,
+        year=year,
+    )
+    stored, errors = _merge_attribute_values(asset_class, {}, attributes or {}, enforce_required=False)
+    if errors:
+        raise ValidationError(errors)
+    asset = Asset.objects.create(
+        code=code,
+        name=name,
+        asset_class=asset_class,
+        location=location,
+        parent=parent,
+        criticality=criticality,
+        manufacturer=manufacturer.strip(),
+        model=model.strip(),
+        serial_number=serial_number.strip(),
+        year=year,
+        in_service_on=in_service_on,
+        attributes=stored,
+    )
+    # Período inicial: la disponibilidad se mide desde el alta (AST-04).
+    AssetStatusPeriod.objects.create(
+        asset=asset, status=asset.status, started_at=timezone.now(), changed_by=membership.user
+    )
+    audit.record(
+        action=AuditEvent.Action.CREATE,
+        target=asset,
+        membership=membership,
+        changes={**audit.snapshot(asset, ASSET_FIELDS), "attributes": stored},
+    )
+    return asset
+
+
+@transaction.atomic
+def update_asset(
+    *,
+    membership,
+    asset: Asset,
+    code: str,
+    name: str,
+    asset_class: AssetClass,
+    location=None,
+    parent: Asset | None = None,
+    criticality: str = Asset.Criticality.B,
+    manufacturer: str = "",
+    model: str = "",
+    serial_number: str = "",
+    year: int | None = None,
+    in_service_on: datetime.date | None = None,
+    attributes: dict | None = None,
+) -> Asset:
+    """Edita la ficha (AST-02). El estado no se edita aquí: cambia con `change_asset_status`.
+
+    `attributes=None` deja los valores de atributos como están.
+    """
+    require_perm(membership, Perm.ASSET_MANAGE)
+    allowed = allowed_location_ids(membership)
+    if allowed is not None and asset.location_id not in allowed:
+        raise PermissionDeniedError(Perm.ASSET_MANAGE)
+    code, name = code.strip(), name.strip()
+    _validate_asset(
+        membership=membership,
+        asset=asset,
+        code=code,
+        asset_class=asset_class,
+        location=location,
+        parent=parent,
+        criticality=criticality,
+        year=year,
+    )
+    stored = asset.attributes
+    if attributes is not None:
+        stored, errors = _merge_attribute_values(asset_class, asset.attributes, attributes)
+        if errors:
+            raise ValidationError(errors)
+    before = {**audit.snapshot(asset, ASSET_FIELDS), "attributes": asset.attributes}
+    asset.code, asset.name, asset.asset_class = code, name, asset_class
+    asset.location, asset.parent, asset.criticality = location, parent, criticality
+    asset.manufacturer, asset.model = manufacturer.strip(), model.strip()
+    asset.serial_number, asset.year, asset.in_service_on = serial_number.strip(), year, in_service_on
+    asset.attributes = stored
+    asset.save()
+    changes = audit.diff(before, {**audit.snapshot(asset, ASSET_FIELDS), "attributes": stored})
+    if changes:
+        audit.record(action=AuditEvent.Action.UPDATE, target=asset, membership=membership, changes=changes)
     return asset

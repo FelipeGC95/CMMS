@@ -1,0 +1,57 @@
+{% extends "base.html" %}{% load i18n ui %}
+{% block title %}{% translate "Configuración" %}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>{% translate "Configuración" %}</h1>
+    <p class="muted">{{ organization.name }}</p>
+  </div>
+</div>
+
+<div class="grid grid--2">
+  <section class="card" aria-labelledby="closing-title">
+    <h2 id="closing-title">{% translate "Cierre de órdenes de trabajo" %}</h2>
+    <form method="post">
+      {% csrf_token %}
+      <input type="hidden" name="section" value="closing">
+      {% include "_form_fields.html" with form=form %}
+      <button class="btn btn--primary" type="submit">{% translate "Guardar" %}</button>
+    </form>
+  </section>
+
+  <section class="card" id="status-labels" aria-labelledby="labels-title">
+    <h2 id="labels-title">{% translate "Nombres de los estados de OT" %}</h2>
+    <p class="muted">{% translate "Cambia cómo se ven los estados en tu organización. En blanco se usa el nombre por defecto; el ícono de cada estado no cambia." %}</p>
+    <form method="post" action="{% url 'organization_settings' %}#status-labels">
+      {% csrf_token %}
+      <input type="hidden" name="section" value="status_labels">
+      {% include "_form_fields.html" with form=labels_form %}
+      <button class="btn btn--primary" type="submit">{% translate "Guardar nombres" %}</button>
+    </form>
+  </section>
+
+  <section class="card" aria-labelledby="plan-title">
+    <h2 id="plan-title">{% translate "Plan" %}</h2>
+    <dl class="dl">
+      <dt>{% translate "Plan" %}</dt><dd>{{ organization.plan.name|default:"—" }}</dd>
+      <dt>{% translate "Estado" %}</dt><dd>{{ organization.get_status_display }}</dd>
+      {% if organization.trial_ends_at %}<dt>{% translate "Fin de la prueba" %}</dt><dd>{{ organization.trial_ends_at|date:"j M Y" }}</dd>{% endif %}
+      <dt>{% translate "Zona horaria" %}</dt><dd>{{ organization.timezone }}</dd>
+    </dl>
+    <h3 id="quotas-title" class="mt-4">{% translate "Uso de los cupos" %}</h3>
+    <table class="table" aria-labelledby="quotas-title">
+      <thead><tr><th>{% translate "Cupo" %}</th><th class="num">{% translate "En uso" %}</th><th class="num">{% translate "Máximo" %}</th></tr></thead>
+      <tbody>
+        {% for quota in quotas %}
+        <tr>
+          <td data-label="">{{ quota.label }}</td>
+          <td data-label="{% translate 'En uso' %}" class="num">{% if quota.is_over %}<span class="badge badge--warning">{% icon 'alert' %}{{ quota.used }} · {% translate "sobre el cupo" %}</span>{% else %}{{ quota.used }}{% endif %}</td>
+          <td data-label="{% translate 'Máximo' %}" class="num">{% if quota.limit is None %}{% translate "Sin límite" %}{% else %}{{ quota.limit }}{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <p class="muted mt-2">{% translate "Para cambiar de plan o de cupos, escríbenos a soporte." %}</p>
+  </section>
+</div>
+{% endblock %}

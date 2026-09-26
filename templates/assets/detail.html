@@ -7,7 +7,10 @@
     <h1>{{ asset.name }}</h1>
     <div class="row">{% status_badge asset %}<span class="badge badge--neutral">{% translate "Criticidad" %} {{ asset.criticality }}</span></div>
   </div>
-  <a class="btn btn--primary btn--lg" href="{% url 'asset_report' asset.pk %}">{% icon 'megaphone' %}{% translate "Avisar falla" %}</a>
+  <div class="row">
+    {% if can_manage %}<a class="btn btn--secondary btn--lg" href="{% url 'asset_edit' asset.pk %}">{% icon 'wrench' %}{% translate "Editar" %}</a>{% endif %}
+    <a class="btn btn--primary btn--lg" href="{% url 'asset_report' asset.pk %}">{% icon 'megaphone' %}{% translate "Avisar falla" %}</a>
+  </div>
 </div>
 
 <div class="grid grid--2">
@@ -21,9 +24,10 @@
       <dt>{% translate "Modelo" %}</dt><dd>{{ asset.model|default:"—" }}</dd>
       <dt>{% translate "N.º de serie" %}</dt><dd class="mono">{{ asset.serial_number|default:"—" }}</dd>
       <dt>{% translate "Año" %}</dt><dd>{{ asset.year|default:"—" }}</dd>
+      <dt>{% translate "Puesta en servicio" %}</dt><dd>{{ asset.in_service_on|date:"d-m-Y"|default:"—" }}</dd>
     </dl>
     {% if attribute_rows or can_manage %}
-    <h3 id="attributes-title">{% translate "Datos técnicos" %}</h3>
+    <h3 id="attributes-title" class="mt-4">{% translate "Datos técnicos" %}</h3>
     {% if attribute_rows %}
     <dl class="dl" aria-labelledby="attributes-title">
       {% for attribute, value in attribute_rows %}<dt>{{ attribute.label }}</dt><dd>{{ value }}</dd>{% endfor %}
@@ -98,11 +102,71 @@
   </section>
 </div>
 
+<section class="card mt-4" id="components" aria-labelledby="components-title">
+  <h2 id="components-title">{% translate "Componentes" %}</h2>
+  {% if children %}
+  <ul class="list">
+    {% for child in children %}
+    <li>
+      <div class="list__main">
+        <span class="list__title"><a href="{% url 'asset_detail' child.pk %}"><span class="mono">{{ child.code }}</span> · {{ child.name }}</a></span>
+        <span class="list__meta">{{ child.asset_class }}{% if child.location %} · {{ child.location }}{% endif %}</span>
+      </div>
+      {% status_badge child %}
+    </li>
+    {% endfor %}
+  </ul>
+  {% if children_count > history_limit %}<p><a href="{% url 'asset_list' %}?parent={{ asset.pk }}">{% blocktranslate with n=children_count %}Ver los {{ n }} componentes{% endblocktranslate %}</a></p>{% endif %}
+  {% else %}
+  <p class="muted">{% translate "Este activo no tiene componentes registrados." %}</p>
+  {% endif %}
+  {% if can_manage %}<div class="row mt-2"><a class="btn btn--ghost" href="{% url 'asset_create' %}?parent={{ asset.pk }}">{% icon 'box' %}{% translate "Agregar componente" %}</a></div>{% endif %}
+</section>
+
 <section class="card mt-4" aria-labelledby="hist-title">
   <h2 id="hist-title">{% translate "Historial" %}</h2>
   {% if history %}<ul class="list">{% for wo in history %}{% include "work/_wo_item.html" %}{% endfor %}</ul>
   {% else %}<p class="muted">{% translate "Aún no hay trabajos cerrados." %}</p>{% endif %}
 </section>
+
+<div class="grid grid--2 mt-4">
+  <section class="card" id="failures" aria-labelledby="failures-title">
+    <h2 id="failures-title">{% translate "Fallas" %}</h2>
+    {% if failures %}
+    <ul class="list">
+      {% for failure in failures %}
+      <li>
+        <div class="list__main">
+          <span class="list__title">{% if failure.failure_mode %}{{ failure.failure_mode.name }}{% elif failure.description %}{{ failure.description|truncatechars:80 }}{% else %}{% translate "Falla sin describir" %}{% endif %}</span>
+          <span class="list__meta">{{ failure.started_at|date:"d M Y H:i" }}{% if failure.asset_id != asset.pk %} · {% translate "en" %} {{ failure.asset.code }}{% elif failure.component %} · {% translate "componente" %} {{ failure.component.code }}{% endif %}{% if failure.work_order %} · <a href="{% url 'work_order_detail' failure.work_order_id %}">{{ failure.work_order.code }}</a>{% endif %}</span>
+        </div>
+        <span class="badge badge--{% if failure.impact == 'total_stop' %}error{% elif failure.impact == 'partial' %}warning{% else %}neutral{% endif %}">{% if failure.impact == 'none' %}{% icon 'dot' %}{% else %}{% icon 'alert' %}{% endif %}{{ failure.get_impact_display }}</span>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p class="muted">{% translate "Sin fallas registradas." %}</p>
+    {% endif %}
+  </section>
+  <section class="card" id="status-history" aria-labelledby="status-title">
+    <h2 id="status-title">{% translate "Cambios de estado" %}</h2>
+    {% if status_periods %}
+    <ul class="list">
+      {% for period in status_periods %}
+      <li>
+        <div class="list__main">
+          <span class="list__title">{% if period.ended_at %}{% blocktranslate with start=period.started_at|date:"d M Y H:i" end=period.ended_at|date:"d M Y H:i" %}{{ start }} a {{ end }}{% endblocktranslate %}{% else %}{% blocktranslate with start=period.started_at|date:"d M Y H:i" %}Desde el {{ start }} (vigente){% endblocktranslate %}{% endif %}</span>
+          {% if period.reason or period.changed_by %}<span class="list__meta">{{ period.reason }}{% if period.reason and period.changed_by %} · {% endif %}{% if period.changed_by %}{{ period.changed_by.short_name }}{% endif %}</span>{% endif %}
+        </div>
+        {% status_badge period %}
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p class="muted">{% translate "Sin cambios de estado registrados." %}</p>
+    {% endif %}
+  </section>
+</div>
 
 <section class="card mt-4" id="attachments" aria-labelledby="attachments-title">
   <h2 id="attachments-title">{% translate "Documentos y fotos" %}</h2>

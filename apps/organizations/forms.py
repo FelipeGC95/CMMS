@@ -2,6 +2,7 @@ from django import forms
 from django.utils.translation import gettext_lazy as _
 
 from .models import Location
+from .services import STATUS_LABEL_MAX_LENGTH
 
 
 class LocationForm(forms.Form):
@@ -24,3 +25,33 @@ class LocationForm(forms.Form):
         self.fields["parent"].queryset = parents
         # Con alcance por sitio no se crean ubicaciones principales.
         self.fields["parent"].required = parent_required
+
+
+class OrganizationSettingsForm(forms.Form):
+    require_close_approval = forms.BooleanField(
+        label=_("Requiere aprobación para cerrar OT"),
+        required=False,
+        help_text=_(
+            "Si está apagado, una OT completada pasa a cerrada automáticamente. "
+            "Si está encendido, un supervisor o planificador la revisa y la cierra."
+        ),
+    )
+    require_failure_details = forms.BooleanField(
+        label=_("Exigir modo y causa de falla"),
+        required=False,
+        help_text=_("Al completar una OT correctiva, el modo y la causa de la falla son obligatorios."),
+    )
+
+
+class WorkOrderStatusLabelsForm(forms.Form):
+    """Un campo por estado de OT; en blanco usa el nombre por defecto (WO-02 CA5)."""
+
+    def __init__(self, *args, choices, **kwargs):
+        super().__init__(*args, **kwargs)
+        for key, default in choices:
+            self.fields[key] = forms.CharField(
+                label=default,
+                max_length=STATUS_LABEL_MAX_LENGTH,
+                required=False,
+                widget=forms.TextInput(attrs={"placeholder": default}),
+            )

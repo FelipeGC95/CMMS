@@ -22,10 +22,21 @@ from apps.work.selectors import work_order_list
 from apps.work.services import WorkOrderError, report_failure
 
 from .attributes import attribute_rows
-from .forms import AssetAttachmentForm, MeterReadingForm
+from .forms import AssetAttachmentForm, AssetForm, MeterReadingForm
 from .models import Asset, Meter
-from .selectors import active_attributes, asset_by_qr_token, asset_list, visible_assets
-from .services import record_meter_reading
+from .selectors import (
+    active_attributes,
+    asset_by_qr_token,
+    asset_children,
+    asset_failure_history,
+    asset_list,
+    asset_status_history,
+    visible_assets,
+)
+from .services import create_asset, record_meter_reading, update_asset
+
+# La ficha muestra los últimos registros de cada historial; el resto, en su lista.
+HISTORY_LIMIT = 10
 
 
 def _qr_svg(request, asset, scale=4):
@@ -38,13 +49,27 @@ def _qr_svg(request, asset, scale=4):
 def asset_list_view(request):
     search = request.GET.get("q", "").strip()
     status = request.GET.get("status", "")
-    page = Paginator(asset_list(membership=request.membership, search=search, status=status), 25).get_page(
-        request.GET.get("page")
-    )
+    parent = None
+    if request.GET.get("parent"):
+        try:
+            parent = visible_assets(membership=request.membership).filter(pk=request.GET["parent"]).first()
+        except ValidationError:
+            parent = None
+        if parent is None:
+            raise Http404
+    assets = asset_list(membership=request.membership, search=search, status=status, parent=parent)
+    page = Paginator(assets, 25).get_page(request.GET.get("page"))
     return render(
         request,
         "assets/list.html",
-        {"page": page, "search": search, "status": status, "statuses": Asset.Status.choices},
+        {
+            "page": page,
+            "search": search,
+            "status": status,
+            "statuses": Asset.Status.choices,
+            "parent": parent,
+            "can_manage": has_perm(request.membership, Perm.ASSET_MANAGE),
+        },
     )
 
 
@@ -54,6 +79,7 @@ def asset_detail_view(request, pk):
         visible_assets(membership=request.membership).select_related("asset_class", "location", "parent"),
         pk=pk,
     )
+    children = asset_children(membership=request.membership, asset=asset)
     return render(
         request,
         "assets/detail.html",
@@ -70,11 +96,83 @@ def asset_detail_view(request, pk):
             "can_read_meters": has_perm(request.membership, Perm.METER_READING_CREATE),
             "can_manage": has_perm(request.membership, Perm.ASSET_MANAGE),
             "attribute_rows": attribute_rows(asset, active_attributes(asset.asset_class)),
-            "status_periods": asset.status_periods.all()[:10],
+            "status_periods": asset_status_history(asset)[:HISTORY_LIMIT],
+            "failures": asset_failure_history(asset)[:HISTORY_LIMIT],
+            "children": children[:HISTORY_LIMIT],
+            "children_count": children.count(),
+            "history_limit": HISTORY_LIMIT,
             "attachments": attachments_for(target_type=TargetType.ASSET, target_id=asset.pk),
             "attachment_form": AssetAttachmentForm(),
         },
     )
+
+
+@membership_required(perm=Perm.ASSET_MANAGE)
+def asset_create_view(request):
+    """Alta de activo (AST-02 CA1/CA3). `?parent=<id>` precarga el padre para agregar un componente."""
+    membership = request.membership
+    initial = {}
+    parent_id = request.GET.get("parent")
+    if parent_id:
+        try:
+            parent = visible_assets(membership=membership).filter(pk=parent_id, is_active=True).first()
+        except ValidationError:
+            parent = None
+        if parent is not None:
+            initial = {"parent": parent.pk, "location": parent.location_id}
+    form = AssetForm(request.POST or None, membership=membership, initial=initial)
+    if request.method == "POST" and form.is_valid():
+        try:
+            asset = create_asset(membership=membership, **form.service_kwargs())
+        except PermissionDeniedError as exc:
+            raise PermissionDenied from exc
+        except ValidationError as error:
+            form.add_error(None, error)
+        else:
+            messages.success(request, _("Activo %(code)s creado.") % {"code": asset.code})
+            return redirect("asset_detail", pk=asset.pk)
+    return render(request, "assets/asset_form.html", {"form": form, "asset": None})
+
+
+@membership_required(perm=Perm.ASSET_MANAGE)
+def asset_edit_view(request, pk):
+    membership = request.membership
+    asset = get_object_or_404(
+        visible_assets(membership=membership).select_related("asset_class"), pk=pk, is_active=True
+    )
+    form = AssetForm(request.POST or None, membership=membership, asset=asset)
+    if request.method == "POST" and form.is_valid():
+        try:
+            update_asset(membership=membership, asset=asset, **form.service_kwargs())
+        except PermissionDeniedError as exc:
+            raise PermissionDenied from exc
+        except ValidationError as error:
+            form.add_error(None, error)
+        else:
+            messages.success(request, _("Cambios guardados."))
+            return redirect("asset_detail", pk=asset.pk)
+    return render(request, "assets/asset_form.html", {"form": form, "asset": asset})
+
+
+@membership_required(perm=Perm.ASSET_MANAGE)
+def asset_attribute_fields_view(request):
+    """Fragmento htmx: campos de los atributos de la clase elegida en el formulario de activo."""
+    membership = request.membership
+    asset = None
+    asset_id = request.GET.get("asset")
+    if asset_id:
+        try:
+            asset = (
+                visible_assets(membership=membership)
+                .select_related("asset_class")
+                .filter(pk=asset_id)
+                .first()
+            )
+        except ValidationError:
+            asset = None
+    initial = {"asset_class": request.GET.get("asset_class", "")}
+    form = AssetForm(membership=membership, asset=asset, initial=initial)
+    return render(request, "assets/_asset_attribute_fields.html", {"form": form})
 
 
 @require_POST

@@ -4,9 +4,11 @@
 <div class="page-header">
   <div>
     <h1>{% if request.GET.report %}{% translate "¿Qué equipo falla?" %}{% else %}{% translate "Activos" %}{% endif %}</h1>
+    {% if parent %}<p class="muted">{% translate "Componentes de" %} <a href="{% url 'asset_detail' parent.pk %}">{{ parent }}</a></p>{% endif %}
     <p class="muted">{% if request.GET.report %}{% translate "Elige el equipo o escanea su código QR con la cámara." %}{% else %}{% blocktranslate count n=page.paginator.count %}{{ n }} activo{% plural %}{{ n }} activos{% endblocktranslate %}{% endif %}</p>
   </div>
   {% if not request.GET.report %}<div class="row">
+    {% if can_manage %}<a class="btn btn--primary" href="{% url 'asset_create' %}{% if parent %}?parent={{ parent.pk }}{% endif %}">{% icon 'box' %}{% if parent %}{% translate "Agregar componente" %}{% else %}{% translate "Nuevo activo" %}{% endif %}</a>{% endif %}
     {% if membership|can_import_assets %}<a class="btn btn--secondary" href="{% url 'asset_import' %}">{% icon 'box' %}{% translate "Importar desde Excel" %}</a>{% endif %}
     <a class="btn btn--ghost" href="{% url 'asset_labels' %}">{% icon 'print' %}{% translate "Imprimir etiquetas QR" %}</a>
     {% if membership|can:"asset.manage" %}<a class="btn btn--ghost" href="{% url 'location_list' %}">{% translate "Ubicaciones" %}</a>
@@ -16,6 +18,7 @@
 
 <form class="search-bar" method="get" role="search">
   {% if request.GET.report %}<input type="hidden" name="report" value="1">{% endif %}
+  {% if parent %}<input type="hidden" name="parent" value="{{ parent.pk }}">{% endif %}
   <label class="visually-hidden" for="q">{% translate "Buscar" %}</label>
   <input class="input" type="search" id="q" name="q" value="{{ search }}" placeholder="{% translate 'Buscar por código o nombre' %}">
   <label class="visually-hidden" for="status">{% translate "Estado" %}</label>

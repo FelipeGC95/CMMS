@@ -1,0 +1,11 @@
+{% load ui %}{# Un campo del formulario de activo: {% include "assets/_asset_field.html" with field=field %} #}
+{% if field.widget_type == "checkbox" %}
+<div class="field field--check">{{ field }}<label for="{{ field.id_for_label }}">{{ field.label }}</label></div>
+{% else %}
+<div class="field">
+  <label for="{{ field.id_for_label }}">{{ field.label }}{% if field.field.required %} *{% endif %}</label>
+  {{ field }}
+  {% if field.help_text %}<span class="help">{{ field.help_text }}</span>{% endif %}
+  {% for error in field.errors %}<span class="error">{% icon 'stop' %}{{ error }}</span>{% endfor %}
+</div>
+{% endif %}

@@ -136,6 +136,7 @@ class Asset(TenantModel):
     model = models.CharField(_("modelo"), max_length=100, blank=True)
     serial_number = models.CharField(_("n.º de serie"), max_length=100, blank=True)
     year = models.PositiveSmallIntegerField(_("año"), null=True, blank=True)
+    in_service_on = models.DateField(_("fecha de puesta en servicio"), null=True, blank=True)
     # Valores de los atributos de la clase por `key` (AST-01); JSON serializable (número y fecha como texto).
     attributes = models.JSONField(_("atributos"), default=dict, blank=True)
     qr_token = models.CharField(max_length=32, unique=True, default=new_qr_token, editable=False)

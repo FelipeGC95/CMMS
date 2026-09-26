@@ -4,6 +4,8 @@ from django import template
 from django.utils.html import format_html
 from django.utils.safestring import mark_safe
 
+from apps.core.tenancy import get_current_organization
+
 register = template.Library()
 
 # Íconos de trazo (24×24), heredan el color del texto.
@@ -69,15 +71,35 @@ _STATUS_TONES = {
 }
 
 
+def work_order_status_label(value):
+    """Nombre visible de un estado de OT: el propio de la organización activa o el traducido (WO-02 CA5).
+
+    Lee la organización del contexto de tenant, ya cargada por el middleware: sin consultas extra.
+    """
+    from apps.work.models import WorkOrder
+
+    organization = get_current_organization()
+    custom = (organization.work_order_status_labels or {}).get(value) if organization else None
+    if custom:
+        return custom
+    try:
+        return WorkOrder.Status(value).label
+    except ValueError:
+        return value
+
+
 @register.simple_tag
 def status_badge(obj):
     """Badge de estado con ícono + texto (nunca solo color)."""
+    from apps.work.models import WorkOrder
+
     tone = _STATUS_TONES.get(obj.status, "neutral")
+    label = work_order_status_label(obj.status) if isinstance(obj, WorkOrder) else obj.get_status_display()
     return format_html(
         '<span class="badge badge--{}">{}{}</span>',
         tone,
         icon(_TONE_ICON[tone]),
-        obj.get_status_display(),
+        label,
     )
 
 
@@ -119,12 +141,7 @@ def nav_current(context, *prefixes):
 
 @register.filter
 def status_label(value):
-    from apps.work.models import WorkOrder
-
-    try:
-        return WorkOrder.Status(value).label
-    except ValueError:
-        return value
+    return work_order_status_label(value)
 
 
 @register.filter

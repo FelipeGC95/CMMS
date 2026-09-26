@@ -1,8 +1,14 @@
+import math
 from dataclasses import dataclass
 
-from django.db.models import Count
+from django.db.models import Count, Sum
+from django.utils.translation import gettext as _
 
+from apps.accounts.models import Membership
 from apps.accounts.scoping import allowed_location_ids
+from apps.accounts.selectors import pending_invitations_qs
+from apps.assets.models import Asset
+from apps.attachments.models import Attachment
 
 from .models import Location
 
@@ -70,3 +76,35 @@ def descendant_ids(location) -> set:
                 found.add(child)
                 pending.append(child)
     return found
+
+
+@dataclass
+class QuotaRow:
+    label: str
+    used: int
+    limit: int | None  # None = ilimitado
+
+    @property
+    def is_over(self) -> bool:
+        return self.limit is not None and self.used > self.limit
+
+
+def organization_quotas(*, membership) -> list[QuotaRow]:
+    """Uso de los cupos del plan de la organización activa (solo lectura, ORG-01 CA1).
+
+    Usuarios cuenta miembros activos + invitaciones pendientes, igual que al invitar (ORG-05 CA3).
+    """
+    organization = membership.organization
+    plan = organization.plan
+    users = Membership.objects.filter(organization=organization, is_active=True).count()
+    users += pending_invitations_qs(organization).count()
+    storage_bytes = Attachment.objects.aggregate(total=Sum("size_bytes"))["total"] or 0
+    return [
+        QuotaRow(_("Activos"), Asset.objects.count(), plan.max_assets if plan else None),
+        QuotaRow(_("Usuarios"), users, plan.max_users if plan else None),
+        QuotaRow(
+            _("Almacenamiento (MB)"),
+            math.ceil(storage_bytes / (1024 * 1024)),
+            plan.max_storage_mb if plan else None,
+        ),
+    ]
