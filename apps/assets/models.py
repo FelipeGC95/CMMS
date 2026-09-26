@@ -158,6 +158,10 @@ class Asset(TenantModel):
         return f"{self.code} · {self.name}"
 
 
+# Estados que se eligen a mano (AST-04); "de baja" tiene su propio flujo con confirmación.
+MANUAL_STATUSES = (Asset.Status.OPERATIONAL, Asset.Status.STOPPED, Asset.Status.IN_MAINTENANCE)
+
+
 class AssetStatusPeriod(TenantModel):
     """Período continuo en un estado. Base del cálculo de disponibilidad."""
 
@@ -166,6 +170,13 @@ class AssetStatusPeriod(TenantModel):
     started_at = models.DateTimeField()
     ended_at = models.DateTimeField(null=True, blank=True)
     reason = models.CharField(max_length=200, blank=True)
+    # OT y falla que explican el cambio (AST-04 CA2); opcionales en cambios manuales.
+    work_order = models.ForeignKey(
+        "work.WorkOrder", on_delete=models.SET_NULL, null=True, blank=True, related_name="+"
+    )
+    failure_event = models.ForeignKey(
+        "work.FailureEvent", on_delete=models.SET_NULL, null=True, blank=True, related_name="+"
+    )
     changed_by = models.ForeignKey(
         "accounts.User", on_delete=models.SET_NULL, null=True, blank=True, related_name="+"
     )
