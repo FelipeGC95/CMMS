@@ -80,6 +80,14 @@ urlpatterns = [
         work_views.checklist_answer_view,
         name="checklist_answer",
     ),
+    path(
+        "work-orders/<uuid:pk>/items/<uuid:item_pk>/photos/",
+        work_views.checklist_photo_add_view,
+        name="checklist_photo_add",
+    ),
+    path(
+        "work-orders/<uuid:pk>/checklist/", work_views.work_order_checklist_view, name="work_order_checklist"
+    ),
     path("files/<uuid:pk>/", attachment_view, name="attachment"),
     path("requests/", work_views.request_list_view, name="request_list"),
     path("requests/<uuid:pk>/accept/", work_views.request_accept_view, name="request_accept"),

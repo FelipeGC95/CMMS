@@ -1,11 +1,15 @@
+import base64
+import binascii
 import uuid
 
 from django import forms
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.utils.translation import gettext_lazy as _
 
 from apps.accounts.models import User
 from apps.assets.models import Asset
 from apps.assets.selectors import visible_assets
+from apps.maintenance.models import ItemType
 from apps.organizations.models import Location
 from apps.organizations.selectors import visible_locations
 
@@ -40,6 +44,10 @@ class LocalDateTimeInput(forms.DateTimeInput):
 
 # Campos aptos para dictado por voz (ADR-018): texto libre, sin límite corto.
 DICTATION_ATTRS = {"rows": 3, "autocapitalize": "sentences", "spellcheck": "true"}
+
+
+SIGNATURE_PREFIX = "data:image/png;base64,"
+SIGNATURE_MAX_CHARS = 1_500_000  # ~1 MB de PNG: una firma real pesa decenas de KB.
 
 
 class CompleteWorkOrderForm(forms.Form):
@@ -91,6 +99,8 @@ class CompleteWorkOrderForm(forms.Form):
     meter_value = forms.DecimalField(
         label=_("Lectura del medidor"), min_value=0, max_digits=14, decimal_places=3
     )
+    # Firma dibujada en pantalla (WO-03 CA3): static/js/signature-pad.js deja aquí un PNG en base64.
+    signature = forms.CharField(widget=forms.HiddenInput, required=False, max_length=SIGNATURE_MAX_CHARS)
 
     FAILURE_FIELDS = (
         "symptom",
@@ -142,6 +152,19 @@ class CompleteWorkOrderForm(forms.Form):
             for name in self.FAILURE_FIELDS:
                 del self.fields[name]
             self.order_fields(["labor_minutes", "notes"])
+
+    def clean_signature(self):
+        """Convierte la firma (data URL PNG) en un archivo; vacío = sin firma (es opcional)."""
+        data = self.cleaned_data.get("signature", "")
+        if not data:
+            return None
+        if not data.startswith(SIGNATURE_PREFIX):
+            raise forms.ValidationError(_("La firma no es válida. Bórrala y vuelve a firmar."))
+        try:
+            content = base64.b64decode(data[len(SIGNATURE_PREFIX) :], validate=True)
+        except (binascii.Error, ValueError) as error:
+            raise forms.ValidationError(_("La firma no es válida. Bórrala y vuelve a firmar.")) from error
+        return SimpleUploadedFile("firma.png", content, content_type="image/png")
 
     def clean(self):
         cleaned = super().clean()
@@ -257,3 +280,57 @@ class WorkOrderCreateForm(forms.Form):
             visible_assets(membership=membership).filter(is_active=True).order_by("code")
         )
         self.fields["assigned_to"].queryset = assignable_members(membership=membership)
+
+
+class ApplyChecklistForm(forms.Form):
+    """Elegir un plan publicado cuyo checklist se copia a la OT (sugeridos primero)."""
+
+    plan_version = forms.ChoiceField(label=_("Plan"))
+
+    def __init__(self, *args, versions, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.versions = {str(v.pk): v for v in versions}
+
+        def option(version):
+            label = _("%(plan)s · v%(number)s (%(count)s ítems)") % {
+                "plan": version.plan.name,
+                "number": version.number,
+                "count": version.item_count,
+            }
+            return (str(version.pk), label)
+
+        suggested = [option(v) for v in versions if v.suggested]
+        others = [option(v) for v in versions if not v.suggested]
+        choices = [("", _("Elige un plan"))]
+        if suggested:
+            choices.append((_("Sugeridos para este activo"), suggested))
+        if others:
+            choices.append((_("Otros planes") if suggested else _("Planes"), others))
+        self.fields["plan_version"].choices = choices
+
+    def clean_plan_version(self):
+        return self.versions[self.cleaned_data["plan_version"]]
+
+
+class ChecklistItemForm(forms.Form):
+    """Ítem propio agregado a una OT no preventiva."""
+
+    text = forms.CharField(label=_("Tarea"), max_length=250)
+    item_type = forms.ChoiceField(label=_("Tipo"), choices=ItemType.choices, initial=ItemType.CHECK)
+    unit = forms.CharField(label=_("Unidad"), max_length=20, required=False)
+    min_value = forms.DecimalField(label=_("Mínimo"), max_digits=14, decimal_places=3, required=False)
+    max_value = forms.DecimalField(label=_("Máximo"), max_digits=14, decimal_places=3, required=False)
+    required = forms.BooleanField(label=_("Obligatorio para completar la OT"), required=False, initial=True)
+
+    def clean(self):
+        cleaned = super().clean()
+        low, high = cleaned.get("min_value"), cleaned.get("max_value")
+        if low is not None and high is not None and low > high:
+            self.add_error("max_value", _("El máximo no puede ser menor que el mínimo."))
+        return cleaned
+
+
+class ChecklistPhotoForm(forms.Form):
+    photo = forms.FileField(label=_("Foto"))
+    # Generado al mostrar el formulario: un reintento no duplica la foto.
+    client_uuid = forms.UUIDField(widget=forms.HiddenInput, required=False)

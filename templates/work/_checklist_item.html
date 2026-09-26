@@ -29,6 +29,16 @@
       <span class="help" id="note-status-{{ item.pk }}" role="status"></span>
     </div>
   </form>
+  {% include "work/_checklist_photos.html" %}
+  <form class="photo-upload" method="post" enctype="multipart/form-data" action="{% url 'checklist_photo_add' item.work_order_id item.pk %}"
+        hx-post="{% url 'checklist_photo_add' item.work_order_id item.pk %}" hx-encoding="multipart/form-data" hx-trigger="change"
+        hx-target="#item-{{ item.pk }}" hx-swap="outerHTML">
+    {% csrf_token %}<input type="hidden" name="client_uuid" value="{{ item.photo_uuid }}">
+    <input class="photo-upload__input" id="photo-{{ item.pk }}" type="file" name="photo" accept="image/*">
+    <label class="btn btn--secondary btn--lg photo-upload__button" for="photo-{{ item.pk }}">{% icon 'camera' %}{% if item.photos %}{% translate "Otra foto" %}{% else %}{% translate "Agregar foto" %}{% endif %}</label>
+    <span class="photo-upload__busy" role="status">{% translate "Subiendo foto…" %}</span>
+    <noscript><button class="btn btn--secondary btn--lg" type="submit">{% translate "Subir foto" %}</button></noscript>
+  </form>
   {% if item.item_type == "measurement" and item.result == "not_ok" %}
   <div class="alert alert--warning check-item__hint" role="status">{% icon 'alert' %}<span>{% translate "Valor fuera de rango. Si requiere reparación, crea una OT correctiva." %}
     {% if can_manage %}<a href="{% url 'work_order_create' %}?work_type=corrective&amp;asset={{ item.work_order.asset_id }}&amp;title={{ item.text|urlencode }}">{% translate "Crear correctiva" %}</a>{% else %}<a href="{% url 'asset_report' item.work_order.asset_id %}">{% translate "Avisar falla" %}</a>{% endif %}</span></div>
@@ -37,5 +47,6 @@
     {% if item.result %}<span class="badge badge--{% if item.result == 'ok' %}success{% elif item.result == 'not_ok' %}error{% else %}neutral{% endif %}">{% if item.result == 'ok' %}{% icon 'check' %}{% elif item.result == 'not_ok' %}{% icon 'x' %}{% else %}{% icon 'dot' %}{% endif %}{{ item.get_result_display }}{% if item.value_number is not None %} · {{ item.value_number|floatformat:"-3" }} {{ item.unit }}{% endif %}</span>
     {% else %}<span class="muted">{% translate "Sin respuesta" %}</span>{% endif %}
     {% if item.note %}<p class="check-item__note-text"><span class="muted">{% translate "Observación" %}:</span> {{ item.note }}</p>{% endif %}
+    {% include "work/_checklist_photos.html" %}
   {% endif %}
 </li>

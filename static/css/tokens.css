@@ -75,6 +75,10 @@
   --content-max: 1200px;
   /* El QR y las etiquetas impresas van siempre sobre blanco para escanear bien. */
   --color-qr-bg: #FFFFFF;
+  /* La firma se dibuja siempre como tinta sobre papel (también en modo oscuro):
+     la imagen guardada se ve igual en pantalla, en PDF e impresa. */
+  --color-signature-bg: #FFFFFF;
+  --color-signature-ink: #0B2E4F;
 }
 
 /* Modo oscuro. static/js/theme.js fija data-theme antes de pintar según la

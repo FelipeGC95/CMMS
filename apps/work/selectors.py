@@ -1,9 +1,12 @@
-from django.db.models import Q
+from django.db.models import BooleanField, Case, Count, Exists, F, OuterRef, Q, Value, When
 from django.utils import timezone
 
 from apps.accounts.models import User
 from apps.accounts.permissions import ROLE_PERMISSIONS, Perm, require_perm
 from apps.accounts.scoping import allowed_location_ids
+from apps.attachments.models import TargetType
+from apps.attachments.selectors import attachments_by_target
+from apps.maintenance.models import PlanAssignment, PlanVersion
 from apps.organizations.selectors import descendant_ids
 
 from .models import FailureCode, WorkOrder, WorkRequest
@@ -147,3 +150,37 @@ def failure_code_list(*, kind: str = ""):
     if kind:
         qs = qs.filter(kind=kind)
     return qs.order_by("kind", "name")
+
+
+# --- Checklist de OT no preventivas (WO-03) ------------------------------------
+
+
+def checklist_plan_versions(*, work_order):
+    """Versiones vigentes (publicadas) de planes activos para aplicar su checklist a la OT.
+
+    Primero las sugeridas: planes asignados al activo o de su clase (`suggested`).
+    """
+    asset = work_order.asset
+    assigned = PlanAssignment.objects.filter(plan_id=OuterRef("plan_id"), asset=asset, is_active=True)
+    suggested = Q(Exists(assigned))
+    if asset.asset_class_id:
+        suggested |= Q(plan__asset_class_id=asset.asset_class_id)
+    return (
+        PlanVersion.objects.filter(
+            status=PlanVersion.Status.PUBLISHED, plan__is_active=True, plan__current_version=F("pk")
+        )
+        .select_related("plan")
+        .annotate(
+            item_count=Count("items"),
+            suggested=Case(
+                When(suggested, then=Value(True)), default=Value(False), output_field=BooleanField()
+            ),
+        )
+        .filter(item_count__gt=0)
+        .order_by("-suggested", "plan__name")
+    )
+
+
+def checklist_photos(*, items) -> dict:
+    """Fotos de los ítems del checklist en una sola consulta: {item_id: [adjuntos]}."""
+    return attachments_by_target(target_type=TargetType.CHECKLIST_ITEM, target_ids=[i.pk for i in items])

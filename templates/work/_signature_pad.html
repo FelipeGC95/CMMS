@@ -1,0 +1,11 @@
+{% load i18n ui %}<div class="field signature-pad" data-signature-pad>
+  <span class="signature-pad__label" id="{{ field.auto_id }}-label">{% translate "Firma" %} <span class="muted">({% translate "opcional" %})</span></span>
+  <canvas class="signature-pad__canvas" data-signature-canvas role="img" aria-labelledby="{{ field.auto_id }}-label" aria-describedby="{{ field.auto_id }}-help"></canvas>
+  {{ field }}
+  <div class="signature-pad__footer">
+    <span class="help" id="{{ field.auto_id }}-help" data-signature-status data-empty="{% translate 'Firma con el dedo dentro del recuadro.' %}" data-signed="{% translate 'Firma lista: se guarda al completar la OT.' %}">{% translate "Firma con el dedo dentro del recuadro." %}</span>
+    <button class="btn btn--ghost" type="button" data-signature-clear>{% icon 'x' %}{% translate "Borrar firma" %}</button>
+  </div>
+  <noscript><span class="help">{% translate "Activa JavaScript para firmar en pantalla." %}</span></noscript>
+  {% for error in field.errors %}<span class="error">{% icon 'stop' %}{{ error }}</span>{% endfor %}
+</div>
