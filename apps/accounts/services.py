@@ -14,7 +14,7 @@ from apps.core.middleware import SESSION_KEY
 from apps.organizations.models import Location, Organization
 
 from .models import Invitation, Membership, MembershipLocation, User
-from .permissions import Perm, require_perm
+from .permissions import Perm, PermissionDeniedError, require_perm
 from .selectors import hash_token, pending_invitations_qs
 
 INVITATION_TTL = datetime.timedelta(days=7)
@@ -86,10 +86,38 @@ def _send_invitation_email(invitation, accept_url):
 def invite_member(*, membership, email, role, base_url):
     """Invita por correo con un rol. El enlace dura 7 días y es de un solo uso (token guardado como hash)."""
     require_perm(membership, Perm.TEAM_MANAGE)
+    return _issue_invitation(
+        organization_id=membership.organization_id,
+        email=email,
+        role=role,
+        invited_by=membership.user,
+        base_url=base_url,
+    )
+
+
+@transaction.atomic
+def invite_first_admin(*, actor, organization, email, base_url):
+    """Invitación del primer administrador al dar de alta la organización (ORG-01 CA2).
+
+    Solo la emite el superadmin de plataforma (ORG-01 CA3); no requiere membresía.
+    """
+    if actor is None or not actor.is_superuser:
+        raise PermissionDeniedError("platform_admin")
+    return _issue_invitation(
+        organization_id=organization.pk,
+        email=email,
+        role=Membership.Role.ADMIN,
+        invited_by=actor,
+        base_url=base_url,
+    )
+
+
+def _issue_invitation(*, organization_id, email, role, invited_by, base_url):
+    """Crea la invitación y encola el correo; se llama dentro de una transacción."""
     if role not in Membership.Role.values:
         raise TeamError(_("Rol no válido."))
     # Bloquea la organización: dos invitaciones simultáneas no superan el cupo.
-    organization = Organization.objects.select_for_update().get(pk=membership.organization_id)
+    organization = Organization.objects.select_for_update().get(pk=organization_id)
     email = email.strip().lower()
     if Membership.objects.filter(
         organization=organization, user__email__iexact=email, is_active=True
@@ -106,7 +134,7 @@ def invite_member(*, membership, email, role, base_url):
         email=email,
         role=role,
         token_hash=hash_token(token),
-        invited_by=membership.user,
+        invited_by=invited_by,
         expires_at=now + INVITATION_TTL,
     )
     accept_url = base_url.rstrip("/") + reverse("invitation_accept", args=[token])
