@@ -1,5 +1,5 @@
 {% load static i18n ui accounts_tags %}<!doctype html>
-<html lang="es">
+{% get_current_language as LANGUAGE_CODE %}<html lang="{{ LANGUAGE_CODE }}">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -20,7 +20,7 @@
   {% if user.is_authenticated %}
   <header class="navbar">
     <div class="navbar__inner">
-      <a class="brand" href="{% url 'dashboard' %}" aria-label="GALBUST CMMS, inicio">
+      <a class="brand" href="{% url 'dashboard' %}" aria-label="{% translate 'GALBUST CMMS, inicio' %}">
         <img class="brand__logo--full" src="{% static 'brand/galbust-horizontal-negativo.svg' %}" alt="GALBUST" width="118" height="28">
         <img class="brand__logo--iso" src="{% static 'brand/galbust-isotipo-blanco.svg' %}" alt="GALBUST" width="28" height="28">
         <span class="brand__product">CMMS</span>

@@ -36,7 +36,7 @@
       {% endif %}
       <dt>{% translate "Responsable" %}</dt><dd>{{ wo.assigned_to|default:"—" }}</dd>
       {% if helpers %}<dt>{% translate "Apoyo" %}</dt><dd><ul class="people">{% for person in helpers %}<li>{{ person }}</li>{% endfor %}</ul></dd>{% endif %}
-      {% if wo.estimated_minutes %}<dt>{% translate "Estimación" %}</dt><dd class="num">{{ wo.estimated_minutes }} min</dd>{% endif %}
+      {% if wo.estimated_minutes %}<dt>{% translate "Estimación" %}</dt><dd class="num">{{ wo.estimated_minutes }} {% translate "min" %}</dd>{% endif %}
       {% if wo.request %}<dt>{% translate "Avisado por" %}</dt><dd>{{ wo.request.requested_by|default:"—" }} · {{ wo.request.created_at|date:"d M H:i" }}</dd>{% endif %}
       {% if wo.meter_value_at_completion is not None %}<dt>{% translate "Lectura al cerrar" %}</dt><dd class="num">{{ wo.meter_value_at_completion|num }}</dd>{% endif %}
       {% if wo.work_type == "corrective" and wo.failure and not wo.is_open %}
@@ -74,7 +74,7 @@
       {% for t in wo.transitions.all %}
       <li><strong>{% if t.from_status %}{{ t.to_status|status_label }}{% else %}{% translate "Creada" %}{% endif %}</strong> · {{ t.created_at|date:"d M H:i" }}{% if t.by %} · {{ t.by }}{% endif %}{% if t.comment %}<br><span class="muted">{{ t.comment }}</span>{% endif %}</li>
       {% endfor %}
-      {% for l in wo.labor.all %}<li>{% icon 'clock' %} {{ l.user }} · <span class="num">{{ l.minutes }}</span> min</li>{% endfor %}
+      {% for l in wo.labor.all %}<li>{% icon 'clock' %} {{ l.user }} · <span class="num">{{ l.minutes }}</span> {% translate "min" %}</li>{% endfor %}
     </ol>
   </section>
 </div>
@@ -96,7 +96,7 @@
       <thead><tr><th>{% translate "Concepto" %}</th><th>{% translate "Detalle" %}</th><th>{% translate "Costo" %}</th><th><span class="visually-hidden">{% translate "Acción" %}</span></th></tr></thead>
       <tbody>
         {% for l in wo.labor.all %}
-        <tr><td data-label="">{% icon 'clock' %} {{ l.user }}</td><td class="num" data-label="{% translate 'Detalle' %}">{{ l.minutes }} min × $ {{ l.hourly_cost|num }}/h</td><td class="num" data-label="{% translate 'Costo' %}">$ {{ l.cost|num }}</td><td data-label=""></td></tr>
+        <tr><td data-label="">{% icon 'clock' %} {{ l.user }}</td><td class="num" data-label="{% translate 'Detalle' %}">{{ l.minutes }} {% translate "min" %} × $ {{ l.hourly_cost|num }}/{% translate "h" %}</td><td class="num" data-label="{% translate 'Costo' %}">$ {{ l.cost|num }}</td><td data-label=""></td></tr>
         {% endfor %}
         {% for p in wo.parts.all %}
         <tr><td data-label="">{% icon 'box' %} {{ p.description }}</td><td class="num" data-label="{% translate 'Detalle' %}">{{ p.quantity|num }} {{ p.unit }} × $ {{ p.unit_cost|num }}</td><td class="num" data-label="{% translate 'Costo' %}">$ {{ p.cost|num }}</td>

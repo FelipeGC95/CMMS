@@ -16,9 +16,9 @@
         {% if item.result == "not_ok" %}<span class="badge badge--error">{% icon 'stop' %}{% translate "Fuera de rango" %}</span>{% elif item.result == "ok" %}<span class="badge badge--success">{% icon 'check' %}{% translate "En rango" %}</span>{% endif %}</p>
     {% else %}
       <div class="segmented" role="group" aria-label="{% translate 'Resultado' %}">
-        <button type="submit" name="result" value="ok" class="is-ok" aria-pressed="{% if item.result == 'ok' %}true{% else %}false{% endif %}">{% icon 'check' %}OK</button>
+        <button type="submit" name="result" value="ok" class="is-ok" aria-pressed="{% if item.result == 'ok' %}true{% else %}false{% endif %}">{% icon 'check' %}{% translate "OK" %}</button>
         <button type="submit" name="result" value="not_ok" class="is-not_ok" aria-pressed="{% if item.result == 'not_ok' %}true{% else %}false{% endif %}">{% icon 'x' %}{% translate "No OK" %}</button>
-        <button type="submit" name="result" value="na" class="is-na" aria-pressed="{% if item.result == 'na' %}true{% else %}false{% endif %}">{% icon 'dot' %}N.A.</button>
+        <button type="submit" name="result" value="na" class="is-na" aria-pressed="{% if item.result == 'na' %}true{% else %}false{% endif %}">{% icon 'dot' %}{% translate "N.A." %}</button>
       </div>
     {% endif %}
     <div class="check-item__note">
