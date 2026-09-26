@@ -12,6 +12,7 @@
   </div>
 </div>
 
+<div class="narrow">
 <section class="card">
   <form method="post">
     {% csrf_token %}
@@ -28,4 +29,5 @@
     <button class="btn btn--danger" type="submit">{% translate "Eliminar" %}</button>
   </form>
 </section>
+</div>
 {% endblock %}

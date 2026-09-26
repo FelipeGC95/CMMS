@@ -39,7 +39,7 @@
     {% else %}
     <p class="muted">{% blocktranslate with cls=asset.asset_class %}La clase {{ cls }} aún no tiene atributos.{% endblocktranslate %}</p>
     {% endif %}
-    {% if can_manage %}<div class="row">
+    {% if can_manage %}<div class="row mt-4">
       {% if attribute_rows %}<a class="btn btn--ghost" href="{% url 'asset_attributes' asset.pk %}">{% translate "Editar datos técnicos" %}</a>{% endif %}
       <a class="btn btn--ghost" href="{% url 'asset_class_detail' asset.asset_class_id %}">{% translate "Atributos de la clase" %}</a>
     </div>{% endif %}
@@ -189,7 +189,7 @@
       <li>
         <div class="list__main">
           <span class="list__title">{% if period.ended_at %}{% blocktranslate with start=period.started_at|date:"d M Y H:i" end=period.ended_at|date:"d M Y H:i" %}{{ start }} a {{ end }}{% endblocktranslate %}{% else %}{% blocktranslate with start=period.started_at|date:"d M Y H:i" %}Desde el {{ start }} (vigente){% endblocktranslate %}{% endif %}</span>
-          <span class="list__meta">{% if period.asset_id != asset.pk %}{% translate "en" %} <span class="mono">{{ period.asset.code }}</span> · {% endif %}{{ period.reason|default:_("Sin motivo") }}{% if period.work_order %} · <a href="{% url 'work_order_detail' period.work_order_id %}">{{ period.work_order.code }}</a>{% endif %}{% if period.changed_by %} · {{ period.changed_by.short_name }}{% endif %}</span>
+          <span class="list__meta">{% if period.asset_id != asset.pk %}{% translate "en" %} <span class="mono">{{ period.asset.code }}</span> · {% endif %}{% if period.work_order %}{% if period.reason != period.work_order.code %}{{ period.reason|default:_("Sin motivo") }} · {% endif %}<a href="{% url 'work_order_detail' period.work_order_id %}">{{ period.work_order.code }}</a>{% else %}{{ period.reason|default:_("Sin motivo") }}{% endif %}{% if period.changed_by %} · {{ period.changed_by.short_name }}{% endif %}</span>
         </div>
         {% status_badge period %}
       </li>

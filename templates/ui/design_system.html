@@ -83,6 +83,10 @@
       <select id="ds-select"><option>{% translate "Operativo" %}</option><option>{% translate "Detenido" %}</option></select>
     </div>
     <div class="field field--check"><input type="checkbox" id="ds-check" checked><label for="ds-check">{% translate "El equipo está detenido" %}</label></div>
+    <div class="field">
+      <label for="ds-file">{% icon 'camera' %} {% translate "Foto (opcional)" %}</label>
+      <input type="file" id="ds-file" accept="image/*">
+    </div>
   </section>
 
   <section aria-labelledby="ds-checklist">
