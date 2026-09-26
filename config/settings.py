@@ -55,6 +55,7 @@ MIDDLEWARE = [
     "apps.audit.middleware.AuditContextMiddleware",
     "allauth.account.middleware.AccountMiddleware",
     "apps.core.middleware.TenantMiddleware",
+    "apps.core.middleware.PrivateCacheMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
