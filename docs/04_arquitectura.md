@@ -19,7 +19,7 @@ operar aparte de Postgres.
 | Autenticación | django-allauth (login por correo, verificación, MFA TOTP; SSO OIDC/SAML en F3) |
 | Tareas en segundo plano y periódicas | Procrastinate (cola sobre PostgreSQL) |
 | Archivos | django-storages → Cloudflare R2 (S3‑compatible) |
-| Excel / PDF | openpyxl / WeasyPrint |
+| Excel / PDF | openpyxl / reportlab (ADR-019) |
 | Imágenes | Pillow (compresión y miniaturas en el worker) |
 | Correo | Postmark o Brevo vía django-anymail |
 | Asistente IA (F2) | API de Anthropic con el SDK oficial `anthropic`; búsqueda con texto completo de PostgreSQL (ADR-018) |
@@ -535,3 +535,31 @@ tener ingresos).
     la biblioteca de clases de activo de GALBUST hasta acumular OT propias.
   - Conversaciones y mensajes son modelos con tenant, en la auditoría y en
     la exportación completa (X-03).
+
+### ADR-019 · PDF con reportlab (Python puro), no WeasyPrint
+- **Contexto:** AST-05 CA2 pide etiquetas QR en lote, en PDF y varias por
+  hoja. El resumen de arquitectura proponía WeasyPrint, que depende de
+  Pango/Cairo del sistema: en Render exige un build con paquetes nativos o
+  Docker, y cada actualización de la imagen puede romperlo.
+- **Decisión:** los PDF se generan con **reportlab** (dibujo directo sobre un
+  lienzo A4, sin librerías del sistema; solo depende de Pillow, que ya está).
+  El QR se dibuja como vectores a partir de la matriz de `segno`, el mismo
+  generador de la ficha del activo. Las etiquetas usan las fuentes estándar
+  del PDF (Helvetica y Courier), que cubren el español.
+- **Por qué:** se instala con `uv` como cualquier paquete, funciona igual en
+  Windows, en el CI y en Render, y genera 500 etiquetas en menos de un
+  segundo sin un proceso aparte. Es una librería madura y mantenida.
+- **Alternativas descartadas:**
+  - WeasyPrint (HTML → PDF): reutiliza plantillas, pero agrega dependencias
+    nativas que operar.
+  - Imprimir la página HTML desde el navegador (lo anterior): el tamaño y la
+    grilla dependen del navegador y de la impresora; no hay "varias por hoja"
+    confiable ni un archivo que guardar.
+- **Consecuencias:**
+  - Los reportes PDF futuros (OT, informes) se dibujan con reportlab
+    (`platypus` para documentos con flujo de texto) o se reevalúa este ADR
+    si un reporte necesita maquetación HTML compleja.
+  - Las fuentes estándar solo cubren Latin-1: nombres con otros alfabetos se
+    verán mal hasta registrar una fuente TTF propia (se hará con i18n F3).
+  - El PDF de etiquetas tiene un tope de 500 por archivo (21 hojas de 24)
+    para acotar memoria y tiempo de la petición web; sobre eso se filtra.
