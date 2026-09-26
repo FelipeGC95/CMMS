@@ -29,6 +29,7 @@
       <select class="input" id="label-size" name="size">
         {% for key, label in label_layouts %}<option value="{{ key }}"{% if key == default_layout %} selected{% endif %}>{{ label }}</option>{% endfor %}
       </select>
+      <span class="help">{% translate "Pequeñas: 66 × 36 mm. Grandes: 99 × 57 mm, para equipos que se escanean a distancia." %}</span>
     </div>
     {% if labels_over_cap %}
     <div class="alert alert--warning" role="status">{% icon 'alert' %}<span>{% blocktranslate with total=page.paginator.count max=max_labels %}La búsqueda tiene {{ total }} activos y un PDF admite hasta {{ max }} etiquetas. Filtra la lista o marca los activos de esta página.{% endblocktranslate %}</span></div>

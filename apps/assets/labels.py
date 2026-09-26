@@ -49,8 +49,8 @@ class LabelLayout:
 
 
 LAYOUTS = {
-    "3x8": LabelLayout(3, 8, _("Pequeñas · 24 por hoja (66 × 36 mm)"), 7, 11, 8),
-    "2x5": LabelLayout(2, 5, _("Grandes · 10 por hoja (99 × 57 mm)"), 10, 16, 11),
+    "3x8": LabelLayout(3, 8, _("Pequeñas · 24 por hoja"), 7, 11, 8),
+    "2x5": LabelLayout(2, 5, _("Grandes · 10 por hoja"), 10, 16, 11),
 }
 DEFAULT_LAYOUT = "3x8"
 
