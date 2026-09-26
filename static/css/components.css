@@ -154,6 +154,7 @@ main { max-width: var(--content-max); margin: 0 auto; padding: var(--space-5) va
 .btn--danger { background: var(--color-danger-bg); color: var(--color-danger-text); }
 .btn--lg { min-height: var(--touch-target); padding: var(--space-3) var(--space-5); font-size: var(--text-md); }
 .btn--block { width: 100%; }
+.btn--icon { width: var(--touch-target); min-height: var(--touch-target); padding: 0; }
 .btn[disabled] { opacity: 0.5; cursor: not-allowed; }
 
 /* ---------- Badges de estado (siempre ícono + texto) ---------- */
@@ -248,13 +249,15 @@ main { max-width: var(--content-max); margin: 0 auto; padding: var(--space-5) va
 .check-item__text { font-weight: 500; margin-bottom: var(--space-3); display: flex; gap: var(--space-2); }
 .check-item__num { font-family: var(--font-mono); color: var(--color-text-muted); }
 .check-item form { margin: 0; }
-.segmented { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--space-2); }
+/* Tres resultados en una fila: caben a 360 px sin partir «No OK» en dos líneas. */
+.segmented { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-2); }
 .segmented button {
   min-height: var(--touch-target); border-radius: var(--radius-md); border: 2px solid var(--color-border-strong);
   background: var(--color-surface); color: var(--color-text); font-family: var(--font-brand); font-weight: 500; font-size: var(--text-md);
-  display: flex; align-items: center; justify-content: center; gap: var(--space-2); cursor: pointer;
+  display: flex; align-items: center; justify-content: center; gap: var(--space-1); cursor: pointer;
+  padding: 0 var(--space-1); white-space: nowrap;
 }
-.segmented button svg { width: 20px; height: 20px; }
+.segmented button svg { width: 20px; height: 20px; flex: none; }
 .segmented button[aria-pressed="true"].is-ok { background: var(--color-success-bg); color: var(--color-success); border-color: var(--color-success); }
 .segmented button[aria-pressed="true"].is-not_ok { background: var(--color-error-bg); color: var(--color-error); border-color: var(--color-error); }
 .segmented button[aria-pressed="true"].is-na { background: var(--color-neutral-bg); color: var(--color-neutral); border-color: var(--color-neutral); }
@@ -270,8 +273,13 @@ main { max-width: var(--content-max); margin: 0 auto; padding: var(--space-5) va
 .check-item__note .help svg { width: 16px; height: 16px; flex: none; }
 .check-item__note-text { margin: var(--space-2) 0 0; }
 .check-item__hint { margin: var(--space-3) 0 0; }
-.check-item__photos { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-3); }
+.check-item__photos { list-style: none; padding: 0; margin: var(--space-3) 0 0; display: flex; flex-wrap: wrap; gap: var(--space-3); }
 .thumb--sm { width: 72px; height: 72px; display: block; }
+/* Foto de un ítem con su botón «Quitar» (quien la subió o un gestor, OT abierta). */
+.check-photo { display: flex; flex-direction: column; gap: var(--space-1); width: 96px; }
+.check-photo .thumb--sm { width: 96px; height: 96px; }
+.check-photo form { margin: 0; }
+.check-photo__remove { width: 100%; min-height: var(--touch-target); padding: 0 var(--space-1); gap: var(--space-1); }
 .photo-upload { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); margin-top: var(--space-3); }
 .photo-upload__input { position: absolute; width: 1px; height: 1px; opacity: 0; overflow: hidden; }
 .photo-upload__input:focus-visible + .photo-upload__button { outline: 3px solid var(--color-focus); outline-offset: 2px; }
@@ -279,6 +287,13 @@ main { max-width: var(--content-max); margin: 0 auto; padding: var(--space-5) va
 .photo-upload__busy { display: none; font-size: var(--text-sm); color: var(--color-text-muted); }
 .photo-upload.htmx-request .photo-upload__busy { display: inline; }
 .photo-upload.htmx-request .photo-upload__button { opacity: 0.6; }
+/* Ítems del checklist en la pantalla del gestor: subir, bajar y quitar (≥ 48 px, sin arrastrar). */
+.checklist-order__row { flex-wrap: wrap; }
+.checklist-order__row .list__main { flex: 1 1 16rem; }
+.checklist-order__badges { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-1); }
+.checklist-order__actions { display: flex; gap: var(--space-2); flex: none; margin-left: auto; }
+.checklist-order__actions form { margin: 0; }
+.checklist-order__actions form.htmx-request, .check-photo form.htmx-request { opacity: 0.6; }
 
 /* Sección con título y acción a la derecha (se apilan en móvil). */
 .section-header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-2); margin-bottom: var(--space-3); }

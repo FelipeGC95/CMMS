@@ -46,22 +46,5 @@
   </section>
 </div>
 
-<section class="card mt-4" aria-labelledby="current-title">
-  <h2 id="current-title">{% translate "Ítems actuales" %}</h2>
-  {% if items %}
-  <ol class="list">
-    {% for item in items %}
-    <li>
-      <div class="list__main">
-        <span class="list__title"><span class="mono muted">{{ item.order }}.</span> {{ item.text }}</span>
-        <span class="list__meta">{% if item.item_type == "measurement" %}{% translate "Medición" %}{% if item.unit %} · {{ item.unit }}{% endif %}{% if item.min_value is not None or item.max_value is not None %} · <span class="num">{{ item.min_value|default_if_none:"—"|floatformat:"-3" }} – {{ item.max_value|default_if_none:"—"|floatformat:"-3" }}</span>{% endif %}{% else %}{% translate "Verificación" %}{% endif %}</span>
-      </div>
-      {% if item.required %}<span class="badge badge--info">{% icon 'info' %}{% translate "Obligatorio" %}</span>{% else %}<span class="badge badge--neutral">{% icon 'dot' %}{% translate "Opcional" %}</span>{% endif %}
-    </li>
-    {% endfor %}
-  </ol>
-  {% else %}
-  <p class="empty">{% icon 'list' %} {% translate "Todavía no hay ítems." %}</p>
-  {% endif %}
-</section>
+{% include "work/_checklist_edit_items.html" %}
 {% endblock %}

@@ -297,3 +297,29 @@ def test_asset_list_in_labels_mode_does_not_grow_with_rows(client, tenant_a):
     few = _count(client, url)
     _add_rows(tenant_a, 10)
     assert _count(client, url) == few
+
+
+def test_checklist_reorder_response_does_not_grow_with_items(client, tenant_a, settings, tmp_path):
+    """Subir o bajar un ítem devuelve la lista completa (htmx) sin consultas por ítem (WO-03)."""
+    settings.MEDIA_ROOT = tmp_path
+    with tenant_context(tenant_a.org):
+        wo = report_failure(
+            membership=tenant_a.viewer, asset=tenant_a.asset, description="x", asset_stopped=False
+        ).work_order
+    login(client, tenant_a.admin)
+
+    def move_last_up():
+        with tenant_context(tenant_a.org):
+            last = wo.checklist.order_by("-order").first()
+        url = reverse("checklist_item_move", args=[wo.pk, last.pk])
+        with CaptureQueriesContext(connection) as ctx:
+            response = client.post(url, {"direction": "up"}, HTTP_HX_REQUEST="true")
+        assert response.status_code == 200
+        return len(ctx.captured_queries)
+
+    _checklist_rows(tenant_a, wo, 2)
+    few = move_last_up()
+    _checklist_rows(tenant_a, wo, 8)
+    many = move_last_up()
+    # bulk_update escribe los ítems que cambian de lugar en una sola consulta.
+    assert many == few, f"{few} → {many} consultas"

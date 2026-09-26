@@ -1,0 +1,40 @@
+{% load i18n ui %}<section class="card mt-4" id="current-items" aria-labelledby="current-title">
+  <h2 id="current-title">{% translate "Ítems actuales" %}</h2>
+  {% if error %}<div class="alert alert--error" role="alert">{% icon 'stop' %}<span>{{ error }}</span></div>{% endif %}
+  {% if success %}<div class="alert alert--success" role="status">{% icon 'check' %}<span>{{ success }}</span></div>{% endif %}
+  {% if items %}
+  <p class="muted">{% translate "Ordena con las flechas. Solo se quitan ítems sin respuesta, observación ni fotos." %}</p>
+  <ol class="list checklist-order">
+    {% for item in items %}
+    <li class="checklist-order__row">
+      <div class="list__main">
+        <span class="list__title"><span class="mono muted">{{ item.order }}.</span> {{ item.text }}</span>
+        <span class="list__meta">{% if item.item_type == "measurement" %}{% translate "Medición" %}{% if item.unit %} · {{ item.unit }}{% endif %}{% if item.min_value is not None or item.max_value is not None %} · <span class="num">{{ item.min_value|measure }} – {{ item.max_value|measure }}</span>{% endif %}{% else %}{% translate "Verificación" %}{% endif %}</span>
+        <span class="checklist-order__badges">
+          {% if item.required %}<span class="badge badge--info">{% icon 'info' %}{% translate "Obligatorio" %}</span>{% else %}<span class="badge badge--neutral">{% icon 'dot' %}{% translate "Opcional" %}</span>{% endif %}
+          {% if item.locked %}<span class="badge badge--success">{% icon 'check' %}{% translate "Con respuesta" %}</span>{% endif %}
+        </span>
+      </div>
+      <div class="checklist-order__actions">
+        {% if not item.locked %}
+        <form method="post" action="{% url 'checklist_item_remove' wo.pk item.pk %}" hx-post="{% url 'checklist_item_remove' wo.pk item.pk %}" hx-target="#current-items" hx-swap="outerHTML"
+              hx-confirm="{% blocktranslate with text=item.text %}¿Quitar «{{ text }}» del checklist?{% endblocktranslate %}">
+          {% csrf_token %}<button class="btn btn--danger btn--lg" type="submit">{% icon 'x' %}{% translate "Quitar" %}<span class="visually-hidden"> «{{ item.text }}»</span></button>
+        </form>
+        {% endif %}
+        <form method="post" action="{% url 'checklist_item_move' wo.pk item.pk %}" hx-post="{% url 'checklist_item_move' wo.pk item.pk %}" hx-target="#current-items" hx-swap="outerHTML">
+          {% csrf_token %}<input type="hidden" name="direction" value="up">
+          <button class="btn btn--ghost btn--icon" id="up-{{ item.pk }}" type="submit"{% if forloop.first %} disabled{% endif %}>{% icon 'arrow-up' %}<span class="visually-hidden">{% blocktranslate with text=item.text %}Subir «{{ text }}»{% endblocktranslate %}</span></button>
+        </form>
+        <form method="post" action="{% url 'checklist_item_move' wo.pk item.pk %}" hx-post="{% url 'checklist_item_move' wo.pk item.pk %}" hx-target="#current-items" hx-swap="outerHTML">
+          {% csrf_token %}<input type="hidden" name="direction" value="down">
+          <button class="btn btn--ghost btn--icon" id="down-{{ item.pk }}" type="submit"{% if forloop.last %} disabled{% endif %}>{% icon 'arrow-down' %}<span class="visually-hidden">{% blocktranslate with text=item.text %}Bajar «{{ text }}»{% endblocktranslate %}</span></button>
+        </form>
+      </div>
+    </li>
+    {% endfor %}
+  </ol>
+  {% else %}
+  <p class="empty">{% icon 'list' %} {% translate "Todavía no hay ítems." %}</p>
+  {% endif %}
+</section>

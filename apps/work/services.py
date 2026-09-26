@@ -1,7 +1,7 @@
 """Reglas de negocio de OT, avisos de falla y checklist."""
 
 import datetime
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 
 from django.core.exceptions import ValidationError
 from django.db import transaction
@@ -11,7 +11,7 @@ from django.utils.translation import gettext as _
 from django.utils.translation import gettext_lazy
 
 from apps.accounts.models import Membership
-from apps.accounts.permissions import Perm, has_perm, require_perm
+from apps.accounts.permissions import Perm, PermissionDeniedError, has_perm, require_perm
 from apps.assets.models import Asset, MeterReading
 from apps.assets.services import change_asset_status, record_meter_reading
 from apps.attachments import services as attachments_services
@@ -408,6 +408,28 @@ def _close(*, work_order: WorkOrder, user, at, record=True):
         )
 
 
+MEASUREMENT_LIMIT = Decimal(10) ** 11  # max_digits=14, decimal_places=3
+
+
+def parse_measurement(raw) -> Decimal:
+    """Valor medido como lo escribe un técnico en es-CL: coma o punto decimal, sin miles (WO-03 CA2).
+
+    La pantalla muestra las mediciones con coma decimal y sin separador de
+    miles (filtro `measure`), así que «7,5» y «7.5» valen 7,5 y el valor
+    guardado vuelve tal cual al campo.
+    """
+    text = str(raw if raw is not None else "").strip().replace(" ", "").replace(",", ".")
+    if not text:
+        raise WorkOrderError(_("Ingresa el valor medido."))
+    try:
+        value = Decimal(text)
+    except InvalidOperation as error:
+        raise WorkOrderError(_("Ingresa un número, por ejemplo 7,5.")) from error
+    if not value.is_finite() or abs(value) >= MEASUREMENT_LIMIT:
+        raise WorkOrderError(_("Ingresa un número, por ejemplo 7,5."))
+    return value.quantize(Decimal("0.001"))
+
+
 @transaction.atomic
 def answer_checklist_item(
     *, item: WorkOrderChecklistItem, membership, result: str = "", value_number=None, note=""
@@ -421,9 +443,7 @@ def answer_checklist_item(
         transition(work_order=work_order, to_status=S.IN_PROGRESS, membership=membership)
 
     if item.item_type == "measurement":
-        if value_number in (None, ""):
-            raise WorkOrderError(_("Ingresa el valor medido."))
-        value = Decimal(str(value_number))
+        value = parse_measurement(value_number)
         out_of_range = (item.min_value is not None and value < item.min_value) or (
             item.max_value is not None and value > item.max_value
         )
@@ -580,6 +600,101 @@ def add_checklist_item(
     return item
 
 
+def _renumber_checklist(items) -> None:
+    """Numera 1..n en el orden recibido; solo escribe los ítems que cambian."""
+    changed = []
+    now = timezone.now()
+    for number, item in enumerate(items, start=1):
+        if item.order != number:
+            item.order = number
+            item.updated_at = now
+            changed.append(item)
+    WorkOrderChecklistItem.objects.bulk_update(changed, ["order", "updated_at"])
+
+
+def _locked_checklist(work_order: WorkOrder) -> list[WorkOrderChecklistItem]:
+    """Ítems de la OT bloqueados para reordenar o quitar sin carreras entre dos gestores."""
+    return list(
+        WorkOrderChecklistItem.objects.select_for_update()
+        .filter(work_order_id=work_order.pk)
+        .order_by("order", "created_at")
+    )
+
+
+def checklist_item_has_evidence(item: WorkOrderChecklistItem, *, photo_count: int | None = None) -> bool:
+    """Un ítem con resultado, valor, observación o fotos ya es parte de la ejecución."""
+    if item.result or item.value_number is not None or item.note:
+        return True
+    if photo_count is None:
+        photo_count = Attachment.objects.filter(
+            target_type=AttachmentTargetType.CHECKLIST_ITEM, target_id=item.pk
+        ).count()
+    return photo_count > 0
+
+
+@transaction.atomic
+def remove_checklist_item(*, item: WorkOrderChecklistItem, membership) -> None:
+    """Quita un ítem sin responder de una OT no preventiva abierta (WO-03).
+
+    Un ítem sin respuesta es solo un borrador del checklist: se borra y queda
+    el rastro en la auditoría de la OT. Uno con respuesta, observación o fotos
+    es historial de la ejecución y no se quita.
+    """
+    require_perm(membership, Perm.WORK_ORDER_MANAGE)
+    work_order = item.work_order
+    _require_checklist_editable(work_order)
+    items = _locked_checklist(work_order)
+    current = next((i for i in items if i.pk == item.pk), None)
+    if current is None:
+        raise WorkOrderError(_("Ese ítem ya no está en el checklist."))
+    if checklist_item_has_evidence(current):
+        raise WorkOrderError(
+            _("«%(text)s» ya tiene respuesta, observación o fotos: no se puede quitar.")
+            % {"text": current.text}
+        )
+    remaining = [i for i in items if i.pk != current.pk]
+    current.delete()
+    _renumber_checklist(remaining)
+    audit.record(
+        action=AuditEvent.Action.UPDATE,
+        target=work_order,
+        actor=membership.user,
+        changes={"checklist_item_removed": [current.text, None]},
+    )
+
+
+CHECKLIST_MOVES = {"up": -1, "down": 1}
+
+
+@transaction.atomic
+def move_checklist_item(*, item: WorkOrderChecklistItem, membership, direction: str) -> None:
+    """Sube o baja un ítem una posición y renumera el checklist (WO-03).
+
+    Mismas reglas que agregar ítems: OT no preventiva (el orden de una
+    preventiva viene de su plan) y aún no completada.
+    """
+    require_perm(membership, Perm.WORK_ORDER_MANAGE)
+    if direction not in CHECKLIST_MOVES:
+        raise WorkOrderError(_("Movimiento inválido."))
+    work_order = item.work_order
+    _require_checklist_editable(work_order)
+    items = _locked_checklist(work_order)
+    index = next((n for n, i in enumerate(items) if i.pk == item.pk), None)
+    if index is None:
+        raise WorkOrderError(_("Ese ítem ya no está en el checklist."))
+    target = index + CHECKLIST_MOVES[direction]
+    if not 0 <= target < len(items):
+        return  # ya está en el extremo: nada que hacer
+    items[index], items[target] = items[target], items[index]
+    _renumber_checklist(items)
+    audit.record(
+        action=AuditEvent.Action.UPDATE,
+        target=work_order,
+        actor=membership.user,
+        changes={"checklist_item_moved": [f"{index + 1}. {item.text}", f"{target + 1}. {item.text}"]},
+    )
+
+
 def add_checklist_photo(
     *, item: WorkOrderChecklistItem, membership, uploaded_file, client_uuid=None
 ) -> Attachment:
@@ -600,6 +715,31 @@ def add_checklist_photo(
         )
     except AttachmentError as error:
         raise WorkOrderError(error.message) from error
+
+
+def can_remove_checklist_photo(*, photo: Attachment, membership) -> bool:
+    """Quien la subió (si ejecuta OT) o un gestor."""
+    if has_perm(membership, Perm.WORK_ORDER_MANAGE):
+        return True
+    return has_perm(membership, Perm.WORK_ORDER_EXECUTE) and photo.uploaded_by_id == membership.user_id
+
+
+@transaction.atomic
+def remove_checklist_photo(*, item: WorkOrderChecklistItem, photo: Attachment, membership) -> None:
+    """Quita una foto de un ítem mientras la OT no esté completada (WO-03 CA2).
+
+    Las fotos de una OT abierta son borrador de la ejecución (una foto movida,
+    la de otro equipo): se borran de verdad, archivo incluido, y liberan el
+    cupo. La auditoría conserva quién la quitó y su huella (SHA-256). Una vez
+    completada la OT, sus fotos son historial y ya no se quitan.
+    """
+    if not can_remove_checklist_photo(photo=photo, membership=membership):
+        raise PermissionDeniedError(Perm.WORK_ORDER_MANAGE)
+    if (photo.target_type, photo.target_id) != (AttachmentTargetType.CHECKLIST_ITEM, item.pk):
+        raise WorkOrderError(_("Esa foto no es de este ítem."))
+    if item.work_order.status in CHECKLIST_LOCKED_STATUSES:
+        raise WorkOrderError(_("La OT ya no admite cambios."))
+    attachments_services.remove_attachment(attachment=photo, by=membership.user)
 
 
 def work_order_meter(work_order: WorkOrder):
@@ -693,7 +833,9 @@ def complete_work_order(
     Una correctiva sobre una ubicación no deja evento de falla: los eventos
     (y MTBF/MTTR) son por activo.
     `signature` (opcional, WO-03 CA3) es la imagen de la firma: queda como
-    adjunto de la OT con propósito "firma".
+    adjunto de la OT con propósito "firma". Si no cabe en el cupo de
+    almacenamiento, la OT se completa igual sin ella y
+    `work_order.signature_warning` explica por qué (como la foto del aviso).
     """
     is_corrective = work_order.work_type == WorkOrder.Type.CORRECTIVE and work_order.asset_id is not None
     if (
@@ -724,13 +866,19 @@ def complete_work_order(
             work_order.save(update_fields=["meter_value_at_completion", "updated_at"])
     if labor_minutes:
         log_labor(work_order=work_order, membership=membership, minutes=labor_minutes)
+    signature_warning = ""
     if signature is not None:
-        add_attachment(
-            work_order=work_order,
-            uploaded_file=signature,
-            by=membership.user,
-            purpose=AttachmentPurpose.SIGNATURE,
-        )
+        try:
+            add_attachment(
+                work_order=work_order,
+                uploaded_file=signature,
+                by=membership.user,
+                purpose=AttachmentPurpose.SIGNATURE,
+            )
+        except WorkOrderError as error:
+            if not isinstance(error.__cause__, QuotaExceededError):
+                raise
+            signature_warning = _("La OT se completó sin la firma. %(reason)s") % {"reason": error.message}
     work_order.completion_notes = notes
     work_order.save(update_fields=["completion_notes", "updated_at"])
     if is_corrective:
@@ -752,7 +900,9 @@ def complete_work_order(
         )
     if work_order.status != S.IN_PROGRESS:
         transition(work_order=work_order, to_status=S.IN_PROGRESS, membership=membership)
-    return transition(work_order=work_order, to_status=S.COMPLETED, membership=membership)
+    work_order = transition(work_order=work_order, to_status=S.COMPLETED, membership=membership)
+    work_order.signature_warning = signature_warning
+    return work_order
 
 
 # --- Costos (WO-04) -----------------------------------------------------------
