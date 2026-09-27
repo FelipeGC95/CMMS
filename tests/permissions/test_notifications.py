@@ -47,3 +47,20 @@ def test_preferences_post_only_changes_own_rows(client, tenant_a):
 def test_mark_read_requires_post(client, tenant_a):
     login(client, tenant_a.tech)
     assert client.get(reverse("notification_read_all")).status_code == 405
+
+
+@pytest.mark.parametrize(
+    ("role", "hidden"),
+    [
+        ("technician", {Kind.REQUEST_NEW, Kind.DATA_EXPORT_READY}),
+        ("viewer", {Kind.REQUEST_NEW, Kind.DATA_EXPORT_READY, Kind.WO_ASSIGNED, Kind.WO_OVERDUE}),
+    ],
+)
+def test_role_cannot_configure_kinds_it_cannot_receive(client, tenant_a, role, hidden):
+    membership = {"technician": tenant_a.tech, "viewer": tenant_a.viewer}[role]
+    login(client, membership)
+    page = client.get(reverse("notification_preferences")).content.decode()
+    assert not any(f'name="{kind}-email"' in page for kind in hidden)
+    client.post(reverse("notification_preferences"), {f"{kind}-email": "on" for kind in hidden})
+    with tenant_context(tenant_a.org):
+        assert not NotificationPreference.objects.filter(user=membership.user, kind__in=hidden).exists()

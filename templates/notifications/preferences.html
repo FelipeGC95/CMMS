@@ -11,6 +11,7 @@
 
 <form class="card" method="post">
   {% csrf_token %}
+  <p class="muted">{% translate "Solo aparecen los avisos que tu rol puede recibir en esta organización." %}</p>
   {% for row in rows %}
   <fieldset class="check-group">
     <legend>{{ row.label }}</legend>

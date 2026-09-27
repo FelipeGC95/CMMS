@@ -265,7 +265,8 @@ def test_preferences_page_saves_own_preferences(client, tenant_a):
     with tenant_context(tenant_a.org):
         pref = NotificationPreference.objects.get(user=tenant_a.tech.user, kind=Kind.WO_ASSIGNED)
         assert (pref.in_app, pref.email) == (True, False)
-        assert NotificationPreference.objects.filter(user=tenant_a.tech.user).count() == len(Kind.values)
+        # Solo los tipos que un técnico puede recibir (sin "Nueva solicitud" ni exportación).
+        assert NotificationPreference.objects.filter(user=tenant_a.tech.user).count() == 5
         assert not NotificationPreference.objects.exclude(user=tenant_a.tech.user).exists()
 
 
