@@ -293,6 +293,16 @@ tener ingresos).
     Paginación por página (`page`, `page_size` ≤ 200). Altas de lecturas, OT y
     solicitudes idempotentes por `client_uuid`; la carga masiva, por
     (medidor, fecha, valor); repetir una transición al mismo estado no hace nada.
+  - **Cierre y checklist desde la API (WO-03, REQ-03):**
+    `POST /work-orders/{id}/complete/` valida con el mismo formulario de cierre
+    de la web (ítems obligatorios, lectura si el plan usa medidor, impacto y
+    —si la organización lo exige— modo y causa en correctivas) y llama a
+    `complete_work_order`. Idempotente por `client_uuid`, guardado en
+    `api.ApiIdempotencyKey` (UNIQUE por organización): reenviar la misma clave
+    devuelve la OT actual (200); usarla en otra OT → 409 `conflict`.
+    `POST /work-orders/{id}/checklist-items/{item_id}/answer/` usa
+    `answer_checklist_item`; reenviar la misma respuesta devuelve el ítem sin
+    cambios (también con la OT ya completada). Ambos exigen alcance `write`.
   - **Errores:** `{"error": {"code", "message", "details"}}` con textos en español.
   - **Documentación:** esquema en `/api/schema/` y Swagger UI en `/api/docs/`
     servido desde estáticos locales (`drf-spectacular-sidecar`) con el script de

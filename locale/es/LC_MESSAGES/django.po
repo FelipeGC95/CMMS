@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-27 16:40-0300\n"
+"POT-Creation-Date: 2026-09-27 17:34-0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -316,7 +316,25 @@ msgstr ""
 msgid "tokens de API"
 msgstr ""
 
+msgid "UUID del cliente"
+msgstr ""
+
+msgid "acción"
+msgstr ""
+
+msgid "objeto"
+msgstr ""
+
+msgid "clave de idempotencia"
+msgstr ""
+
+msgid "claves de idempotencia"
+msgstr ""
+
 msgid "Indica un activo o una ubicación (solo uno)."
+msgstr ""
+
+msgid "Este client_uuid ya se usó para otra operación."
 msgstr ""
 
 msgid "Identificador inválido."
@@ -965,9 +983,6 @@ msgstr ""
 msgid "registrada por"
 msgstr ""
 
-msgid "UUID del cliente"
-msgstr ""
-
 msgid "lectura de medidor"
 msgstr ""
 
@@ -1404,13 +1419,7 @@ msgstr ""
 msgid "tipo de actor"
 msgstr ""
 
-msgid "acción"
-msgstr ""
-
 msgid "ID del objeto"
-msgstr ""
-
-msgid "objeto"
 msgstr ""
 
 msgid "cambios"
@@ -6082,17 +6091,23 @@ msgstr ""
 msgid "Cumplimiento preventivo"
 msgstr ""
 
-msgid "OT preventivas cerradas a tiempo"
+msgid "OT preventivas cerradas dentro de tolerancia"
 msgstr ""
 
 msgid ""
-"OT preventivas cerradas a tiempo / OT preventivas vencidas en el período × "
-"100"
+"OT preventivas cerradas dentro de tolerancia / OT preventivas vencidas en el "
+"período × 100"
 msgstr ""
 
 msgid ""
-"A tiempo: completada a más tardar en su fecha límite. Las canceladas no "
-"cuentan."
+"Dentro de tolerancia: completada en su fecha límite ± la tolerancia del "
+"plan, o en la lectura de medidor programada ± la tolerancia; basta cumplir "
+"una. Sin plan, sin tolerancia."
+msgstr ""
+
+msgid ""
+"Las canceladas no cuentan; las abiertas que aún pueden cumplirse dentro de "
+"la tolerancia, tampoco."
 msgstr ""
 
 msgid "Referencia: SMRP Best Practices (PM Compliance) · EN 15341."
