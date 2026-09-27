@@ -78,6 +78,9 @@ class SignupForm(forms.Form):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         payload = self._payload(self.data.get("challenge")) if self.is_bound else None
+        # Un envío con el token ausente o adulterado se rechaza siempre; el desafío nuevo
+        # solo sirve para volver a mostrar el formulario (si no, una suma igual por azar pasaría).
+        self._challenge_invalid = self.is_bound and payload is None
         if payload is None:
             payload = {"a": secrets.randbelow(9) + 1, "b": secrets.randbelow(9) + 1, "t": time.time()}
             token = signing.dumps(payload, salt=CHALLENGE_SALT)
@@ -110,7 +113,7 @@ class SignupForm(forms.Form):
             _("No pudimos comprobar que eres una persona. Revisa la suma e inténtalo de nuevo.")
         )
         elapsed = time.time() - self._challenge["t"]
-        if data.get("website"):
+        if data.get("website") or self._challenge_invalid:
             raise not_human
         if elapsed < settings.SIGNUP_MIN_SECONDS or elapsed > CHALLENGE_MAX_AGE:
             raise not_human
