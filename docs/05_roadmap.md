@@ -130,10 +130,12 @@ Para el "Hecho cuando" faltan pasos que no son código: crear las cuentas
 (Render pagado con worker, R2, Sentry, correo) y seguir
 `docs/07_operacion.md`; revisar el contenido de las plantillas de rubro
 (marcadas como borrador); y la empresa piloto con sus datos reales.
-Pendientes menores: cumplimiento de preventivos con tolerancia
-(`is_on_time` aún sin usar en KPIs), completar OT por API, enlaces de correo
-sin `?org=`, preferencias de notificación que muestran tipos que el rol no
-recibe, carriles por técnico en el tablero.
+Pendientes menores resueltos el 2026-09-27: cumplimiento con tolerancia,
+completar OT y responder checklist por API, enlaces de correo con `?org=`,
+preferencias según el rol, carriles por técnico en el tablero y foto del aviso
+anónimo con su propio destino. Quedan: ítems con foto obligatoria no se
+responden por API (sin carga de adjuntos) y la organización no queda en solo
+lectura durante el período de gracia de eliminación (decisión en ADR-027).
 
 | # | Entregable | Req. | Sem. |
 |---|---|---|---|
