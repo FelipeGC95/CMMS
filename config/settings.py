@@ -147,6 +147,9 @@ ACCOUNT_DEFAULT_HTTP_PROTOCOL = "http" if DEBUG else "https"
 # Verificación en dos pasos (ORG-08, ADR-022): app de autenticación (TOTP) y códigos de
 # recuperación. Quién debe usarla lo decide cada organización (`mfa_policy`);
 # MFA_ENFORCE=0 apaga la obligación (solo para tests que no tratan de MFA).
+# Se acepta el código del intervalo vecino (±30 s, RFC 6238 §5.2): teléfonos de terreno con
+# el reloj algo desfasado y códigos escritos justo al cambiar el intervalo.
+MFA_TOTP_TOLERANCE = 1
 MFA_ADAPTER = "apps.accounts.adapter.MFAAdapter"
 MFA_SUPPORTED_TYPES = ["totp", "recovery_codes"]
 MFA_ENFORCE = env_bool("MFA_ENFORCE", True)
