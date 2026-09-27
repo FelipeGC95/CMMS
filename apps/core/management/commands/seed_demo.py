@@ -177,6 +177,24 @@ METER_PLANS = [
         {"GRH-01": 170, "GRH-02": 12},
     ),
     (
+        # Absorbe a la de 250 h (PM-05 CA3): en GRH-02 vencen juntas y se genera una sola OT.
+        "PM-GRH-500",
+        "Mantención 500 h grúa horquilla",
+        "GRH",
+        MeterKind.HOURS,
+        500,
+        None,
+        180,
+        [
+            ("Cambiar aceite hidráulico y filtro de retorno", ItemType.CHECK),
+            ("Ajustar frenos y freno de estacionamiento", ItemType.CHECK),
+            ("Estado de horquillas y cadenas (describir)", ItemType.TEXT),
+            ("Foto de la placa de capacidad", ItemType.PHOTO),
+            ("Firma del supervisor de bodega", ItemType.SIGNATURE),
+        ],
+        {"GRH-02": 12},
+    ),
+    (
         "PM-VEH-10K",
         "Mantención 10.000 km camioneta",
         "VEH",
@@ -367,6 +385,7 @@ class Command(BaseCommand):
         self._seed_meters(assets, now)
         self._simulate_preventive_history(history_start, today, tech)
         self._seed_meter_plans(assets, classes)
+        self._seed_pm_engine(assets, classes, today)
 
         # Fallas históricas reparadas.
         for asset_code, days_ago, hours_down, text, mode, cause in HISTORY_FAILURES:
@@ -482,6 +501,32 @@ class Command(BaseCommand):
                     meter=meter,
                     next_due_meter_value=meter.current_value + left,
                 )
+
+    def _seed_pm_engine(self, assets, classes, today):
+        """Absorción 500 h ⊃ 250 h y un plan mensual de calendario (PM-02 CA1, PM-05 CA3)."""
+        from apps.maintenance.models import CalendarUnit, MaintenancePlan, PlanAbsorption
+
+        PlanAbsorption.objects.create(
+            plan=MaintenancePlan.objects.get(code="PM-GRH-500"),
+            absorbed_plan=MaintenancePlan.objects.get(code="PM-GRH-250"),
+        )
+        monthly = create_plan(
+            code="PM-CMP-MES",
+            name="Inspección mensual compresor",
+            asset_class=classes["CMP"],
+            calendar_interval=1,
+            calendar_unit=CalendarUnit.MONTHS,
+            estimated_minutes=30,
+            items=self._items(
+                [
+                    ("Revisar fugas de aire en líneas", ItemType.CHECK),
+                    ("Horas de operación desde la última inspección", ItemType.TEXT),
+                    ("Foto del manómetro principal", ItemType.PHOTO),
+                ]
+            ),
+        )
+        for asset in (a for a in assets.values() if a.asset_class_id == classes["CMP"].id):
+            assign_plan(plan=monthly, asset=asset, starts_on=today + datetime.timedelta(days=3))
 
     def _items(self, items):
         """Ítems del checklist en el formato de create_plan: (texto, tipo[, unidad, mín, máx])."""
