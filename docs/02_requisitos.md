@@ -338,7 +338,12 @@ Con filtros por fecha, sitio, clase y activo:
 - MTBF = tiempo operativo / número de fallas con detención.
 - MTTR = tiempo total de reparación / número de reparaciones.
 - Cumplimiento del preventivo = OT preventivas cerradas dentro de tolerancia /
-  OT preventivas vencidas en el período.
+  OT preventivas vencidas en el período. "Dentro de tolerancia" es la regla de
+  PM-02 CA3 (`is_on_time`): fecha límite ± tolerancia del plan, o lectura
+  programada ± tolerancia; basta una. Preventivas sin plan: tolerancia cero.
+  No cuentan (fuera del denominador) las canceladas ni las abiertas cuya
+  ventana de tolerancia aún no termina; las abiertas con la ventana cumplida
+  cuentan como incumplidas. Se calcula en una consulta, sin consultas por OT.
 - CA: Cada KPI muestra su fórmula y referencia (EN 15341 / SMRP) en un tooltip.
 - CA: Resultados verificados por tests con datos de fixture de valor conocido.
 
@@ -367,7 +372,8 @@ con lápida de la organización; las cuentas de usuario se conservan (ADR-027).
 
 **X-05 · API REST (M1)**: OpenAPI en `/api/schema/`, documentación navegable,
 autenticación por token de organización con alcances; endpoints de activos,
-lecturas, OT y solicitudes.
+lecturas, OT y solicitudes. Desde la API también se completa una OT y se
+responde su checklist con las mismas reglas que la web (ADR-005).
 
 **X-06 · Modo offline PWA (F2)**: ver [04_arquitectura.md](04_arquitectura.md), ADR-011.
 

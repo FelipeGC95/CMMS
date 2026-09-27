@@ -6,6 +6,8 @@ import secrets
 
 from django.db import transaction
 from django.utils import timezone
+from django.utils.translation import gettext as _
+from rest_framework.exceptions import APIException
 
 from apps.accounts.models import Membership, User
 from apps.accounts.permissions import Perm, require_perm
@@ -13,9 +15,15 @@ from apps.audit import services as audit
 from apps.audit.models import AuditEvent
 from apps.audit.services import API_TOKEN_EMAIL_DOMAIN
 from apps.work.models import WorkOrder
-from apps.work.services import create_work_order
+from apps.work.services import (
+    WorkOrderError,
+    answer_checklist_item,
+    complete_work_order,
+    create_work_order,
+    parse_measurement,
+)
 
-from .models import ApiToken
+from .models import ApiIdempotencyKey, ApiToken
 
 TOKEN_PREFIX = "gbt_"
 # Rol con que actúa un token: escribe como planificador (activos, lecturas, OT y
@@ -120,3 +128,72 @@ def create_work_order_idempotent(*, membership, client_uuid=None, **data) -> Wor
         if existing:
             return existing
     return create_work_order(by=membership.user, client_uuid=client_uuid, **data)
+
+
+class Conflict(APIException):
+    """La petición choca con el estado actual (un `client_uuid` ya usado en otra operación)."""
+
+    status_code = 409
+    default_code = "conflict"
+
+
+COMPLETE_ACTION = "work_order.complete"
+
+
+@transaction.atomic
+def complete_work_order_idempotent(
+    *, membership, work_order: WorkOrder, client_uuid=None, **data
+) -> WorkOrder:
+    """Cierre de OT desde la API (WO-03): el mismo servicio que la web, idempotente por `client_uuid`.
+
+    La OT se bloquea mientras se decide: dos envíos simultáneos con la misma clave
+    no la completan dos veces. Si la clave ya completó esta OT, devuelve su
+    estado actual sin repetir nada.
+    """
+    require_perm(membership, Perm.WORK_ORDER_EXECUTE)
+    work_order = WorkOrder.objects.select_for_update().get(pk=work_order.pk)
+    if client_uuid:
+        key = ApiIdempotencyKey.objects.filter(client_uuid=client_uuid).first()
+        if key is not None:
+            if key.action == COMPLETE_ACTION and key.target_id == work_order.pk:
+                return work_order
+            raise Conflict(_("Este client_uuid ya se usó para otra operación."))
+    work_order = complete_work_order(work_order=work_order, membership=membership, **data)
+    if client_uuid:
+        ApiIdempotencyKey.objects.create(
+            client_uuid=client_uuid, action=COMPLETE_ACTION, target_id=work_order.pk
+        )
+    return work_order
+
+
+def _same_answer(item, *, result, value_number, value_text, signature, note) -> bool:
+    """¿El ítem ya tiene exactamente esta respuesta? (reenvío desde un cliente sin conexión)"""
+    if not item.result or item.note != (note or "")[:500]:
+        return False
+    if item.item_type == "signature":
+        return True  # una firma ya guardada no se duplica
+    if item.item_type == "measurement":
+        try:
+            return item.value_number == parse_measurement(value_number)
+        except WorkOrderError:
+            return False
+    if item.item_type == "text":
+        return item.value_text == (value_text or "").strip()
+    return item.result == result
+
+
+def answer_checklist_item_idempotent(
+    *, membership, item, result="", value_number=None, value_text="", signature=None, note=""
+):
+    """Respuesta de un ítem desde la API con el servicio de la web; repetirla no cambia nada."""
+    require_perm(membership, Perm.WORK_ORDER_EXECUTE)
+    answer = {
+        "result": result,
+        "value_number": value_number,
+        "value_text": value_text,
+        "signature": signature,
+        "note": note,
+    }
+    if _same_answer(item, **answer):
+        return item
+    return answer_checklist_item(item=item, membership=membership, **answer)

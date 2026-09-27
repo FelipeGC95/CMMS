@@ -8,7 +8,7 @@ from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema, extend_schema_view
 from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import action
-from rest_framework.exceptions import ValidationError
+from rest_framework.exceptions import NotFound, ValidationError
 from rest_framework.response import Response
 
 from apps.accounts.permissions import Perm, require_perm
@@ -19,12 +19,17 @@ from apps.assets.selectors import visible_assets
 from apps.organizations.models import Location
 from apps.organizations.selectors import descendant_ids
 from apps.work import services as work_services
+from apps.work.forms import CompleteWorkOrderForm, decode_signature
 from apps.work.models import WorkOrder, WorkRequest
 from apps.work.selectors import visible_requests, work_order_list
 
 from . import serializers as s
 from .framework import TenantAPIMixin
-from .services import create_work_order_idempotent
+from .services import (
+    answer_checklist_item_idempotent,
+    complete_work_order_idempotent,
+    create_work_order_idempotent,
+)
 
 
 def _param(name, description, type_=OpenApiTypes.STR, enum=None):
@@ -276,6 +281,85 @@ class WorkOrderViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, BaseVie
                 work_order=work_order, membership=self.membership, **serializer.validated_data
             )
         return Response(s.WorkOrderSerializer(work_order).data)
+
+    @extend_schema(request=s.WorkOrderCompleteSerializer, responses=s.WorkOrderSerializer)
+    @action(detail=True, methods=["post"])
+    def complete(self, request, pk=None):
+        """Completa la OT (WO-03, REQ-03) con las mismas reglas que la web.
+
+        Idempotente por `client_uuid`: reenviarlo devuelve el estado actual sin repetir el cierre.
+        """
+        work_order = self.get_object()
+        serializer = s.WorkOrderCompleteSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = dict(serializer.validated_data)
+        client_uuid = data.pop("client_uuid", None)
+        form = _complete_form(work_order, data)
+        if not form.is_valid():
+            raise ValidationError(
+                {("non_field_errors" if k == "__all__" else k): list(v) for k, v in form.errors.items()}
+            )
+        fields = {name: form.cleaned_data.get(name) for name in COMPLETE_FIELDS}
+        fields["notes"] = form.cleaned_data["notes"]
+        work_order = complete_work_order_idempotent(
+            membership=self.membership, work_order=work_order, client_uuid=client_uuid, **fields
+        )
+        return Response(s.WorkOrderSerializer(work_order).data)
+
+    @extend_schema(
+        request=s.ChecklistAnswerSerializer,
+        responses=s.ChecklistItemSerializer,
+        parameters=[OpenApiParameter("item_id", OpenApiTypes.UUID, OpenApiParameter.PATH)],
+    )
+    @action(detail=True, methods=["post"], url_path="checklist-items/<uuid:item_id>/answer")
+    def answer(self, request, pk=None, item_id=None):
+        """Responde un ítem del checklist (WO-03 CA2); reenviar la misma respuesta no cambia nada."""
+        work_order = self.get_object()
+        item = work_order.checklist.filter(pk=item_id).select_related("work_order").first()
+        if item is None:
+            raise NotFound(_("No encontrado."))
+        serializer = s.ChecklistAnswerSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = dict(serializer.validated_data)
+        signature = decode_signature(data.pop("signature", ""))
+        item = answer_checklist_item_idempotent(
+            membership=self.membership, item=item, signature=signature, **data
+        )
+        return Response(s.ChecklistItemSerializer(item).data)
+
+
+# Campos del formulario web de cierre que se pasan tal cual al servicio.
+COMPLETE_FIELDS = (
+    "labor_minutes",
+    "failure_mode",
+    "failure_cause",
+    "failure_mechanism",
+    "detection_method",
+    "component",
+    "impact",
+    "failure_started_at",
+    "failure_ended_at",
+    "symptom",
+    "meter_value",
+    "signature",
+)
+
+
+def _complete_form(work_order, data):
+    """El formulario de cierre de la web, con la OT y los datos de la API (mismas reglas)."""
+    meter = work_services.work_order_meter(work_order)
+    plan = work_order.plan_assignment.plan if work_order.plan_assignment_id else None
+    return CompleteWorkOrderForm(
+        {
+            k: ("" if v is None else v.isoformat() if hasattr(v, "isoformat") else str(v))
+            for k, v in data.items()
+        },
+        with_failure=work_order.work_type == WorkOrder.Type.CORRECTIVE and work_order.asset_id is not None,
+        meter=meter,
+        meter_required=bool(plan and plan.uses_meter and meter),
+        require_failure_details=work_order.organization.require_failure_details,
+        asset=work_order.asset,
+    )
 
 
 @extend_schema_view(

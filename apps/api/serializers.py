@@ -9,7 +9,7 @@ from apps.assets.models import Asset, AssetClass, Meter, MeterReading
 from apps.assets.reading_imports import MAX_ROWS
 from apps.assets.selectors import visible_assets
 from apps.organizations.models import Location
-from apps.work.models import WorkOrder, WorkRequest
+from apps.work.models import FailureEvent, WorkOrder, WorkOrderChecklistItem, WorkRequest
 
 
 @extend_schema_field(OpenApiTypes.UUID)
@@ -227,3 +227,72 @@ class WorkRequestCreateSerializer(serializers.Serializer):
         if bool(data.get("asset")) == bool(data.get("location")):
             raise serializers.ValidationError(_("Indica un activo o una ubicación (solo uno)."))
         return data
+
+
+class WorkOrderCompleteSerializer(serializers.Serializer):
+    """Cierre de OT (WO-03, REQ-03). Las reglas son las del formulario web: lectura obligatoria
+    si el plan usa medidor; en correctivas sobre un activo, impacto y (si la organización lo
+    exige) modo y causa. Los campos de falla se ignoran en las demás OT."""
+
+    labor_minutes = serializers.IntegerField(min_value=0, max_value=24 * 60)
+    notes = serializers.CharField(
+        required=False, allow_blank=True, max_length=4000, help_text="Comentario o acción realizada."
+    )
+    symptom = serializers.CharField(required=False, allow_blank=True, max_length=4000)
+    impact = serializers.ChoiceField(FailureEvent.Impact.choices, required=False)
+    failure_started_at = serializers.DateTimeField(required=False, allow_null=True)
+    failure_ended_at = serializers.DateTimeField(required=False, allow_null=True)
+    failure_mode = serializers.UUIDField(required=False, allow_null=True)
+    failure_cause = serializers.UUIDField(required=False, allow_null=True)
+    failure_mechanism = serializers.UUIDField(required=False, allow_null=True)
+    detection_method = serializers.UUIDField(required=False, allow_null=True)
+    component = serializers.UUIDField(required=False, allow_null=True)
+    meter_value = serializers.DecimalField(
+        max_digits=14, decimal_places=3, min_value=0, required=False, allow_null=True
+    )
+    signature = serializers.CharField(
+        required=False, allow_blank=True, help_text="Firma: data URL PNG en base64 (opcional)."
+    )
+    client_uuid = serializers.UUIDField(required=False, allow_null=True)
+
+
+class ChecklistItemSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = WorkOrderChecklistItem
+        fields = [
+            "id",
+            "order",
+            "section",
+            "text",
+            "item_type",
+            "unit",
+            "min_value",
+            "max_value",
+            "required",
+            "result",
+            "value_number",
+            "value_text",
+            "note",
+            "answered_at",
+        ]
+        read_only_fields = fields
+
+
+class ChecklistAnswerSerializer(serializers.Serializer):
+    """Según el tipo del ítem: `result` (verificación), `value_number` (medición), `value_text`
+    (texto) o `signature` (firma). La foto obligatoria se responde subiendo una foto."""
+
+    result = serializers.ChoiceField(
+        [
+            WorkOrderChecklistItem.Result.OK,
+            WorkOrderChecklistItem.Result.NOT_OK,
+            WorkOrderChecklistItem.Result.NA,
+        ],
+        required=False,
+    )
+    value_number = serializers.DecimalField(max_digits=14, decimal_places=3, required=False, allow_null=True)
+    value_text = serializers.CharField(required=False, allow_blank=True, max_length=1000)
+    note = serializers.CharField(required=False, allow_blank=True, max_length=500)
+    signature = serializers.CharField(
+        required=False, allow_blank=True, help_text="Firma: data URL PNG en base64."
+    )

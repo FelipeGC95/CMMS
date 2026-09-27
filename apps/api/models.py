@@ -59,3 +59,22 @@ class ApiToken(TenantModel):
     @property
     def is_usable(self) -> bool:
         return self.revoked_at is None and not self.is_expired
+
+
+class ApiIdempotencyKey(TenantModel):
+    """`client_uuid` ya usado en una acción de la API sin registro propio (cerrar una OT).
+
+    Reenviar la misma acción con el mismo `client_uuid` devuelve el estado actual
+    sin repetirla; usarlo para otra acción u otro objeto es un conflicto.
+    """
+
+    client_uuid = models.UUIDField(_("UUID del cliente"))
+    action = models.CharField(_("acción"), max_length=40)
+    target_id = models.UUIDField(_("objeto"))
+
+    class Meta:
+        verbose_name = _("clave de idempotencia")
+        verbose_name_plural = _("claves de idempotencia")
+        constraints = [
+            models.UniqueConstraint(fields=["organization", "client_uuid"], name="uniq_api_idempotency_key")
+        ]

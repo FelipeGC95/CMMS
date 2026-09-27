@@ -76,11 +76,12 @@
   <div class="card kpi">
     <span class="kpi__label">{% translate "Cumplimiento preventivo" %}</span>
     <span class="kpi__value">{{ kpis.preventive_compliance_pct|pct }}<span class="kpi__unit">%</span></span>
-    <span class="kpi__hint">{% translate "OT preventivas cerradas a tiempo" %}</span>
+    <span class="kpi__hint">{% translate "OT preventivas cerradas dentro de tolerancia" %}</span>
     <details class="kpi__formula">
       <summary>{% translate "Fórmula" %}</summary>
-      <p><code>{% translate "OT preventivas cerradas a tiempo / OT preventivas vencidas en el período × 100" %}</code></p>
-      <p>{% translate "A tiempo: completada a más tardar en su fecha límite. Las canceladas no cuentan." %}</p>
+      <p><code>{% translate "OT preventivas cerradas dentro de tolerancia / OT preventivas vencidas en el período × 100" %}</code></p>
+      <p>{% translate "Dentro de tolerancia: completada en su fecha límite ± la tolerancia del plan, o en la lectura de medidor programada ± la tolerancia; basta cumplir una. Sin plan, sin tolerancia." %}</p>
+      <p>{% translate "Las canceladas no cuentan; las abiertas que aún pueden cumplirse dentro de la tolerancia, tampoco." %}</p>
       <p>{% translate "Referencia: SMRP Best Practices (PM Compliance) · EN 15341." %}</p>
     </details>
   </div>
