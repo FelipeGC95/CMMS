@@ -110,6 +110,23 @@ class WorkOrder(TenantModel):
         related_name="work_orders",
         verbose_name=_("versión del plan"),
     )
+    # Correctiva nacida de un hallazgo (WO-06): la OT y el ítem No OK que la originaron.
+    parent_work_order = models.ForeignKey(
+        "self",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="child_work_orders",
+        verbose_name=_("OT de origen"),
+    )
+    source_checklist_item = models.ForeignKey(
+        "WorkOrderChecklistItem",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="corrective_work_orders",
+        verbose_name=_("ítem de origen"),
+    )
     assigned_to = models.ForeignKey(
         "accounts.User",
         on_delete=models.SET_NULL,
@@ -188,6 +205,41 @@ class WorkOrder(TenantModel):
         return self.asset if self.asset_id else self.location
 
 
+class WorkOrderAbsorption(TenantModel):
+    """Asignación de un plan menor absorbida por la OT de un plan mayor (PM-05 CA3).
+
+    La OT guarda la asignación del plan mayor en `plan_assignment`; cada plan
+    absorbido queda aquí con la versión cuyo checklist se copió. Mientras la OT
+    esté abierta la asignación absorbida no genera otra OT, y al cerrarla se
+    reprograma igual que la principal.
+    """
+
+    work_order = models.ForeignKey(
+        WorkOrder, on_delete=models.CASCADE, related_name="absorptions", verbose_name=_("OT")
+    )
+    plan_assignment = models.ForeignKey(
+        "maintenance.PlanAssignment",
+        on_delete=models.CASCADE,
+        related_name="absorbed_in",
+        verbose_name=_("asignación absorbida"),
+    )
+    plan_version = models.ForeignKey(
+        "maintenance.PlanVersion",
+        on_delete=models.PROTECT,
+        related_name="+",
+        verbose_name=_("versión del plan"),
+    )
+
+    class Meta:
+        verbose_name = _("plan absorbido en OT")
+        verbose_name_plural = _("planes absorbidos en OT")
+        constraints = [
+            models.UniqueConstraint(
+                fields=["organization", "work_order", "plan_assignment"], name="uniq_work_order_absorption"
+            ),
+        ]
+
+
 class WorkOrderHelper(TenantModel):
     """Responsable adicional de una OT (WO-01 CA2); el principal sigue en `assigned_to`."""
 
@@ -238,11 +290,15 @@ class WorkOrderChecklistItem(TenantModel):
         OK = "ok", _("OK")
         NOT_OK = "not_ok", _("No OK")
         NA = "na", _("N.A.")
+        # Texto, foto obligatoria o firma: el ítem quedó respondido (PM-01 CA1).
+        DONE = "done", _("Hecho")
 
     work_order = models.ForeignKey(
         WorkOrder, on_delete=models.CASCADE, related_name="checklist", verbose_name=_("OT")
     )
     order = models.PositiveSmallIntegerField(default=0, verbose_name=_("orden"))
+    # Plan de origen cuando la OT reúne varios checklists (absorción, PM-05 CA3); vacío si es uno solo.
+    section = models.CharField(max_length=150, blank=True, verbose_name=_("sección"))
     text = models.CharField(max_length=250, verbose_name=_("texto"))
     item_type = models.CharField(
         max_length=20, choices=ItemType.choices, default=ItemType.CHECK, verbose_name=_("tipo")
@@ -259,6 +315,7 @@ class WorkOrderChecklistItem(TenantModel):
     value_number = models.DecimalField(
         max_digits=14, decimal_places=3, null=True, blank=True, verbose_name=_("valor")
     )
+    value_text = models.CharField(max_length=1000, blank=True, verbose_name=_("respuesta"))
     note = models.CharField(max_length=500, blank=True, verbose_name=_("nota"))
     answered_by = models.ForeignKey(
         "accounts.User",

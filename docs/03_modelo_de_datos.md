@@ -93,18 +93,24 @@ Restricción: un solo período abierto por activo (índice único parcial `WHERE
 `UNIQUE (organization_id, code)`. El manager por defecto hace `select_related("current_version")`; al llegar al plan por una relación hay que pedir `select_related("plan__current_version")`.
 
 **`plan_version`** (inmutable una vez publicada)
-`organization_id` · `plan_id` · `number` · `status` (draft, published, superseded) · `published_at` · `published_by_id` · `change_note` · `estimated_minutes` · `instructions` · disparadores: `interval_days` · `meter_kind` · `meter_interval` (vence lo que ocurra primero) · `schedule_mode` (floating, fixed) · `tolerance_pct`.
+`organization_id` · `plan_id` · `number` · `status` (draft, published, superseded) · `published_at` · `published_by_id` · `change_note` · `estimated_minutes` · `instructions` · disparadores: `calendar_interval` + `calendar_unit` (days, weeks, months; meses de calendario, mismo día ajustado a fin de mes) · `meter_kind` · `meter_interval` (vence lo que ocurra primero) · `schedule_mode` (floating, fixed) · `tolerance_pct`.
 `UNIQUE (organization_id, plan_id, number)`; único parcial `(organization_id, plan_id) WHERE status = 'draft'` (un borrador por plan).
 Los disparadores son campos de la versión y no una tabla `plan_trigger`: un plan tiene a lo sumo uno por calendario y uno por medidor (ADR-016).
 
 **`plan_task_item`** — ítems del checklist de una versión (solo editables en borrador).
-`organization_id` · `version_id` · `order` · `text` · `item_type` (check, measurement; texto, foto y firma en MVP‑1) · `unit` · `min_value` · `max_value` · `required`.
+`organization_id` · `version_id` · `order` · `text` · `item_type` (check, measurement, text, photo = foto obligatoria, signature = firma por ítem) · `unit` · `min_value` · `max_value` · `required`.
 
 **`plan_resource`** — repuestos y herramientas previstos (solo editables en borrador).
 `organization_id` · `version_id` · `kind` (part, tool) · `description` · `quantity` · `unit`. `part_id` se agrega con inventario (F2).
 
-Pendientes del diseño original: `work_type` del plan, `section` en ítems y
-absorción de planes (`supersedes_plans`, PM‑05 CA3).
+**`plan_absorption`** — «el plan mayor absorbe al menor» (PM‑05 CA3); dato del plan, no de la versión.
+`organization_id` · `plan_id` (mayor) · `absorbed_plan_id` (menor). `UNIQUE (organization_id, plan_id, absorbed_plan_id)`; CHECK `plan_id <> absorbed_plan_id`; el servicio rechaza ciclos.
+Regla: al generar la OT del mayor en un activo, un menor del mismo activo sin OT abierta se absorbe si vence a más tardar en el vencimiento del mayor + su tolerancia (`tolerance_pct` del mayor sobre su ciclo por calendario, en días; o sobre `meter_interval` si comparten medidor).
+
+**`maintenance_settings`** — ajustes del programador, uno por organización (se crea al guardarlo).
+`organization_id` · `horizon_days` (1–90, por defecto 14). `UNIQUE (organization_id)`.
+
+Pendiente del diseño original: `work_type` del plan.
 
 **`plan_assignment`** — plan aplicado a un activo; aquí vive el estado del programador.
 `organization_id` · `plan_id` · `asset_id` · `meter_id` · `starts_on` · `last_done_at` · `last_done_meter_value` · `next_due_at` · `next_due_meter_value` · `open_work_order_id` · `is_active`.
@@ -117,7 +123,7 @@ absorción de planes (`supersedes_plans`, PM‑05 CA3).
 `UNIQUE (organization_id, work_type)`.
 
 **`work_order`**
-`organization_id` · `number` · `code` (ej. `OT-P-000123`, calculado) · `work_type` (preventive, corrective, predictive, improvement, inspection) · `status` · `priority` (1–4) · `title` · `description` · `asset_id` · `location_id` · `plan_assignment_id` · `plan_version_id` · `request_id` · `failure_event_id` · `parent_work_order_id` (correctiva nacida de hallazgo) · `due_at` · `due_meter_value` · `scheduled_for` (fecha) · `estimated_minutes` · `started_at` · `completed_at` · `closed_at` · `closed_by_id` · `meter_value_at_completion` · `completion_notes` · `labor_cost` · `parts_cost` · `other_cost` · `total_cost` · `client_uuid`.
+`organization_id` · `number` · `code` (ej. `OT-P-000123`, calculado) · `work_type` (preventive, corrective, predictive, improvement, inspection) · `status` · `priority` (1–4) · `title` · `description` · `asset_id` · `location_id` · `plan_assignment_id` · `plan_version_id` · `request_id` · `failure_event_id` · `parent_work_order_id` + `source_checklist_item_id` (correctiva nacida de un ítem No OK, WO‑06) · `due_at` · `due_meter_value` · `scheduled_for` (fecha) · `estimated_minutes` · `started_at` · `completed_at` · `closed_at` · `closed_by_id` · `meter_value_at_completion` · `completion_notes` · `labor_cost` · `parts_cost` · `other_cost` · `total_cost` · `client_uuid`.
 `UNIQUE (organization_id, work_type, number)`; `UNIQUE (organization_id, client_uuid)`; índices `(organization_id, status, due_at)`, `(organization_id, asset_id, completed_at)`, `(organization_id, scheduled_for)`.
 Índice único parcial `(plan_assignment_id) WHERE status NOT IN ('closed','cancelled')`: garantiza que no existan dos OT abiertas de la misma asignación.
 
@@ -128,11 +134,14 @@ Se usa `user_id` (no `membership_id` + `is_lead`) igual que `assigned_to`; el
 servicio exige que cada usuario tenga membresía activa en la organización.
 `asset_id` y `location_id` de la OT son excluyentes: exactamente uno (CHECK).
 
+**`work_order_absorption`** — asignaciones de planes menores absorbidas por la OT (PM‑05 CA3).
+`organization_id` · `work_order_id` · `plan_assignment_id` · `plan_version_id` (PROTECT, versión cuyo checklist se copió). `UNIQUE (organization_id, work_order_id, plan_assignment_id)`. Mientras la OT esté abierta la asignación no genera otra OT; al cerrarla se reprograma igual que la principal.
+
 **`work_order_transition`**
 `organization_id` · `work_order_id` · `from_status` · `to_status` · `by_id` · `at` · `comment`.
 
 **`work_order_checklist_item`** — snapshot del ítem del plan + resultado.
-`organization_id` · `work_order_id` · `source_item_id` · `order` · `section` · `text` · `item_type` · `unit` · `min_value` · `max_value` · `required` (hasta aquí, copiados) · `result` (ok, not_ok, na) · `value_number` · `value_text` · `note` · `answered_by_id` · `answered_at` · `client_uuid`.
+`organization_id` · `work_order_id` · `source_item_id` · `order` · `section` · `text` · `item_type` · `unit` · `min_value` · `max_value` · `required` (hasta aquí, copiados; `section` = nombre del plan cuando la OT reúne varios checklists) · `result` (ok, not_ok, na; done para texto, foto obligatoria y firma) · `value_number` · `value_text` · `note` · `answered_by_id` · `answered_at` · `client_uuid`.
 
 **`labor_entry`**
 `organization_id` · `work_order_id` · `membership_id` · `started_at` · `ended_at` · `minutes` · `hourly_cost` (copiado) · `client_uuid`.

@@ -14,13 +14,24 @@ from apps.accounts.permissions import Perm, require_perm
 from apps.audit import services as audit
 from apps.audit.models import AuditEvent
 
-from .models import ItemType, MaintenancePlan, PlanAssignment, PlanResource, PlanTaskItem, PlanVersion
+from .models import (
+    DEFAULT_HORIZON_DAYS,
+    MAX_HORIZON_DAYS,
+    CalendarUnit,
+    ItemType,
+    MaintenancePlan,
+    MaintenanceSettings,
+    PlanAbsorption,
+    PlanAssignment,
+    PlanResource,
+    PlanTaskItem,
+    PlanVersion,
+)
 
-DEFAULT_HORIZON_DAYS = 14
 # Aviso mínimo para planes por uso: generar la OT al 90 % del intervalo.
 METER_MIN_LEAD = Decimal("0.10")
 # Campos de la versión que cambian cuándo vence un plan.
-TRIGGER_FIELDS = ("interval_days", "meter_kind", "meter_interval")
+TRIGGER_FIELDS = ("calendar_interval", "calendar_unit", "meter_kind", "meter_interval")
 ITEM_FIELDS = ("order", "text", "item_type", "unit", "min_value", "max_value", "required")
 RESOURCE_FIELDS = ("kind", "description", "quantity", "unit")
 
@@ -46,7 +57,15 @@ def locked_plans():
 def _add_content(version: PlanVersion, *, items=(), resources=()):
     PlanTaskItem.objects.bulk_create(
         [
-            PlanTaskItem(organization=version.organization, version=version, **{"order": i, **item})
+            PlanTaskItem(
+                organization=version.organization,
+                version=version,
+                **{
+                    "order": i,
+                    **item,
+                    **({"required": True} if item.get("item_type") == ItemType.PHOTO else {}),
+                },
+            )
             for i, item in enumerate(items, start=1)
         ]
     )
@@ -69,7 +88,7 @@ def create_plan(
     """Crea un plan con su versión 1 ya publicada (el camino corto para planes nuevos).
 
     `items`: dicts con text, item_type y opcionalmente unit, min_value,
-    max_value, required. `version_fields`: interval_days, meter_kind,
+    max_value, required. `version_fields`: calendar_interval, calendar_unit, meter_kind,
     meter_interval, estimated_minutes, instructions, schedule_mode, tolerance_pct.
     """
     plan = MaintenancePlan.objects.create(code=code, name=name, asset_class=asset_class)
@@ -147,16 +166,11 @@ def publish_version(*, version: PlanVersion, by=None, change_note: str = "") -> 
 def reschedule_after_trigger_change(*, plan, previous: PlanVersion, current: PlanVersion) -> int:
     """Recalcula vencimientos con la nueva frecuencia desde la última ejecución (o lectura).
 
-    Las asignaciones con una OT abierta no se tocan: esa OT ya está en curso y
-    al cerrarla se reprograma con la versión vigente.
+    Las asignaciones con una OT abierta (propia o de un plan que las absorbió)
+    no se tocan: esa OT ya está en curso y al cerrarla se reprograma con la
+    versión vigente.
     """
-    from apps.work.models import WorkOrder
-
-    open_ids = set(
-        WorkOrder.objects.filter(plan_assignment__plan=plan)
-        .exclude(status__in=WorkOrder.CLOSED_STATUSES)
-        .values_list("plan_assignment_id", flat=True)
-    )
+    open_ids = busy_assignment_ids(plan.assignments.all())
     today = timezone.localdate()
     changed = 0
     for assignment in plan.assignments.filter(is_active=True).select_related("asset", "meter"):
@@ -165,13 +179,9 @@ def reschedule_after_trigger_change(*, plan, previous: PlanVersion, current: Pla
         # Calendario: desde la última ejecución; si nunca se ejecutó, desde el
         # inicio implícito del ciclo anterior (vencimiento − frecuencia anterior).
         base_date = assignment.last_done_on
-        if base_date is None and assignment.next_due_on and previous.interval_days:
-            base_date = assignment.next_due_on - datetime.timedelta(days=previous.interval_days)
-        assignment.next_due_on = (
-            (base_date or today) + datetime.timedelta(days=current.interval_days)
-            if current.interval_days
-            else None
-        )
+        if base_date is None and assignment.next_due_on and previous.calendar_interval:
+            base_date = previous.shift(assignment.next_due_on, -1)
+        assignment.next_due_on = current.shift(base_date or today) if current.calendar_interval else None
         # Uso: igual, con la última lectura de cierre o el inicio del ciclo anterior.
         if current.uses_meter:
             meter = assignment.meter
@@ -217,10 +227,8 @@ def assign_plan(
     if asset.status == "retired":  # dado de baja: ya no recibe preventivos (AST-04 CA3)
         raise ValidationError(_("%(asset)s está dado de baja.") % {"asset": asset.code})
     defaults = {"is_active": True, "next_due_on": None, "meter": None, "next_due_meter_value": None}
-    if version.interval_days:
-        defaults["next_due_on"] = starts_on or timezone.localdate() + datetime.timedelta(
-            days=version.interval_days
-        )
+    if version.calendar_interval:
+        defaults["next_due_on"] = starts_on or version.shift(timezone.localdate())
     if version.uses_meter:
         meter = meter or asset.meters.filter(kind=version.meter_kind, is_active=True).first()
         if meter is None:
@@ -305,42 +313,96 @@ def _estimated_meter_date(assignment: PlanAssignment, today: datetime.date) -> d
     return today + datetime.timedelta(days=math.ceil(remaining / meter.avg_daily_usage))
 
 
-def generate_due_work_orders(
-    *, today: datetime.date | None = None, horizon_days=DEFAULT_HORIZON_DAYS, meter=None
-):
-    """Genera OT preventivas que vencen por fecha o por uso, lo que ocurra primero (PM-02, PM-05).
+def busy_assignment_ids(assignments) -> set:
+    """Asignaciones con una OT abierta, propia o de un plan que las absorbió (PM-05 CA2/CA3)."""
+    from apps.work.models import WorkOrder, WorkOrderAbsorption
 
-    Usa la versión vigente del plan: la OT guarda esa versión y copia su
-    checklist. Idempotente: una asignación con OT abierta no genera otra
-    (además lo garantiza un índice único parcial en WorkOrder). Con `meter`,
-    revisa solo los planes de ese medidor (tras registrar una lectura).
-    """
-    from apps.work.models import WorkOrder
-    from apps.work.services import create_work_order
+    own = WorkOrder.objects.filter(plan_assignment__in=assignments).exclude(
+        status__in=WorkOrder.CLOSED_STATUSES
+    )
+    absorbed = WorkOrderAbsorption.objects.filter(plan_assignment__in=assignments).exclude(
+        work_order__status__in=WorkOrder.CLOSED_STATUSES
+    )
+    return set(own.values_list("plan_assignment_id", flat=True)) | set(
+        absorbed.values_list("plan_assignment_id", flat=True)
+    )
 
-    today = today or timezone.localdate()
-    limit = today + datetime.timedelta(days=horizon_days)
-    candidates = (
+
+def _active_assignments():
+    return (
         PlanAssignment.objects.filter(
             is_active=True,
             plan__is_active=True,
             plan__current_version__isnull=False,
             asset__is_active=True,
         )
-        .filter(Q(next_due_on__lte=limit) | Q(meter__isnull=False, next_due_meter_value__isnull=False))
         .exclude(asset__status="retired")
         .select_related("plan__current_version", "asset", "meter")
     )
+
+
+def absorption_due(*, main: PlanAssignment, due_on: datetime.date | None, other: PlanAssignment) -> bool:
+    """¿El plan menor (`other`) vence junto al mayor (`main`) en el mismo activo? (PM-05 CA3)
+
+    «Junto» = a más tardar en el vencimiento del mayor más su tolerancia
+    (`tolerance_pct` del plan mayor aplicado a su frecuencia): por fecha, hasta
+    `due_on` + tolerancia en días; por medidor (el mismo medidor), hasta la
+    lectura objetivo del mayor + tolerancia en unidades. Un menor ya vencido
+    también entra: la OT del mayor lo cubre.
+    """
+    version, minor = main.plan.current_version, other.plan.current_version
+    pct = Decimal(version.tolerance_pct) / 100
+    if other.next_due_on is not None and due_on is not None:
+        # Tolerancia en días sobre la frecuencia por calendario del mayor (o, si no tiene, la del menor).
+        reference = version if version.calendar_interval else minor
+        period = reference.calendar_period_days(due_on) if reference.calendar_interval else 0
+        if other.next_due_on <= due_on + datetime.timedelta(days=math.floor(period * pct)):
+            return True
+    if (
+        other.next_due_meter_value is not None
+        and main.next_due_meter_value is not None
+        and other.meter_id is not None
+        and other.meter_id == main.meter_id
+        and version.uses_meter
+    ):
+        return other.next_due_meter_value <= main.next_due_meter_value + version.meter_interval * pct
+    return False
+
+
+def generate_due_work_orders(*, today: datetime.date | None = None, horizon_days=None, meter=None):
+    """Genera OT preventivas que vencen por fecha o por uso, lo que ocurra primero (PM-02, PM-05).
+
+    Usa la versión vigente del plan: la OT guarda esa versión y copia su
+    checklist. Idempotente: una asignación con OT abierta (propia o de un plan
+    que la absorbió) no genera otra; además lo garantiza un índice único
+    parcial en WorkOrder. Con `meter`, revisa solo los planes de ese medidor
+    (tras registrar una lectura).
+
+    Absorción (PM-05 CA3): los planes que absorben a otros se revisan primero;
+    si en el mismo activo un plan absorbido vence junto al mayor
+    (`absorption_due`), la OT del mayor lleva los dos checklists en secciones
+    rotuladas y el menor no genera OT propia.
+    """
+    from apps.work.models import WorkOrder, WorkOrderAbsorption
+    from apps.work.services import create_work_order
+
+    from .selectors import maintenance_settings
+
+    today = today or timezone.localdate()
+    if horizon_days is None:  # el de la organización (PM-05 CA1: configurable, 14 días por defecto)
+        horizon_days = maintenance_settings().horizon_days
+    limit = today + datetime.timedelta(days=horizon_days)
+    candidates = _active_assignments().filter(
+        Q(next_due_on__lte=limit) | Q(meter__isnull=False, next_due_meter_value__isnull=False)
+    )
     if meter is not None:
         candidates = candidates.filter(meter=meter)
-    open_ids = set(
-        WorkOrder.objects.filter(plan_assignment__in=candidates)
-        .exclude(status__in=WorkOrder.CLOSED_STATUSES)
-        .values_list("plan_assignment_id", flat=True)
-    )
-    created = []
+    candidates = list(candidates)
+    busy = busy_assignment_ids(candidates)
+
+    due = []
     for assignment in candidates:
-        if assignment.id in open_ids:
+        if assignment.id in busy:
             continue
         version = assignment.plan.current_version
         by_date = assignment.next_due_on is not None and assignment.next_due_on <= limit
@@ -350,21 +412,78 @@ def generate_due_work_orders(
         due_dates = [d for d in [assignment.next_due_on] if d is not None]
         if by_meter:
             due_dates.append(_estimated_meter_date(assignment, today))
-        with transaction.atomic():
-            created.append(
-                create_work_order(
-                    work_type=WorkOrder.Type.PREVENTIVE,
-                    title=assignment.plan.name,
-                    asset=assignment.asset,
-                    due_on=min(due_dates),
-                    due_meter_value=assignment.next_due_meter_value if assignment.meter_id else None,
-                    estimated_minutes=version.estimated_minutes,
-                    plan_assignment=assignment,
-                    plan_version=version,
-                    checklist=list(version.items.all()),
-                    status=WorkOrder.Status.PLANNED,
-                )
+        due.append((assignment, min(due_dates)))
+
+    # Absorciones de los planes que vencen: una consulta para las reglas y otra para
+    # las asignaciones menores de esos mismos activos (sin consultas por fila).
+    absorbs = {}
+    for plan_id, absorbed_id in PlanAbsorption.objects.filter(
+        plan_id__in={a.plan_id for a, _due in due}, absorbed_plan__is_active=True
+    ).values_list("plan_id", "absorbed_plan_id"):
+        absorbs.setdefault(plan_id, set()).add(absorbed_id)
+    minors = {}
+    if absorbs:
+        others = list(
+            _active_assignments().filter(
+                asset_id__in={a.asset_id for a, _due in due if a.plan_id in absorbs},
+                plan_id__in=set().union(*absorbs.values()),
             )
+        )
+        busy |= busy_assignment_ids(others)
+        for other in others:
+            minors.setdefault(other.asset_id, []).append(other)
+    due.sort(key=lambda row: row[0].plan_id not in absorbs)  # primero los que absorben
+
+    created = []
+    for assignment, due_on in due:
+        if assignment.id in busy:
+            continue
+        version = assignment.plan.current_version
+        absorbed = [
+            other
+            for other in minors.get(assignment.asset_id, [])
+            if other.plan_id in absorbs.get(assignment.plan_id, ())
+            and other.id not in busy
+            and absorption_due(main=assignment, due_on=due_on, other=other)
+        ]
+        with transaction.atomic():
+            fields = {}
+            if absorbed:
+                fields["checklist_sections"] = [(assignment.plan.name, list(version.items.all()))] + [
+                    (other.plan.name, list(other.plan.current_version.items.all())) for other in absorbed
+                ]
+                fields["description"] = _("Incluye: %(plans)s.") % {
+                    "plans": ", ".join(other.plan.name for other in absorbed)
+                }
+            else:
+                fields["checklist"] = list(version.items.all())
+            work_order = create_work_order(
+                work_type=WorkOrder.Type.PREVENTIVE,
+                title=assignment.plan.name,
+                asset=assignment.asset,
+                due_on=due_on,
+                due_meter_value=assignment.next_due_meter_value if assignment.meter_id else None,
+                estimated_minutes=version.estimated_minutes
+                + sum(other.plan.current_version.estimated_minutes for other in absorbed),
+                plan_assignment=assignment,
+                plan_version=version,
+                status=WorkOrder.Status.PLANNED,
+                **fields,
+            )
+            WorkOrderAbsorption.objects.bulk_create(
+                [
+                    WorkOrderAbsorption(
+                        organization=work_order.organization,
+                        work_order=work_order,
+                        plan_assignment=other,
+                        plan_version=other.plan.current_version,
+                    )
+                    for other in absorbed
+                ]
+            )
+        busy.add(assignment.id)
+        busy.update(other.id for other in absorbed)
+        created.append(work_order)
     return created
 
 
@@ -380,6 +499,22 @@ def _next_fixed_target(previous, interval, after):
     return target
 
 
+def _next_fixed_date(previous: datetime.date, version: PlanVersion, after: datetime.date) -> datetime.date:
+    """Modo fijo por calendario: anterior + k·frecuencia, el primero posterior a `after`.
+
+    En meses se cuenta desde la fecha anterior (k meses de una vez, no mes a mes),
+    así el día del mes se conserva: 31-ene → 28-feb → 31-mar.
+    """
+    if version.calendar_unit != CalendarUnit.MONTHS:
+        days = version.calendar_interval * (7 if version.calendar_unit == CalendarUnit.WEEKS else 1)
+        return _next_fixed_target(previous, datetime.timedelta(days=days), after)
+    months = (after.year - previous.year) * 12 + after.month - previous.month
+    k = max(1, months // version.calendar_interval - 1)
+    while version.shift(previous, k) <= after:
+        k += 1
+    return version.shift(previous, k)
+
+
 def register_completion(
     *, assignment: PlanAssignment, completed_on: datetime.date, meter_value=None
 ) -> PlanAssignment:
@@ -391,12 +526,11 @@ def register_completion(
     version = assignment.plan.current_version
     fixed = version.schedule_mode == PlanVersion.ScheduleMode.FIXED
     assignment.last_done_on = completed_on
-    if version.interval_days:
-        interval = datetime.timedelta(days=version.interval_days)
+    if version.calendar_interval:
         if fixed and assignment.next_due_on is not None:
-            assignment.next_due_on = _next_fixed_target(assignment.next_due_on, interval, completed_on)
+            assignment.next_due_on = _next_fixed_date(assignment.next_due_on, version, completed_on)
         else:
-            assignment.next_due_on = completed_on + interval
+            assignment.next_due_on = version.shift(completed_on)
     else:
         assignment.next_due_on = None
     if version.uses_meter and assignment.meter_id:
@@ -438,7 +572,7 @@ def shift_meter_targets(*, meter, delta: Decimal) -> None:
 
 PLAN_FIELDS = ("code", "name", "asset_class", "is_active")
 DRAFT_FIELDS = (
-    "estimated_minutes", "instructions", "interval_days", "meter_kind",
+    "estimated_minutes", "instructions", "calendar_interval", "calendar_unit", "meter_kind",
     "meter_interval", "schedule_mode", "tolerance_pct",
 )  # fmt: skip
 
@@ -456,6 +590,7 @@ def _check_draft_version(version: PlanVersion) -> None:
 
 
 def _clean_measurement(item_type, unit, min_value, max_value):
+    """Unidad y rango solo aplican a mediciones; en otros tipos se descartan."""
     if item_type not in ItemType.values:
         raise ValidationError(_("Tipo de ítem no válido."))
     if item_type != ItemType.MEASUREMENT:
@@ -548,6 +683,7 @@ def add_draft_item(
     _require_plan_manager(membership)
     _check_draft_version(version)
     unit, min_value, max_value = _clean_measurement(item_type, unit, min_value, max_value)
+    required = required or item_type == ItemType.PHOTO  # «foto obligatoria» siempre bloquea el cierre
     last = version.items.aggregate(n=Max("order"))["n"] or 0
     item = PlanTaskItem.objects.create(
         version=version,
@@ -575,6 +711,7 @@ def update_draft_item(
     _require_plan_manager(membership)
     _check_draft_version(item.version)
     unit, min_value, max_value = _clean_measurement(item_type, unit, min_value, max_value)
+    required = required or item_type == ItemType.PHOTO
     before = audit.snapshot(item, ITEM_FIELDS)
     item.text, item.item_type, item.unit = text.strip(), item_type, unit
     item.min_value, item.max_value, item.required = min_value, max_value, required
@@ -812,3 +949,90 @@ def deactivate_assignment(*, membership, assignment: PlanAssignment) -> PlanAssi
             changes={"is_active": [True, False]},
         )
     return assignment
+
+
+# --- Ajustes del programador ---------------------------------------------------
+
+
+@transaction.atomic
+def update_maintenance_settings(*, membership, horizon_days: int) -> MaintenanceSettings:
+    """Horizonte de generación de la organización (PM-05 CA1). Solo administradores."""
+    require_perm(membership, Perm.ORGANIZATION_MANAGE)
+    if not 1 <= horizon_days <= MAX_HORIZON_DAYS:
+        raise ValidationError({"horizon_days": _("Usa entre 1 y %(max)s días.") % {"max": MAX_HORIZON_DAYS}})
+    settings_row, _created = MaintenanceSettings.objects.select_for_update().get_or_create()
+    before = settings_row.horizon_days if not _created else DEFAULT_HORIZON_DAYS
+    if before != horizon_days or _created:
+        settings_row.horizon_days = horizon_days
+        settings_row.save(update_fields=["horizon_days", "updated_at"])
+        audit.record(
+            action=AuditEvent.Action.UPDATE,
+            target=settings_row,
+            membership=membership,
+            changes={"horizon_days": [before, horizon_days]},
+        )
+    return settings_row
+
+
+# --- Absorción de planes (PM-05 CA3) ------------------------------------------------
+
+
+def _absorbs_transitively(start_id, target_id) -> bool:
+    """¿`start` ya absorbe (directa o indirectamente) a `target`? Evita ciclos A ⊃ B ⊃ A."""
+    edges = {}
+    for plan_id, absorbed_id in PlanAbsorption.objects.values_list("plan_id", "absorbed_plan_id"):
+        edges.setdefault(plan_id, set()).add(absorbed_id)
+    pending, seen = [start_id], set()
+    while pending:
+        current = pending.pop()
+        if current == target_id:
+            return True
+        if current not in seen:
+            seen.add(current)
+            pending.extend(edges.get(current, ()))
+    return False
+
+
+@transaction.atomic
+def add_plan_absorption(
+    *, membership, plan: MaintenancePlan, absorbed_plan: MaintenancePlan
+) -> PlanAbsorption:
+    """Configura que `plan` (mayor) absorba a `absorbed_plan` (menor) en el mismo activo. Idempotente."""
+    _require_plan_manager(membership)
+    if (
+        absorbed_plan.organization_id != plan.organization_id
+        or plan.organization_id != membership.organization_id
+    ):
+        raise ValidationError(_("Elige un plan de esta organización."))
+    if absorbed_plan.pk == plan.pk:
+        raise ValidationError(_("Un plan no puede absorberse a sí mismo."))
+    locked_plans().get(pk=plan.pk)
+    existing = PlanAbsorption.objects.filter(plan=plan, absorbed_plan=absorbed_plan).first()
+    if existing is not None:
+        return existing
+    if _absorbs_transitively(absorbed_plan.pk, plan.pk):
+        raise ValidationError(
+            _("«%(other)s» ya absorbe a «%(plan)s»: no pueden absorberse mutuamente.")
+            % {"other": absorbed_plan.name, "plan": plan.name}
+        )
+    absorption = PlanAbsorption.objects.create(plan=plan, absorbed_plan=absorbed_plan)
+    audit.record(
+        action=AuditEvent.Action.CREATE,
+        target=plan,
+        membership=membership,
+        changes={"absorbs": [None, absorbed_plan.code]},
+    )
+    return absorption
+
+
+@transaction.atomic
+def remove_plan_absorption(*, membership, absorption: PlanAbsorption) -> None:
+    """Deja de absorber. Las OT ya generadas con ambos checklists no cambian."""
+    _require_plan_manager(membership)
+    audit.record(
+        action=AuditEvent.Action.UPDATE,
+        target=absorption.plan,
+        membership=membership,
+        changes={"absorbs": [absorption.absorbed_plan.code, None]},
+    )
+    absorption.delete()

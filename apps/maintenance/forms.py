@@ -7,7 +7,7 @@ from apps.assets.models import AssetClass, MeterKind
 from apps.organizations.models import Location
 from apps.organizations.selectors import visible_locations
 
-from .models import ItemType, PlanResource, PlanVersion
+from .models import MAX_HORIZON_DAYS, CalendarUnit, ItemType, PlanResource, PlanVersion
 
 
 def _class_field(**kwargs):
@@ -66,11 +66,19 @@ class PlanForm(forms.Form):
 class TriggerForm(forms.Form):
     """Frecuencia y reglas de la versión (borrador)."""
 
-    interval_days = forms.IntegerField(
-        label=_("Cada cuántos días"),
+    calendar_interval = forms.IntegerField(
+        label=_("Cada cuánto (calendario)"),
         min_value=1,
+        max_value=3650,
         required=False,
         help_text=_("Vacío si solo es por medidor."),
+    )
+    calendar_unit = forms.ChoiceField(
+        label=_("Unidad"),
+        choices=CalendarUnit.choices,
+        initial=CalendarUnit.DAYS,
+        required=False,
+        help_text=_("Meses de calendario: mismo día del mes (o el último, si no existe)."),
     )
     meter_kind = forms.ChoiceField(
         label=_("Medidor"), required=False, choices=[("", _("Sin medidor")), *MeterKind.choices]
@@ -99,20 +107,21 @@ class TriggerForm(forms.Form):
     def clean(self):
         cleaned = super().clean()
         days, kind, interval = (
-            cleaned.get("interval_days"),
+            cleaned.get("calendar_interval"),
             cleaned.get("meter_kind"),
             cleaned.get("meter_interval"),
         )
         if bool(kind) != bool(interval):
             raise forms.ValidationError(_("Para disparar por medidor indica el tipo y la frecuencia."))
         if not days and not kind and not self.errors:
-            raise forms.ValidationError(_("Define una frecuencia en días, por medidor o ambas."))
+            raise forms.ValidationError(_("Define una frecuencia por calendario, por medidor o ambas."))
         return cleaned
 
     def version_fields(self):
         data = self.cleaned_data
         return {
-            "interval_days": data["interval_days"],
+            "calendar_interval": data["calendar_interval"],
+            "calendar_unit": data["calendar_unit"] or CalendarUnit.DAYS,
             "meter_kind": data["meter_kind"],
             "meter_interval": data["meter_interval"] if data["meter_kind"] else None,
             "schedule_mode": data["schedule_mode"],
@@ -192,3 +201,12 @@ class AssetPlanForm(forms.Form):
         self.fields["meter"].label_from_instance = lambda m: m.name or m.get_kind_display()
         if not meters.exists():
             del self.fields["meter"]
+
+
+class MaintenanceSettingsForm(forms.Form):
+    horizon_days = forms.IntegerField(
+        label=_("Horizonte de generación (días)"),
+        min_value=1,
+        max_value=MAX_HORIZON_DAYS,
+        help_text=_("Por defecto, 14 días: la OT aparece dos semanas antes de vencer."),
+    )

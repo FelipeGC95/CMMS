@@ -1,0 +1,35 @@
+{% load i18n ui %}{# Absorción de planes (PM-05 CA3). Uso: include con plan, absorptions, absorb_choices y back. #}
+<section class="card" id="absorptions" aria-labelledby="absorptions-title">
+  <h2 id="absorptions-title">{% translate "Absorbe a otros planes" %}</h2>
+  <p class="muted">{% blocktranslate with plan=plan.name %}Si «{{ plan }}» vence en un activo y un plan de esta lista vence en el mismo activo dentro de la tolerancia, se genera una sola OT con ambos checklists y al cerrarla avanzan los dos. Rige de inmediato, sin publicar.{% endblocktranslate %}</p>
+  {% if absorptions %}
+  <ul class="list">
+    {% for absorption in absorptions %}
+    <li class="checklist-order__row">
+      <div class="list__main">
+        <span class="list__title"><a href="{% url 'plan_detail' absorption.absorbed_plan.pk %}">{{ absorption.absorbed_plan.name }}</a></span>
+        <span class="list__meta"><span class="mono">{{ absorption.absorbed_plan.code }}</span> · {{ absorption.absorbed_plan.frequency_label|default:"—" }}</span>
+      </div>
+      <div class="checklist-order__actions">
+        <form method="post" action="{% url 'plan_absorption_remove' plan.pk absorption.pk %}">{% csrf_token %}<input type="hidden" name="next" value="{{ back }}">
+          <button class="btn btn--danger btn--lg" type="submit">{% icon 'x' %}{% translate "Quitar" %}<span class="visually-hidden"> «{{ absorption.absorbed_plan.name }}»</span></button>
+        </form>
+      </div>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}<p class="empty">{% icon 'list' %} {% translate "No absorbe a ningún plan." %}</p>{% endif %}
+  {% if absorb_choices %}
+  <form method="post" action="{% url 'plan_absorption_add' plan.pk %}" class="mt-4">
+    {% csrf_token %}<input type="hidden" name="next" value="{{ back }}">
+    <div class="field">
+      <label for="absorbed-plan">{% translate "Plan menor que absorbe" %}</label>
+      <select class="input" id="absorbed-plan" name="absorbed_plan" required>
+        {% for choice in absorb_choices %}<option value="{{ choice.pk }}">{{ choice.name }} ({{ choice.code }})</option>{% endfor %}
+      </select>
+      <span class="help">{% translate "Ej.: la mantención de 500 h absorbe a la de 250 h." %}</span>
+    </div>
+    <button class="btn btn--secondary btn--lg btn--block" type="submit">{% icon 'check' %}{% translate "Agregar absorción" %}</button>
+  </form>
+  {% endif %}
+</section>

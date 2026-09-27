@@ -250,7 +250,7 @@ def _add_plans_and_open_orders(tenant, n):
             plan = create_plan(
                 code=f"PX-{MaintenancePlan.objects.count():03d}",
                 name=f"Plan {i}",
-                interval_days=7,
+                calendar_interval=7,
                 items=[{"text": "Revisar", "item_type": ItemType.CHECK}],
             )
             assign_plan(plan=plan, asset=tenant.asset)
@@ -277,7 +277,7 @@ def _add_retired_plans(tenant, n):
             plan = create_plan(
                 code=f"PR-{MaintenancePlan.objects.count():03d}",
                 name=f"Plan {i}",
-                interval_days=7,
+                calendar_interval=7,
                 items=[{"text": "Revisar", "item_type": ItemType.CHECK}],
             )
             change_asset_status(asset=tenant.asset, status="operational", reason="x")
@@ -353,7 +353,7 @@ def _checklist_rows(tenant, wo, n):
                 code=f"PX{i}",
                 name=f"Plan {i}",
                 asset_class=tenant.asset.asset_class,
-                interval_days=30,
+                calendar_interval=30,
                 items=[{"text": "x", "item_type": ItemType.CHECK}],
             )
 
@@ -424,7 +424,7 @@ def _add_plan_rows(tenant, usage_plan, n):
                 code=f"P-{k}",
                 name=f"Plan {k}",
                 asset_class=tenant.asset.asset_class,
-                interval_days=30,
+                calendar_interval=30,
                 items=[{"text": "x"}],
                 resources=[{"description": "Filtro"}],
             )
@@ -515,3 +515,104 @@ def test_reading_import_preview_does_not_grow_with_rows(client, tenant_a):
         return len(ctx.captured_queries)
 
     assert preview(2) == preview(12)
+
+
+def _typed_items(tenant, wo, n):
+    """Ítems de texto, foto obligatoria y firma ya respondidos (PM-01 CA1)."""
+    import io
+
+    from django.core.files.uploadedfile import SimpleUploadedFile
+    from PIL import Image
+
+    from apps.maintenance.models import ItemType
+    from apps.work.services import add_checklist_item, add_checklist_photo, answer_checklist_item
+    from tests.conftest import tiny_jpeg_bytes
+
+    buffer = io.BytesIO()
+    Image.new("RGB", (20, 10), (255, 255, 255)).save(buffer, format="PNG")
+    with tenant_context(tenant.org):
+        start = wo.checklist.count()
+        for i in range(start, start + n):
+            text = add_checklist_item(
+                work_order=wo, membership=tenant.admin, text=f"T{i}", item_type=ItemType.TEXT
+            )
+            answer_checklist_item(item=text, membership=tenant.tech, value_text="ok")
+            photo = add_checklist_item(
+                work_order=wo, membership=tenant.admin, text=f"F{i}", item_type=ItemType.PHOTO
+            )
+            jpeg = SimpleUploadedFile("f.jpg", tiny_jpeg_bytes(), content_type="image/jpeg")
+            add_checklist_photo(item=photo, membership=tenant.tech, uploaded_file=jpeg)
+            sign = add_checklist_item(
+                work_order=wo, membership=tenant.admin, text=f"S{i}", item_type=ItemType.SIGNATURE
+            )
+            png = SimpleUploadedFile("s.png", buffer.getvalue(), content_type="image/png")
+            answer_checklist_item(item=sign, membership=tenant.tech, signature=png)
+
+
+def test_checklist_with_new_item_types_does_not_grow(client, tenant_a, settings, tmp_path):
+    settings.MEDIA_ROOT = tmp_path
+    with tenant_context(tenant_a.org):
+        wo = create_work_order(work_type="corrective", title="x", asset=tenant_a.asset)
+    login(client, tenant_a.tech)
+    url = reverse("work_order_detail", args=[wo.pk])
+    _typed_items(tenant_a, wo, 1)
+    few = _count(client, url)
+    _typed_items(tenant_a, wo, 5)
+    many = _count(client, url)
+    assert many == few, f"checklist con tipos nuevos: {few} → {many} consultas"
+
+
+def _absorbing_assets(tenant, n, plans):
+    """n activos nuevos con un plan mayor que absorbe a uno menor, ambos por vencer (PM-05 CA3)."""
+    import datetime as dt
+
+    from apps.maintenance.services import assign_plan
+
+    with tenant_context(tenant.org):
+        for _ in range(n):
+            asset = Asset.objects.create(
+                code=f"GA-{Asset.objects.count():03d}", name="Grúa", asset_class=tenant.asset.asset_class
+            )
+            assign_plan(plan=plans[0], asset=asset, starts_on=dt.date(2026, 10, 1))
+            assign_plan(plan=plans[1], asset=asset, starts_on=dt.date(2026, 10, 3))
+
+
+def _generation_queries(tenant):
+    import datetime as dt
+
+    from apps.maintenance.services import generate_due_work_orders
+
+    with tenant_context(tenant.org), CaptureQueriesContext(connection) as ctx:
+        created = generate_due_work_orders(today=dt.date(2026, 9, 24), horizon_days=14)
+    return len(ctx.captured_queries), len(created)
+
+
+def test_generation_with_absorption_has_a_constant_cost_per_work_order(tenant_a):
+    from apps.maintenance.models import CalendarUnit
+    from apps.maintenance.services import add_plan_absorption, create_plan
+
+    with tenant_context(tenant_a.org):
+        items = [{"text": "Revisar", "item_type": "check"}, {"text": "Nota", "item_type": "text"}]
+        major = create_plan(
+            code="G6", name="6 meses", calendar_interval=6, calendar_unit=CalendarUnit.MONTHS, items=items
+        )
+        minor = create_plan(
+            code="G1", name="1 mes", calendar_interval=1, calendar_unit=CalendarUnit.MONTHS, items=items
+        )
+        add_plan_absorption(membership=tenant_a.admin, plan=major, absorbed_plan=minor)
+    _absorbing_assets(tenant_a, 1, (major, minor))
+    _generation_queries(tenant_a)  # la primera OT crea el correlativo: se excluye de la medición
+    counts = []
+    for n in (1, 2, 4):
+        _absorbing_assets(tenant_a, n, (major, minor))
+        queries, created = _generation_queries(tenant_a)
+        assert created == n
+        counts.append(queries)
+    per_order = counts[1] - counts[0]
+    assert counts[2] - counts[1] == 2 * per_order, f"generación: {counts}"  # lineal: sin N+1 por candidato
+    assert per_order <= 15, f"{per_order} consultas por OT generada"
+    # Sin nada que generar (todas con OT abierta), el costo no depende de cuántas asignaciones hay.
+    idle = _generation_queries(tenant_a)[0]
+    _absorbing_assets(tenant_a, 3, (major, minor))
+    _generation_queries(tenant_a)
+    assert _generation_queries(tenant_a)[0] == idle

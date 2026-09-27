@@ -284,8 +284,8 @@ def test_answering_keeps_the_note_sent_with_the_result(client, in_a):
     assert item.result == "not_ok" and item.note == "Válvula trabada"
 
 
-@pytest.mark.parametrize(("role", "link"), [("admin", "work_order_create"), ("tech", "asset_report")])
-def test_out_of_range_measurement_suggests_a_corrective(client, in_a, role, link):
+@pytest.mark.parametrize(("role", "label"), [("admin", "Crear correctiva"), ("tech", "Avisar falla")])
+def test_out_of_range_measurement_suggests_a_corrective(client, in_a, role, label):
     wo = _preventive(in_a)
     measure = wo.checklist.get(item_type="measurement")
     login(client, getattr(in_a, role))
@@ -296,8 +296,8 @@ def test_out_of_range_measurement_suggests_a_corrective(client, in_a, role, link
     )
     html = response.content.decode()
     assert "crea una OT correctiva" in html
-    expected = reverse(link) if link == "work_order_create" else reverse(link, args=[in_a.asset.pk])
-    assert expected in html
+    # WO-06: la correctiva queda vinculada al ítem (el gestor la crea; el técnico avisa la falla).
+    assert reverse("checklist_item_corrective", args=[wo.pk, measure.pk]) in html and label in html
 
 
 def test_in_range_measurement_has_no_corrective_hint(client, in_a):

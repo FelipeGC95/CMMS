@@ -425,6 +425,17 @@ tener ingresos).
   - Modo fijo: el siguiente objetivo es el anterior + k·intervalo, con el
     menor k que lo deja después de la ejecución. Una OT muy atrasada no
     genera OT en el pasado.
+  - La frecuencia por calendario es `calendar_interval` + `calendar_unit`
+    (días, semanas = 7 días, meses de calendario). Un mes suma el mismo día
+    del mes ajustado al último día si no existe (31‑ene + 1 mes = 28/29‑feb);
+    en modo fijo se suman k meses desde el objetivo anterior de una vez.
+    Cambiar la unidad cuenta como cambio de frecuencia al publicar.
+  - Absorción (PM‑05 CA3): `plan_absorption` es un dato del plan (rige sin
+    publicar). La OT del plan mayor copia el checklist de su versión y el de
+    la versión vigente de cada menor absorbido, en secciones rotuladas;
+    `work_order_absorption` guarda la asignación y la versión del menor.
+  - El horizonte de generación vive en `maintenance_settings` (por
+    organización, 14 días por defecto).
 - **Alternativas descartadas:**
   - Editar el plan en sitio y confiar solo en el snapshot del checklist:
     pierde la trazabilidad de frecuencia y recursos.

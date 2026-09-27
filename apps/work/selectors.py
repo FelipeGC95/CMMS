@@ -126,6 +126,8 @@ def work_order_detail(pk, *, membership):
             "plan_assignment__meter",
             "plan_version",
             "failure",
+            "parent_work_order",
+            "source_checklist_item",
         )
         .prefetch_related(
             "checklist",
@@ -135,6 +137,8 @@ def work_order_detail(pk, *, membership):
             "other_costs",
             "helpers",
             "plan_version__resources",
+            "absorptions__plan_assignment__plan",
+            "absorptions__plan_version",
         )
         .get(pk=pk)
     )

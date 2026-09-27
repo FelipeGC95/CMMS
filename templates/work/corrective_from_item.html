@@ -1,0 +1,34 @@
+{% extends "base.html" %}{% load i18n ui %}
+{% block title %}{% if can_manage %}{% translate "Crear correctiva" %}{% else %}{% translate "Avisar falla" %}{% endif %}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <p class="muted"><a href="{% url 'work_order_detail' parent.pk %}"><span class="mono">{{ parent.code }}</span></a> · {% translate "Hallazgo No OK" %}</p>
+    <h1>{% if can_manage %}{% translate "Crear OT correctiva" %}{% else %}{% translate "Avisar falla" %}{% endif %}</h1>
+  </div>
+</div>
+<section class="card narrow" aria-labelledby="finding-title">
+  <h2 id="finding-title">{{ item.text }}</h2>
+  <dl class="dl">
+    <dt>{% if parent.asset_id %}{% translate "Activo" %}{% else %}{% translate "Ubicación" %}{% endif %}</dt>
+    <dd>{% if parent.asset_id %}<span class="mono">{{ parent.asset.code }}</span> {{ parent.asset.name }}{% else %}{{ parent.location }}{% endif %}</dd>
+    <dt>{% translate "Resultado" %}</dt>
+    <dd><span class="badge badge--error">{% icon 'x' %}{% translate "No OK" %}</span>{% if item.value_number is not None %} <span class="num">{{ item.value_number|measure }} {{ item.unit }}</span>{% endif %}</dd>
+    {% if item.note %}<dt>{% translate "Observación" %}</dt><dd>{{ item.note }}</dd>{% endif %}
+  </dl>
+  {% if photos %}<h3 class="mt-4">{% translate "Fotos del hallazgo (se verán en la correctiva)" %}</h3>
+  <ul class="check-item__photos">{% for photo in photos %}<li class="check-photo"><img class="thumb thumb--sm" src="{% url 'attachment' photo.pk %}" alt="{% blocktranslate with n=forloop.counter %}Foto {{ n }} del hallazgo{% endblocktranslate %}" loading="lazy"></li>{% endfor %}</ul>{% endif %}
+  <form method="post" class="mt-4">
+    {% csrf_token %}
+    <div class="field">
+      <label for="description">{% translate "Descripción (opcional)" %}</label>
+      <textarea class="input" id="description" name="description" rows="3" maxlength="2000" autocapitalize="sentences">{{ item.note }}</textarea>
+    </div>
+    {% if parent.asset_id %}<div class="field field--check"><input type="checkbox" id="asset_stopped" name="asset_stopped"><label for="asset_stopped">{% translate "El equipo está detenido" %}</label></div>{% endif %}
+    <div class="row">
+      <button class="btn btn--primary btn--lg" type="submit">{% icon 'check' %}{% if can_manage %}{% translate "Crear correctiva" %}{% else %}{% translate "Enviar aviso" %}{% endif %}</button>
+      <a class="btn btn--ghost btn--lg" href="{% url 'work_order_detail' parent.pk %}#item-{{ item.pk }}">{% translate "Volver" %}</a>
+    </div>
+  </form>
+</section>
+{% endblock %}

@@ -1,12 +1,17 @@
 """Lecturas de planes preventivos."""
 
+import datetime
+import math
+from decimal import Decimal
+
 from django.db.models import Count, Prefetch, Q
+from django.utils import timezone
 
 from apps.accounts.permissions import Perm, require_perm
 from apps.assets.models import Meter
 from apps.assets.selectors import visible_assets
 
-from .models import MaintenancePlan, PlanAssignment, PlanVersion
+from .models import MaintenancePlan, MaintenanceSettings, PlanAssignment, PlanVersion
 
 TRIGGERS = ("calendar", "meter", "mixed")
 
@@ -32,7 +37,7 @@ def plan_list(*, membership, search: str = "", active: str = "", asset_class=Non
         qs = qs.filter(is_active=active == "1")
     if asset_class is not None:
         qs = qs.filter(asset_class=asset_class)
-    has_days = Q(current_version__interval_days__isnull=False)
+    has_days = Q(current_version__calendar_interval__isnull=False)
     has_meter = Q(current_version__meter_interval__isnull=False) & ~Q(current_version__meter_kind="")
     if trigger == "calendar":
         qs = qs.filter(has_days).exclude(has_meter)
@@ -123,3 +128,48 @@ def reactivatable_assignments_for_asset(*, asset):
         .select_related("plan__current_version", "meter")
         .order_by("plan__name")
     )
+
+
+def maintenance_settings() -> MaintenanceSettings:
+    """Ajustes de la organización del contexto; sin fila guardada, los valores por defecto."""
+    return MaintenanceSettings.objects.first() or MaintenanceSettings()
+
+
+def plan_absorptions(*, plan):
+    """Planes que `plan` absorbe y candidatos para agregar (activos, sin él mismo ni los ya elegidos)."""
+    absorptions = list(
+        plan.absorptions.select_related("absorbed_plan__current_version").order_by("absorbed_plan__name")
+    )
+    taken = {a.absorbed_plan_id for a in absorptions} | {plan.pk}
+    choices = MaintenancePlan.objects.filter(is_active=True).exclude(pk__in=taken).order_by("name")
+    return absorptions, choices
+
+
+def is_on_time(work_order) -> bool | None:
+    """¿La OT preventiva se completó dentro de su vencimiento ± tolerancia? (PM-02 CA3)
+
+    La tolerancia es `tolerance_pct` de la versión con que se generó la OT,
+    aplicada a su frecuencia: por calendario, en días del ciclo que vence en
+    `due_on` (redondeo hacia abajo); por medidor, en unidades sobre
+    `due_meter_value` con la lectura de cierre. Con los dos disparadores basta
+    cumplir uno (vence lo que ocurra primero). Devuelve None si no aplica: no
+    es preventiva, no está completada o no hay con qué medir. Para indicadores.
+    """
+    version = work_order.plan_version
+    if work_order.work_type != "preventive" or work_order.completed_at is None or version is None:
+        return None
+    pct = Decimal(version.tolerance_pct) / 100
+    checks = []
+    if work_order.due_on is not None:
+        period = version.calendar_period_days(work_order.due_on) if version.calendar_interval else 0
+        window = datetime.timedelta(days=math.floor(period * pct))
+        done = timezone.localdate(work_order.completed_at)
+        checks.append(work_order.due_on - window <= done <= work_order.due_on + window)
+    if (
+        work_order.due_meter_value is not None
+        and work_order.meter_value_at_completion is not None
+        and version.meter_interval
+    ):
+        window = version.meter_interval * pct
+        checks.append(abs(work_order.meter_value_at_completion - work_order.due_meter_value) <= window)
+    return any(checks) if checks else None

@@ -86,6 +86,30 @@ SIGNATURE_PREFIX = "data:image/png;base64,"
 SIGNATURE_MAX_CHARS = 1_500_000  # ~1 MB de PNG: una firma real pesa decenas de KB.
 
 
+def decode_signature(data: str):
+    """Firma dibujada (data URL PNG de static/js/signature-pad.js) → archivo; vacío = None."""
+    if not data:
+        return None
+    if not data.startswith(SIGNATURE_PREFIX):
+        raise forms.ValidationError(_("La firma no es válida. Bórrala y vuelve a firmar."))
+    try:
+        content = base64.b64decode(data[len(SIGNATURE_PREFIX) :], validate=True)
+    except (binascii.Error, ValueError) as error:
+        raise forms.ValidationError(_("La firma no es válida. Bórrala y vuelve a firmar.")) from error
+    return SimpleUploadedFile("firma.png", content, content_type="image/png")
+
+
+class ChecklistSignatureForm(forms.Form):
+    """Firma de un ítem «firma» del checklist (PM-01 CA1); se dibuja igual que la de cierre."""
+
+    signature = forms.CharField(
+        label=_("Firma"), widget=forms.HiddenInput, required=True, max_length=SIGNATURE_MAX_CHARS
+    )
+
+    def clean_signature(self):
+        return decode_signature(self.cleaned_data.get("signature", ""))
+
+
 class CompleteWorkOrderForm(forms.Form):
     """Cierre de OT. En correctivas pide síntoma, acción y la falla (REQ-03 CA1–CA3)."""
 
@@ -191,16 +215,7 @@ class CompleteWorkOrderForm(forms.Form):
 
     def clean_signature(self):
         """Convierte la firma (data URL PNG) en un archivo; vacío = sin firma (es opcional)."""
-        data = self.cleaned_data.get("signature", "")
-        if not data:
-            return None
-        if not data.startswith(SIGNATURE_PREFIX):
-            raise forms.ValidationError(_("La firma no es válida. Bórrala y vuelve a firmar."))
-        try:
-            content = base64.b64decode(data[len(SIGNATURE_PREFIX) :], validate=True)
-        except (binascii.Error, ValueError) as error:
-            raise forms.ValidationError(_("La firma no es válida. Bórrala y vuelve a firmar.")) from error
-        return SimpleUploadedFile("firma.png", content, content_type="image/png")
+        return decode_signature(self.cleaned_data.get("signature", ""))
 
     def clean(self):
         cleaned = super().clean()

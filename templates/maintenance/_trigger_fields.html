@@ -1,13 +1,13 @@
 {% load i18n ui %}{# Frecuencia de la versión: días y/o medidor; vence lo que ocurra primero (PM-02). #}
 {% for error in form.non_field_errors %}<div class="alert alert--error" role="alert">{% icon 'stop' %}<span>{{ error }}</span></div>{% endfor %}
-<p class="help muted">{% translate "Usa días, medidor o ambos: vence lo que ocurra primero." %}</p>
+<p class="help muted">{% translate "Usa calendario (días, semanas o meses), medidor o ambos: vence lo que ocurra primero." %}</p>
 {% for f in form %}
-{% if f.name == "meter_kind" %}<div class="field-pair">{% endif %}
+{% if f.name == "meter_kind" or f.name == "calendar_interval" %}<div class="field-pair">{% endif %}
 <div class="field">
   <label for="{{ f.id_for_label }}">{{ f.label }}{% if f.field.required %} *{% endif %}</label>
   {{ f }}
   {% if f.help_text %}<span class="help">{{ f.help_text }}</span>{% endif %}
   {% for e in f.errors %}<span class="error">{% icon 'stop' %}{{ e }}</span>{% endfor %}
 </div>
-{% if f.name == "meter_interval" %}</div>{% endif %}
+{% if f.name == "meter_interval" or f.name == "calendar_unit" %}</div>{% endif %}
 {% endfor %}

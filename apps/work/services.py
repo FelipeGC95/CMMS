@@ -22,7 +22,7 @@ from apps.attachments.services import AttachmentError, QuotaExceededError
 from apps.audit import services as audit
 from apps.audit.models import AuditEvent
 from apps.core.tenancy import require_current_organization, tenant_context
-from apps.maintenance.models import ItemType, PlanVersion
+from apps.maintenance.models import ItemType, PlanVersion, format_number
 from apps.organizations.models import Location
 from apps.ui.templatetags.ui import work_order_status_label
 
@@ -125,10 +125,15 @@ def create_work_order(
     plan_assignment=None,
     plan_version=None,
     checklist=(),
+    checklist_sections=(),
     by=None,
     client_uuid=None,
 ) -> WorkOrder:
-    """Crea la OT sobre un activo o una ubicación, con su snapshot de checklist."""
+    """Crea la OT sobre un activo o una ubicación, con su snapshot de checklist.
+
+    `checklist_sections`: pares (rótulo, ítems) cuando la OT reúne varios
+    checklists (absorción de planes, PM-05 CA3); se numeran de corrido.
+    """
     _require_single_target(asset=asset, location=location)
     helpers = list(helpers)
     _require_members(
@@ -152,12 +157,18 @@ def create_work_order(
         client_uuid=client_uuid,
     )
     # Snapshot del checklist: cambiar el plan después no altera esta OT.
+    if checklist_sections:
+        rows = [(label, item) for label, items in checklist_sections for item in items]
+        rows = [(index, label, item) for index, (label, item) in enumerate(rows, start=1)]
+    else:
+        rows = [(item.order, "", item) for item in checklist]
     WorkOrderChecklistItem.objects.bulk_create(
         [
             WorkOrderChecklistItem(
                 organization=work_order.organization,
                 work_order=work_order,
-                order=item.order,
+                order=order,
+                section=section[:150],
                 text=item.text,
                 item_type=item.item_type,
                 unit=item.unit,
@@ -165,7 +176,7 @@ def create_work_order(
                 max_value=item.max_value,
                 required=item.required,
             )
-            for item in checklist
+            for order, section, item in rows
         ]
     )
     if helpers:
@@ -406,6 +417,18 @@ def _close(*, work_order: WorkOrder, user, at, record=True):
             completed_on=timezone.localdate(at),
             meter_value=work_order.meter_value_at_completion,
         )
+        # Planes absorbidos (PM-05 CA3): la misma ejecución los reprograma a todos.
+        main_meter_id = work_order.plan_assignment.meter_id
+        for absorption in work_order.absorptions.select_related(
+            "plan_assignment__plan__current_version", "plan_assignment__meter"
+        ):
+            assignment = absorption.plan_assignment
+            same_meter = assignment.meter_id is not None and assignment.meter_id == main_meter_id
+            register_completion(
+                assignment=assignment,
+                completed_on=timezone.localdate(at),
+                meter_value=work_order.meter_value_at_completion if same_meter else None,
+            )
 
 
 MEASUREMENT_LIMIT = Decimal(10) ** 11  # max_digits=14, decimal_places=3
@@ -430,26 +453,71 @@ def parse_measurement(raw) -> Decimal:
     return value.quantize(Decimal("0.001"))
 
 
-@transaction.atomic
-def answer_checklist_item(
-    *, item: WorkOrderChecklistItem, membership, result: str = "", value_number=None, note=""
-) -> WorkOrderChecklistItem:
-    """Registra la respuesta de un ítem. La primera respuesta inicia la OT."""
-    require_perm(membership, Perm.WORK_ORDER_EXECUTE)
-    work_order = item.work_order
-    if work_order.status in (S.COMPLETED, *WorkOrder.CLOSED_STATUSES):
+TEXT_ANSWER_MAX = 1000
+
+
+def _start_if_needed(*, work_order: WorkOrder, membership) -> None:
+    """La primera respuesta (resultado, foto o firma) inicia la OT."""
+    if work_order.status in CHECKLIST_LOCKED_STATUSES:
         raise WorkOrderError(_("La OT ya no admite cambios."))
     if work_order.status != S.IN_PROGRESS:
         transition(work_order=work_order, to_status=S.IN_PROGRESS, membership=membership)
 
-    if item.item_type == "measurement":
+
+@transaction.atomic
+def answer_checklist_item(
+    *,
+    item: WorkOrderChecklistItem,
+    membership,
+    result: str = "",
+    value_number=None,
+    value_text: str = "",
+    signature=None,
+    note="",
+) -> WorkOrderChecklistItem:
+    """Registra la respuesta de un ítem según su tipo (PM-01 CA1, WO-03 CA2).
+
+    Verificación: OK / No OK / N.A. Medición: el valor, validado contra el
+    rango (fuera de rango = No OK). Texto: la respuesta escrita. Firma: la
+    imagen dibujada (adjunto del ítem con propósito «firma»). La foto
+    obligatoria se responde subiendo una foto (`add_checklist_photo`). La
+    primera respuesta inicia la OT.
+    """
+    require_perm(membership, Perm.WORK_ORDER_EXECUTE)
+    work_order = item.work_order
+    if item.item_type == ItemType.PHOTO:
+        raise WorkOrderError(_("Este ítem se responde con una foto."))
+    if item.item_type == ItemType.TEXT:
+        value_text = (value_text or "").strip()[:TEXT_ANSWER_MAX]
+        if not value_text:
+            raise WorkOrderError(_("Escribe la respuesta."))
+    if item.item_type == ItemType.SIGNATURE and signature is None:
+        raise WorkOrderError(_("Firma dentro del recuadro antes de guardar."))
+    _start_if_needed(work_order=work_order, membership=membership)
+
+    if item.item_type == ItemType.MEASUREMENT:
         value = parse_measurement(value_number)
         out_of_range = (item.min_value is not None and value < item.min_value) or (
             item.max_value is not None and value > item.max_value
         )
         item.value_number = value
         result = item.Result.NOT_OK if out_of_range else item.Result.OK
-    elif result not in item.Result.values:
+    elif item.item_type == ItemType.TEXT:
+        item.value_text = value_text
+        result = item.Result.DONE
+    elif item.item_type == ItemType.SIGNATURE:
+        try:
+            attachments_services.add_attachment(
+                target_type=AttachmentTargetType.CHECKLIST_ITEM,
+                target_id=item.pk,
+                uploaded_file=signature,
+                by=membership.user,
+                purpose=AttachmentPurpose.SIGNATURE,
+            )
+        except AttachmentError as error:
+            raise WorkOrderError(error.message) from error
+        result = item.Result.DONE
+    elif result not in (item.Result.OK, item.Result.NOT_OK, item.Result.NA):
         raise WorkOrderError(_("Resultado inválido."))
 
     item.result = result
@@ -572,8 +640,9 @@ def add_checklist_item(
         raise WorkOrderError(_("Escribe la tarea del ítem."))
     if item_type not in ItemType.values:
         raise WorkOrderError(_("Tipo de ítem inválido."))
-    if item_type == ItemType.CHECK:
+    if item_type != ItemType.MEASUREMENT:
         unit, min_value, max_value = "", None, None
+    required = required or item_type == ItemType.PHOTO  # «foto obligatoria» siempre bloquea el cierre
     min_value = None if min_value in (None, "") else Decimal(str(min_value))
     max_value = None if max_value in (None, "") else Decimal(str(max_value))
     if min_value is not None and max_value is not None and min_value > max_value:
@@ -623,7 +692,7 @@ def _locked_checklist(work_order: WorkOrder) -> list[WorkOrderChecklistItem]:
 
 def checklist_item_has_evidence(item: WorkOrderChecklistItem, *, photo_count: int | None = None) -> bool:
     """Un ítem con resultado, valor, observación o fotos ya es parte de la ejecución."""
-    if item.result or item.value_number is not None or item.note:
+    if item.result or item.value_number is not None or item.value_text or item.note:
         return True
     if photo_count is None:
         photo_count = Attachment.objects.filter(
@@ -695,17 +764,22 @@ def move_checklist_item(*, item: WorkOrderChecklistItem, membership, direction: 
     )
 
 
+@transaction.atomic
 def add_checklist_photo(
     *, item: WorkOrderChecklistItem, membership, uploaded_file, client_uuid=None
 ) -> Attachment:
-    """Foto de un ítem del checklist (WO-03 CA2), comprimida y dentro del cupo (AST-06)."""
+    """Foto de un ítem del checklist (WO-03 CA2), comprimida y dentro del cupo (AST-06).
+
+    En un ítem «foto obligatoria» la foto es la respuesta: lo marca como hecho
+    e inicia la OT, igual que responder cualquier otro ítem.
+    """
     require_perm(membership, Perm.WORK_ORDER_EXECUTE)
     if item.work_order.status in CHECKLIST_LOCKED_STATUSES:
         raise WorkOrderError(_("La OT ya no admite cambios."))
     if not (uploaded_file.content_type or "").startswith("image/"):
         raise WorkOrderError(_("Adjunta una imagen (de la cámara o de la galería)."))
     try:
-        return attachments_services.add_attachment(
+        photo = attachments_services.add_attachment(
             target_type=AttachmentTargetType.CHECKLIST_ITEM,
             target_id=item.pk,
             uploaded_file=uploaded_file,
@@ -715,6 +789,13 @@ def add_checklist_photo(
         )
     except AttachmentError as error:
         raise WorkOrderError(error.message) from error
+    if item.item_type == ItemType.PHOTO and item.result != item.Result.DONE:
+        _start_if_needed(work_order=item.work_order, membership=membership)
+        item.result = item.Result.DONE
+        item.answered_by = membership.user
+        item.answered_at = timezone.now()
+        item.save(update_fields=["result", "answered_by", "answered_at", "updated_at"])
+    return photo
 
 
 def can_remove_checklist_photo(*, photo: Attachment, membership) -> bool:
@@ -740,6 +821,15 @@ def remove_checklist_photo(*, item: WorkOrderChecklistItem, photo: Attachment, m
     if item.work_order.status in CHECKLIST_LOCKED_STATUSES:
         raise WorkOrderError(_("La OT ya no admite cambios."))
     attachments_services.remove_attachment(attachment=photo, by=membership.user)
+    if item.item_type == ItemType.PHOTO and not _item_photos(item).exists():
+        item.result, item.answered_by, item.answered_at = "", None, None  # vuelve a quedar pendiente
+        item.save(update_fields=["result", "answered_by", "answered_at", "updated_at"])
+
+
+def _item_photos(item: WorkOrderChecklistItem):
+    return Attachment.objects.filter(
+        target_type=AttachmentTargetType.CHECKLIST_ITEM, target_id=item.pk, purpose=AttachmentPurpose.PHOTO
+    )
 
 
 def work_order_meter(work_order: WorkOrder):
@@ -1221,3 +1311,68 @@ def set_failure_code_active(*, failure_code: FailureCode, is_active: bool, membe
         changes={"is_active": [not is_active, is_active]},
     )
     return failure_code
+
+
+# --- Correctiva desde un hallazgo (WO-06) ---------------------------------------
+
+
+@transaction.atomic
+def create_corrective_from_item(
+    *, item: WorkOrderChecklistItem, membership, description: str = "", asset_stopped: bool = False
+) -> WorkOrder:
+    """Crea la OT correctiva de un ítem No OK (WO-06 CA1), vinculada a la OT y al ítem de origen.
+
+    Lleva el mismo activo (o ubicación) y el texto del ítem; las fotos del ítem
+    se muestran en la correctiva a través del vínculo (no se duplican ni
+    consumen cupo). Un gestor la crea directamente (planificada); quien solo
+    puede avisar fallas (técnico) pasa por el aviso de falla de siempre
+    (`report_failure`), que crea la solicitud y su correctiva. Idempotente: si
+    el ítem ya tiene una correctiva abierta, la devuelve.
+    """
+    from apps.maintenance.models import RESULT_ITEM_TYPES
+
+    parent = item.work_order
+    if item.item_type not in RESULT_ITEM_TYPES or item.result != WorkOrderChecklistItem.Result.NOT_OK:
+        raise WorkOrderError(_("Solo un ítem marcado No OK origina una correctiva."))
+    existing = (
+        WorkOrder.objects.filter(source_checklist_item=item)
+        .exclude(status__in=WorkOrder.CLOSED_STATUSES)
+        .first()
+    )
+    if existing is not None:
+        return existing
+    detail = description.strip() or item.note or ""
+    text = _("Hallazgo en %(code)s: %(item)s") % {"code": parent.code, "item": item.text}
+    if item.value_number is not None:
+        text += f" ({format_number(item.value_number)} {item.unit})".replace(" )", ")")
+    full = f"{text}\n{detail}".strip()
+    if has_perm(membership, Perm.WORK_ORDER_MANAGE):
+        work_order = create_work_order(
+            work_type=WorkOrder.Type.CORRECTIVE,
+            title=item.text,
+            description=full,
+            asset=parent.asset,
+            location=parent.location,
+            priority=_suggest_priority(parent.asset, asset_stopped),
+            status=S.PLANNED,
+            by=membership.user,
+        )
+    else:
+        work_order = report_failure(
+            membership=membership,
+            description=full,
+            asset=parent.asset,
+            location=parent.location,
+            asset_stopped=asset_stopped and parent.asset is not None,
+        ).work_order
+        work_order.title = item.text[:200]
+    work_order.parent_work_order = parent
+    work_order.source_checklist_item = item
+    work_order.save(update_fields=["title", "parent_work_order", "source_checklist_item", "updated_at"])
+    audit.record(
+        action=AuditEvent.Action.CREATE,
+        target=work_order,
+        actor=membership.user,
+        changes={"from_finding": [None, f"{parent.code} · {item.text}"]},
+    )
+    return work_order

@@ -103,6 +103,11 @@ urlpatterns = [
         name="checklist_photo_delete",
     ),
     path(
+        "work-orders/<uuid:pk>/items/<uuid:item_pk>/corrective/",
+        work_views.checklist_item_corrective_view,
+        name="checklist_item_corrective",
+    ),
+    path(
         "work-orders/<uuid:pk>/items/<uuid:item_pk>/remove/",
         work_views.checklist_item_remove_view,
         name="checklist_item_remove",

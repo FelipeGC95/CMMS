@@ -1,5 +1,5 @@
 {% load i18n ui %}<div class="field signature-pad" data-signature-pad>
-  <span class="signature-pad__label" id="{{ field.auto_id }}-label">{% translate "Firma" %} <span class="muted">({% translate "opcional" %})</span></span>
+  <span class="signature-pad__label" id="{{ field.auto_id }}-label">{% translate "Firma" %}{% if not field.field.required %} <span class="muted">({% translate "opcional" %})</span>{% endif %}</span>
   <canvas class="signature-pad__canvas" data-signature-canvas role="img" aria-labelledby="{{ field.auto_id }}-label" aria-describedby="{{ field.auto_id }}-help"></canvas>
   {{ field }}
   <div class="signature-pad__footer">

@@ -1,0 +1,8 @@
+{% load i18n ui %}{# Ítem No OK → OT correctiva vinculada (WO-06). Uso: include con item (con item.correctives). #}
+{% if item.correctives %}
+<div class="alert alert--info check-item__hint" role="status">{% icon 'info' %}<span>{% translate "Correctiva creada desde este hallazgo:" %}
+  {% for child in item.correctives %}<a href="{% url 'work_order_detail' child.pk %}"><span class="mono">{{ child.code }}</span></a>{% if not forloop.last %}, {% endif %}{% endfor %}</span></div>
+{% else %}
+<div class="alert alert--warning check-item__hint" role="status">{% icon 'alert' %}<span>{% if item.item_type == "measurement" %}{% translate "Valor fuera de rango. Si requiere reparación, crea una OT correctiva." %}{% else %}{% translate "Ítem No OK. Si requiere reparación, crea una OT correctiva." %}{% endif %}
+  <a href="{% url 'checklist_item_corrective' item.work_order_id item.pk %}">{% if can_manage %}{% translate "Crear correctiva" %}{% else %}{% translate "Avisar falla" %}{% endif %}</a></span></div>
+{% endif %}

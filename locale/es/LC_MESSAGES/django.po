@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-27 04:59-0300\n"
+"POT-Creation-Date: 2026-09-27 05:10-0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1318,10 +1318,13 @@ msgstr ""
 msgid "Plan activo"
 msgstr ""
 
-msgid "Cada cuántos días"
+msgid "Cada cuánto (calendario)"
 msgstr ""
 
 msgid "Vacío si solo es por medidor."
+msgstr ""
+
+msgid "Meses de calendario: mismo día del mes (o el último, si no existe)."
 msgstr ""
 
 msgid "Sin medidor"
@@ -1345,7 +1348,7 @@ msgstr ""
 msgid "Para disparar por medidor indica el tipo y la frecuencia."
 msgstr ""
 
-msgid "Define una frecuencia en días, por medidor o ambas."
+msgid "Define una frecuencia por calendario, por medidor o ambas."
 msgstr ""
 
 msgid "Tarea"
@@ -1390,10 +1393,37 @@ msgstr ""
 msgid "Solo para planes por medidor, si el activo tiene varios del mismo tipo."
 msgstr ""
 
+msgid "Horizonte de generación (días)"
+msgstr ""
+
+msgid "Por defecto, 14 días: la OT aparece dos semanas antes de vencer."
+msgstr ""
+
 msgid "Verificación (OK / No OK / N.A.)"
 msgstr ""
 
 msgid "Medición"
+msgstr ""
+
+msgid "Foto obligatoria"
+msgstr ""
+
+msgid "días"
+msgstr ""
+
+msgid "semanas"
+msgstr ""
+
+msgid "meses"
+msgstr ""
+
+msgid "horizonte de generación (días)"
+msgstr ""
+
+msgid "Las OT preventivas se generan cuando vencen dentro de estos días."
+msgstr ""
+
+msgid "ajustes de preventivos"
 msgstr ""
 
 msgid "versión vigente"
@@ -1447,7 +1477,7 @@ msgstr ""
 msgid "instrucciones"
 msgstr ""
 
-msgid "cada cuántos días"
+msgid "cada cuánto (calendario)"
 msgstr ""
 
 msgid "cada cuántas unidades del medidor"
@@ -1466,7 +1496,28 @@ msgid "versiones de plan"
 msgstr ""
 
 #, python-format
-msgid "%(n)s días"
+msgid "%(n)s mes"
+msgid_plural "%(n)s meses"
+msgstr[0] ""
+msgstr[1] ""
+msgstr[2] ""
+
+#, python-format
+msgid "%(n)s semana"
+msgid_plural "%(n)s semanas"
+msgstr[0] ""
+msgstr[1] ""
+msgstr[2] ""
+
+#, python-format
+msgid "%(n)s día"
+msgid_plural "%(n)s días"
+msgstr[0] ""
+msgstr[1] ""
+msgstr[2] ""
+
+#, python-format
+msgid "%(meter)s o %(calendar)s"
 msgstr ""
 
 #, python-format
@@ -1506,6 +1557,18 @@ msgid "ítem de checklist"
 msgstr ""
 
 msgid "checklist"
+msgstr ""
+
+msgid "plan mayor"
+msgstr ""
+
+msgid "plan absorbido"
+msgstr ""
+
+msgid "absorción de plan"
+msgstr ""
+
+msgid "absorciones de planes"
 msgstr ""
 
 msgid "próximo vencimiento"
@@ -1549,6 +1612,10 @@ msgid "%(asset)s no tiene un medidor de tipo «%(kind)s»."
 msgstr ""
 
 #, python-format
+msgid "Incluye: %(plans)s."
+msgstr ""
+
+#, python-format
 msgid "La versión %(number)s está publicada: crea un borrador para cambiarla."
 msgstr ""
 
@@ -1583,6 +1650,20 @@ msgid "%(code)s: no se asignó «%(plan)s» (falta el medidor que usa el plan)."
 msgstr ""
 
 msgid "El activo no está en tu alcance."
+msgstr ""
+
+#, python-format
+msgid "Usa entre 1 y %(max)s días."
+msgstr ""
+
+msgid "Elige un plan de esta organización."
+msgstr ""
+
+msgid "Un plan no puede absorberse a sí mismo."
+msgstr ""
+
+#, python-format
+msgid "«%(other)s» ya absorbe a «%(plan)s»: no pueden absorberse mutuamente."
 msgstr ""
 
 #, python-format
@@ -1643,6 +1724,16 @@ msgstr ""
 
 #, python-format
 msgid "Plan quitado de %(code)s."
+msgstr ""
+
+msgid "Ajustes guardados."
+msgstr ""
+
+#, python-format
+msgid "«%(plan)s» absorberá a «%(other)s»."
+msgstr ""
+
+msgid "Absorción quitada."
 msgstr ""
 
 msgid "correo del administrador"
@@ -2065,6 +2156,9 @@ msgstr ""
 msgid "Ej: gotera sobre la línea 2"
 msgstr ""
 
+msgid "La firma no es válida. Bórrala y vuelve a firmar."
+msgstr ""
+
 msgid "Síntoma observado"
 msgstr ""
 
@@ -2115,9 +2209,6 @@ msgid "Acción realizada"
 msgstr ""
 
 msgid "¿Qué hiciste? Puedes dictarlo con el micrófono del teclado."
-msgstr ""
-
-msgid "La firma no es válida. Bórrala y vuelve a firmar."
 msgstr ""
 
 msgid "El fin no puede ser anterior al inicio."
@@ -2260,6 +2351,12 @@ msgstr ""
 msgid "versión del plan"
 msgstr ""
 
+msgid "OT de origen"
+msgstr ""
+
+msgid "ítem de origen"
+msgstr ""
+
 msgid "responsable"
 msgstr ""
 
@@ -2308,6 +2405,15 @@ msgstr ""
 msgid "órdenes de trabajo"
 msgstr ""
 
+msgid "asignación absorbida"
+msgstr ""
+
+msgid "plan absorbido en OT"
+msgstr ""
+
+msgid "planes absorbidos en OT"
+msgstr ""
+
 msgid "apoyo de OT"
 msgstr ""
 
@@ -2341,6 +2447,12 @@ msgstr ""
 msgid "N.A."
 msgstr ""
 
+msgid "Hecho"
+msgstr ""
+
+msgid "sección"
+msgstr ""
+
 msgid "texto"
 msgstr ""
 
@@ -2348,6 +2460,9 @@ msgid "resultado"
 msgstr ""
 
 msgid "valor"
+msgstr ""
+
+msgid "respuesta"
 msgstr ""
 
 msgid "nota"
@@ -2522,6 +2637,15 @@ msgid "Ingresa el valor medido."
 msgstr ""
 
 msgid "Ingresa un número, por ejemplo 7,5."
+msgstr ""
+
+msgid "Este ítem se responde con una foto."
+msgstr ""
+
+msgid "Escribe la respuesta."
+msgstr ""
+
+msgid "Firma dentro del recuadro antes de guardar."
 msgstr ""
 
 msgid "Resultado inválido."
@@ -2700,6 +2824,13 @@ msgstr ""
 msgid "El nombre es obligatorio."
 msgstr ""
 
+msgid "Solo un ítem marcado No OK origina una correctiva."
+msgstr ""
+
+#, python-format
+msgid "Hallazgo en %(code)s: %(item)s"
+msgstr ""
+
 msgid "Abiertas"
 msgstr ""
 
@@ -2780,6 +2911,10 @@ msgstr ""
 
 #, python-format
 msgid "%(code)s actualizado."
+msgstr ""
+
+#, python-format
+msgid "%(code)s creada desde el hallazgo."
 msgstr ""
 
 msgid "No hay opciones."
@@ -3662,13 +3797,40 @@ msgstr ""
 msgid "Ir a la administración de plataforma"
 msgstr ""
 
+msgid "Absorbe a otros planes"
+msgstr ""
+
+#, python-format
+msgid ""
+"Si «%(plan)s» vence en un activo y un plan de esta lista vence en el mismo "
+"activo dentro de la tolerancia, se genera una sola OT con ambos checklists y "
+"al cerrarla avanzan los dos. Rige de inmediato, sin publicar."
+msgstr ""
+
+msgid "Quitar"
+msgstr ""
+
+msgid "No absorbe a ningún plan."
+msgstr ""
+
+msgid "Plan menor que absorbe"
+msgstr ""
+
+msgid "Ej.: la mantención de 500 h absorbe a la de 250 h."
+msgstr ""
+
+msgid "Agregar absorción"
+msgstr ""
+
 msgid "Solo para mediciones (opcional)"
 msgstr ""
 
-msgid "Usa días, medidor o ambos: vence lo que ocurra primero."
+msgid "Verificación"
 msgstr ""
 
-msgid "Verificación"
+msgid ""
+"Usa calendario (días, semanas o meses), medidor o ambos: vence lo que ocurra "
+"primero."
 msgstr ""
 
 msgid "Opcional"
@@ -3806,9 +3968,6 @@ msgstr ""
 msgid "Asignar a todos los activos de la clase %(cls)s"
 msgstr ""
 
-msgid "Quitar"
-msgstr ""
-
 msgid "Ningún activo de tu alcance tiene este plan."
 msgstr ""
 
@@ -3874,6 +4033,9 @@ msgstr[0] ""
 msgstr[1] ""
 msgstr[2] ""
 
+msgid "Ajustes de preventivos"
+msgstr ""
+
 msgid "Filtros"
 msgstr ""
 
@@ -3914,6 +4076,24 @@ msgid "Sí, publicar"
 msgstr ""
 
 msgid "Seguir editando"
+msgstr ""
+
+msgid "Rigen para todos los planes de la organización."
+msgstr ""
+
+msgid "Volver a los planes"
+msgstr ""
+
+msgid "Generación automática de OT"
+msgstr ""
+
+msgid ""
+"Cada hora se crean las OT preventivas que vencen dentro del horizonte. Las "
+"que vencen por medidor se crean cuando el uso promedio indica que llegarán "
+"en ese plazo."
+msgstr ""
+
+msgid "Guardar ajustes"
 msgstr ""
 
 msgid "Avisar problema"
@@ -4233,6 +4413,9 @@ msgstr ""
 msgid "Crear correctiva"
 msgstr ""
 
+msgid "Correctiva creada desde este hallazgo:"
+msgstr ""
+
 msgid "Estado de la correa (fotos por ítem)"
 msgstr ""
 
@@ -4245,6 +4428,42 @@ msgid ""
 msgstr ""
 
 msgid "Otra foto"
+msgstr ""
+
+msgid "Mensual (plan absorbido: sección rotulada)"
+msgstr ""
+
+msgid "Observaciones del operador (texto)"
+msgstr ""
+
+msgid "Respuesta"
+msgstr ""
+
+msgid "Ruido leve en el rodamiento"
+msgstr ""
+
+msgid "Guardar respuesta"
+msgstr ""
+
+msgid "Respondido"
+msgstr ""
+
+msgid "Foto del tablero (foto obligatoria)"
+msgstr ""
+
+msgid "Falta la foto"
+msgstr ""
+
+msgid "Toma al menos una foto para completar la OT."
+msgstr ""
+
+msgid "Firma del supervisor (firma por ítem)"
+msgstr ""
+
+msgid "Ejemplo de firma registrada"
+msgstr ""
+
+msgid "Firmado"
 msgstr ""
 
 msgid "Firma al completar"
@@ -4266,9 +4485,6 @@ msgid "Borrar firma"
 msgstr ""
 
 msgid "Firma registrada"
-msgstr ""
-
-msgid "Ejemplo de firma registrada"
 msgstr ""
 
 msgid "Grupo de campos"
@@ -4426,6 +4642,19 @@ msgstr ""
 msgid "En rango"
 msgstr ""
 
+#, python-format
+msgid "Firma de «%(text)s»"
+msgstr ""
+
+msgid "Volver a firmar"
+msgstr ""
+
+msgid "Guardar firma"
+msgstr ""
+
+msgid "Foto lista"
+msgstr ""
+
 msgid "Agregar foto"
 msgstr ""
 
@@ -4450,6 +4679,9 @@ msgstr ""
 
 #, python-format
 msgid "foto %(n)s"
+msgstr ""
+
+msgid "Ítem No OK. Si requiere reparación, crea una OT correctiva."
 msgstr ""
 
 msgid "Activa JavaScript para firmar en pantalla."
@@ -4497,6 +4729,25 @@ msgstr ""
 msgid "Sí, quitar"
 msgstr ""
 
+msgid "Hallazgo No OK"
+msgstr ""
+
+msgid "Crear OT correctiva"
+msgstr ""
+
+msgid "Fotos del hallazgo (se verán en la correctiva)"
+msgstr ""
+
+#, python-format
+msgid "Foto %(n)s del hallazgo"
+msgstr ""
+
+msgid "Descripción (opcional)"
+msgstr ""
+
+msgid "Volver"
+msgstr ""
+
 msgid "Nueva OT"
 msgstr ""
 
@@ -4525,6 +4776,12 @@ msgid "Aprobar cierre"
 msgstr ""
 
 msgid "OT sobre una ubicación, sin activo"
+msgstr ""
+
+msgid "Hallazgo"
+msgstr ""
+
+msgid "Incluye (plan absorbido)"
 msgstr ""
 
 msgid "Estimación"
@@ -4707,7 +4964,4 @@ msgid "Elige la solicitud que se mantiene"
 msgstr ""
 
 msgid "No hay otras solicitudes abiertas de este activo."
-msgstr ""
-
-msgid "Volver"
 msgstr ""
