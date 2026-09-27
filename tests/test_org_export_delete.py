@@ -105,7 +105,8 @@ def test_expired_export_is_removed_and_no_longer_served(client, tenant_a, django
     later = export.expires_at + datetime.timedelta(minutes=1)
     login(client, tenant_a.admin)
     assert purge.expire_all_data_exports(now=later) == 1
-    export.refresh_from_db()
+    with tenant_context(tenant_a.org):  # con RLS, sin contexto no se ve la fila
+        export.refresh_from_db()
     assert export.status == DataExport.Status.EXPIRED
     assert not default_storage.exists(name)
     assert client.get(reverse("data_export_download", args=[export.pk])).status_code == 404
