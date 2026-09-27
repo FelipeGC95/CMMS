@@ -1,0 +1,23 @@
+{% load i18n ui %}
+<p class="muted">{% blocktranslate with days=export_ttl_days|default:7 %}Un archivo ZIP con todos los datos de la organización (un CSV por tabla) y todos sus archivos: manuales, fotos, firmas y logo. El enlace de descarga vence a los {{ days }} días.{% endblocktranslate %}</p>
+{% if exports %}
+<table class="table" aria-label="{% translate 'Exportaciones recientes' %}">
+  <thead><tr><th>{% translate "Pedida" %}</th><th>{% translate "Estado" %}</th><th>{% translate "Archivo" %}</th></tr></thead>
+  <tbody>
+    {% for export in exports %}
+    <tr>
+      <td data-label="{% translate 'Pedida' %}">{{ export.created_at|date:"j M Y H:i" }}</td>
+      <td data-label="{% translate 'Estado' %}">{% status_badge export %}</td>
+      <td data-label="{% translate 'Archivo' %}">{% if export.status == "ready" %}<a href="{% url 'data_export_download' export.pk %}">{% translate "Descargar" %} ({{ export.size_bytes|filesizeformat }})</a><br><span class="muted">{% blocktranslate with date=export.expires_at|date:"j M Y" %}Vence el {{ date }}{% endblocktranslate %}</span>{% else %}—{% endif %}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p class="empty">{% translate "Aún no hay exportaciones." %}</p>
+{% endif %}
+<form method="post" action="{% url 'data_export_request' %}">
+  {% csrf_token %}
+  {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
+  <button class="btn btn--secondary" type="submit">{% translate "Preparar exportación" %}</button>
+</form>

@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.contrib import messages
 from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
@@ -18,13 +19,20 @@ from .forms import (
     AnonymousReportsForm,
     BrandColorForm,
     LocationForm,
+    OrganizationDeletionForm,
     OrganizationLogoForm,
     OrganizationSettingsForm,
     SecurityForm,
     WorkOrderStatusLabelsForm,
 )
-from .models import Location
-from .selectors import descendant_ids, location_tree, organization_quotas, visible_locations
+from .models import DataExport, Location
+from .selectors import (
+    descendant_ids,
+    location_tree,
+    organization_quotas,
+    recent_data_exports,
+    visible_locations,
+)
 
 DEFAULT_PRIMARY_COLOR = "#12B3C8"  # cian GALBUST: valor inicial del selector de color
 
@@ -202,8 +210,86 @@ def organization_settings_view(request):
             if organization.primary_color
             else [],
             "quotas": organization_quotas(membership=membership),
+            "exports": recent_data_exports(membership=membership),
+            "export_ttl_days": settings.DATA_EXPORT_TTL_DAYS,
+            "grace_days": settings.ORGANIZATION_DELETION_GRACE_DAYS,
         },
     )
+
+
+@membership_required(perm=Perm.ORGANIZATION_MANAGE)
+@require_POST
+def data_export_request_view(request):
+    """Pide la exportación completa (X-03); el ZIP se arma en segundo plano o al confirmar."""
+    try:
+        export = services.request_data_export(membership=request.membership)
+    except ValidationError as error:
+        messages.error(request, " ".join(error.messages))
+    else:
+        export.refresh_from_db()
+        if export.status == DataExport.Status.READY:
+            messages.success(request, _("Exportación lista. Descárgala abajo."))
+        elif export.status == DataExport.Status.FAILED:
+            messages.error(request, _("No se pudo preparar la exportación. Inténtalo de nuevo."))
+        else:
+            messages.success(
+                request, _("Estamos preparando la exportación. Te avisaremos cuando esté lista.")
+            )
+    if request.POST.get("next") == "delete":  # pedida desde la página de borrado
+        return redirect("organization_delete")
+    return redirect(f"{reverse('organization_settings')}#export")
+
+
+@membership_required(perm=Perm.ORGANIZATION_MANAGE)
+def data_export_download_view(request, pk):
+    try:
+        export = services.data_export_for_download(
+            membership=request.membership, export_id=pk, request=request
+        )
+    except DataExport.DoesNotExist as error:
+        raise Http404 from error
+    filename = f"galbust-{request.organization.slug}-{export.created_at:%Y%m%d}.zip"
+    return private_file_response(export.file, content_type="application/zip", filename=filename)
+
+
+@membership_required(perm=Perm.ORGANIZATION_MANAGE)
+def organization_delete_view(request):
+    """Borrado de la organización (X-04): ofrece la exportación y pide clave + nombre."""
+    membership = request.membership
+    form = OrganizationDeletionForm(request.POST or None)
+    if request.method == "POST" and form.is_valid():
+        try:
+            services.request_organization_deletion(membership=membership, **form.cleaned_data)
+        except ValidationError as error:
+            form.add_error(None, error)
+        else:
+            messages.warning(
+                request, _("Eliminación programada. Puedes cancelarla durante el período de gracia.")
+            )
+            return redirect("organization_delete")
+    return render(
+        request,
+        "organizations/delete.html",
+        {
+            "form": form,
+            "exports": recent_data_exports(membership=membership),
+            "export_ttl_days": settings.DATA_EXPORT_TTL_DAYS,
+            "grace_days": settings.ORGANIZATION_DELETION_GRACE_DAYS,
+            "next": "delete",
+        },
+    )
+
+
+@membership_required(perm=Perm.ORGANIZATION_MANAGE)
+@require_POST
+def organization_delete_cancel_view(request):
+    try:
+        services.cancel_organization_deletion(membership=request.membership)
+    except ValidationError as error:
+        messages.error(request, " ".join(error.messages))
+    else:
+        messages.success(request, _("Eliminación cancelada. La organización sigue activa."))
+    return redirect("organization_settings")
 
 
 @membership_required

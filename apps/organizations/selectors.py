@@ -5,6 +5,7 @@ from django.db.models import Count, Sum
 from django.utils.translation import gettext as _
 
 from apps.accounts.models import Membership
+from apps.accounts.permissions import Perm, has_perm
 from apps.accounts.scoping import allowed_location_ids
 from apps.accounts.selectors import pending_invitations_qs
 from apps.assets.models import Asset
@@ -113,3 +114,12 @@ def organization_quotas(*, membership) -> list[QuotaRow]:
             plan.max_storage_mb if plan else None,
         ),
     ]
+
+
+def recent_data_exports(*, membership, limit=5) -> list:
+    """Últimas exportaciones completas (X-03) para la tarjeta de Configuración."""
+    from .models import DataExport
+
+    if not has_perm(membership, Perm.ORGANIZATION_MANAGE):
+        return []
+    return list(DataExport.objects.select_related("requested_by").order_by("-created_at")[:limit])

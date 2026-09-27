@@ -110,5 +110,20 @@
     </table>
     <p class="muted mt-2">{% translate "Para cambiar de plan o de cupos, escríbenos a soporte." %}</p>
   </section>
+
+  <section class="card" id="export" aria-labelledby="export-title">
+    <h2 id="export-title">{% translate "Exportar todos los datos" %}</h2>
+    {% include "organizations/_data_exports.html" %}
+  </section>
+
+  <section class="card" id="delete" aria-labelledby="delete-title">
+    <h2 id="delete-title">{% translate "Eliminar la organización" %}</h2>
+    {% if organization.status == "pending_deletion" %}
+    <div class="alert alert--warning" role="status">{% icon 'alert' %}<span>{% blocktranslate with date=organization.deletion_scheduled_for|date:"j M Y" %}La eliminación está programada para el {{ date }}.{% endblocktranslate %}</span></div>
+    {% else %}
+    <p class="muted">{% blocktranslate %}Borra todos los datos y archivos de la organización después de un período de gracia de {{ grace_days }} días, durante el cual se puede cancelar.{% endblocktranslate %}</p>
+    {% endif %}
+    <a class="btn btn--secondary" href="{% url 'organization_delete' %}">{% translate "Ver opciones de eliminación" %}</a>
+  </section>
 </div>
 {% endblock %}

@@ -338,6 +338,10 @@ main { max-width: var(--content-max); margin: 0 auto; padding: var(--space-5) va
 .alert--error { color: var(--color-error); background: var(--color-error-bg); }
 .alert--warning { color: var(--color-warning); background: var(--color-warning-bg); }
 .alert--info { color: var(--color-info); background: var(--color-info-bg); }
+/* Aviso de borrado programado (X-04): el botón baja a su propia línea en pantallas angostas. */
+.deletion-banner { flex-wrap: wrap; align-items: center; }
+.deletion-banner > span { flex: 1 1 14rem; }
+.deletion-banner form { margin-left: auto; }
 
 /* ---------- Checklist (vista de técnico: objetivos ≥ 48 px) ---------- */
 .checklist { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-3); }

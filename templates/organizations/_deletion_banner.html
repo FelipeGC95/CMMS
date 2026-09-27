@@ -1,0 +1,12 @@
+{% load i18n ui accounts_tags %}
+{# Aviso de borrado programado (X-04): lo ven todos; solo el administrador puede cancelarlo. #}
+<div class="alert alert--warning deletion-banner" role="status">
+  {% icon 'alert' %}
+  <span>{% blocktranslate with date=organization.deletion_scheduled_for|date:"j M Y" %}Esta organización se eliminará el {{ date }}, con todos sus datos y archivos.{% endblocktranslate %}</span>
+  {% if membership|can:"organization.manage" %}
+  <form method="post" action="{% url 'organization_delete_cancel' %}">
+    {% csrf_token %}
+    <button class="btn btn--secondary" type="submit">{% translate "Cancelar eliminación" %}</button>
+  </form>
+  {% endif %}
+</div>

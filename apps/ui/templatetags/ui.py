@@ -74,6 +74,10 @@ _STATUS_TONES = {
     "accepted": "success",
     "rejected": "error",
     "merged": "neutral",
+    # Exportaciones de datos (X-03); "pending" ya es warning.
+    "ready": "success",
+    "failed": "error",
+    "expired": "neutral",
 }
 
 

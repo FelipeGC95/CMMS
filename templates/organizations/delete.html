@@ -1,0 +1,37 @@
+{% extends "base.html" %}{% load i18n ui %}
+{% block title %}{% translate "Eliminar la organización" %}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>{% translate "Eliminar la organización" %}</h1>
+    <p class="muted">{{ organization.name }}</p>
+  </div>
+  <a class="btn btn--ghost" href="{% url 'organization_settings' %}">{% translate "Volver a configuración" %}</a>
+</div>
+
+<div class="narrow">
+<section class="card" aria-labelledby="export-title">
+  <h2 id="export-title">{% translate "1. Descarga tus datos primero" %}</h2>
+  {% include "organizations/_data_exports.html" %}
+</section>
+
+<section class="card mt-4" aria-labelledby="delete-title">
+  <h2 id="delete-title">{% translate "2. Eliminar" %}</h2>
+  {% if organization.status == "pending_deletion" %}
+  <div class="alert alert--warning" role="status">{% icon 'alert' %}<span>{% blocktranslate with date=organization.deletion_scheduled_for|date:"j M Y" %}La eliminación está programada para el {{ date }}. Hasta entonces todo sigue funcionando y puedes cancelarla.{% endblocktranslate %}</span></div>
+  <form method="post" action="{% url 'organization_delete_cancel' %}">
+    {% csrf_token %}
+    <button class="btn btn--primary" type="submit">{% translate "Cancelar eliminación" %}</button>
+  </form>
+  {% else %}
+  <p>{% blocktranslate %}Al confirmar, la organización queda marcada para eliminación. Durante {{ grace_days }} días todo sigue funcionando y cualquier administrador puede cancelarla. Después se borran de forma definitiva todos los datos, archivos y accesos de la organización.{% endblocktranslate %}</p>
+  <p class="muted">{% translate "Las cuentas de las personas no se borran: quienes solo pertenecían a esta organización conservan su usuario, sin datos. Los respaldos de la base se eliminan solos al vencer su retención." %}</p>
+  <form method="post">
+    {% csrf_token %}
+    {% include "_form_fields.html" with form=form %}
+    <button class="btn btn--danger" type="submit">{% translate "Eliminar la organización" %}</button>
+  </form>
+  {% endif %}
+</section>
+</div>
+{% endblock %}

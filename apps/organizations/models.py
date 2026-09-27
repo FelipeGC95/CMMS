@@ -50,6 +50,8 @@ class Organization(TimeStampedModel):
         ACTIVE = "active", _("Activa")
         SUSPENDED = "suspended", _("Suspendida")
         PENDING_DELETION = "pending_deletion", _("Eliminación solicitada")
+        # Lápida tras la purga (X-04): sin datos, solo id, fechas y resumen.
+        DELETED = "deleted", _("Eliminada")
 
     class MfaPolicy(models.TextChoices):
         """Quién debe usar verificación en dos pasos (ORG-08). Por defecto, los administradores."""
@@ -92,6 +94,20 @@ class Organization(TimeStampedModel):
         default=MfaPolicy.ADMINS_ONLY,
     )
 
+    # Borrado a pedido (X-04): período de gracia y lápida tras la purga (docs/07_operacion.md).
+    deletion_requested_at = models.DateTimeField(_("eliminación solicitada el"), null=True, blank=True)
+    deletion_scheduled_for = models.DateTimeField(_("se eliminará el"), null=True, blank=True)
+    deletion_requested_by = models.ForeignKey(
+        "accounts.User",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+        verbose_name=_("eliminación solicitada por"),
+    )
+    deleted_at = models.DateTimeField(_("eliminada el"), null=True, blank=True)
+    purge_summary = models.JSONField(_("resumen de la purga"), default=dict, blank=True)
+
     class Meta:
         verbose_name = _("organización")
         verbose_name_plural = _("organizaciones")
@@ -104,6 +120,44 @@ class Organization(TimeStampedModel):
     def short_name(self):
         """Nombre sin el sufijo societario, para el selector compacto de la barra superior."""
         return LEGAL_SUFFIX.sub("", self.name.strip()) or self.name
+
+
+def data_export_upload_to(instance, filename):
+    """Bajo el prefijo de la organización (ADR-014): se sirve solo por la vista con permisos."""
+    return f"org/{instance.organization_id}/exports/{uuid.uuid4().hex}.zip"
+
+
+class DataExport(TenantModel):
+    """Exportación completa de los datos de la organización (X-03): un ZIP que vence."""
+
+    class Status(models.TextChoices):
+        PENDING = "pending", _("En preparación")
+        READY = "ready", _("Lista")
+        FAILED = "failed", _("Falló")
+        EXPIRED = "expired", _("Vencida")
+
+    requested_by = models.ForeignKey(
+        "accounts.User",
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name="+",
+        verbose_name=_("solicitada por"),
+    )
+    status = models.CharField(_("estado"), max_length=10, choices=Status.choices, default=Status.PENDING)
+    file = models.FileField(_("archivo"), upload_to=data_export_upload_to, blank=True)
+    size_bytes = models.PositiveBigIntegerField(_("tamaño (bytes)"), default=0)
+    finished_at = models.DateTimeField(_("terminada el"), null=True, blank=True)
+    expires_at = models.DateTimeField(_("vence"), null=True, blank=True)
+    error = models.CharField(_("error"), max_length=300, blank=True)
+
+    class Meta:
+        verbose_name = _("exportación de datos")
+        verbose_name_plural = _("exportaciones de datos")
+        ordering = ["-created_at"]
+        indexes = [models.Index(fields=["organization", "-created_at"], name="data_export_org_created")]
+
+    def __str__(self):
+        return f"{self._meta.verbose_name} {self.created_at:%Y-%m-%d %H:%M}" if self.created_at else ""
 
 
 class Location(TenantModel):

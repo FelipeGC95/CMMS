@@ -15,6 +15,7 @@ class Kind(models.TextChoices):
     WO_OVERDUE = "wo_overdue", _("OT vencida")
     REQUEST_NEW = "request_new", _("Nueva solicitud")
     REQUEST_RESOLVED = "request_resolved", _("Mi solicitud resuelta")
+    DATA_EXPORT_READY = "data_export_ready", _("Exportación de datos lista")
 
 
 class Notification(TenantModel):

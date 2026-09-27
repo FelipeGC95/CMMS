@@ -65,6 +65,10 @@ class AuditEvent(TenantModel):
         DEACTIVATE = "deactivate", _("Desactivación")
         REACTIVATE = "reactivate", _("Reactivación")
         REVOKE = "revoke", _("Revocación")
+        # Datos de la organización (X-03, X-04).
+        DOWNLOAD = "download", _("Descarga")
+        DELETION_REQUEST = "deletion_request", _("Eliminación solicitada")
+        DELETION_CANCEL = "deletion_cancel", _("Eliminación cancelada")
 
     # SET_NULL: el evento sobrevive a la baja del usuario; actor_repr conserva quién fue.
     actor = models.ForeignKey(

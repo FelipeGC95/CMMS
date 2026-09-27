@@ -110,3 +110,19 @@ class OrganizationLogoForm(forms.Form):
         if not data.get("logo") and not data.get("remove"):
             raise forms.ValidationError(_("Elige un archivo de imagen para el logo."))
         return data
+
+
+class OrganizationDeletionForm(forms.Form):
+    """Confirmación del borrado de la organización (X-04): clave y nombre escrito a mano."""
+
+    password = forms.CharField(
+        label=_("Tu contraseña"),
+        strip=False,
+        widget=forms.PasswordInput(attrs={"autocomplete": "current-password"}),
+    )
+    confirm_name = forms.CharField(
+        label=_("Nombre de la organización"),
+        max_length=150,
+        help_text=_("Escríbelo tal como aparece arriba para confirmar."),
+        widget=forms.TextInput(attrs={"autocomplete": "off"}),
+    )

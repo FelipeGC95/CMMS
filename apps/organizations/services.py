@@ -1,12 +1,18 @@
 """Ubicaciones en árbol (ORG-04) y configuración de la organización."""
 
+import datetime
 import io
+import logging
 import zoneinfo
 
+from django.conf import settings
 from django.core.exceptions import ValidationError
+from django.core.files import File
 from django.core.files.base import ContentFile
 from django.db import transaction
 from django.template.defaultfilters import filesizeformat
+from django.urls import reverse
+from django.utils import timezone
 from django.utils.translation import gettext as _
 from django.utils.translation import gettext_lazy
 from PIL import Image, ImageOps, UnidentifiedImageError
@@ -16,11 +22,16 @@ from apps.accounts.scoping import allowed_location_ids
 from apps.attachments.selectors import storage_usage
 from apps.audit import services as audit
 from apps.audit.models import AuditEvent
+from apps.core.tenancy import tenant_context
 
+from . import exports
 from .branding import brand_palette
-from .models import Location, Organization
+from .models import DataExport, Location, Organization
 from .selectors import descendant_ids
 
+logger = logging.getLogger(__name__)
+
+DELETION_FIELDS = ["status", "deletion_requested_at", "deletion_scheduled_for", "deletion_requested_by"]
 LOCATION_FIELDS = ["code", "name", "kind", "parent", "timezone", "is_active"]
 
 
@@ -396,4 +407,164 @@ def remove_organization_logo(*, membership):
             membership=membership,
             changes={"logo": [before, ""]},
         )
+    return organization
+
+
+# ---------- Exportación completa de datos (X-03) ----------
+
+
+@transaction.atomic
+def request_data_export(*, membership) -> DataExport:
+    """Pide el ZIP con todos los datos. Solo el administrador; una exportación en curso a la vez.
+
+    Con `DATA_EXPORT_USE_QUEUE` lo arma el worker; si no, se arma al confirmar la
+    transacción, en la misma petición (demo y desarrollo).
+    """
+    require_perm(membership, Perm.ORGANIZATION_MANAGE)
+    organization = Organization.objects.select_for_update().get(pk=membership.organization_id)
+    if DataExport.objects.filter(status=DataExport.Status.PENDING).exists():
+        raise ValidationError(_("Ya hay una exportación en preparación. Te avisaremos cuando esté lista."))
+    export = DataExport.objects.create(requested_by=membership.user)
+    audit.record(action=AuditEvent.Action.CREATE, target=export, membership=membership)
+    organization_id, export_id = str(organization.pk), str(export.pk)
+    if settings.DATA_EXPORT_USE_QUEUE:
+        from . import tasks
+
+        transaction.on_commit(
+            lambda: tasks.build_data_export.defer(organization_id=organization_id, export_id=export_id)
+        )
+    else:
+
+        def run():
+            with tenant_context(organization):
+                build_data_export(export_id=export_id)
+
+        transaction.on_commit(run)
+    return export
+
+
+def build_data_export(*, export_id) -> DataExport | None:
+    """Arma y guarda el ZIP de una exportación pendiente y avisa a quien la pidió.
+
+    Corre dentro del `tenant_context` de la organización (tarea o petición).
+    """
+    export = DataExport.objects.filter(pk=export_id, status=DataExport.Status.PENDING).first()
+    if export is None:
+        return None
+    try:
+        archive, _readme = exports.build_archive()
+        with archive:
+            export.file.save("export.zip", File(archive), save=False)
+    except Exception as error:
+        logger.exception("No se pudo armar la exportación %s", export_id)
+        export.status = DataExport.Status.FAILED
+        export.error = str(error)[:300]
+        export.finished_at = timezone.now()
+        export.save(update_fields=["status", "error", "finished_at", "updated_at"])
+        return export
+    now = timezone.now()
+    export.status = DataExport.Status.READY
+    export.size_bytes = export.file.size
+    export.finished_at = now
+    export.expires_at = now + datetime.timedelta(days=settings.DATA_EXPORT_TTL_DAYS)
+    export.save(update_fields=["file", "status", "size_bytes", "finished_at", "expires_at", "updated_at"])
+    _notify_export_ready(export)
+    return export
+
+
+def _notify_export_ready(export) -> None:
+    from apps.accounts.models import Membership
+    from apps.notifications.models import Kind
+    from apps.notifications.services import deliver
+
+    recipients = Membership.objects.select_related("user").filter(
+        organization_id=export.organization_id, user_id=export.requested_by_id, is_active=True
+    )
+    deliver(
+        kind=Kind.DATA_EXPORT_READY,
+        memberships=list(recipients),
+        title=_("Tu exportación de datos está lista"),
+        body=_("Descárgala desde Configuración antes del %(date)s.")
+        % {"date": timezone.localtime(export.expires_at).strftime("%d-%m-%Y")},
+        url=reverse("organization_settings") + "#export",
+    )
+
+
+def data_export_for_download(*, membership, export_id, request=None) -> DataExport:
+    """Exportación lista y vigente de la organización; registra la descarga en la auditoría."""
+    require_perm(membership, Perm.ORGANIZATION_MANAGE)
+    export = DataExport.objects.filter(
+        pk=export_id, status=DataExport.Status.READY, expires_at__gt=timezone.now()
+    ).first()
+    if export is None or not export.file:
+        raise DataExport.DoesNotExist
+    with transaction.atomic():
+        audit.record(action=AuditEvent.Action.DOWNLOAD, target=export, membership=membership, request=request)
+    return export
+
+
+def expire_data_exports(*, now=None) -> int:
+    """Borra los ZIP vencidos de la organización del contexto (la fila queda en `expired`)."""
+    now = now or timezone.now()
+    expired = list(DataExport.objects.filter(status=DataExport.Status.READY, expires_at__lte=now))
+    for export in expired:
+        if export.file:
+            export.file.storage.delete(export.file.name)
+        export.file = ""
+        export.status = DataExport.Status.EXPIRED
+        export.save(update_fields=["file", "status", "updated_at"])
+    return len(expired)
+
+
+# ---------- Borrado de la organización (X-04) ----------
+
+
+@transaction.atomic
+def request_organization_deletion(*, membership, password, confirm_name) -> Organization:
+    """Programa el borrado con período de gracia. Exige la clave y escribir el nombre exacto."""
+    require_perm(membership, Perm.ORGANIZATION_MANAGE)
+    organization = Organization.objects.select_for_update().get(pk=membership.organization_id)
+    if organization.status == Organization.Status.PENDING_DELETION:
+        raise ValidationError(_("La eliminación ya está solicitada."))
+    if not membership.user.check_password(password or ""):
+        raise ValidationError(_("La contraseña no es correcta."))
+    if (confirm_name or "").strip().casefold() != organization.name.strip().casefold():
+        raise ValidationError(_("Escribe el nombre de la organización tal como aparece."))
+    now = timezone.now()
+    before = audit.snapshot(organization, DELETION_FIELDS)
+    organization.status = Organization.Status.PENDING_DELETION
+    organization.deletion_requested_at = now
+    organization.deletion_scheduled_for = now + datetime.timedelta(
+        days=settings.ORGANIZATION_DELETION_GRACE_DAYS
+    )
+    organization.deletion_requested_by = membership.user
+    organization.save(update_fields=[*DELETION_FIELDS, "updated_at"])
+    audit.record(
+        action=AuditEvent.Action.DELETION_REQUEST,
+        target=organization,
+        membership=membership,
+        changes=audit.diff(before, audit.snapshot(organization, DELETION_FIELDS)),
+    )
+    return organization
+
+
+@transaction.atomic
+def cancel_organization_deletion(*, membership) -> Organization:
+    require_perm(membership, Perm.ORGANIZATION_MANAGE)
+    organization = Organization.objects.select_for_update().get(pk=membership.organization_id)
+    if organization.status != Organization.Status.PENDING_DELETION:
+        raise ValidationError(_("No hay una eliminación pendiente."))
+    before = audit.snapshot(organization, DELETION_FIELDS)
+    in_trial = organization.trial_ends_at and organization.trial_ends_at > timezone.now()
+    organization.status = Organization.Status.TRIAL if in_trial else Organization.Status.ACTIVE
+    organization.deletion_requested_at = None
+    organization.deletion_scheduled_for = None
+    organization.deletion_requested_by = None
+    organization.save(update_fields=[*DELETION_FIELDS, "updated_at"])
+    audit.record(
+        action=AuditEvent.Action.DELETION_CANCEL,
+        target=organization,
+        membership=membership,
+        changes=audit.diff(before, audit.snapshot(organization, DELETION_FIELDS)),
+    )
     return organization

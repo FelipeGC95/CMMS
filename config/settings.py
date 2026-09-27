@@ -108,6 +108,11 @@ if TASK_QUEUE_ENABLED:
     INSTALLED_APPS.insert(INSTALLED_APPS.index("apps.core"), "procrastinate.contrib.django")
 # Texto de manuales PDF (AST-06 CA3): con DOCUMENT_TEXT_USE_QUEUE=1 lo extrae el worker; si no, al subir.
 DOCUMENT_TEXT_USE_QUEUE = env_bool("DOCUMENT_TEXT_USE_QUEUE", False) and TASK_QUEUE_ENABLED
+# Exportación completa (X-03): con DATA_EXPORT_USE_QUEUE=1 el ZIP lo arma el worker; si no, al pedirlo.
+DATA_EXPORT_USE_QUEUE = env_bool("DATA_EXPORT_USE_QUEUE", False) and TASK_QUEUE_ENABLED
+DATA_EXPORT_TTL_DAYS = 7
+# Borrado de organización (X-04): días de gracia antes de la purga.
+ORGANIZATION_DELETION_GRACE_DAYS = 30
 
 AUTH_USER_MODEL = "accounts.User"
 AUTHENTICATION_BACKENDS = [
