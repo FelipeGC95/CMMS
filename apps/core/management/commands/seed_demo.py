@@ -18,7 +18,7 @@ from apps.accounts.models import Membership, User
 from apps.accounts.services import create_user
 from apps.assets.models import Asset, AssetClass, AssetStatusPeriod, Meter, MeterKind
 from apps.assets.services import record_meter_reading
-from apps.core.tenancy import tenant_context
+from apps.core.tenancy import platform_context, tenant_context
 from apps.maintenance.models import ItemType
 from apps.maintenance.services import assign_plan, create_plan, generate_due_work_orders
 from apps.organizations.models import Location, Organization, Plan
@@ -230,7 +230,12 @@ class Command(BaseCommand):
     def add_arguments(self, parser):
         parser.add_argument("--reset", action="store_true", help="Vacía TODA la base antes (solo demo).")
 
-    def handle(self, *args, reset=False, **options):
+    def handle(self, *args, **options):
+        # Comando de plataforma (ADR-026): RLS desactivado; cada escritura igual usa tenant_context.
+        with platform_context():
+            self._seed(*args, **options)
+
+    def _seed(self, *args, reset=False, **options):
         random.seed(42)
         if reset:
             # Base de demo: se vacía completa. (El borrado de una organización real es X-04.)

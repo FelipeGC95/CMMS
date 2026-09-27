@@ -22,9 +22,16 @@ jobs:
           --health-cmd "pg_isready -U cmms"
           --health-interval 5s --health-timeout 5s --health-retries 10
     env:
-      DATABASE_URL: postgres://cmms:cmms@localhost:5432/cmms
+      # Rol de la aplicación sin SUPERUSER ni BYPASSRLS, como en producción: un
+      # superusuario ignora Row-Level Security y los tests de RLS no probarían nada (ADR-026).
+      DATABASE_URL: postgres://cmms_app:cmms_app@localhost:5432/cmms
     steps:
       - uses: actions/checkout@v4
+      - name: Rol de aplicación sujeto a RLS
+        env:
+          PGPASSWORD: cmms
+        run: |
+          psql -h localhost -U cmms -d cmms -v ON_ERROR_STOP=1             -c "CREATE ROLE cmms_app LOGIN PASSWORD 'cmms_app' CREATEDB NOSUPERUSER NOBYPASSRLS"             -c "ALTER DATABASE cmms OWNER TO cmms_app"             -c "GRANT ALL ON SCHEMA public TO cmms_app"
       - uses: astral-sh/setup-uv@v6
         with:
           python-version: ${{ matrix.python-version }}

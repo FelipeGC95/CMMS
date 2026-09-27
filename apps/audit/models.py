@@ -6,7 +6,7 @@ from django.core.serializers.json import DjangoJSONEncoder
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 
-from apps.core.models import TenantManager, TenantModel
+from apps.core.models import PlatformQuerySetMixin, TenantManager, TenantModel
 
 
 class AppendOnlyError(RuntimeError):
@@ -22,6 +22,13 @@ class AuditEventQuerySet(models.QuerySet):
 
     update.queryset_only = True
     delete.queryset_only = True
+
+
+class PlatformAuditEventQuerySet(PlatformQuerySetMixin, AuditEventQuerySet):
+    """`all_tenants` de auditoría: sin RLS (ADR-026) y igual de solo inserción."""
+
+    update = AuditEventQuerySet.update
+    delete = AuditEventQuerySet.delete
 
 
 class AuditEventManager(TenantManager.from_queryset(AuditEventQuerySet)):
@@ -83,7 +90,7 @@ class AuditEvent(TenantModel):
     request_id = models.CharField(_("ID de petición"), max_length=64, blank=True)
 
     objects = AuditEventManager()
-    all_tenants = models.Manager.from_queryset(AuditEventQuerySet)()  # noqa: DJ012
+    all_tenants = models.Manager.from_queryset(PlatformAuditEventQuerySet)()  # noqa: DJ012
 
     class Meta:
         verbose_name = _("evento de auditoría")
