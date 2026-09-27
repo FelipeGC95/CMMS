@@ -178,6 +178,15 @@ MTBF/MTTR; si el problema resulta ser de un equipo, la OT se crea sobre él.
 **`document_page`** (M1, AST-06 CA3) — texto extraído de un manual, una fila por página.
 `organization_id` · `attachment_id` · `page_number` · `text` · `search_vector` (`tsvector`, configuración `spanish`).
 `UNIQUE (attachment_id, page_number)`; índice GIN `(search_vector)`; índice `(organization_id, attachment_id)`. Lo llena el worker al subir el PDF.
+> Implementado como `attachments.DocumentPage` (tenant model). Diferencias con este diseño:
+> sin columna `search_vector` ni índice GIN por ahora: la búsqueda (`/manuals/search/`) calcula
+> `to_tsvector('spanish', text)` al consultar (volumen bajo por organización) y en SQLite cae a
+> `icontains`; el índice GIN de expresión se agrega cuando el volumen lo pida. Unicidad
+> `(organization_id, attachment_id, page_number)`. Solo se guardan páginas con texto (máx. 500
+> por PDF). El manual es un `attachment` con `purpose = manual` y `target_type` asset o
+> asset_class, más `text_status` (pending, done, no_text para escaneados, failed) y `page_count`.
+> Quitar un manual lo borra con sus páginas (es material de consulta, no historial) y queda en
+> la auditoría.
 
 **`audit_log`** (solo inserción)
 `organization_id` (null = evento de plataforma) · `actor_id` · `actor_type` (user, api_token, system) · `action` (create, update, delete, transition, login, export…) · `object_type` · `object_id` · `object_repr` · `changes JSONB` (antes/después de los campos cambiados) · `ip` · `user_agent` · `request_id` · `at`.

@@ -521,7 +521,11 @@ tener ingresos).
     las pruebas muestran que la búsqueda por palabras no alcanza.
   - **Manuales:** al subir un PDF, el worker extrae el texto por página a
     `document_page` (con número de página) y lo indexa. Así cada respuesta
-    cita "Manual X, p. 45".
+    cita "Manual X, p. 45". *Implementado en M1 (AST-06 CA3):* `pypdf`
+    extrae hasta 500 páginas; los PDF escaneados quedan `no_text` (sin OCR).
+    El selector `search_manual_pages(membership, query)` ya aplica
+    aislamiento y alcance por sitio y es la base de la futura herramienta
+    `search_manuals`.
   - **Citas obligatorias:** cada afirmación indica su origen: manual
     (documento y página), historial (código de OT) o conocimiento general,
     este último marcado como de menor confianza. La interfaz enlaza cada
@@ -627,6 +631,12 @@ tener ingresos).
   - **Correo:** SMTP de Postmark o Brevo por `EMAIL_*`; consola si no hay
     `EMAIL_HOST`. `EMAIL_USE_QUEUE=1` envía desde el worker sin cambiar a
     quienes llaman.
+  - **Texto de manuales (AST-06 CA3):** con `DOCUMENT_TEXT_USE_QUEUE=1` (y
+    PostgreSQL) la extracción corre en el worker (`attachments.extract_document_text`,
+    cola `documents`, recibe `organization_id`). Sin el flag (demo sin
+    worker, SQLite) se extrae en la misma petición al confirmar la
+    transacción. `manage.py extract_document_text [--retry-failed]` procesa
+    los pendientes (p. ej. si se activó la cola sin worker).
   - **Respaldos (NF-09):** `manage.py backup_database` (`pg_dump` formato
     custom) a `backups/` en R2 o a `BACKUP_DIR`, con retención.
 - **Consecuencias:** la demo solo gana `/readyz` y las tablas vacías de la
