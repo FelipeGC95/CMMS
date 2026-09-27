@@ -540,3 +540,47 @@ def technician_load(*, work_orders, technicians, days) -> list[LoadRow]:
         week = LoadCell(sum(c.minutes for c in cells), int(technician.weekly_capacity_hours * 60))
         rows.append(LoadRow(user=technician.user, days=cells, week=week))
     return rows
+
+
+@dataclass
+class LaneCell:
+    day: datetime.date
+    work_orders: list
+    load: LoadCell | None
+
+
+@dataclass
+class Lane:
+    """Fila del tablero por técnico (REQ-05 CA1): `user` None = OT sin responsable."""
+
+    user: object
+    cells: list
+    week: LoadCell | None
+
+
+def board_lanes(*, work_orders, loads, days, visible_days) -> list[Lane]:
+    """Una fila por técnico en alcance (con su carga por día), otros responsables y «Sin asignar».
+
+    Trabaja sobre las OT y la carga ya consultadas (`loads` de `technician_load` con
+    `days`): no agrega consultas por técnico. Un responsable que no es técnico en
+    alcance (p. ej. un supervisor) tiene su propia fila, sin capacidad, para que
+    ninguna OT programada quede fuera del tablero.
+    """
+    grouped: dict = {}
+    others: dict = {}
+    for wo in work_orders:
+        grouped.setdefault((wo.assigned_to_id, wo.scheduled_for), []).append(wo)
+        if wo.assigned_to_id is not None:
+            others.setdefault(wo.assigned_to_id, wo.assigned_to)
+    lanes = []
+    for row in loads:
+        others.pop(row.user.pk, None)
+        by_day = dict(zip(days, row.days, strict=True))
+        cells = [LaneCell(day, grouped.get((row.user.pk, day), []), by_day[day]) for day in visible_days]
+        lanes.append(Lane(user=row.user, cells=cells, week=row.week))
+    for user_id, user in sorted(others.items(), key=lambda item: str(item[1])):
+        cells = [LaneCell(day, grouped.get((user_id, day), []), None) for day in visible_days]
+        lanes.append(Lane(user=user, cells=cells, week=None))
+    cells = [LaneCell(day, grouped.get((None, day), []), None) for day in visible_days]
+    lanes.append(Lane(user=None, cells=cells, week=None))
+    return lanes

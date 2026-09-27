@@ -1,5 +1,5 @@
 {% load i18n ui %}
-<li class="board-card{% if wo.movable %} board-card--movable{% endif %}"{% if wo.movable %} draggable="true" data-schedule-url="{% url 'work_order_schedule' wo.pk %}"{% if wo.status == "scheduled" %} data-unschedule-url="{% url 'work_order_unschedule' wo.pk %}"{% endif %}{% endif %}>
+<li class="board-card{% if wo.movable %} board-card--movable{% endif %}"{% if wo.movable %} draggable="true" data-assignee="{{ wo.assigned_to_id|default_if_none:'' }}" data-schedule-url="{% url 'work_order_schedule' wo.pk %}"{% if wo.status == "scheduled" %} data-unschedule-url="{% url 'work_order_unschedule' wo.pk %}"{% endif %}{% endif %}>
   <a class="board-card__title" href="{% url 'work_order_detail' wo.pk %}"><span class="mono">{{ wo.code }}</span> {{ wo.title }}</a>
   <span class="board-card__meta">{% include "work/_target.html" with asset=wo.asset location=wo.location %}</span>
   <span class="board-card__meta">{% icon 'user' %} {{ wo.assigned_to|default:_("Sin responsable") }} · {% icon 'clock' %} {% if wo.estimated_minutes %}{{ wo.estimated_minutes|minutes_as_hours }} h{% else %}{% translate "sin estimación" %}{% endif %}</span>

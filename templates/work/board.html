@@ -14,17 +14,21 @@
 </div>
 
 {% include "work/_week_nav.html" %}
+<nav class="chips mb-4" aria-label="{% translate 'Agrupar el tablero' %}">
+  <a class="chip" href="?{{ lanes_query }}"{% if lanes_on %} aria-current="true"{% endif %}>{% icon 'user' %}{% translate "Por técnico" %}</a>
+</nav>
 
 <form method="get" class="search-bar mb-4" aria-label="{% translate 'Filtrar por sitio' %}">
   <input type="hidden" name="week" value="{{ monday|date:'Y-m-d' }}">
   {% if weekend %}<input type="hidden" name="weekend" value="1">{% endif %}
+  {% if lanes_on %}<input type="hidden" name="lanes" value="1">{% endif %}
   <label class="visually-hidden" for="{{ filter_form.location.id_for_label }}">{{ filter_form.location.label }}</label>
   {{ filter_form.location }}
   <button class="btn btn--secondary" type="submit">{% translate "Filtrar" %}</button>
 </form>
 
 <div class="alert alert--error" role="alert" data-board-status hidden>{% icon 'stop' %}<span data-board-status-text></span></div>
-{% if overloaded %}<div class="alert alert--warning" role="status">{% icon 'alert' %}<span>{% blocktranslate count n=overloaded %}{{ n }} día de técnico supera su capacidad esta semana. Revisa la tabla de carga.{% plural %}{{ n }} días de técnico superan su capacidad esta semana. Revisa la tabla de carga.{% endblocktranslate %}</span></div>{% endif %}
+{% if overloaded %}<div class="alert alert--warning" role="status">{% icon 'alert' %}<span>{% blocktranslate count n=overloaded %}{{ n }} día de técnico supera su capacidad esta semana.{% plural %}{{ n }} días de técnico superan su capacidad esta semana.{% endblocktranslate %}</span></div>{% endif %}
 
 <div class="board" data-board data-csrf="{{ csrf_token }}" data-network-error="{% translate 'No se pudo guardar. Revisa tu conexión e inténtalo de nuevo.' %}">
   <section class="card board__backlog" data-drop-unschedule aria-labelledby="board-backlog-title">
@@ -38,6 +42,9 @@
     {% endif %}
   </section>
 
+  {% if lanes_on %}
+  {% include "work/_board_lanes.html" %}
+  {% else %}
   <div class="board__week{% if weekend %} board__week--7{% endif %}">
     {% for day, items in columns %}
     <section class="card board__day{% if day == today %} board__day--today{% endif %}"{% if day >= today %} data-drop-date="{{ day|date:'Y-m-d' }}"{% endif %} aria-labelledby="board-day-{{ forloop.counter }}">
@@ -50,8 +57,10 @@
     </section>
     {% endfor %}
   </div>
+  {% endif %}
 </div>
 
+{% if not lanes_on %}
 <h2 class="mt-4">{% translate "Carga vs. capacidad" %}</h2>
 <div class="card card--flush">
   {% if loads %}
@@ -72,5 +81,6 @@
   <p class="empty">{% icon 'user' %} {% translate "No hay técnicos activos en este alcance." %}</p>
   {% endif %}
 </div>
+{% endif %}
 <p class="muted mt-2">{% translate "Carga = estimación de las OT donde el técnico es responsable. Capacidad diaria = horas semanales ÷ 5 (lunes a viernes); el fin de semana no tiene capacidad. Las horas semanales se editan en Equipo." %}</p>
 {% endblock %}

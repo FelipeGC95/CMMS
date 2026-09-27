@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-27 16:40-0300\n"
+"POT-Creation-Date: 2026-09-27 17:29-0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -6577,6 +6577,38 @@ msgstr ""
 msgid "Sobre capacidad"
 msgstr ""
 
+msgid "Por técnico"
+msgstr ""
+
+msgid ""
+"Una fila por técnico con su carga del día y de la semana; en el teléfono "
+"cada técnico es una lista por día."
+msgstr ""
+
+msgid "Mar 6"
+msgstr ""
+
+msgid "Mié 7"
+msgstr ""
+
+msgid "Jue 8"
+msgstr ""
+
+msgid "Vie 9"
+msgstr ""
+
+msgid "Suelta una OT aquí."
+msgstr ""
+
+msgid "Miércoles 7"
+msgstr ""
+
+msgid "Jueves 8"
+msgstr ""
+
+msgid "Viernes 9"
+msgstr ""
+
 msgid "Secciones"
 msgstr ""
 
@@ -6617,6 +6649,12 @@ msgid "Mover"
 msgstr ""
 
 msgid "Quitar del día"
+msgstr ""
+
+msgid "Sin capacidad en este alcance"
+msgstr ""
+
+msgid "OT sin responsable"
 msgstr ""
 
 msgid "Ítems actuales"
@@ -6746,16 +6784,15 @@ msgid ""
 "programarla pasa a «Programada» y se avisa al responsable."
 msgstr ""
 
+msgid "Agrupar el tablero"
+msgstr ""
+
 msgid "Filtrar por sitio"
 msgstr ""
 
 #, python-format
-msgid ""
-"%(n)s día de técnico supera su capacidad esta semana. Revisa la tabla de "
-"carga."
-msgid_plural ""
-"%(n)s días de técnico superan su capacidad esta semana. Revisa la tabla de "
-"carga."
+msgid "%(n)s día de técnico supera su capacidad esta semana."
+msgid_plural "%(n)s días de técnico superan su capacidad esta semana."
 msgstr[0] ""
 msgstr[1] ""
 msgstr[2] ""

@@ -1,5 +1,6 @@
 // Tablero semanal (REQ-05): arrastrar una OT a un día la programa; soltarla en
-// «Sin programar» la devuelve al backlog. Sin JS (o en el teléfono) cada tarjeta
+// «Sin programar» la devuelve al backlog. En la vista «Por técnico» soltarla en la
+// celda de un técnico también lo deja como responsable principal. Sin JS (o en el teléfono) cada tarjeta
 // tiene su formulario «Programar», que hace lo mismo. Sin JS en línea (CSP estricta).
 (() => {
   const board = document.querySelector("[data-board]");
@@ -24,6 +25,8 @@
     const zone = target.closest(ZONES);
     if (!zone || !dragged) return null;
     if ("dropUnschedule" in zone.dataset && !dragged.dataset.unscheduleUrl) return null;
+    // «Sin asignar» no quita responsables: solo recibe OT que ya no lo tienen.
+    if ("dropUnassigned" in zone.dataset && dragged.dataset.assignee) return null;
     return zone;
   };
 
@@ -64,6 +67,7 @@
     if (zone.dataset.dropDate) {
       url = card.dataset.scheduleUrl;
       body.append("scheduled_for", zone.dataset.dropDate);
+      if (zone.dataset.dropAssignee) body.append("assigned_to", zone.dataset.dropAssignee);
     }
     card.classList.add("is-saving");
     try {

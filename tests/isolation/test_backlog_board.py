@@ -97,3 +97,26 @@ def test_b_my_week_does_not_show_a(client, tenant_a, tenant_b, wo_a):
     login(client, tenant_b.tech)
     body = client.get(reverse("work_order_my_week") + f"?week={next_monday().isoformat()}").content.decode()
     assert "Secreto de A" not in body
+
+
+def test_b_lanes_do_not_show_a_and_drop_cannot_assign_a_technician(client, tenant_a, tenant_b, wo_a):
+    """Vista «Por técnico»: B no ve filas de A ni puede soltar una OT sobre un técnico de A."""
+    with tenant_context(tenant_a.org):
+        schedule_work_order(work_order=wo_a, membership=tenant_a.admin, scheduled_for=next_monday())
+    with tenant_context(tenant_b.org):
+        wo_b = create_work_order(work_type="corrective", title="B", asset=tenant_b.asset)
+    login(client, tenant_b.admin)
+    url = reverse("work_order_board") + f"?week={next_monday().isoformat()}&lanes=1"
+    body = client.get(url).content.decode()
+    assert "Secreto de A" not in body and tenant_a.tech.user.full_name not in body
+    assert f'data-drop-assignee="{tenant_a.tech.user.pk}"' not in body
+    assert f'data-drop-assignee="{tenant_b.tech.user.pk}"' in body
+    response = client.post(
+        reverse("work_order_schedule", args=[wo_b.pk]),
+        {"scheduled_for": next_monday().isoformat(), "assigned_to": tenant_a.tech.user.pk},
+        HTTP_X_BOARD_DROP="1",
+    )
+    assert response.status_code == 400
+    with tenant_context(tenant_b.org):
+        wo_b.refresh_from_db()
+    assert (wo_b.status, wo_b.assigned_to) == (WorkOrder.Status.PLANNED, None)

@@ -891,6 +891,7 @@ def _add_planning_rows(tenant, n, monday):
         ("work_order_backlog", "admin"),
         ("work_order_backlog_export_xlsx", "admin"),
         ("work_order_board", "admin"),
+        ("work_order_board_lanes", "admin"),
         ("work_order_my_week", "tech"),
     ],
 )
@@ -900,7 +901,11 @@ def test_planning_screens_do_not_grow_with_rows(client, tenant_a, url_name, who)
 
     monday = week_start(timezone.localdate()) + datetime.timedelta(days=7)
     login(client, getattr(tenant_a, who))
-    url = f"{reverse(url_name)}?week={monday.isoformat()}"
+    # Tablero «Por técnico»: una fila por técnico sin consultas por técnico.
+    lanes = url_name == "work_order_board_lanes"
+    url = f"{reverse('work_order_board' if lanes else url_name)}?week={monday.isoformat()}"
+    if lanes:
+        url += "&lanes=1"
     _add_planning_rows(tenant_a, 2, monday)
     few = _count(client, url)
     _add_planning_rows(tenant_a, 6, monday)
