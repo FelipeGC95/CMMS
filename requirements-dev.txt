@@ -111,6 +111,7 @@ pycparser==3.0 ; implementation_name != 'PyPy'
 pygments==2.21.0
     # via pytest
 pypdf==6.19.0
+    # via galbust-cmms
 pytest==9.1.1
     # via pytest-django
 pytest-django==4.14.0
