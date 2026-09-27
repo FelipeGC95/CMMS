@@ -13,6 +13,13 @@ class ImmutableVersionError(ValidationError):
 class ItemType(models.TextChoices):
     CHECK = "check", _("Verificación (OK / No OK / N.A.)")
     MEASUREMENT = "measurement", _("Medición")
+    TEXT = "text", _("Texto")
+    PHOTO = "photo", _("Foto obligatoria")
+    SIGNATURE = "signature", _("Firma")
+
+
+# Tipos que se responden OK / No OK (y pueden originar una correctiva, WO-06).
+RESULT_ITEM_TYPES = (ItemType.CHECK, ItemType.MEASUREMENT)
 
 
 class MaintenancePlanManager(TenantManager):

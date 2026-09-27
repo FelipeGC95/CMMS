@@ -46,7 +46,15 @@ def locked_plans():
 def _add_content(version: PlanVersion, *, items=(), resources=()):
     PlanTaskItem.objects.bulk_create(
         [
-            PlanTaskItem(organization=version.organization, version=version, **{"order": i, **item})
+            PlanTaskItem(
+                organization=version.organization,
+                version=version,
+                **{
+                    "order": i,
+                    **item,
+                    **({"required": True} if item.get("item_type") == ItemType.PHOTO else {}),
+                },
+            )
             for i, item in enumerate(items, start=1)
         ]
     )
@@ -456,6 +464,7 @@ def _check_draft_version(version: PlanVersion) -> None:
 
 
 def _clean_measurement(item_type, unit, min_value, max_value):
+    """Unidad y rango solo aplican a mediciones; en otros tipos se descartan."""
     if item_type not in ItemType.values:
         raise ValidationError(_("Tipo de ítem no válido."))
     if item_type != ItemType.MEASUREMENT:
@@ -548,6 +557,7 @@ def add_draft_item(
     _require_plan_manager(membership)
     _check_draft_version(version)
     unit, min_value, max_value = _clean_measurement(item_type, unit, min_value, max_value)
+    required = required or item_type == ItemType.PHOTO  # «foto obligatoria» siempre bloquea el cierre
     last = version.items.aggregate(n=Max("order"))["n"] or 0
     item = PlanTaskItem.objects.create(
         version=version,
@@ -575,6 +585,7 @@ def update_draft_item(
     _require_plan_manager(membership)
     _check_draft_version(item.version)
     unit, min_value, max_value = _clean_measurement(item_type, unit, min_value, max_value)
+    required = required or item_type == ItemType.PHOTO
     before = audit.snapshot(item, ITEM_FIELDS)
     item.text, item.item_type, item.unit = text.strip(), item_type, unit
     item.min_value, item.max_value, item.required = min_value, max_value, required

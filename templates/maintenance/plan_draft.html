@@ -37,7 +37,7 @@
       <li class="checklist-order__row">
         <div class="list__main">
           <span class="list__title"><span class="mono muted">{{ item.order }}.</span> <a href="{% url 'plan_item_edit' plan.pk item.pk %}">{{ item.text }}<span class="visually-hidden"> ({% translate "editar" %})</span></a></span>
-          <span class="list__meta">{% if item.item_type == "measurement" %}{% translate "Medición" %}{% if item.unit %} · {{ item.unit }}{% endif %}{% if item.min_value is not None or item.max_value is not None %} · <span class="num">{{ item.min_value|measure }} – {{ item.max_value|measure }}</span>{% endif %}{% else %}{% translate "Verificación" %}{% endif %}</span>
+          <span class="list__meta">{% include "maintenance/_item_type_meta.html" %}</span>
           <span class="checklist-order__badges">{% if item.required %}<span class="badge badge--info">{% icon 'info' %}{% translate "Obligatorio" %}</span>{% else %}<span class="badge badge--neutral">{% icon 'dot' %}{% translate "Opcional" %}</span>{% endif %}</span>
         </div>
         <div class="checklist-order__actions">

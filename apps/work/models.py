@@ -238,6 +238,8 @@ class WorkOrderChecklistItem(TenantModel):
         OK = "ok", _("OK")
         NOT_OK = "not_ok", _("No OK")
         NA = "na", _("N.A.")
+        # Texto, foto obligatoria o firma: el ítem quedó respondido (PM-01 CA1).
+        DONE = "done", _("Hecho")
 
     work_order = models.ForeignKey(
         WorkOrder, on_delete=models.CASCADE, related_name="checklist", verbose_name=_("OT")
@@ -259,6 +261,7 @@ class WorkOrderChecklistItem(TenantModel):
     value_number = models.DecimalField(
         max_digits=14, decimal_places=3, null=True, blank=True, verbose_name=_("valor")
     )
+    value_text = models.CharField(max_length=1000, blank=True, verbose_name=_("respuesta"))
     note = models.CharField(max_length=500, blank=True, verbose_name=_("nota"))
     answered_by = models.ForeignKey(
         "accounts.User",

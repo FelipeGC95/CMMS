@@ -14,6 +14,19 @@
       </div>
       <p class="help muted">{% translate "Rango aceptable" %}: <span class="num">{{ item.min_value|measure }} – {{ item.max_value|measure }}</span> {{ item.unit }}
         {% if item.result == "not_ok" %}<span class="badge badge--error">{% icon 'stop' %}{% translate "Fuera de rango" %}</span>{% elif item.result == "ok" %}<span class="badge badge--success">{% icon 'check' %}{% translate "En rango" %}</span>{% endif %}</p>
+    {% elif item.item_type == "text" %}
+      <div class="field">
+        <label for="t-{{ item.pk }}">{% translate "Respuesta" %}</label>
+        <textarea class="input" id="t-{{ item.pk }}" name="value_text" rows="3" maxlength="1000" autocapitalize="sentences" required>{{ item.value_text }}</textarea>
+      </div>
+      <button class="btn btn--secondary btn--lg" type="submit">{% icon 'check' %}{% translate "Guardar respuesta" %}</button>
+      {% if item.result == "done" %}<span class="badge badge--success">{% icon 'check' %}{% translate "Respondido" %}</span>{% endif %}
+    {% elif item.item_type == "signature" %}
+      {% if item.signature %}<p class="check-item__signed"><img class="signature-image" src="{% url 'attachment' item.signature.pk %}" alt="{% blocktranslate with text=item.text %}Firma de «{{ text }}»{% endblocktranslate %}"><span class="badge badge--success">{% icon 'check' %}{% translate "Firmado" %}</span></p>{% endif %}
+      {% include "work/_signature_pad.html" with field=item.signature_form.signature %}
+      <button class="btn btn--secondary btn--lg" type="submit">{% icon 'check' %}{% if item.signature %}{% translate "Volver a firmar" %}{% else %}{% translate "Guardar firma" %}{% endif %}</button>
+    {% elif item.item_type == "photo" %}
+      <p class="help">{% if item.result == "done" %}<span class="badge badge--success">{% icon 'check' %}{% translate "Foto lista" %}</span>{% else %}<span class="badge badge--warning">{% icon 'camera' %}{% translate "Falta la foto" %}</span> {% translate "Toma al menos una foto para completar la OT." %}{% endif %}</p>
     {% else %}
       <div class="segmented" role="group" aria-label="{% translate 'Resultado' %}">
         <button type="submit" name="result" value="ok" class="is-ok" aria-pressed="{% if item.result == 'ok' %}true{% else %}false{% endif %}">{% icon 'check' %}{% translate "OK" %}</button>
@@ -46,6 +59,8 @@
   {% else %}
     {% if item.result %}<span class="badge badge--{% if item.result == 'ok' %}success{% elif item.result == 'not_ok' %}error{% else %}neutral{% endif %}">{% if item.result == 'ok' %}{% icon 'check' %}{% elif item.result == 'not_ok' %}{% icon 'x' %}{% else %}{% icon 'dot' %}{% endif %}{{ item.get_result_display }}{% if item.value_number is not None %} · {{ item.value_number|measure }} {{ item.unit }}{% endif %}</span>
     {% else %}<span class="muted">{% translate "Sin respuesta" %}</span>{% endif %}
+    {% if item.value_text %}<p class="check-item__note-text"><span class="muted">{% translate "Respuesta" %}:</span> {{ item.value_text }}</p>{% endif %}
+    {% if item.signature %}<p class="check-item__signed"><img class="signature-image" src="{% url 'attachment' item.signature.pk %}" alt="{% blocktranslate with text=item.text %}Firma de «{{ text }}»{% endblocktranslate %}"></p>{% endif %}
     {% if item.note %}<p class="check-item__note-text"><span class="muted">{% translate "Observación" %}:</span> {{ item.note }}</p>{% endif %}
     {% include "work/_checklist_photos.html" %}
   {% endif %}

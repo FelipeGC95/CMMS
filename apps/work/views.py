@@ -22,6 +22,7 @@ from .forms import (
     AssigneesForm,
     ChecklistItemForm,
     ChecklistPhotoForm,
+    ChecklistSignatureForm,
     CompleteWorkOrderForm,
     FailureCodeForm,
     FailureCodeRenameForm,
@@ -194,11 +195,16 @@ def _complete_form(work_order, data=None):
 
 
 def _with_photos(items):
-    """Adjunta a cada ítem sus fotos (una consulta) y un client_uuid para subir otra."""
-    photos = checklist_photos(items=items)
+    """Adjunta a cada ítem sus fotos y su firma (una consulta) y un client_uuid para subir otra."""
+    attachments = checklist_photos(items=items)
     for item in items:
-        item.photos = photos.get(item.pk, [])
+        files = attachments.get(item.pk, [])
+        item.photos = [a for a in files if a.purpose != Purpose.SIGNATURE]
+        signatures = [a for a in files if a.purpose == Purpose.SIGNATURE]
+        item.signature = signatures[-1] if signatures else None
         item.photo_uuid = uuid.uuid4()
+        if item.item_type == "signature":
+            item.signature_form = ChecklistSignatureForm(auto_id=f"sig-{item.pk}-%s")
     return items
 
 
@@ -339,13 +345,19 @@ def checklist_answer_view(request, pk, item_pk):
     item = _checklist_item_or_404(request, pk, item_pk)
     if request.POST.get("note_only"):
         return _save_checklist_note(request, item)
-    error = None
+    error, signature = None, None
+    if item.item_type == "signature":
+        form = ChecklistSignatureForm(request.POST)
+        if form.is_valid():
+            signature = form.cleaned_data["signature"]
     try:
         answer_checklist_item(
             item=item,
             membership=request.membership,
             result=request.POST.get("result", ""),
             value_number=request.POST.get("value_number") or None,
+            value_text=request.POST.get("value_text", ""),
+            signature=signature,
             note=request.POST.get("note", ""),
         )
     except WorkOrderError as exc:

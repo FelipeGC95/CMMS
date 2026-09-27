@@ -192,7 +192,7 @@ def test_check_item_drops_range_and_unit(in_a):
     "kwargs,message",
     [
         ({"text": "   "}, "Escribe la tarea"),
-        ({"text": "x", "item_type": "photo"}, "Tipo de ítem inválido"),
+        ({"text": "x", "item_type": "video"}, "Tipo de ítem inválido"),
         ({"text": "x", "item_type": ItemType.MEASUREMENT, "min_value": 5, "max_value": 1}, "mínimo"),
     ],
 )

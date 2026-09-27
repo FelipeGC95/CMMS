@@ -450,3 +450,48 @@ def test_plan_screens_do_not_grow_with_rows(client, tenant_a, which):
     _add_plan_rows(tenant_a, usage, 10)
     many = _count(client, url)
     assert many == few, f"{which}: {few} → {many} consultas"
+
+
+def _typed_items(tenant, wo, n):
+    """Ítems de texto, foto obligatoria y firma ya respondidos (PM-01 CA1)."""
+    import io
+
+    from django.core.files.uploadedfile import SimpleUploadedFile
+    from PIL import Image
+
+    from apps.maintenance.models import ItemType
+    from apps.work.services import add_checklist_item, add_checklist_photo, answer_checklist_item
+    from tests.conftest import tiny_jpeg_bytes
+
+    buffer = io.BytesIO()
+    Image.new("RGB", (20, 10), (255, 255, 255)).save(buffer, format="PNG")
+    with tenant_context(tenant.org):
+        start = wo.checklist.count()
+        for i in range(start, start + n):
+            text = add_checklist_item(
+                work_order=wo, membership=tenant.admin, text=f"T{i}", item_type=ItemType.TEXT
+            )
+            answer_checklist_item(item=text, membership=tenant.tech, value_text="ok")
+            photo = add_checklist_item(
+                work_order=wo, membership=tenant.admin, text=f"F{i}", item_type=ItemType.PHOTO
+            )
+            jpeg = SimpleUploadedFile("f.jpg", tiny_jpeg_bytes(), content_type="image/jpeg")
+            add_checklist_photo(item=photo, membership=tenant.tech, uploaded_file=jpeg)
+            sign = add_checklist_item(
+                work_order=wo, membership=tenant.admin, text=f"S{i}", item_type=ItemType.SIGNATURE
+            )
+            png = SimpleUploadedFile("s.png", buffer.getvalue(), content_type="image/png")
+            answer_checklist_item(item=sign, membership=tenant.tech, signature=png)
+
+
+def test_checklist_with_new_item_types_does_not_grow(client, tenant_a, settings, tmp_path):
+    settings.MEDIA_ROOT = tmp_path
+    with tenant_context(tenant_a.org):
+        wo = create_work_order(work_type="corrective", title="x", asset=tenant_a.asset)
+    login(client, tenant_a.tech)
+    url = reverse("work_order_detail", args=[wo.pk])
+    _typed_items(tenant_a, wo, 1)
+    few = _count(client, url)
+    _typed_items(tenant_a, wo, 5)
+    many = _count(client, url)
+    assert many == few, f"checklist con tipos nuevos: {few} → {many} consultas"

@@ -126,6 +126,20 @@
           <label class="btn btn--secondary btn--lg photo-upload__button" for="ds-photo">{% icon 'camera' %}{% translate "Otra foto" %}</label>
         </form>
       </li>
+      <li class="check-item check-item--done">
+        <div class="check-item__text"><span class="check-item__num">4.</span><span>{% translate "Observaciones del operador (texto)" %}</span></div>
+        <div class="field"><label for="ds-text-answer">{% translate "Respuesta" %}</label><textarea class="input" id="ds-text-answer" rows="3">{% translate "Ruido leve en el rodamiento" %}</textarea></div>
+        <button class="btn btn--secondary btn--lg" type="button">{% icon 'check' %}{% translate "Guardar respuesta" %}</button>
+        <span class="badge badge--success">{% icon 'check' %}{% translate "Respondido" %}</span>
+      </li>
+      <li class="check-item">
+        <div class="check-item__text"><span class="check-item__num">5.</span><span>{% translate "Foto del tablero (foto obligatoria)" %}</span></div>
+        <p class="help"><span class="badge badge--warning">{% icon 'camera' %}{% translate "Falta la foto" %}</span> {% translate "Toma al menos una foto para completar la OT." %}</p>
+      </li>
+      <li class="check-item check-item--done">
+        <div class="check-item__text"><span class="check-item__num">6.</span><span>{% translate "Firma del supervisor (firma por ítem)" %}</span></div>
+        <p class="check-item__signed"><img class="signature-image" src="{% static 'brand/galbust-horizontal-monocromo.svg' %}" alt="{% translate 'Ejemplo de firma registrada' %}"><span class="badge badge--success">{% icon 'check' %}{% translate "Firmado" %}</span></p>
+      </li>
     </ul>
   </section>
 </div>

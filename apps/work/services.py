@@ -430,26 +430,71 @@ def parse_measurement(raw) -> Decimal:
     return value.quantize(Decimal("0.001"))
 
 
-@transaction.atomic
-def answer_checklist_item(
-    *, item: WorkOrderChecklistItem, membership, result: str = "", value_number=None, note=""
-) -> WorkOrderChecklistItem:
-    """Registra la respuesta de un ítem. La primera respuesta inicia la OT."""
-    require_perm(membership, Perm.WORK_ORDER_EXECUTE)
-    work_order = item.work_order
-    if work_order.status in (S.COMPLETED, *WorkOrder.CLOSED_STATUSES):
+TEXT_ANSWER_MAX = 1000
+
+
+def _start_if_needed(*, work_order: WorkOrder, membership) -> None:
+    """La primera respuesta (resultado, foto o firma) inicia la OT."""
+    if work_order.status in CHECKLIST_LOCKED_STATUSES:
         raise WorkOrderError(_("La OT ya no admite cambios."))
     if work_order.status != S.IN_PROGRESS:
         transition(work_order=work_order, to_status=S.IN_PROGRESS, membership=membership)
 
-    if item.item_type == "measurement":
+
+@transaction.atomic
+def answer_checklist_item(
+    *,
+    item: WorkOrderChecklistItem,
+    membership,
+    result: str = "",
+    value_number=None,
+    value_text: str = "",
+    signature=None,
+    note="",
+) -> WorkOrderChecklistItem:
+    """Registra la respuesta de un ítem según su tipo (PM-01 CA1, WO-03 CA2).
+
+    Verificación: OK / No OK / N.A. Medición: el valor, validado contra el
+    rango (fuera de rango = No OK). Texto: la respuesta escrita. Firma: la
+    imagen dibujada (adjunto del ítem con propósito «firma»). La foto
+    obligatoria se responde subiendo una foto (`add_checklist_photo`). La
+    primera respuesta inicia la OT.
+    """
+    require_perm(membership, Perm.WORK_ORDER_EXECUTE)
+    work_order = item.work_order
+    if item.item_type == ItemType.PHOTO:
+        raise WorkOrderError(_("Este ítem se responde con una foto."))
+    if item.item_type == ItemType.TEXT:
+        value_text = (value_text or "").strip()[:TEXT_ANSWER_MAX]
+        if not value_text:
+            raise WorkOrderError(_("Escribe la respuesta."))
+    if item.item_type == ItemType.SIGNATURE and signature is None:
+        raise WorkOrderError(_("Firma dentro del recuadro antes de guardar."))
+    _start_if_needed(work_order=work_order, membership=membership)
+
+    if item.item_type == ItemType.MEASUREMENT:
         value = parse_measurement(value_number)
         out_of_range = (item.min_value is not None and value < item.min_value) or (
             item.max_value is not None and value > item.max_value
         )
         item.value_number = value
         result = item.Result.NOT_OK if out_of_range else item.Result.OK
-    elif result not in item.Result.values:
+    elif item.item_type == ItemType.TEXT:
+        item.value_text = value_text
+        result = item.Result.DONE
+    elif item.item_type == ItemType.SIGNATURE:
+        try:
+            attachments_services.add_attachment(
+                target_type=AttachmentTargetType.CHECKLIST_ITEM,
+                target_id=item.pk,
+                uploaded_file=signature,
+                by=membership.user,
+                purpose=AttachmentPurpose.SIGNATURE,
+            )
+        except AttachmentError as error:
+            raise WorkOrderError(error.message) from error
+        result = item.Result.DONE
+    elif result not in (item.Result.OK, item.Result.NOT_OK, item.Result.NA):
         raise WorkOrderError(_("Resultado inválido."))
 
     item.result = result
@@ -572,8 +617,9 @@ def add_checklist_item(
         raise WorkOrderError(_("Escribe la tarea del ítem."))
     if item_type not in ItemType.values:
         raise WorkOrderError(_("Tipo de ítem inválido."))
-    if item_type == ItemType.CHECK:
+    if item_type != ItemType.MEASUREMENT:
         unit, min_value, max_value = "", None, None
+    required = required or item_type == ItemType.PHOTO  # «foto obligatoria» siempre bloquea el cierre
     min_value = None if min_value in (None, "") else Decimal(str(min_value))
     max_value = None if max_value in (None, "") else Decimal(str(max_value))
     if min_value is not None and max_value is not None and min_value > max_value:
@@ -623,7 +669,7 @@ def _locked_checklist(work_order: WorkOrder) -> list[WorkOrderChecklistItem]:
 
 def checklist_item_has_evidence(item: WorkOrderChecklistItem, *, photo_count: int | None = None) -> bool:
     """Un ítem con resultado, valor, observación o fotos ya es parte de la ejecución."""
-    if item.result or item.value_number is not None or item.note:
+    if item.result or item.value_number is not None or item.value_text or item.note:
         return True
     if photo_count is None:
         photo_count = Attachment.objects.filter(
@@ -695,17 +741,22 @@ def move_checklist_item(*, item: WorkOrderChecklistItem, membership, direction: 
     )
 
 
+@transaction.atomic
 def add_checklist_photo(
     *, item: WorkOrderChecklistItem, membership, uploaded_file, client_uuid=None
 ) -> Attachment:
-    """Foto de un ítem del checklist (WO-03 CA2), comprimida y dentro del cupo (AST-06)."""
+    """Foto de un ítem del checklist (WO-03 CA2), comprimida y dentro del cupo (AST-06).
+
+    En un ítem «foto obligatoria» la foto es la respuesta: lo marca como hecho
+    e inicia la OT, igual que responder cualquier otro ítem.
+    """
     require_perm(membership, Perm.WORK_ORDER_EXECUTE)
     if item.work_order.status in CHECKLIST_LOCKED_STATUSES:
         raise WorkOrderError(_("La OT ya no admite cambios."))
     if not (uploaded_file.content_type or "").startswith("image/"):
         raise WorkOrderError(_("Adjunta una imagen (de la cámara o de la galería)."))
     try:
-        return attachments_services.add_attachment(
+        photo = attachments_services.add_attachment(
             target_type=AttachmentTargetType.CHECKLIST_ITEM,
             target_id=item.pk,
             uploaded_file=uploaded_file,
@@ -715,6 +766,13 @@ def add_checklist_photo(
         )
     except AttachmentError as error:
         raise WorkOrderError(error.message) from error
+    if item.item_type == ItemType.PHOTO and item.result != item.Result.DONE:
+        _start_if_needed(work_order=item.work_order, membership=membership)
+        item.result = item.Result.DONE
+        item.answered_by = membership.user
+        item.answered_at = timezone.now()
+        item.save(update_fields=["result", "answered_by", "answered_at", "updated_at"])
+    return photo
 
 
 def can_remove_checklist_photo(*, photo: Attachment, membership) -> bool:
@@ -740,6 +798,15 @@ def remove_checklist_photo(*, item: WorkOrderChecklistItem, photo: Attachment, m
     if item.work_order.status in CHECKLIST_LOCKED_STATUSES:
         raise WorkOrderError(_("La OT ya no admite cambios."))
     attachments_services.remove_attachment(attachment=photo, by=membership.user)
+    if item.item_type == ItemType.PHOTO and not _item_photos(item).exists():
+        item.result, item.answered_by, item.answered_at = "", None, None  # vuelve a quedar pendiente
+        item.save(update_fields=["result", "answered_by", "answered_at", "updated_at"])
+
+
+def _item_photos(item: WorkOrderChecklistItem):
+    return Attachment.objects.filter(
+        target_type=AttachmentTargetType.CHECKLIST_ITEM, target_id=item.pk, purpose=AttachmentPurpose.PHOTO
+    )
 
 
 def work_order_meter(work_order: WorkOrder):

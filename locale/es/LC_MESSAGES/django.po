@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-27 00:25-0300\n"
+"POT-Creation-Date: 2026-09-27 01:14-0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1269,6 +1269,9 @@ msgstr ""
 msgid "Medición"
 msgstr ""
 
+msgid "Foto obligatoria"
+msgstr ""
+
 msgid "versión vigente"
 msgstr ""
 
@@ -1740,6 +1743,9 @@ msgstr ""
 msgid "Ej: gotera sobre la línea 2"
 msgstr ""
 
+msgid "La firma no es válida. Bórrala y vuelve a firmar."
+msgstr ""
+
 msgid "Síntoma observado"
 msgstr ""
 
@@ -1799,9 +1805,6 @@ msgid "Acción realizada"
 msgstr ""
 
 msgid "¿Qué hiciste? Puedes dictarlo con el micrófono del teclado."
-msgstr ""
-
-msgid "La firma no es válida. Bórrala y vuelve a firmar."
 msgstr ""
 
 msgid "El fin no puede ser anterior al inicio."
@@ -2049,6 +2052,9 @@ msgstr ""
 msgid "N.A."
 msgstr ""
 
+msgid "Hecho"
+msgstr ""
+
 msgid "texto"
 msgstr ""
 
@@ -2056,6 +2062,9 @@ msgid "resultado"
 msgstr ""
 
 msgid "valor"
+msgstr ""
+
+msgid "respuesta"
 msgstr ""
 
 msgid "nota"
@@ -2230,6 +2239,15 @@ msgid "Ingresa el valor medido."
 msgstr ""
 
 msgid "Ingresa un número, por ejemplo 7,5."
+msgstr ""
+
+msgid "Este ítem se responde con una foto."
+msgstr ""
+
+msgid "Escribe la respuesta."
+msgstr ""
+
+msgid "Firma dentro del recuadro antes de guardar."
 msgstr ""
 
 msgid "Resultado inválido."
@@ -3292,13 +3310,13 @@ msgstr ""
 msgid "Solo para mediciones (opcional)"
 msgstr ""
 
+msgid "Verificación"
+msgstr ""
+
 msgid "Usa días, medidor o ambos: vence lo que ocurra primero."
 msgstr ""
 
 msgid "Checklist"
-msgstr ""
-
-msgid "Verificación"
 msgstr ""
 
 msgid "Opcional"
@@ -3828,6 +3846,39 @@ msgstr ""
 msgid "Otra foto"
 msgstr ""
 
+msgid "Observaciones del operador (texto)"
+msgstr ""
+
+msgid "Respuesta"
+msgstr ""
+
+msgid "Ruido leve en el rodamiento"
+msgstr ""
+
+msgid "Guardar respuesta"
+msgstr ""
+
+msgid "Respondido"
+msgstr ""
+
+msgid "Foto del tablero (foto obligatoria)"
+msgstr ""
+
+msgid "Falta la foto"
+msgstr ""
+
+msgid "Toma al menos una foto para completar la OT."
+msgstr ""
+
+msgid "Firma del supervisor (firma por ítem)"
+msgstr ""
+
+msgid "Ejemplo de firma registrada"
+msgstr ""
+
+msgid "Firmado"
+msgstr ""
+
 msgid "Firma al completar"
 msgstr ""
 
@@ -3847,9 +3898,6 @@ msgid "Borrar firma"
 msgstr ""
 
 msgid "Firma registrada"
-msgstr ""
-
-msgid "Ejemplo de firma registrada"
 msgstr ""
 
 msgid "Grupo de campos"
@@ -4002,6 +4050,19 @@ msgid "¿Quitar «%(text)s» del checklist?"
 msgstr ""
 
 msgid "En rango"
+msgstr ""
+
+#, python-format
+msgid "Firma de «%(text)s»"
+msgstr ""
+
+msgid "Volver a firmar"
+msgstr ""
+
+msgid "Guardar firma"
+msgstr ""
+
+msgid "Foto lista"
 msgstr ""
 
 msgid "Agregar foto"
