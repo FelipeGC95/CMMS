@@ -35,7 +35,7 @@
   {% if memberships|length > 1 %}
   <section class="card" id="organization" aria-labelledby="menu-org-title">
     <h2 id="menu-org-title">{% translate "Organización" %}</h2>
-    <form method="post" action="{% url 'switch_organization' %}" class="stack">
+    <form method="post" action="{% url 'switch_organization' %}">
       {% csrf_token %}
       <div class="field">
         <label for="menu-org-select">{% translate "Organización activa" %}</label>
