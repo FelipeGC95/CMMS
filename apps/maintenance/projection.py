@@ -102,6 +102,7 @@ def _complete(state, date, today):
         next_due_meter_value=state.meter_target,
         completed_on=date,
         meter_value=_reading(meter, date, today) if state.version.uses_meter else None,
+        anchor_day=state.assignment.anchor_day,
     )
 
 

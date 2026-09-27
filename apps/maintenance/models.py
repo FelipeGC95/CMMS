@@ -46,6 +46,13 @@ def add_months(date: datetime.date, months: int) -> datetime.date:
     return date.replace(year=year, month=month, day=min(date.day, calendar.monthrange(year, month)[1]))
 
 
+def with_anchor_day(date: datetime.date, anchor_day: int | None) -> datetime.date:
+    """`date` llevado al día ancla del mes (o al último día si el mes es más corto)."""
+    if not anchor_day:
+        return date
+    return date.replace(day=min(anchor_day, calendar.monthrange(date.year, date.month)[1]))
+
+
 def shift_date(date: datetime.date, amount: int, unit: str) -> datetime.date:
     """`date` + `amount` unidades (negativo resta). Semanas = 7 días; meses de calendario."""
     if unit == CalendarUnit.MONTHS:
@@ -438,6 +445,15 @@ class PlanAssignment(TenantModel):
     next_due_on = models.DateField(_("próximo vencimiento"), null=True, blank=True)
     next_due_meter_value = models.DecimalField(
         _("próximo vencimiento (medidor)"), max_digits=14, decimal_places=3, null=True, blank=True
+    )
+    # Día del mes del primer vencimiento: en modo fijo por meses, cada vencimiento
+    # vuelve a este día aunque el anterior se haya ajustado a un mes corto
+    # (31-ene → 28-feb → 31-mar).
+    anchor_day = models.PositiveSmallIntegerField(
+        _("día ancla"),
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(1), MaxValueValidator(31)],
     )
     last_done_on = models.DateField(_("última ejecución"), null=True, blank=True)
     last_done_meter_value = models.DecimalField(

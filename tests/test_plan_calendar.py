@@ -54,13 +54,28 @@ def test_calendar_steps_by_unit(in_a, interval, unit, starts, expected):
     assert all(o.trigger == "calendar" and not o.is_work_order for o in _calendar(in_a).occurrences)
 
 
-def test_month_end_is_clamped_in_every_short_month(in_a):
+def test_floating_month_end_counts_from_each_projected_execution(in_a):
+    """Flotante: cada ciclo parte de la ejecución supuesta (el vencimiento ajustado)."""
     plan = _plan("FIN", calendar_interval=1, calendar_unit=CalendarUnit.MONTHS)
     assign_plan(plan=plan, asset=in_a.asset, starts_on=dt.date(2026, 10, 31))
     assert _dates(_calendar(in_a))[:3] == [
         dt.date(2026, 10, 31),
         dt.date(2026, 11, 30),
         dt.date(2026, 12, 30),
+    ]
+
+
+def test_fixed_month_end_returns_to_the_anchor_day(in_a):
+    """Fijo: vuelve al día 31 tras cada mes corto, también en febrero bisiesto."""
+    plan = _plan("FIJ", calendar_interval=1, calendar_unit=CalendarUnit.MONTHS, schedule_mode="fixed")
+    assign_plan(plan=plan, asset=in_a.asset, starts_on=dt.date(2026, 10, 31))
+    assert _dates(_calendar(in_a))[:6] == [
+        dt.date(2026, 10, 31),
+        dt.date(2026, 11, 30),
+        dt.date(2026, 12, 31),
+        dt.date(2027, 1, 31),
+        dt.date(2027, 2, 28),
+        dt.date(2027, 3, 31),
     ]
 
 

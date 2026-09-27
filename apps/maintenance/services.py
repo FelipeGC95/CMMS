@@ -182,6 +182,7 @@ def reschedule_after_trigger_change(*, plan, previous: PlanVersion, current: Pla
         if base_date is None and assignment.next_due_on and previous.calendar_interval:
             base_date = previous.shift(assignment.next_due_on, -1)
         assignment.next_due_on = current.shift(base_date or today) if current.calendar_interval else None
+        assignment.anchor_day = assignment.next_due_on.day if assignment.next_due_on else None
         # Uso: igual, con la última lectura de cierre o el inicio del ciclo anterior.
         if current.uses_meter:
             meter = assignment.meter
@@ -198,7 +199,9 @@ def reschedule_after_trigger_change(*, plan, previous: PlanVersion, current: Pla
             )
         else:
             assignment.meter, assignment.next_due_meter_value = None, None
-        assignment.save(update_fields=["next_due_on", "meter", "next_due_meter_value", "updated_at"])
+        assignment.save(
+            update_fields=["next_due_on", "anchor_day", "meter", "next_due_meter_value", "updated_at"]
+        )
         changed += 1
     return changed
 
@@ -226,9 +229,16 @@ def assign_plan(
         raise PlanVersionError(_("«%(plan)s» no tiene una versión publicada.") % {"plan": plan})
     if asset.status == "retired":  # dado de baja: ya no recibe preventivos (AST-04 CA3)
         raise ValidationError(_("%(asset)s está dado de baja.") % {"asset": asset.code})
-    defaults = {"is_active": True, "next_due_on": None, "meter": None, "next_due_meter_value": None}
+    defaults = {
+        "is_active": True,
+        "next_due_on": None,
+        "anchor_day": None,
+        "meter": None,
+        "next_due_meter_value": None,
+    }
     if version.calendar_interval:
         defaults["next_due_on"] = starts_on or version.shift(timezone.localdate())
+        defaults["anchor_day"] = defaults["next_due_on"].day
     if version.uses_meter:
         meter = meter or asset.meters.filter(kind=version.meter_kind, is_active=True).first()
         if meter is None:
@@ -487,6 +497,7 @@ def register_completion(
         next_due_meter_value=assignment.next_due_meter_value,
         completed_on=completed_on,
         meter_value=base,
+        anchor_day=assignment.anchor_day,
     )
     assignment.save(
         update_fields=[

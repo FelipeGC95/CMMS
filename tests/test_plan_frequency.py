@@ -63,6 +63,55 @@ def test_monthly_fixed_keeps_the_scheduled_day(in_a):
     assert assignment.next_due_on == dt.date(2026, 5, 31)
 
 
+@pytest.mark.parametrize(
+    "starts,closes,expected",
+    [
+        # 31-ene → 28/29-feb → 31-mar: el ajuste de febrero no arrastra el día.
+        (
+            dt.date(2026, 1, 31),
+            [dt.date(2026, 1, 31), dt.date(2026, 2, 28)],
+            [dt.date(2026, 2, 28), dt.date(2026, 3, 31)],
+        ),
+        (
+            dt.date(2028, 1, 31),
+            [dt.date(2028, 1, 31), dt.date(2028, 2, 29)],
+            [dt.date(2028, 2, 29), dt.date(2028, 3, 31)],
+        ),
+        # 31-oct → 30-nov → 31-dic.
+        (
+            dt.date(2026, 10, 31),
+            [dt.date(2026, 11, 2), dt.date(2026, 12, 1)],
+            [dt.date(2026, 11, 30), dt.date(2026, 12, 31)],
+        ),
+        # 30 de cada mes: febrero lo ajusta y marzo vuelve al 30.
+        (
+            dt.date(2027, 1, 30),
+            [dt.date(2027, 1, 30), dt.date(2027, 2, 28)],
+            [dt.date(2027, 2, 28), dt.date(2027, 3, 30)],
+        ),
+    ],
+)
+def test_monthly_fixed_returns_to_the_anchor_day(in_a, starts, closes, expected):
+    plan = _plan("MA", 1, CalendarUnit.MONTHS, schedule_mode="fixed")
+    assignment = assign_plan(plan=plan, asset=in_a.asset, starts_on=starts)
+    assert assignment.anchor_day == starts.day
+    dates = []
+    for closed_on in closes:
+        register_completion(assignment=assignment, completed_on=closed_on)
+        dates.append(assignment.next_due_on)
+    assert dates == expected
+
+
+def test_fixed_leap_day_anchor_over_years(in_a):
+    plan = _plan("A29", 12, CalendarUnit.MONTHS, schedule_mode="fixed")
+    assignment = assign_plan(plan=plan, asset=in_a.asset, starts_on=dt.date(2028, 2, 29))
+    register_completion(assignment=assignment, completed_on=dt.date(2028, 2, 29))
+    assert assignment.next_due_on == dt.date(2029, 2, 28)
+    for year in (2030, 2031, 2032):
+        register_completion(assignment=assignment, completed_on=assignment.next_due_on)
+        assert assignment.next_due_on == dt.date(year, 2, 29 if year == 2032 else 28)
+
+
 def test_quarterly_fixed_mode(in_a):
     plan = _plan("Q1", 3, CalendarUnit.MONTHS, schedule_mode="fixed")
     assignment = assign_plan(plan=plan, asset=in_a.asset, starts_on=dt.date(2026, 11, 30))
@@ -112,11 +161,10 @@ def test_never_done_assignment_uses_start_of_previous_monthly_cycle(in_a):
         ({"calendar_interval": 6, "calendar_unit": "months"}, "6 meses"),
         ({"calendar_interval": 1, "calendar_unit": "weeks"}, "1 semana"),
         ({"calendar_interval": 30, "calendar_unit": "days"}, "30 días"),
-        ({"meter_kind": "km", "meter_interval": Decimal(10000), **SIX_MONTHS},
-         "10.000 km o 6 meses"),
+        ({"meter_kind": "km", "meter_interval": Decimal(10000), **SIX_MONTHS}, "10.000 km o 6 meses"),
         ({"meter_kind": "hours", "meter_interval": Decimal("1250.5")}, "1.250,5 h"),
     ],
-)  # fmt: skip
+)
 def test_frequency_label(in_a, fields, label):
     plan = create_plan(code="L", name="L", items=[ITEM], **fields)
     assert plan.frequency_label == label
