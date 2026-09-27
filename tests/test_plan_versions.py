@@ -46,7 +46,7 @@ def test_create_plan_publishes_version_one(in_a):
     version = plan.current_version
     assert (version.number, version.status) == (1, PlanVersion.Status.PUBLISHED)
     assert version.published_at is not None
-    assert plan.interval_days == 30 and plan.frequency_label == "30 días" and plan.items.count() == 2
+    assert plan.calendar_interval == 30 and plan.frequency_label == "30 días" and plan.items.count() == 2
 
 
 def test_start_draft_copies_content_and_is_unique(in_a):
@@ -54,7 +54,7 @@ def test_start_draft_copies_content_and_is_unique(in_a):
         [PlanResource(organization=in_a.org, version=in_a.plan.current_version, description="Filtro")]
     )
     draft = start_draft(plan=in_a.plan)
-    assert (draft.number, draft.status, draft.interval_days) == (2, "draft", 30)
+    assert (draft.number, draft.status, draft.calendar_interval) == (2, "draft", 30)
     assert [i.text for i in draft.items.all()] == ["Purgar", "Presión"]
     assert [r.description for r in draft.resources.all()] == ["Filtro"]
     assert start_draft(plan=in_a.plan) == draft  # un solo borrador por plan
@@ -73,11 +73,11 @@ def test_publish_supersedes_previous_and_becomes_current(in_a):
 
 def test_publish_requires_frequency_and_checklist(in_a):
     draft = start_draft(plan=in_a.plan)
-    draft.interval_days = None
+    draft.calendar_interval = None
     draft.save()
     with pytest.raises(Exception, match="frecuencia"):
         publish_version(version=draft)
-    draft.interval_days = 15
+    draft.calendar_interval = 15
     draft.save()
     draft.items.all().delete()
     with pytest.raises(PlanVersionError, match="al menos un ítem"):
@@ -88,7 +88,7 @@ def test_plan_without_published_version_is_safe(in_a):
     plan = MaintenancePlan.objects.create(code="NUEVO", name="Sin publicar")
     start_draft(plan=plan)
     plan.refresh_from_db()
-    assert (plan.interval_days, plan.uses_meter, plan.frequency_label) == (None, False, "")
+    assert (plan.calendar_interval, plan.uses_meter, plan.frequency_label) == (None, False, "")
     assert list(plan.items.all()) == []
     with pytest.raises(PlanVersionError):
         assign_plan(plan=plan, asset=in_a.asset)
@@ -99,7 +99,7 @@ def test_plan_without_published_version_is_safe(in_a):
 
 def test_published_version_content_cannot_change(in_a):
     version = in_a.plan.current_version
-    version.interval_days = 7
+    version.calendar_interval = 7
     with pytest.raises(ImmutableVersionError):
         version.save()
     item = version.items.first()
@@ -160,7 +160,7 @@ def test_shorter_interval_reschedules_assignments_without_open_work_order(in_a, 
     assignment = assign_plan(plan=in_a.plan, asset=in_a.asset, starts_on=today + datetime.timedelta(days=20))
     assignment.last_done_on = today - datetime.timedelta(days=10)
     assignment.save()
-    _new_version(in_a.plan, interval_days=7)
+    _new_version(in_a.plan, calendar_interval=7)
     assignment.refresh_from_db()
     assert assignment.next_due_on == today - datetime.timedelta(days=3)  # 10 días atrás + 7
     assert len(generate_due_work_orders(today=today)) == 1  # el cambio se nota enseguida
@@ -168,7 +168,7 @@ def test_shorter_interval_reschedules_assignments_without_open_work_order(in_a, 
 
 def test_never_done_assignment_uses_start_of_previous_cycle(in_a, today):
     assignment = assign_plan(plan=in_a.plan, asset=in_a.asset, starts_on=today + datetime.timedelta(days=30))
-    _new_version(in_a.plan, interval_days=10)
+    _new_version(in_a.plan, calendar_interval=10)
     assignment.refresh_from_db()
     assert assignment.next_due_on == today + datetime.timedelta(days=10)
 
@@ -176,7 +176,7 @@ def test_never_done_assignment_uses_start_of_previous_cycle(in_a, today):
 def test_assignments_with_open_work_order_are_not_touched(in_a, today):
     assignment = assign_plan(plan=in_a.plan, asset=in_a.asset, starts_on=today)
     generate_due_work_orders(today=today)
-    _new_version(in_a.plan, interval_days=7)
+    _new_version(in_a.plan, calendar_interval=7)
     assignment.refresh_from_db()
     assert assignment.next_due_on == today
 
@@ -192,14 +192,18 @@ def test_publishing_without_trigger_changes_keeps_schedule(in_a, today):
 
 
 def test_fixed_mode_counts_from_the_scheduled_date(in_a, today):
-    plan = create_plan(code="FIX", name="Fijo 30 d", interval_days=30, schedule_mode="fixed", items=[ITEM])
+    plan = create_plan(
+        code="FIX", name="Fijo 30 d", calendar_interval=30, schedule_mode="fixed", items=[ITEM]
+    )
     assignment = assign_plan(plan=plan, asset=in_a.asset, starts_on=today)
     register_completion(assignment=assignment, completed_on=today + datetime.timedelta(days=4))
     assert assignment.next_due_on == today + datetime.timedelta(days=30)
 
 
 def test_fixed_mode_skips_to_first_target_after_a_long_delay(in_a, today):
-    plan = create_plan(code="FIX2", name="Fijo 30 d", interval_days=30, schedule_mode="fixed", items=[ITEM])
+    plan = create_plan(
+        code="FIX2", name="Fijo 30 d", calendar_interval=30, schedule_mode="fixed", items=[ITEM]
+    )
     assignment = assign_plan(plan=plan, asset=in_a.asset, starts_on=today)
     register_completion(assignment=assignment, completed_on=today + datetime.timedelta(days=75))
     # Objetivos: +30, +60, +90 → el primero después del día 75 es +90 (sin OT en el pasado).
@@ -249,7 +253,7 @@ def test_meter_generation_and_closing_reading_follow_the_current_version(in_a):
 
 def test_plan_properties_do_not_query_again(in_a, django_assert_num_queries):
     for i in range(3):
-        create_plan(code=f"P{i}", name=f"P{i}", interval_days=10 + i, items=[ITEM])
+        create_plan(code=f"P{i}", name=f"P{i}", calendar_interval=10 + i, items=[ITEM])
     with django_assert_num_queries(1):
         labels = [p.frequency_label for p in MaintenancePlan.objects.all()]
     assert len(labels) == 4

@@ -117,7 +117,16 @@ class PlanVersionAdmin(TenantAdmin):
         (None, {"fields": ["plan", "number", "status", "published_at", "published_by", "change_note"]}),
         (
             _("Frecuencia (vence lo que ocurra primero)"),
-            {"fields": ["interval_days", "meter_kind", "meter_interval", "schedule_mode", "tolerance_pct"]},
+            {
+                "fields": [
+                    "calendar_interval",
+                    "calendar_unit",
+                    "meter_kind",
+                    "meter_interval",
+                    "schedule_mode",
+                    "tolerance_pct",
+                ]
+            },
         ),
         (_("Ejecución"), {"fields": ["estimated_minutes", "instructions"]}),
     ]

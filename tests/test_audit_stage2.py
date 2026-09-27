@@ -134,7 +134,7 @@ def test_create_plan_and_publish_are_audited(in_a):
     plan = create_plan(
         code="PM-A",
         name="Semanal",
-        interval_days=7,
+        calendar_interval=7,
         items=[{"text": "Revisar", "item_type": ItemType.CHECK}],
         by=user,
     )

@@ -33,7 +33,7 @@ def _usage_plan(in_a, interval=250, days=None, **fields):
         name=f"Cada {interval} h",
         meter_kind=MeterKind.HOURS,
         meter_interval=Decimal(interval),
-        interval_days=days,
+        calendar_interval=days,
         items=[{"text": "Cambiar aceite", "item_type": "check", "required": False}],
         **fields,
     )

@@ -24,7 +24,7 @@ def _planner(tenant):
 
 
 def _new_plan(membership, **overrides):
-    fields = {"code": "PM-NEW", "name": "Nuevo", "interval_days": 30, **overrides}
+    fields = {"code": "PM-NEW", "name": "Nuevo", "calendar_interval": 30, **overrides}
     return services.create_plan_with_draft(membership=membership, **fields)
 
 
@@ -57,7 +57,7 @@ def test_draft_copies_current_version_and_is_idempotent(in_a):
     assert services.create_draft(membership=in_a.admin, plan=plan).pk == draft.pk
     assert draft.number == 2
     assert [i.text for i in draft.items.order_by("order")] == ["Purgar", "Presión"]
-    assert draft.interval_days == 30
+    assert draft.calendar_interval == 30
 
 
 def test_publishing_new_frequency_recalculates_due_dates(in_a, today):
@@ -66,7 +66,7 @@ def test_publishing_new_frequency_recalculates_due_dates(in_a, today):
     services.update_draft(
         membership=in_a.admin,
         version=draft,
-        interval_days=60,
+        calendar_interval=60,
         meter_kind="",
         meter_interval=None,
         schedule_mode="fixed",
@@ -87,7 +87,7 @@ def test_published_version_cannot_be_edited_through_services(in_a):
     with pytest.raises(PlanVersionError):
         services.add_draft_item(membership=in_a.admin, version=version, text="x", item_type=ItemType.CHECK)
     with pytest.raises(PlanVersionError):
-        services.update_draft(membership=in_a.admin, version=version, interval_days=7)
+        services.update_draft(membership=in_a.admin, version=version, calendar_interval=7)
     with pytest.raises(PlanVersionError):
         services.discard_draft(membership=in_a.admin, version=version)
 
@@ -233,7 +233,7 @@ def test_full_draft_flow_through_the_screens(client, tenant_a):
         {
             "code": "LUB",
             "name": "Lubricación",
-            "interval_days": "15",
+            "calendar_interval": "15",
             "schedule_mode": "floating",
             "tolerance_pct": "10",
             "estimated_minutes": "30",

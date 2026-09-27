@@ -14,13 +14,21 @@ from apps.accounts.permissions import Perm, require_perm
 from apps.audit import services as audit
 from apps.audit.models import AuditEvent
 
-from .models import ItemType, MaintenancePlan, PlanAssignment, PlanResource, PlanTaskItem, PlanVersion
+from .models import (
+    CalendarUnit,
+    ItemType,
+    MaintenancePlan,
+    PlanAssignment,
+    PlanResource,
+    PlanTaskItem,
+    PlanVersion,
+)
 
 DEFAULT_HORIZON_DAYS = 14
 # Aviso mínimo para planes por uso: generar la OT al 90 % del intervalo.
 METER_MIN_LEAD = Decimal("0.10")
 # Campos de la versión que cambian cuándo vence un plan.
-TRIGGER_FIELDS = ("interval_days", "meter_kind", "meter_interval")
+TRIGGER_FIELDS = ("calendar_interval", "calendar_unit", "meter_kind", "meter_interval")
 ITEM_FIELDS = ("order", "text", "item_type", "unit", "min_value", "max_value", "required")
 RESOURCE_FIELDS = ("kind", "description", "quantity", "unit")
 
@@ -77,7 +85,7 @@ def create_plan(
     """Crea un plan con su versión 1 ya publicada (el camino corto para planes nuevos).
 
     `items`: dicts con text, item_type y opcionalmente unit, min_value,
-    max_value, required. `version_fields`: interval_days, meter_kind,
+    max_value, required. `version_fields`: calendar_interval, calendar_unit, meter_kind,
     meter_interval, estimated_minutes, instructions, schedule_mode, tolerance_pct.
     """
     plan = MaintenancePlan.objects.create(code=code, name=name, asset_class=asset_class)
@@ -173,13 +181,9 @@ def reschedule_after_trigger_change(*, plan, previous: PlanVersion, current: Pla
         # Calendario: desde la última ejecución; si nunca se ejecutó, desde el
         # inicio implícito del ciclo anterior (vencimiento − frecuencia anterior).
         base_date = assignment.last_done_on
-        if base_date is None and assignment.next_due_on and previous.interval_days:
-            base_date = assignment.next_due_on - datetime.timedelta(days=previous.interval_days)
-        assignment.next_due_on = (
-            (base_date or today) + datetime.timedelta(days=current.interval_days)
-            if current.interval_days
-            else None
-        )
+        if base_date is None and assignment.next_due_on and previous.calendar_interval:
+            base_date = previous.shift(assignment.next_due_on, -1)
+        assignment.next_due_on = current.shift(base_date or today) if current.calendar_interval else None
         # Uso: igual, con la última lectura de cierre o el inicio del ciclo anterior.
         if current.uses_meter:
             meter = assignment.meter
@@ -225,10 +229,8 @@ def assign_plan(
     if asset.status == "retired":  # dado de baja: ya no recibe preventivos (AST-04 CA3)
         raise ValidationError(_("%(asset)s está dado de baja.") % {"asset": asset.code})
     defaults = {"is_active": True, "next_due_on": None, "meter": None, "next_due_meter_value": None}
-    if version.interval_days:
-        defaults["next_due_on"] = starts_on or timezone.localdate() + datetime.timedelta(
-            days=version.interval_days
-        )
+    if version.calendar_interval:
+        defaults["next_due_on"] = starts_on or version.shift(timezone.localdate())
     if version.uses_meter:
         meter = meter or asset.meters.filter(kind=version.meter_kind, is_active=True).first()
         if meter is None:
@@ -388,6 +390,22 @@ def _next_fixed_target(previous, interval, after):
     return target
 
 
+def _next_fixed_date(previous: datetime.date, version: PlanVersion, after: datetime.date) -> datetime.date:
+    """Modo fijo por calendario: anterior + k·frecuencia, el primero posterior a `after`.
+
+    En meses se cuenta desde la fecha anterior (k meses de una vez, no mes a mes),
+    así el día del mes se conserva: 31-ene → 28-feb → 31-mar.
+    """
+    if version.calendar_unit != CalendarUnit.MONTHS:
+        days = version.calendar_interval * (7 if version.calendar_unit == CalendarUnit.WEEKS else 1)
+        return _next_fixed_target(previous, datetime.timedelta(days=days), after)
+    months = (after.year - previous.year) * 12 + after.month - previous.month
+    k = max(1, months // version.calendar_interval - 1)
+    while version.shift(previous, k) <= after:
+        k += 1
+    return version.shift(previous, k)
+
+
 def register_completion(
     *, assignment: PlanAssignment, completed_on: datetime.date, meter_value=None
 ) -> PlanAssignment:
@@ -399,12 +417,11 @@ def register_completion(
     version = assignment.plan.current_version
     fixed = version.schedule_mode == PlanVersion.ScheduleMode.FIXED
     assignment.last_done_on = completed_on
-    if version.interval_days:
-        interval = datetime.timedelta(days=version.interval_days)
+    if version.calendar_interval:
         if fixed and assignment.next_due_on is not None:
-            assignment.next_due_on = _next_fixed_target(assignment.next_due_on, interval, completed_on)
+            assignment.next_due_on = _next_fixed_date(assignment.next_due_on, version, completed_on)
         else:
-            assignment.next_due_on = completed_on + interval
+            assignment.next_due_on = version.shift(completed_on)
     else:
         assignment.next_due_on = None
     if version.uses_meter and assignment.meter_id:
@@ -446,7 +463,7 @@ def shift_meter_targets(*, meter, delta: Decimal) -> None:
 
 PLAN_FIELDS = ("code", "name", "asset_class", "is_active")
 DRAFT_FIELDS = (
-    "estimated_minutes", "instructions", "interval_days", "meter_kind",
+    "estimated_minutes", "instructions", "calendar_interval", "calendar_unit", "meter_kind",
     "meter_interval", "schedule_mode", "tolerance_pct",
 )  # fmt: skip
 

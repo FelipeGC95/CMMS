@@ -236,7 +236,7 @@ def _add_plans_and_open_orders(tenant, n):
             plan = create_plan(
                 code=f"PX-{MaintenancePlan.objects.count():03d}",
                 name=f"Plan {i}",
-                interval_days=7,
+                calendar_interval=7,
                 items=[{"text": "Revisar", "item_type": ItemType.CHECK}],
             )
             assign_plan(plan=plan, asset=tenant.asset)
@@ -263,7 +263,7 @@ def _add_retired_plans(tenant, n):
             plan = create_plan(
                 code=f"PR-{MaintenancePlan.objects.count():03d}",
                 name=f"Plan {i}",
-                interval_days=7,
+                calendar_interval=7,
                 items=[{"text": "Revisar", "item_type": ItemType.CHECK}],
             )
             change_asset_status(asset=tenant.asset, status="operational", reason="x")
@@ -339,7 +339,7 @@ def _checklist_rows(tenant, wo, n):
                 code=f"PX{i}",
                 name=f"Plan {i}",
                 asset_class=tenant.asset.asset_class,
-                interval_days=30,
+                calendar_interval=30,
                 items=[{"text": "x", "item_type": ItemType.CHECK}],
             )
 
@@ -410,7 +410,7 @@ def _add_plan_rows(tenant, usage_plan, n):
                 code=f"P-{k}",
                 name=f"Plan {k}",
                 asset_class=tenant.asset.asset_class,
-                interval_days=30,
+                calendar_interval=30,
                 items=[{"text": "x"}],
                 resources=[{"description": "Filtro"}],
             )

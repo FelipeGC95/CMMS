@@ -56,7 +56,7 @@ ALL_TYPES = [
 
 
 def _preventive(tenant):
-    plan = create_plan(code="PT", name="Tipos", interval_days=30, items=ALL_TYPES)
+    plan = create_plan(code="PT", name="Tipos", calendar_interval=30, items=ALL_TYPES)
     wo = create_work_order(
         work_type="preventive",
         title="x",

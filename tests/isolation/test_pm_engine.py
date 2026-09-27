@@ -19,7 +19,10 @@ def _media(settings, tmp_path):
 def _text_item(tenant):
     with tenant_context(tenant.org):
         plan = create_plan(
-            code="PTX", name="Texto", interval_days=30, items=[{"text": "Nota", "item_type": ItemType.TEXT}]
+            code="PTX",
+            name="Texto",
+            calendar_interval=30,
+            items=[{"text": "Nota", "item_type": ItemType.TEXT}],
         )
         wo = create_work_order(
             work_type="preventive", title="x", asset=tenant.asset, checklist=list(plan.items.all())

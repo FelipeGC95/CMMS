@@ -1,6 +1,11 @@
+import calendar
+import datetime
+from decimal import Decimal
+
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.utils.translation import gettext_lazy as _
+from django.utils.translation import ngettext
 
 from apps.assets.models import METER_DEFAULT_UNITS, MeterKind
 from apps.core.models import TenantManager, TenantModel
@@ -20,6 +25,40 @@ class ItemType(models.TextChoices):
 
 # Tipos que se responden OK / No OK (y pueden originar una correctiva, WO-06).
 RESULT_ITEM_TYPES = (ItemType.CHECK, ItemType.MEASUREMENT)
+
+
+class CalendarUnit(models.TextChoices):
+    """Unidad de la frecuencia por calendario (PM-02 CA1)."""
+
+    DAYS = "days", _("días")
+    WEEKS = "weeks", _("semanas")
+    MONTHS = "months", _("meses")
+
+
+def add_months(date: datetime.date, months: int) -> datetime.date:
+    """Meses de calendario: mismo día del mes, ajustado al último día si no existe.
+
+    31-ene + 1 mes = 28-feb (29 en año bisiesto); 29-feb + 12 meses = 28-feb.
+    """
+    index = date.month - 1 + months
+    year, month = date.year + index // 12, index % 12 + 1
+    return date.replace(year=year, month=month, day=min(date.day, calendar.monthrange(year, month)[1]))
+
+
+def shift_date(date: datetime.date, amount: int, unit: str) -> datetime.date:
+    """`date` + `amount` unidades (negativo resta). Semanas = 7 días; meses de calendario."""
+    if unit == CalendarUnit.MONTHS:
+        return add_months(date, amount)
+    return date + datetime.timedelta(days=amount * (7 if unit == CalendarUnit.WEEKS else 1))
+
+
+def format_number(value) -> str:
+    """Número en formato es-CL: punto de miles y coma decimal, sin ceros de sobra (10.000; 2,5)."""
+    value = Decimal(value).normalize()
+    sign = "-" if value < 0 else ""
+    integer, _sep, fraction = f"{abs(value):f}".partition(".")
+    integer = f"{int(integer):,}".replace(",", ".")
+    return f"{sign}{integer},{fraction}" if fraction else f"{sign}{integer}"
 
 
 class MaintenancePlanManager(TenantManager):
@@ -80,8 +119,12 @@ class MaintenancePlan(TenantModel):
         return getattr(version, attr) if version is not None else default
 
     @property
-    def interval_days(self):
-        return self._current("interval_days")
+    def calendar_interval(self):
+        return self._current("calendar_interval")
+
+    @property
+    def calendar_unit(self):
+        return self._current("calendar_unit", "")
 
     @property
     def meter_kind(self):
@@ -161,7 +204,11 @@ class PlanVersion(TenantModel):
     change_note = models.CharField(_("qué cambió"), max_length=300, blank=True)
     estimated_minutes = models.PositiveIntegerField(_("duración estimada (min)"), default=60)
     instructions = models.TextField(_("instrucciones"), blank=True)
-    interval_days = models.PositiveIntegerField(_("cada cuántos días"), null=True, blank=True)
+    # Disparador por calendario: cada `calendar_interval` días, semanas o meses (PM-02 CA1).
+    calendar_interval = models.PositiveIntegerField(_("cada cuánto (calendario)"), null=True, blank=True)
+    calendar_unit = models.CharField(
+        _("unidad"), max_length=8, choices=CalendarUnit.choices, default=CalendarUnit.DAYS
+    )
     meter_kind = models.CharField(_("medidor"), max_length=10, choices=MeterKind.choices, blank=True)
     meter_interval = models.DecimalField(
         _("cada cuántas unidades del medidor"), max_digits=14, decimal_places=3, null=True, blank=True
@@ -191,7 +238,7 @@ class PlanVersion(TenantModel):
 
     # Campos que definen el contenido: no cambian una vez publicada la versión.
     CONTENT_FIELDS = (
-        "plan_id", "number", "estimated_minutes", "instructions", "interval_days",
+        "plan_id", "number", "estimated_minutes", "instructions", "calendar_interval", "calendar_unit",
         "meter_kind", "meter_interval", "schedule_mode", "tolerance_pct",
     )  # fmt: skip
 
@@ -203,19 +250,41 @@ class PlanVersion(TenantModel):
     def uses_meter(self):
         return bool(self.meter_kind and self.meter_interval)
 
+    def shift(self, date: datetime.date, periods: int = 1) -> datetime.date:
+        """`date` + `periods` veces la frecuencia por calendario (negativo resta)."""
+        return shift_date(date, periods * self.calendar_interval, self.calendar_unit)
+
+    def calendar_period_days(self, due_on: datetime.date) -> int:
+        """Días del ciclo que termina en `due_on` (un mes de calendario no siempre dura lo mismo)."""
+        return (due_on - self.shift(due_on, -1)).days
+
+    @property
+    def calendar_label(self):
+        n = self.calendar_interval
+        if not n:
+            return ""
+        if self.calendar_unit == CalendarUnit.MONTHS:
+            return ngettext("%(n)s mes", "%(n)s meses", n) % {"n": n}
+        if self.calendar_unit == CalendarUnit.WEEKS:
+            return ngettext("%(n)s semana", "%(n)s semanas", n) % {"n": n}
+        return ngettext("%(n)s día", "%(n)s días", n) % {"n": n}
+
     @property
     def frequency_label(self):
+        """«10.000 km o 6 meses»: vence lo que ocurra primero (PM-02 CA1)."""
         parts = []
         if self.meter_interval:
             unit = METER_DEFAULT_UNITS.get(self.meter_kind, "")
-            parts.append(f"{self.meter_interval.normalize():f} {unit}")
-        if self.interval_days:
-            parts.append(_("%(n)s días") % {"n": self.interval_days})
-        return " o ".join(str(p) for p in parts)
+            parts.append(f"{format_number(self.meter_interval)} {unit}".strip())
+        if self.calendar_interval:
+            parts.append(self.calendar_label)
+        if len(parts) == 2:
+            return _("%(meter)s o %(calendar)s") % {"meter": parts[0], "calendar": parts[1]}
+        return str(parts[0]) if parts else ""
 
     def clean(self):
-        if not self.interval_days and not self.uses_meter:
-            raise ValidationError(_("Define una frecuencia en días, por medidor o ambas."))
+        if not self.calendar_interval and not self.uses_meter:
+            raise ValidationError(_("Define una frecuencia por calendario, por medidor o ambas."))
         if bool(self.meter_kind) != bool(self.meter_interval):
             raise ValidationError(_("Para disparar por medidor indica el tipo y la frecuencia."))
 

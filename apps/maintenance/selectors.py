@@ -32,7 +32,7 @@ def plan_list(*, membership, search: str = "", active: str = "", asset_class=Non
         qs = qs.filter(is_active=active == "1")
     if asset_class is not None:
         qs = qs.filter(asset_class=asset_class)
-    has_days = Q(current_version__interval_days__isnull=False)
+    has_days = Q(current_version__calendar_interval__isnull=False)
     has_meter = Q(current_version__meter_interval__isnull=False) & ~Q(current_version__meter_kind="")
     if trigger == "calendar":
         qs = qs.filter(has_days).exclude(has_meter)

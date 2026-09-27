@@ -39,7 +39,7 @@ def make_tenant(slug: str) -> Tenant:
             code="PM1",
             name="Mensual",
             asset_class=cls,
-            interval_days=30,
+            calendar_interval=30,
             items=[
                 {"text": "Purgar", "item_type": ItemType.CHECK},
                 {

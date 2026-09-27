@@ -31,7 +31,7 @@ def retired(in_a):
     long_ago = timezone.localdate() - datetime.timedelta(days=200)
     calendar = assign_plan(plan=in_a.plan, asset=asset, starts_on=long_ago)
     usage = assign_plan(plan=_plan("PM-H", meter_kind="hours", meter_interval=Decimal("250")), asset=asset)
-    other = assign_plan(plan=_plan("PM-W", interval_days=7), asset=asset, starts_on=long_ago)
+    other = assign_plan(plan=_plan("PM-W", calendar_interval=7), asset=asset, starts_on=long_ago)
     decommission_asset(membership=in_a.admin, asset=asset, reason="Vendido")
     return asset, meter, calendar, usage, other
 

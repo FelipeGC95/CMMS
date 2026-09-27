@@ -356,7 +356,7 @@ class Command(BaseCommand):
                 code=code,
                 name=name,
                 asset_class=classes[cls],
-                interval_days=interval,
+                calendar_interval=interval,
                 estimated_minutes=minutes,
                 items=self._items(items),
             )
@@ -470,7 +470,7 @@ class Command(BaseCommand):
                 asset_class=classes[cls],
                 meter_kind=kind,
                 meter_interval=Decimal(interval),
-                interval_days=days,
+                calendar_interval=days,
                 estimated_minutes=minutes,
                 items=self._items(items),
             )

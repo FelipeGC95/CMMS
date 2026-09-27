@@ -141,7 +141,7 @@ def test_suggested_plans_come_first(in_a):
         code="AAA",
         name="Aaa bomba",
         asset_class=other_class,
-        interval_days=30,
+        calendar_interval=30,
         items=[{"text": "Cebar", "item_type": ItemType.CHECK}],
     )
     wo = _corrective(in_a)

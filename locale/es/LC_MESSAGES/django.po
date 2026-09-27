@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-27 01:14-0300\n"
+"POT-Creation-Date: 2026-09-27 01:22-0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1191,10 +1191,13 @@ msgstr ""
 msgid "Plan activo"
 msgstr ""
 
-msgid "Cada cuántos días"
+msgid "Cada cuánto (calendario)"
 msgstr ""
 
 msgid "Vacío si solo es por medidor."
+msgstr ""
+
+msgid "Meses de calendario: mismo día del mes (o el último, si no existe)."
 msgstr ""
 
 msgid "Sin medidor"
@@ -1218,7 +1221,7 @@ msgstr ""
 msgid "Para disparar por medidor indica el tipo y la frecuencia."
 msgstr ""
 
-msgid "Define una frecuencia en días, por medidor o ambas."
+msgid "Define una frecuencia por calendario, por medidor o ambas."
 msgstr ""
 
 msgid "Tarea"
@@ -1272,6 +1275,15 @@ msgstr ""
 msgid "Foto obligatoria"
 msgstr ""
 
+msgid "días"
+msgstr ""
+
+msgid "semanas"
+msgstr ""
+
+msgid "meses"
+msgstr ""
+
 msgid "versión vigente"
 msgstr ""
 
@@ -1323,7 +1335,7 @@ msgstr ""
 msgid "instrucciones"
 msgstr ""
 
-msgid "cada cuántos días"
+msgid "cada cuánto (calendario)"
 msgstr ""
 
 msgid "cada cuántas unidades del medidor"
@@ -1342,7 +1354,28 @@ msgid "versiones de plan"
 msgstr ""
 
 #, python-format
-msgid "%(n)s días"
+msgid "%(n)s mes"
+msgid_plural "%(n)s meses"
+msgstr[0] ""
+msgstr[1] ""
+msgstr[2] ""
+
+#, python-format
+msgid "%(n)s semana"
+msgid_plural "%(n)s semanas"
+msgstr[0] ""
+msgstr[1] ""
+msgstr[2] ""
+
+#, python-format
+msgid "%(n)s día"
+msgid_plural "%(n)s días"
+msgstr[0] ""
+msgstr[1] ""
+msgstr[2] ""
+
+#, python-format
+msgid "%(meter)s o %(calendar)s"
 msgstr ""
 
 #, python-format
@@ -3313,7 +3346,9 @@ msgstr ""
 msgid "Verificación"
 msgstr ""
 
-msgid "Usa días, medidor o ambos: vence lo que ocurra primero."
+msgid ""
+"Usa calendario (días, semanas o meses), medidor o ambos: vence lo que ocurra "
+"primero."
 msgstr ""
 
 msgid "Checklist"
