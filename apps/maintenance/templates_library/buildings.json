@@ -1,0 +1,368 @@
+{
+  "industry": "buildings",
+  "name": "Edificios e instalaciones",
+  "description": "Climatización, ascensores, generadores, sistemas contra incendio y detección de incendio.",
+  "version": 1,
+  "review_status": "draft",
+  "review_note": "Borrador — revisar antes del piloto",
+  "asset_classes": [
+    {
+      "code": "CLIMA-SPLIT",
+      "name": "Equipo de climatización (split o VRF)",
+      "iso_category": "mechanical",
+      "level": "equipment",
+      "attributes": [
+        {"label": "Capacidad", "type": "number", "unit": "BTU/h"},
+        {"label": "Tipo", "type": "choice", "choices": ["Split muro", "Cassette", "Piso cielo", "Ducto", "VRF"]},
+        {"label": "Refrigerante", "type": "choice", "choices": ["R410A", "R32", "R22"]}
+      ],
+      "plans": [
+        {
+          "code": "CLI-TRIM",
+          "name": "Climatización · mantención trimestral",
+          "calendar_interval": 3, "calendar_unit": "months",
+          "schedule_mode": "fixed", "tolerance_pct": 10, "estimated_minutes": 45,
+          "instructions": "La manipulación de refrigerante la hace personal certificado.",
+          "items": [
+            {"text": "Limpiar filtros de la unidad interior", "type": "check"},
+            {"text": "Bandeja y línea de drenaje limpias", "type": "check"},
+            {"text": "Limpiar serpentín de la unidad exterior", "type": "check"},
+            {"text": "Temperatura de aire de inyección", "type": "measurement", "unit": "°C", "min": 8, "max": 16},
+            {"text": "Corriente del compresor", "type": "measurement", "unit": "A"},
+            {"text": "Ruidos o vibraciones anormales", "type": "check"}
+          ],
+          "resources": []
+        },
+        {
+          "code": "CLI-ANUAL",
+          "name": "Climatización · mantención anual",
+          "calendar_interval": 12, "calendar_unit": "months",
+          "schedule_mode": "fixed", "tolerance_pct": 10, "estimated_minutes": 120,
+          "instructions": "Incluye la mantención trimestral.",
+          "items": [
+            {"text": "Lavado de serpentines interior y exterior", "type": "check"},
+            {"text": "Presión de succión", "type": "measurement", "unit": "bar"},
+            {"text": "Detección de fugas de refrigerante", "type": "check"},
+            {"text": "Reapretar conexiones eléctricas", "type": "check"},
+            {"text": "Aislación de cañerías y soportes", "type": "check"},
+            {"text": "Control remoto o termostato funcionando", "type": "check"}
+          ],
+          "resources": [
+            {"kind": "tool", "description": "Manifold digital", "quantity": 1, "unit": "un"},
+            {"kind": "part", "description": "Limpiador de serpentines", "quantity": 1, "unit": "L"}
+          ]
+        }
+      ]
+    },
+    {
+      "code": "UMA",
+      "name": "Unidad manejadora de aire",
+      "iso_category": "rotating",
+      "level": "equipment",
+      "attributes": [
+        {"label": "Caudal de aire", "type": "number", "unit": "m³/h"},
+        {"label": "Potencia del ventilador", "type": "number", "unit": "kW"},
+        {"label": "Filtros", "type": "text"}
+      ],
+      "plans": [
+        {
+          "code": "UMA-MENS",
+          "name": "Unidad manejadora · inspección mensual",
+          "calendar_interval": 1, "calendar_unit": "months",
+          "schedule_mode": "fixed", "tolerance_pct": 10, "estimated_minutes": 45,
+          "instructions": "Cambiar filtros cuando la caída de presión supere la indicada por el fabricante.",
+          "items": [
+            {"text": "Caída de presión en filtros", "type": "measurement", "unit": "Pa", "min": 0, "max": 250},
+            {"text": "Cambiar filtros si corresponde", "type": "check", "required": false},
+            {"text": "Bandeja de condensado limpia y drenando", "type": "check"},
+            {"text": "Tensión y desgaste de correas", "type": "check"},
+            {"text": "Ruido o vibración en ventilador y motor", "type": "check"}
+          ],
+          "resources": [
+            {"kind": "part", "description": "Filtros de aire según medida", "quantity": 1, "unit": "juego"}
+          ]
+        },
+        {
+          "code": "UMA-SEMES",
+          "name": "Unidad manejadora · mantención semestral",
+          "calendar_interval": 6, "calendar_unit": "months",
+          "schedule_mode": "fixed", "tolerance_pct": 10, "estimated_minutes": 120,
+          "instructions": "Bloquear y etiquetar antes de abrir.",
+          "items": [
+            {"text": "Lubricar rodamientos del ventilador y del motor", "type": "check"},
+            {"text": "Alineación de poleas", "type": "check"},
+            {"text": "Limpieza de serpentines", "type": "check"},
+            {"text": "Corriente del motor", "type": "measurement", "unit": "A"},
+            {"text": "Probar compuertas y actuadores", "type": "check"}
+          ],
+          "resources": [
+            {"kind": "part", "description": "Correas", "quantity": 1, "unit": "juego"}
+          ]
+        }
+      ]
+    },
+    {
+      "code": "ASCENSOR",
+      "name": "Ascensor",
+      "iso_category": "mechanical",
+      "level": "system",
+      "attributes": [
+        {"label": "Tipo", "type": "choice", "choices": ["Tracción", "Hidráulico", "Montacargas"]},
+        {"label": "Carga nominal", "type": "number", "unit": "kg"},
+        {"label": "Número de paradas", "type": "number"},
+        {"label": "Empresa mantenedora", "type": "text"},
+        {"label": "Vencimiento de la certificación", "type": "date"}
+      ],
+      "plans": [
+        {
+          "code": "ASC-MENS",
+          "name": "Ascensor · mantención mensual",
+          "calendar_interval": 1, "calendar_unit": "months",
+          "schedule_mode": "fixed", "tolerance_pct": 10, "estimated_minutes": 90,
+          "instructions": "La ejecuta la empresa mantenedora registrada; adjuntar su informe a la OT.",
+          "items": [
+            {"text": "Nivelación de la cabina en cada parada", "type": "check"},
+            {"text": "Operación de puertas y dispositivos de reapertura", "type": "check"},
+            {"text": "Probar citófono o alarma de emergencia y luz de emergencia", "type": "check"},
+            {"text": "Sala de máquinas limpia, ventilada y con acceso restringido", "type": "check"},
+            {"text": "Cables, poleas y frenos según la empresa mantenedora", "type": "check"},
+            {"text": "Informe de la empresa mantenedora adjunto", "type": "photo"},
+            {"text": "Firma del técnico de la empresa mantenedora", "type": "signature"}
+          ],
+          "resources": []
+        },
+        {
+          "code": "ASC-CERT",
+          "name": "Ascensor · certificación anual",
+          "calendar_interval": 12, "calendar_unit": "months",
+          "schedule_mode": "fixed", "tolerance_pct": 5, "estimated_minutes": 120,
+          "instructions": "Gestionar la inspección y certificación exigida por la normativa vigente con una entidad certificadora.",
+          "items": [
+            {"text": "Inspección de la entidad certificadora realizada", "type": "check"},
+            {"text": "Observaciones del certificado", "type": "text", "required": false},
+            {"text": "Certificado vigente exhibido en la cabina", "type": "photo"}
+          ],
+          "resources": []
+        }
+      ]
+    },
+    {
+      "code": "GENERADOR",
+      "name": "Grupo electrógeno",
+      "iso_category": "electrical",
+      "level": "equipment",
+      "attributes": [
+        {"label": "Potencia", "type": "number", "unit": "kVA"},
+        {"label": "Combustible", "type": "choice", "choices": ["Diésel", "Gas"]},
+        {"label": "Capacidad del estanque", "type": "number", "unit": "L"},
+        {"label": "Transferencia automática", "type": "bool"}
+      ],
+      "plans": [
+        {
+          "code": "GEN-MENS",
+          "name": "Grupo electrógeno · prueba mensual",
+          "calendar_interval": 1, "calendar_unit": "months",
+          "schedule_mode": "fixed", "tolerance_pct": 10, "estimated_minutes": 45,
+          "instructions": "Hacer funcionar al menos 30 minutos, idealmente con carga. Registrar el horómetro.",
+          "items": [
+            {"text": "Niveles de aceite, refrigerante y combustible", "type": "check"},
+            {"text": "Voltaje de batería de arranque", "type": "measurement", "unit": "V", "min": 12.4, "max": 14.4},
+            {"text": "Arranque y transferencia automática", "type": "check"},
+            {"text": "Tensión de salida", "type": "measurement", "unit": "V", "min": 360, "max": 400},
+            {"text": "Frecuencia", "type": "measurement", "unit": "Hz", "min": 49.5, "max": 50.5},
+            {"text": "Fugas, ruidos y humo anormal", "type": "check"},
+            {"text": "Calefactor de block funcionando", "type": "check"}
+          ],
+          "resources": []
+        },
+        {
+          "code": "GEN-250H",
+          "name": "Grupo electrógeno · servicio 250 h",
+          "meter_kind": "hours", "meter_interval": 250,
+          "calendar_interval": 12, "calendar_unit": "months",
+          "schedule_mode": "floating", "tolerance_pct": 10, "estimated_minutes": 150,
+          "instructions": "En equipos de respaldo lo normal es que venza por calendario (1 año).",
+          "items": [
+            {"text": "Cambiar aceite de motor y filtro", "type": "check"},
+            {"text": "Cambiar filtros de combustible", "type": "check"},
+            {"text": "Filtro de aire (cambiar si corresponde)", "type": "check"},
+            {"text": "Correas y mangueras", "type": "check"},
+            {"text": "Punto de congelación del refrigerante", "type": "measurement", "unit": "°C", "max": -15},
+            {"text": "Drenar agua del estanque de combustible", "type": "check"},
+            {"text": "Reapretar conexiones del tablero de transferencia", "type": "check"}
+          ],
+          "resources": [
+            {"kind": "part", "description": "Filtro de aceite", "quantity": 1, "unit": "un"},
+            {"kind": "part", "description": "Filtro de combustible", "quantity": 1, "unit": "un"},
+            {"kind": "part", "description": "Aceite de motor 15W-40", "quantity": 10, "unit": "L"}
+          ]
+        }
+      ]
+    },
+    {
+      "code": "EXTINTOR",
+      "name": "Extintor",
+      "iso_category": "safety",
+      "level": "component",
+      "attributes": [
+        {"label": "Agente", "type": "choice", "choices": ["Polvo químico seco", "CO₂", "Agua", "Espuma", "Acetato de potasio (clase K)"]},
+        {"label": "Capacidad", "type": "number", "unit": "kg"},
+        {"label": "Última mantención anual", "type": "date"}
+      ],
+      "plans": [
+        {
+          "code": "EXT-MENS",
+          "name": "Extintor · inspección mensual",
+          "calendar_interval": 1, "calendar_unit": "months",
+          "schedule_mode": "fixed", "tolerance_pct": 10, "estimated_minutes": 5,
+          "instructions": "Inspección visual rápida por equipo.",
+          "items": [
+            {"text": "En su lugar, visible, señalizado y sin obstrucciones", "type": "check"},
+            {"text": "Manómetro en zona verde", "type": "check"},
+            {"text": "Sello y pasador de seguridad intactos", "type": "check"},
+            {"text": "Sin daños, corrosión ni manguera obstruida", "type": "check"},
+            {"text": "Etiqueta de mantención vigente", "type": "check"}
+          ],
+          "resources": []
+        },
+        {
+          "code": "EXT-ANUAL",
+          "name": "Extintor · mantención anual",
+          "calendar_interval": 12, "calendar_unit": "months",
+          "schedule_mode": "fixed", "tolerance_pct": 5, "estimated_minutes": 15,
+          "instructions": "La realiza un servicio técnico autorizado; dejar un equipo de reemplazo mientras tanto.",
+          "items": [
+            {"text": "Mantención realizada por servicio autorizado", "type": "check"},
+            {"text": "Etiqueta nueva con fecha de mantención", "type": "photo"},
+            {"text": "Prueba hidrostática al día según su fecha de fabricación", "type": "check"}
+          ],
+          "resources": []
+        }
+      ]
+    },
+    {
+      "code": "RED-INCENDIO",
+      "name": "Red contra incendio y bomba",
+      "iso_category": "safety",
+      "level": "system",
+      "attributes": [
+        {"label": "Tipo", "type": "choice", "choices": ["Red húmeda", "Red seca", "Rociadores", "Red inerte"]},
+        {"label": "Presión nominal", "type": "number", "unit": "bar"},
+        {"label": "Bomba contra incendio", "type": "bool"}
+      ],
+      "plans": [
+        {
+          "code": "RCI-SEM",
+          "name": "Bomba contra incendio · prueba semanal",
+          "calendar_interval": 1, "calendar_unit": "weeks",
+          "schedule_mode": "fixed", "tolerance_pct": 15, "estimated_minutes": 30,
+          "instructions": "Prueba sin flujo de la bomba contra incendio (solo si la instalación tiene bomba).",
+          "items": [
+            {"text": "Arranque automático por caída de presión", "type": "check"},
+            {"text": "Presión de succión", "type": "measurement", "unit": "bar"},
+            {"text": "Presión de descarga", "type": "measurement", "unit": "bar"},
+            {"text": "Goteo de empaquetadura y temperatura de descansos normales", "type": "check"},
+            {"text": "Tablero sin alarmas y en modo automático al terminar", "type": "check"}
+          ],
+          "resources": []
+        },
+        {
+          "code": "RCI-MENS",
+          "name": "Red contra incendio · inspección mensual",
+          "calendar_interval": 1, "calendar_unit": "months",
+          "schedule_mode": "fixed", "tolerance_pct": 10, "estimated_minutes": 60,
+          "instructions": "Recorrer todos los gabinetes y válvulas de la red.",
+          "items": [
+            {"text": "Gabinetes completos: manguera, pitón y llave", "type": "check"},
+            {"text": "Válvulas de control abiertas y con sello", "type": "check"},
+            {"text": "Presión estática de la red", "type": "measurement", "unit": "bar"},
+            {"text": "Conexión de bomberos (red seca) con tapas y sin daño", "type": "check"},
+            {"text": "Señalética y accesos despejados", "type": "check"}
+          ],
+          "resources": []
+        },
+        {
+          "code": "RCI-ANUAL",
+          "name": "Red contra incendio · prueba anual de caudal",
+          "calendar_interval": 12, "calendar_unit": "months",
+          "schedule_mode": "fixed", "tolerance_pct": 5, "estimated_minutes": 240,
+          "instructions": "Prueba de caudal de la bomba y prueba de mangueras por empresa especializada.",
+          "items": [
+            {"text": "Prueba de caudal de la bomba (curva de desempeño)", "type": "check"},
+            {"text": "Prueba de presión de mangueras", "type": "check"},
+            {"text": "Prueba del drenaje principal", "type": "check"},
+            {"text": "Informe de la empresa especializada adjunto", "type": "photo"},
+            {"text": "Firma del responsable", "type": "signature"}
+          ],
+          "resources": []
+        }
+      ]
+    },
+    {
+      "code": "DETECCION-INC",
+      "name": "Sistema de detección y alarma de incendio",
+      "iso_category": "safety",
+      "level": "system",
+      "attributes": [
+        {"label": "Tipo de panel", "type": "choice", "choices": ["Convencional", "Direccionable"]},
+        {"label": "Número de zonas o lazos", "type": "number"},
+        {"label": "Número de detectores", "type": "number"}
+      ],
+      "plans": [
+        {
+          "code": "DIN-TRIM",
+          "name": "Detección de incendio · prueba trimestral",
+          "calendar_interval": 3, "calendar_unit": "months",
+          "schedule_mode": "fixed", "tolerance_pct": 10, "estimated_minutes": 90,
+          "instructions": "Avisar a los ocupantes y a la central de monitoreo antes de probar.",
+          "items": [
+            {"text": "Panel sin fallas ni zonas anuladas", "type": "check"},
+            {"text": "Probar una muestra de detectores y pulsadores (rotar cada trimestre)", "type": "check"},
+            {"text": "Sirenas y luces estroboscópicas funcionando", "type": "check"},
+            {"text": "Voltaje de baterías de respaldo", "type": "measurement", "unit": "V", "min": 26, "max": 28},
+            {"text": "Señal recibida por la central de monitoreo", "type": "check", "required": false}
+          ],
+          "resources": [
+            {"kind": "tool", "description": "Spray o pértiga de prueba de detectores", "quantity": 1, "unit": "un"}
+          ]
+        },
+        {
+          "code": "DIN-ANUAL",
+          "name": "Detección de incendio · prueba anual completa",
+          "calendar_interval": 12, "calendar_unit": "months",
+          "schedule_mode": "fixed", "tolerance_pct": 5, "estimated_minutes": 240,
+          "instructions": "Probar el 100 % de los dispositivos.",
+          "items": [
+            {"text": "Todos los detectores y pulsadores probados", "type": "check"},
+            {"text": "Limpieza de detectores", "type": "check"},
+            {"text": "Cambiar baterías de respaldo si tienen más de 4 años", "type": "check"},
+            {"text": "Probar interfaces: liberación de puertas, ascensores y ventilación", "type": "check"},
+            {"text": "Firma del responsable", "type": "signature"}
+          ],
+          "resources": []
+        }
+      ]
+    }
+  ],
+  "failure_codes": [
+    {"kind": "mode", "code": "FTS", "name": "No arranca"},
+    {"kind": "mode", "code": "FTF", "name": "No funciona cuando se requiere"},
+    {"kind": "mode", "code": "SPO", "name": "Operación espuria (falsa alarma)"},
+    {"kind": "mode", "code": "PDE", "name": "Parámetro fuera de rango (temperatura, presión)"},
+    {"kind": "mode", "code": "ELU", "name": "Fuga de agua, aceite o refrigerante"},
+    {"kind": "mode", "code": "ENT", "name": "Pasajeros atrapados en ascensor"},
+    {"kind": "mode", "code": "LOO", "name": "Bajo rendimiento (no enfría, no calienta)"},
+    {"kind": "cause", "code": "MNE", "name": "Error de mantenimiento"},
+    {"kind": "cause", "code": "WTE", "name": "Desgaste esperado por uso"},
+    {"kind": "cause", "code": "VAN", "name": "Vandalismo o mal uso"},
+    {"kind": "cause", "code": "PWR", "name": "Corte o falla de suministro eléctrico"},
+    {"kind": "cause", "code": "ENV", "name": "Condición ambiental (polvo, humedad, calor)"},
+    {"kind": "mechanism", "code": "LEA", "name": "Fuga"},
+    {"kind": "mechanism", "code": "BLK", "name": "Obstrucción"},
+    {"kind": "mechanism", "code": "OPC", "name": "Circuito abierto"},
+    {"kind": "mechanism", "code": "NPW", "name": "Sin energía o batería descargada"},
+    {"kind": "detection_method", "code": "FUT", "name": "Prueba funcional"},
+    {"kind": "detection_method", "code": "ALR", "name": "Alarma del sistema"},
+    {"kind": "detection_method", "code": "OCC", "name": "Reclamo de ocupantes"}
+  ]
+}

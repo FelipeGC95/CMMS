@@ -1,0 +1,29 @@
+{% extends "base.html" %}{% load i18n ui %}
+{% block title %}{% translate "Cargar plantilla de rubro" %}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <p class="muted"><a href="{% url 'plan_list' %}">{% translate "Planes preventivos" %}</a></p>
+    <h1>{% translate "Cargar plantilla de rubro" %}</h1>
+    <p class="muted">{% translate "Copia a tu organización clases de activo con sus atributos, un catálogo de fallas y planes preventivos típicos de tu rubro. Son copias: puedes editarlas sin afectar la plantilla y nada de lo que ya tienes se sobrescribe." %}</p>
+  </div>
+</div>
+
+<div class="grid grid--2">
+  {% for t in templates %}
+  <section class="card" aria-labelledby="t-{{ t.industry }}">
+    <div class="card__header">
+      <h2 id="t-{{ t.industry }}">{{ t.name }}</h2>
+      {% if user.is_staff and t.is_draft %}<span class="badge badge--warning">{% icon 'alert' %}{{ t.review_note }}</span>{% endif %}
+    </div>
+    <p class="muted">{{ t.description }}</p>
+    <dl class="dl">
+      <dt>{% translate "Clases de activo" %}</dt><dd class="num">{{ t.classes }}</dd>
+      <dt>{% translate "Planes preventivos" %}</dt><dd class="num">{{ t.plans }}</dd>
+      <dt>{% translate "Códigos de falla" %}</dt><dd class="num">{{ t.failure_codes }}</dd>
+    </dl>
+    <a class="btn btn--secondary mt-4" href="{% url 'industry_template' t.industry %}">{% icon 'list' %}{% translate "Ver qué se crea" %}</a>
+  </section>
+  {% endfor %}
+</div>
+{% endblock %}

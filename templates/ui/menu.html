@@ -18,7 +18,9 @@
       {% if membership|can:"work_order.manage" %}<li><a href="{% url 'request_list' %}">{% icon 'megaphone' %}{% translate "Solicitudes" %}</a></li>{% endif %}
       {% if membership|can:"work_order.manage" %}<li><a href="{% url 'failure_code_list' %}">{% icon 'alert' %}{% translate "Catálogo de falla" %}</a></li>{% endif %}
       {% if membership|can:"work_order.execute" %}<li><a href="{% url 'plan_calendar' %}">{% icon 'calendar' %}{% translate "Calendario de preventivos" %}</a></li>{% endif %}
-      {% if membership|can:"plan.manage" %}<li><a href="{% url 'plan_list' %}">{% icon 'calendar' %}{% translate "Planes preventivos" %}</a></li>{% endif %}
+      {% if membership|can:"plan.manage" %}
+      <li><a href="{% url 'plan_list' %}">{% icon 'calendar' %}{% translate "Planes preventivos" %}</a></li>
+      <li><a href="{% url 'industry_templates' %}">{% icon 'list' %}{% translate "Cargar plantilla de rubro" %}</a></li>      {% endif %}
       {% if membership|can:"organization.manage" %}<li><a href="{% url 'maintenance_settings' %}">{% icon 'wrench' %}{% translate "Ajustes de preventivos" %}</a></li>{% endif %}
       {% if membership|can:"asset.manage" %}
       <li><a href="{% url 'asset_create' %}">{% icon 'box' %}{% translate "Nuevo activo" %}</a></li>

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-27 05:42-0300\n"
+"POT-Creation-Date: 2026-09-27 06:23-0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1431,6 +1431,14 @@ msgstr ""
 msgid "Por defecto, 14 días: la OT aparece dos semanas antes de vencer."
 msgstr ""
 
+#, python-format
+msgid "Rubro desconocido: %(industry)s."
+msgstr ""
+
+#, python-format
+msgid "Partes desconocidas: %(parts)s."
+msgstr ""
+
 msgid "Verificación (OK / No OK / N.A.)"
 msgstr ""
 
@@ -1609,6 +1617,9 @@ msgstr ""
 msgid "próximo vencimiento (medidor)"
 msgstr ""
 
+msgid "día ancla"
+msgstr ""
+
 msgid "última ejecución"
 msgstr ""
 
@@ -1624,11 +1635,15 @@ msgstr ""
 msgid "Versión inicial"
 msgstr ""
 
-#, python-format
-msgid "La versión %(number)s ya está publicada."
+msgid "Agrega al menos un ítem al checklist antes de publicar."
 msgstr ""
 
-msgid "Agrega al menos un ítem al checklist antes de publicar."
+#, python-format
+msgid "«%(plan)s» ya tiene un borrador."
+msgstr ""
+
+#, python-format
+msgid "La versión %(number)s ya está publicada."
 msgstr ""
 
 #, python-format
@@ -1696,6 +1711,35 @@ msgstr ""
 
 #, python-format
 msgid "«%(other)s» ya absorbe a «%(plan)s»: no pueden absorberse mutuamente."
+msgstr ""
+
+msgid "Tu organización ya tenía todo lo de esta plantilla: no se creó nada."
+msgstr ""
+
+#, python-format
+msgid "%(n)s clase de activo"
+msgid_plural "%(n)s clases de activo"
+msgstr[0] ""
+msgstr[1] ""
+msgstr[2] ""
+
+#, python-format
+msgid "%(n)s código de falla"
+msgid_plural "%(n)s códigos de falla"
+msgstr[0] ""
+msgstr[1] ""
+msgstr[2] ""
+
+#, python-format
+msgid "%(n)s plan preventivo"
+msgid_plural "%(n)s planes preventivos"
+msgstr[0] ""
+msgstr[1] ""
+msgstr[2] ""
+
+#, python-format
+msgid ""
+"Plantilla «%(name)s» cargada: %(summary)s. Revisa y ajusta lo que necesites."
 msgstr ""
 
 #, python-format
@@ -3897,6 +3941,87 @@ msgstr ""
 msgid "Ver planes"
 msgstr ""
 
+msgid "Plantilla de rubro"
+msgstr ""
+
+msgid "Cargar plantilla de rubro"
+msgstr ""
+
+msgid "Revisa lo que se va a crear. Todavía no se ha guardado nada."
+msgstr ""
+
+#, python-format
+msgid ""
+"%(note)s (versión %(version)s de la plantilla). Solo lo ven los "
+"administradores de la plataforma."
+msgstr ""
+
+msgid "Clases de activo nuevas"
+msgstr ""
+
+#, python-format
+msgid "%(n)s atributo"
+msgid_plural "%(n)s atributos"
+msgstr[0] ""
+msgstr[1] ""
+msgstr[2] ""
+
+msgid "Planes preventivos nuevos"
+msgstr ""
+
+msgid "Publicados, sin asignar a activos"
+msgstr ""
+
+msgid "Códigos de falla nuevos"
+msgstr ""
+
+msgid "Ya existen en tu organización y se mantienen sin cambios:"
+msgstr ""
+
+msgid "clases"
+msgstr ""
+
+msgid ""
+"Tu organización ya tiene todo lo de esta plantilla. No hay nada nuevo que "
+"crear."
+msgstr ""
+
+msgid "Volver a los planes"
+msgstr ""
+
+#, python-format
+msgid "%(n)s ítem"
+msgid_plural "%(n)s ítems"
+msgstr[0] ""
+msgstr[1] ""
+msgstr[2] ""
+
+msgid "Catálogo de falla"
+msgstr ""
+
+msgid ""
+"Se crean copias editables en tu organización. Después podrás asignar los "
+"planes a tus activos desde cada plan o por clase."
+msgstr ""
+
+msgid "Cargar plantilla"
+msgstr ""
+
+msgid "Elegir otro rubro"
+msgstr ""
+
+msgid ""
+"Copia a tu organización clases de activo con sus atributos, un catálogo de "
+"fallas y planes preventivos típicos de tu rubro. Son copias: puedes "
+"editarlas sin afectar la plantilla y nada de lo que ya tienes se sobrescribe."
+msgstr ""
+
+msgid "Códigos de falla"
+msgstr ""
+
+msgid "Ver qué se crea"
+msgstr ""
+
 #, python-format
 msgid "Asignar «%(name)s»"
 msgstr ""
@@ -4167,13 +4292,6 @@ msgstr ""
 msgid "Publicar la versión %(n)s"
 msgstr ""
 
-#, python-format
-msgid "%(n)s ítem"
-msgid_plural "%(n)s ítems"
-msgstr[0] ""
-msgstr[1] ""
-msgstr[2] ""
-
 msgid "Activos con el plan"
 msgstr ""
 
@@ -4191,9 +4309,6 @@ msgid "Seguir editando"
 msgstr ""
 
 msgid "Rigen para todos los planes de la organización."
-msgstr ""
-
-msgid "Volver a los planes"
 msgstr ""
 
 msgid "Generación automática de OT"
@@ -4772,9 +4887,6 @@ msgstr ""
 msgid "Avisar problema en una ubicación"
 msgstr ""
 
-msgid "Catálogo de falla"
-msgstr ""
-
 msgid "Importar lecturas (CSV)"
 msgstr ""
 
@@ -5042,9 +5154,6 @@ msgstr[1] ""
 msgid ""
 "Modo, causa, mecanismo y método de detección (ISO 14224). Editable; nunca se "
 "borra, se desactiva."
-msgstr ""
-
-msgid "Códigos de falla"
 msgstr ""
 
 msgid "Acciones"

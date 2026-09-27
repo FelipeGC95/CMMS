@@ -678,3 +678,13 @@ def test_plan_calendar_queries_do_not_grow_with_assignments(client, tenant_a, ur
     _add_calendar_rows(tenant_a, 10)
     many = _count(client, url)
     assert many == few, f"{url_name} {params}: {few} → {many} consultas"
+
+
+@pytest.mark.parametrize("industry", ["fleet", "industrial", "food", "buildings"])
+def test_industry_template_apply_uses_bounded_queries(tenant_a, industry, django_assert_max_num_queries):
+    """Aplicar una plantilla de rubro (ORG-03 CA3): por lotes, sin consultas por clase, plan o ítem."""
+    from apps.maintenance.industry_templates import apply_industry_template
+
+    with django_assert_max_num_queries(30):
+        summary = apply_industry_template(organization=tenant_a.org, industry=industry)
+    assert summary.plans

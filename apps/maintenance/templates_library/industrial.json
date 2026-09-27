@@ -1,0 +1,358 @@
+{
+  "industry": "industrial",
+  "name": "Planta industrial",
+  "description": "Compresores, bombas, calderas, motores eléctricos, reductores, correas transportadoras y tableros eléctricos.",
+  "version": 1,
+  "review_status": "draft",
+  "review_note": "Borrador — revisar antes del piloto",
+  "asset_classes": [
+    {
+      "code": "COMP-TORN",
+      "name": "Compresor de tornillo",
+      "iso_category": "rotating",
+      "level": "equipment",
+      "attributes": [
+        {"label": "Potencia", "type": "number", "unit": "kW"},
+        {"label": "Presión de trabajo", "type": "number", "unit": "bar"},
+        {"label": "Caudal", "type": "number", "unit": "m³/min"},
+        {"label": "Refrigeración", "type": "choice", "choices": ["Aire", "Agua"]},
+        {"label": "Con variador de velocidad", "type": "bool"}
+      ],
+      "plans": [
+        {
+          "code": "CMT-SEM",
+          "name": "Compresor de tornillo · inspección semanal",
+          "calendar_interval": 1, "calendar_unit": "weeks",
+          "schedule_mode": "fixed", "tolerance_pct": 15, "estimated_minutes": 20,
+          "instructions": "Con el equipo en marcha, salvo la purga de condensado.",
+          "items": [
+            {"text": "Presión de descarga", "type": "measurement", "unit": "bar", "min": 6, "max": 8},
+            {"text": "Temperatura de descarga del elemento", "type": "measurement", "unit": "°C", "min": 70, "max": 100},
+            {"text": "Nivel de aceite en el visor", "type": "check"},
+            {"text": "Purgar condensado y verificar la purga automática", "type": "check"},
+            {"text": "Limpieza del prefiltro de la cabina y de la entrada de aire", "type": "check"},
+            {"text": "Ruidos, vibraciones o fugas anormales", "type": "check"}
+          ],
+          "resources": []
+        },
+        {
+          "code": "CMT-2000H",
+          "name": "Compresor de tornillo · servicio 2.000 h",
+          "meter_kind": "hours", "meter_interval": 2000,
+          "calendar_interval": 6, "calendar_unit": "months",
+          "schedule_mode": "floating", "tolerance_pct": 10, "estimated_minutes": 120,
+          "instructions": "Bloquear y etiquetar el equipo y despresurizar el circuito antes de intervenir.",
+          "items": [
+            {"text": "Cambiar filtro de aire", "type": "check"},
+            {"text": "Cambiar filtro de aceite", "type": "check"},
+            {"text": "Cambiar aceite (o según análisis y fabricante)", "type": "check"},
+            {"text": "Separador aire/aceite: caída de presión", "type": "measurement", "unit": "bar", "min": 0, "max": 1},
+            {"text": "Limpiar enfriadores de aire y aceite", "type": "check"},
+            {"text": "Probar válvula de seguridad", "type": "check"},
+            {"text": "Reapretar conexiones eléctricas del tablero", "type": "check"},
+            {"text": "Corriente del motor principal a plena carga", "type": "measurement", "unit": "A"}
+          ],
+          "resources": [
+            {"kind": "part", "description": "Filtro de aire del compresor", "quantity": 1, "unit": "un"},
+            {"kind": "part", "description": "Filtro de aceite del compresor", "quantity": 1, "unit": "un"},
+            {"kind": "part", "description": "Aceite para compresor de tornillo", "quantity": 10, "unit": "L"}
+          ]
+        }
+      ]
+    },
+    {
+      "code": "BOMBA-CENT",
+      "name": "Bomba centrífuga",
+      "iso_category": "rotating",
+      "level": "equipment",
+      "attributes": [
+        {"label": "Caudal nominal", "type": "number", "unit": "m³/h"},
+        {"label": "Altura manométrica", "type": "number", "unit": "m"},
+        {"label": "Potencia del motor", "type": "number", "unit": "kW"},
+        {"label": "Tipo de sello", "type": "choice", "choices": ["Sello mecánico", "Empaquetadura"]},
+        {"label": "Fluido bombeado", "type": "text"}
+      ],
+      "plans": [
+        {
+          "code": "BCE-TRIM",
+          "name": "Bomba centrífuga · inspección trimestral",
+          "calendar_interval": 3, "calendar_unit": "months",
+          "schedule_mode": "fixed", "tolerance_pct": 10, "estimated_minutes": 45,
+          "instructions": "Mediciones con la bomba en su punto normal de operación.",
+          "items": [
+            {"text": "Vibración en el descanso lado acople", "type": "measurement", "unit": "mm/s", "min": 0, "max": 4.5},
+            {"text": "Temperatura de descansos", "type": "measurement", "unit": "°C", "max": 80},
+            {"text": "Presión de descarga", "type": "measurement", "unit": "bar"},
+            {"text": "Fugas por el sello o goteo de la empaquetadura dentro de lo normal", "type": "check"},
+            {"text": "Lubricar rodamientos según fabricante", "type": "check"},
+            {"text": "Protección del acople y pernos de anclaje", "type": "check"}
+          ],
+          "resources": [
+            {"kind": "tool", "description": "Medidor de vibraciones", "quantity": 1, "unit": "un"},
+            {"kind": "tool", "description": "Termómetro infrarrojo", "quantity": 1, "unit": "un"}
+          ]
+        },
+        {
+          "code": "BCE-ANUAL",
+          "name": "Bomba centrífuga · mantención anual",
+          "calendar_interval": 12, "calendar_unit": "months",
+          "schedule_mode": "fixed", "tolerance_pct": 10, "estimated_minutes": 180,
+          "instructions": "Bloquear y etiquetar; aislar y drenar la bomba.",
+          "items": [
+            {"text": "Alineación del acople", "type": "measurement", "unit": "mm", "min": 0, "max": 0.05},
+            {"text": "Estado del elemento elástico del acople", "type": "check"},
+            {"text": "Cambiar aceite de la caja de rodamientos (si aplica)", "type": "check"},
+            {"text": "Revisar impulsor y anillos de desgaste (si se desarma)", "type": "check", "required": false},
+            {"text": "Aislación del motor", "type": "measurement", "unit": "MΩ", "min": 100},
+            {"text": "Corriente del motor", "type": "measurement", "unit": "A"}
+          ],
+          "resources": [
+            {"kind": "tool", "description": "Alineador láser o relojes comparadores", "quantity": 1, "unit": "un"},
+            {"kind": "tool", "description": "Megóhmetro", "quantity": 1, "unit": "un"}
+          ]
+        }
+      ]
+    },
+    {
+      "code": "CALDERA",
+      "name": "Caldera de vapor",
+      "iso_category": "mechanical",
+      "level": "equipment",
+      "attributes": [
+        {"label": "Producción de vapor", "type": "number", "unit": "kg/h"},
+        {"label": "Presión máxima de trabajo", "type": "number", "unit": "bar"},
+        {"label": "Combustible", "type": "choice", "choices": ["Gas natural", "Gas licuado", "Diésel", "Biomasa"]},
+        {"label": "Número de registro", "type": "text"},
+        {"label": "Última prueba hidrostática", "type": "date"}
+      ],
+      "plans": [
+        {
+          "code": "CAL-SEM",
+          "name": "Caldera · revisión semanal",
+          "calendar_interval": 1, "calendar_unit": "weeks",
+          "schedule_mode": "fixed", "tolerance_pct": 15, "estimated_minutes": 45,
+          "instructions": "La realiza el operador de caldera autorizado.",
+          "items": [
+            {"text": "Probar controles de nivel y corte por bajo nivel de agua", "type": "check"},
+            {"text": "Purga de fondo y de columna de nivel", "type": "check"},
+            {"text": "Presión de vapor", "type": "measurement", "unit": "bar"},
+            {"text": "Dureza del agua de alimentación", "type": "measurement", "unit": "ppm", "min": 0, "max": 5},
+            {"text": "Llama del quemador estable y sin humo", "type": "check"},
+            {"text": "Fugas de vapor, agua o combustible", "type": "check"}
+          ],
+          "resources": [
+            {"kind": "tool", "description": "Kit de análisis de dureza del agua", "quantity": 1, "unit": "un"}
+          ]
+        },
+        {
+          "code": "CAL-ANUAL",
+          "name": "Caldera · mantención anual",
+          "calendar_interval": 12, "calendar_unit": "months",
+          "schedule_mode": "fixed", "tolerance_pct": 5, "estimated_minutes": 480,
+          "instructions": "Coordinar con la inspección y la prueba hidrostática que exija la normativa vigente.",
+          "items": [
+            {"text": "Limpieza del lado de fuego (tubos y hogar)", "type": "check"},
+            {"text": "Inspección del lado de agua: incrustaciones y corrosión", "type": "check"},
+            {"text": "Calibrar y probar válvulas de seguridad", "type": "check"},
+            {"text": "Mantención del quemador y análisis de gases de combustión", "type": "check"},
+            {"text": "O₂ en gases de combustión", "type": "measurement", "unit": "%", "min": 2, "max": 6},
+            {"text": "Cambiar empaquetaduras de tapas de registro", "type": "check"},
+            {"text": "Revisar refractarios y aislación térmica", "type": "check"},
+            {"text": "Firma del responsable", "type": "signature"}
+          ],
+          "resources": [
+            {"kind": "part", "description": "Empaquetaduras de tapas de registro", "quantity": 1, "unit": "juego"},
+            {"kind": "tool", "description": "Analizador de gases de combustión", "quantity": 1, "unit": "un"}
+          ]
+        }
+      ]
+    },
+    {
+      "code": "MOTOR-ELEC",
+      "name": "Motor eléctrico",
+      "iso_category": "electrical",
+      "level": "equipment",
+      "attributes": [
+        {"label": "Potencia", "type": "number", "unit": "kW"},
+        {"label": "Tensión", "type": "number", "unit": "V"},
+        {"label": "Velocidad", "type": "number", "unit": "rpm"},
+        {"label": "Carcasa (frame)", "type": "text"},
+        {"label": "Rodamientos", "type": "text"}
+      ],
+      "plans": [
+        {
+          "code": "MEL-TRIM",
+          "name": "Motor eléctrico · inspección trimestral",
+          "calendar_interval": 3, "calendar_unit": "months",
+          "schedule_mode": "fixed", "tolerance_pct": 10, "estimated_minutes": 30,
+          "instructions": "Mediciones con el motor en carga normal.",
+          "items": [
+            {"text": "Vibración global", "type": "measurement", "unit": "mm/s", "min": 0, "max": 4.5},
+            {"text": "Temperatura de carcasa", "type": "measurement", "unit": "°C", "max": 80},
+            {"text": "Corriente por fase (la mayor)", "type": "measurement", "unit": "A"},
+            {"text": "Ventilación limpia y sin obstrucciones", "type": "check"},
+            {"text": "Engrasar rodamientos según placa", "type": "check"}
+          ],
+          "resources": [
+            {"kind": "part", "description": "Grasa para rodamientos de motor", "quantity": 1, "unit": "cartucho"},
+            {"kind": "tool", "description": "Pinza amperimétrica", "quantity": 1, "unit": "un"}
+          ]
+        },
+        {
+          "code": "MEL-ANUAL",
+          "name": "Motor eléctrico · prueba anual de aislación",
+          "calendar_interval": 12, "calendar_unit": "months",
+          "schedule_mode": "fixed", "tolerance_pct": 10, "estimated_minutes": 60,
+          "instructions": "Bloquear y etiquetar; desconectar el motor del variador o partidor antes de medir.",
+          "items": [
+            {"text": "Resistencia de aislación a 1 minuto", "type": "measurement", "unit": "MΩ", "min": 100},
+            {"text": "Índice de polarización", "type": "measurement", "unit": "", "min": 2},
+            {"text": "Reapretar bornes de la caja de conexiones", "type": "check"},
+            {"text": "Puesta a tierra de la carcasa", "type": "check"},
+            {"text": "Alineación y estado del acople", "type": "check"}
+          ],
+          "resources": [
+            {"kind": "tool", "description": "Megóhmetro", "quantity": 1, "unit": "un"}
+          ]
+        }
+      ]
+    },
+    {
+      "code": "CORREA-TR",
+      "name": "Correa transportadora",
+      "iso_category": "mechanical",
+      "level": "system",
+      "attributes": [
+        {"label": "Largo entre centros", "type": "number", "unit": "m"},
+        {"label": "Ancho de banda", "type": "number", "unit": "mm"},
+        {"label": "Velocidad", "type": "number", "unit": "m/s"},
+        {"label": "Tipo de banda", "type": "choice", "choices": ["Lona y caucho", "PVC", "Modular plástica", "Metálica"]}
+      ],
+      "plans": [
+        {
+          "code": "CTR-MENS",
+          "name": "Correa transportadora · inspección mensual",
+          "calendar_interval": 1, "calendar_unit": "months",
+          "schedule_mode": "fixed", "tolerance_pct": 10, "estimated_minutes": 60,
+          "instructions": "Inspección en marcha desde zona segura; intervenir solo con la correa bloqueada.",
+          "items": [
+            {"text": "Alineación de la banda (sin desvío hacia los bordes)", "type": "check"},
+            {"text": "Estado de la banda y de los empalmes", "type": "check"},
+            {"text": "Polines que no giran o con ruido", "type": "check"},
+            {"text": "Raspadores y limpiadores", "type": "check"},
+            {"text": "Tensión de la banda", "type": "check"},
+            {"text": "Probar cordón de parada de emergencia", "type": "check"},
+            {"text": "Guardas y protecciones en su lugar", "type": "check"}
+          ],
+          "resources": []
+        },
+        {
+          "code": "CTR-SEMES",
+          "name": "Correa transportadora · mantención semestral",
+          "calendar_interval": 6, "calendar_unit": "months",
+          "schedule_mode": "fixed", "tolerance_pct": 10, "estimated_minutes": 240,
+          "instructions": "Bloquear y etiquetar la correa.",
+          "items": [
+            {"text": "Cambiar polines dañados", "type": "check"},
+            {"text": "Lubricar descansos de poleas motriz y de cola", "type": "check"},
+            {"text": "Revestimiento de la polea motriz", "type": "check"},
+            {"text": "Nivel y estado del aceite del reductor", "type": "check"},
+            {"text": "Espesor de la cubierta de la banda", "type": "measurement", "unit": "mm"},
+            {"text": "Probar interruptores de desvío y de velocidad cero", "type": "check"}
+          ],
+          "resources": [
+            {"kind": "part", "description": "Polines de carga", "quantity": 2, "unit": "un"}
+          ]
+        }
+      ]
+    },
+    {
+      "code": "REDUCTOR",
+      "name": "Reductor de velocidad",
+      "iso_category": "mechanical",
+      "level": "component",
+      "attributes": [
+        {"label": "Relación de reducción", "type": "text"},
+        {"label": "Potencia", "type": "number", "unit": "kW"},
+        {"label": "Lubricante", "type": "text"}
+      ],
+      "plans": [
+        {
+          "code": "RED-SEMES",
+          "name": "Reductor · inspección semestral",
+          "calendar_interval": 6, "calendar_unit": "months",
+          "schedule_mode": "fixed", "tolerance_pct": 10, "estimated_minutes": 45,
+          "instructions": "El cambio de aceite se hace según análisis o cada 10.000 h de operación, lo que ocurra primero.",
+          "items": [
+            {"text": "Nivel de aceite", "type": "check"},
+            {"text": "Temperatura de la carcasa", "type": "measurement", "unit": "°C", "max": 90},
+            {"text": "Vibración", "type": "measurement", "unit": "mm/s", "min": 0, "max": 4.5},
+            {"text": "Fugas por retenes", "type": "check"},
+            {"text": "Respiradero limpio", "type": "check"},
+            {"text": "Muestra de aceite para análisis", "type": "check", "required": false}
+          ],
+          "resources": []
+        }
+      ]
+    },
+    {
+      "code": "TABLERO-EL",
+      "name": "Tablero eléctrico",
+      "iso_category": "electrical",
+      "level": "system",
+      "attributes": [
+        {"label": "Tensión", "type": "number", "unit": "V"},
+        {"label": "Corriente nominal", "type": "number", "unit": "A"},
+        {"label": "Tipo", "type": "choice", "choices": ["General", "Distribución", "Fuerza y control", "CCM"]}
+      ],
+      "plans": [
+        {
+          "code": "TEL-ANUAL",
+          "name": "Tablero eléctrico · termografía y reapriete anual",
+          "calendar_interval": 12, "calendar_unit": "months",
+          "schedule_mode": "fixed", "tolerance_pct": 10, "estimated_minutes": 120,
+          "instructions": "La termografía se hace en carga; el reapriete, desenergizado y con bloqueo.",
+          "items": [
+            {"text": "Termografía en carga: puntos calientes", "type": "check"},
+            {"text": "Mayor diferencia de temperatura entre fases", "type": "measurement", "unit": "°C", "min": 0, "max": 10},
+            {"text": "Foto termográfica del punto más caliente", "type": "photo"},
+            {"text": "Reapriete de conexiones desenergizado", "type": "check"},
+            {"text": "Limpieza interior y sellos de la puerta", "type": "check"},
+            {"text": "Probar diferenciales con botón de prueba", "type": "check"},
+            {"text": "Diagrama unilineal y rotulación al día", "type": "check"}
+          ],
+          "resources": [
+            {"kind": "tool", "description": "Cámara termográfica", "quantity": 1, "unit": "un"},
+            {"kind": "tool", "description": "Torquímetro aislado", "quantity": 1, "unit": "un"}
+          ]
+        }
+      ]
+    }
+  ],
+  "failure_codes": [
+    {"kind": "mode", "code": "FTS", "name": "No arranca"},
+    {"kind": "mode", "code": "STP", "name": "No se detiene"},
+    {"kind": "mode", "code": "UST", "name": "Detención espuria (se detiene sola)"},
+    {"kind": "mode", "code": "LOO", "name": "Bajo rendimiento (caudal, presión)"},
+    {"kind": "mode", "code": "ELU", "name": "Fuga de aceite, agua o vapor"},
+    {"kind": "mode", "code": "PDE", "name": "Parámetro fuera de rango"},
+    {"kind": "mode", "code": "INL", "name": "Fuga interna"},
+    {"kind": "mode", "code": "PLU", "name": "Obstrucción"},
+    {"kind": "cause", "code": "OFD", "name": "Operación fuera de diseño"},
+    {"kind": "cause", "code": "MNE", "name": "Error de mantenimiento"},
+    {"kind": "cause", "code": "WTE", "name": "Desgaste esperado por uso"},
+    {"kind": "cause", "code": "INE", "name": "Error de instalación o montaje"},
+    {"kind": "cause", "code": "MIS", "name": "Desalineación o desbalanceo"},
+    {"kind": "mechanism", "code": "LEA", "name": "Fuga"},
+    {"kind": "mechanism", "code": "CAV", "name": "Cavitación"},
+    {"kind": "mechanism", "code": "ERS", "name": "Erosión"},
+    {"kind": "mechanism", "code": "OVH", "name": "Sobretemperatura"},
+    {"kind": "mechanism", "code": "SHC", "name": "Cortocircuito"},
+    {"kind": "mechanism", "code": "ISF", "name": "Falla de aislación o de tierra"},
+    {"kind": "mechanism", "code": "LOS", "name": "Aflojamiento"},
+    {"kind": "detection_method", "code": "FUT", "name": "Prueba funcional"},
+    {"kind": "detection_method", "code": "VBA", "name": "Análisis de vibraciones"},
+    {"kind": "detection_method", "code": "OIL", "name": "Análisis de aceite"},
+    {"kind": "detection_method", "code": "THG", "name": "Termografía"}
+  ]
+}

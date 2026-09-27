@@ -101,6 +101,87 @@ def create_plan(
 
 
 @transaction.atomic
+def bulk_create_published_plans(*, organization, plans, by=None, change_note: str) -> list[MaintenancePlan]:
+    """Varios planes nuevos con su versión 1 ya publicada, en un número fijo de consultas.
+
+    La misma regla que `create_plan` (frecuencia válida, checklist no vacío,
+    foto siempre obligatoria), por lotes: la usan las plantillas de rubro
+    (PM-07) y la importación desde Excel (PM-08). `plans`: dicts con code,
+    name, asset_class, fields (campos de la versión), items (campos de
+    PlanTaskItem sin `order`) y resources. Los códigos deben ser nuevos (lo
+    revisa quien llama). No audita: cada llamador registra su evento.
+    """
+    now = timezone.now()
+    records, versions, items, resources = [], [], [], []
+    for data in plans:
+        plan = MaintenancePlan(
+            organization=organization,
+            code=data["code"],
+            name=data["name"],
+            asset_class=data.get("asset_class"),
+        )
+        version = PlanVersion(
+            organization=organization,
+            plan=plan,
+            number=1,
+            status=PlanVersion.Status.PUBLISHED,
+            published_at=now,
+            published_by=by,
+            change_note=change_note[:300],
+            **data["fields"],
+        )
+        version.clean()
+        if not data["items"]:
+            raise PlanVersionError(_("Agrega al menos un ítem al checklist antes de publicar."))
+        records.append(plan)
+        versions.append(version)
+        items += [
+            PlanTaskItem(
+                organization=organization,
+                version=version,
+                **{
+                    "order": i,
+                    **item,
+                    **({"required": True} if item.get("item_type") == ItemType.PHOTO else {}),
+                },
+            )
+            for i, item in enumerate(data["items"], start=1)
+        ]
+        resources += [
+            PlanResource(organization=organization, version=version, **r) for r in data["resources"]
+        ]
+    # Versiones inmutables (ADR-016): se crean ya publicadas; nunca se actualizan por lotes.
+    MaintenancePlan.objects.bulk_create(records)
+    PlanVersion.objects.bulk_create(versions)
+    PlanTaskItem.objects.bulk_create(items)
+    PlanResource.objects.bulk_create(resources)
+    for plan, version in zip(records, versions, strict=True):
+        plan.current_version = version
+    MaintenancePlan.objects.bulk_update(records, ["current_version"])
+    return records
+
+
+@transaction.atomic
+def create_draft_with_content(
+    *, plan: MaintenancePlan, fields: dict, items, resources, by=None
+) -> PlanVersion:
+    """Nueva versión borrador de un plan existente con el contenido dado (PM-08).
+
+    Nunca toca la versión publicada: el borrador se revisa y publica aparte.
+    Falla si el plan ya tiene un borrador.
+    """
+    if plan.versions.filter(status=PlanVersion.Status.DRAFT).exists():
+        raise PlanVersionError(_("«%(plan)s» ya tiene un borrador.") % {"plan": plan.code})
+    number = (plan.versions.aggregate(n=Max("number"))["n"] or 0) + 1
+    draft = PlanVersion.objects.create(plan=plan, number=number, **fields)
+    _add_content(draft, items=items, resources=resources)
+    audit.record(
+        action=AuditEvent.Action.CREATE, target=draft, actor=by, changes=audit.snapshot(draft, DRAFT_FIELDS)
+    )
+    return draft
+
+
+@transaction.atomic
 def start_draft(*, plan: MaintenancePlan) -> PlanVersion:
     """Devuelve el borrador del plan; si no hay, lo crea copiando la versión vigente."""
     draft = plan.versions.filter(status=PlanVersion.Status.DRAFT).first()
