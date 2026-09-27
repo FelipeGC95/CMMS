@@ -151,6 +151,8 @@ def test_calendar_summary_and_finish(in_a):
     summary = services.calendar_summary(membership=in_a.admin, today=today)
     assert summary["count_30"] == 1 and summary["count_90"] >= 1 and summary["assignments"] == 2
     assert summary["upcoming"][0].asset.pk == first.asset_id
+    # La lista de próximos mira 12 meses: el trimestral del otro activo también aparece.
+    assert summary["count_365"] >= 2 and len(summary["upcoming"]) >= 2
     assert onboarding_for_dashboard(membership=in_a.admin) is not None
     services.finish(membership=in_a.admin)
     assert onboarding_for_dashboard(membership=in_a.admin) is None

@@ -5,7 +5,7 @@
 <section class="card">
   <form method="post">{% csrf_token %}
     {% for error in form.non_field_errors %}<div class="alert alert--error" role="alert">{% icon 'stop' %}<span>{{ error }}</span></div>{% endfor %}
-    <fieldset class="check-group">
+    <fieldset class="check-group check-group--rich">
       <legend>{{ form.industry.label }} *</legend>
       <div class="check-group__options">
         {% for choice, t in form.options %}

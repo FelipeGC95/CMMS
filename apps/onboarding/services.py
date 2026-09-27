@@ -366,23 +366,28 @@ def record_initial_readings(*, membership, values: dict) -> int:
 
 
 def calendar_summary(*, membership, today: datetime.date | None = None) -> dict:
-    """Preventivos de los próximos 30 y 90 días según la proyección de PM-06."""
+    """Preventivos de los próximos 30 y 90 días según la proyección de PM-06.
+
+    La lista de próximos mira 12 meses: con planes trimestrales o anuales, los
+    primeros vencimientos suelen caer después de los 90 días.
+    """
     from apps.maintenance.selectors import plan_calendar
 
     today = today or timezone.localdate()
     calendar = plan_calendar(
-        membership=membership, start=today, end=today + datetime.timedelta(days=90), today=today
+        membership=membership, start=today, end=today + datetime.timedelta(days=365), today=today
     )
-    due = [o for o in calendar.occurrences if o.absorbed_into is None]
-    limit30 = today + datetime.timedelta(days=30)
-    in30 = [o for o in due if o.date <= limit30]
+    upcoming = [o for o in calendar.occurrences if o.absorbed_into is None]
+    due = [o for o in upcoming if o.date <= today + datetime.timedelta(days=90)]
+    in30 = [o for o in due if o.date <= today + datetime.timedelta(days=30)]
     return {
         "today": today,
         "count_30": len(in30),
         "count_90": len(due),
         "hours_30": sum(o.estimated_minutes for o in in30) / 60,
         "hours_90": sum(o.estimated_minutes for o in due) / 60,
-        "upcoming": due[:8],
+        "count_365": len(upcoming),
+        "upcoming": upcoming[:8],
         "unestimated": len(calendar.unestimated),
         "assignments": PlanAssignment.objects.filter(is_active=True).count(),
     }

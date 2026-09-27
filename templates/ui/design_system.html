@@ -75,6 +75,13 @@
     <li class="wizard-steps__item--skipped"><a href="#ds-wizard">{% icon 'arrow-down' %}<span class="wizard-steps__text">{% translate "Sitios" %}<span class="wizard-steps__state">{% translate "Saltado" %}</span></span></a></li>
     <li class="wizard-steps__item--pending"><a href="#ds-wizard" aria-current="step"><span class="wizard-steps__num">3</span><span class="wizard-steps__text">{% translate "Activos" %}<span class="wizard-steps__state">{% translate "Pendiente" %}</span></span></a></li>
   </ol>
+  <fieldset class="check-group check-group--rich">
+    <legend>{% translate "Opciones con detalle" %}</legend>
+    <div class="check-group__options">
+      <label class="check-group__option" for="ds-rich-1"><input type="checkbox" id="ds-rich-1" checked><span><strong>{% translate "Servicio 250 h" %}</strong><br><span class="muted">{% translate "Grúa horquilla · 250 h o 3 meses · 2 activos" %}</span></span></label>
+      <label class="check-group__option" for="ds-rich-2"><input type="checkbox" id="ds-rich-2"><span><strong>{% translate "Servicio 1.000 h" %}</strong><br><span class="muted">{% translate "Grúa horquilla · 1.000 h o 12 meses · 2 activos" %}</span></span></label>
+    </div>
+  </fieldset>
 </section>
 
 <div class="grid grid--2 mb-4">

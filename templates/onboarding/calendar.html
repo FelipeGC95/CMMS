@@ -14,6 +14,7 @@
 
 <section class="card mb-4" aria-labelledby="upcoming-title">
   <h2 id="upcoming-title">{% translate "Próximos preventivos" %}</h2>
+  <p class="muted">{% blocktranslate count n=summary.count_365 %}{{ n }} previsto en los próximos 12 meses.{% plural %}{{ n }} previstos en los próximos 12 meses.{% endblocktranslate %}</p>
   {% if summary.upcoming %}
   <ul class="list">
     {% for o in summary.upcoming %}
@@ -21,7 +22,7 @@
     {% endfor %}
   </ul>
   {% else %}
-  <p class="empty">{% translate "Aún no hay preventivos en los próximos 90 días. Asigna planes a tus activos para verlos aquí." %}</p>
+  <p class="empty">{% translate "Aún no hay preventivos en los próximos 12 meses. Asigna planes a tus activos para verlos aquí." %}</p>
   {% endif %}
   <div class="row mt-2">
     <a class="btn btn--secondary" href="{% url 'plan_calendar' %}">{% icon 'calendar' %}{% translate "Ver el calendario completo" %}</a>

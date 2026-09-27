@@ -9,7 +9,7 @@
   <div class="alert alert--info" role="status">{% icon 'info' %}<span>{% translate "No hay planes sugeridos para las clases de tus activos. Agrega activos en el paso 3 o crea planes en Preventivos." %}</span></div>
   {% else %}
   <form method="post">{% csrf_token %}
-    <fieldset class="check-group">
+    <fieldset class="check-group check-group--rich">
       <legend>{% translate "Planes a crear y asignar" %}</legend>
       <div class="check-group__options">
         {% for choice, plan in form.options %}

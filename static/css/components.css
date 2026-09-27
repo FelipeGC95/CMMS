@@ -492,3 +492,6 @@ main { max-width: var(--content-max); margin: 0 auto; padding: var(--space-5) va
 @media (min-width: 720px) { .wizard-steps { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 @media (min-width: 1100px) { .wizard-steps { grid-template-columns: repeat(6, minmax(0, 1fr)); } }
 .wizard-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; margin-top: var(--space-4); }
+/* Opciones con título y detalle (asistente de puesta en marcha): separadas y con la casilla arriba. */
+.check-group--rich .check-group__options { row-gap: var(--space-3); }
+.check-group--rich .check-group__option { align-items: flex-start; }

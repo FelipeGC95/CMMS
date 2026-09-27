@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-27 11:28-0300\n"
+"POT-Creation-Date: 2026-09-27 11:36-0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -5113,8 +5113,15 @@ msgstr[2] ""
 msgid "Próximos preventivos"
 msgstr ""
 
+#, python-format
+msgid "%(n)s previsto en los próximos 12 meses."
+msgid_plural "%(n)s previstos en los próximos 12 meses."
+msgstr[0] ""
+msgstr[1] ""
+msgstr[2] ""
+
 msgid ""
-"Aún no hay preventivos en los próximos 90 días. Asigna planes a tus activos "
+"Aún no hay preventivos en los próximos 12 meses. Asigna planes a tus activos "
 "para verlos aquí."
 msgstr ""
 
@@ -5496,6 +5503,21 @@ msgstr ""
 msgid ""
 "Puesta en marcha: hecho, saltado o pendiente, con ícono + texto; el paso "
 "abierto lleva borde."
+msgstr ""
+
+msgid "Opciones con detalle"
+msgstr ""
+
+msgid "Servicio 250 h"
+msgstr ""
+
+msgid "Grúa horquilla · 250 h o 3 meses · 2 activos"
+msgstr ""
+
+msgid "Servicio 1.000 h"
+msgstr ""
+
+msgid "Grúa horquilla · 1.000 h o 12 meses · 2 activos"
 msgstr ""
 
 msgid "Formularios"
