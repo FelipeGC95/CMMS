@@ -43,6 +43,10 @@ CONTRAST_PAIRS = [
     # Firma al completar la OT (WO-03 CA3): trazo y borde del lienzo.
     ("--color-signature-ink", "--color-signature-bg", TEXT),
     ("--color-border-strong", "--color-signature-bg", UI),
+    # Calendario de preventivos (PM-06): el día de hoy resaltado en la grilla del mes.
+    ("--color-text", "--color-info-bg", TEXT),
+    ("--color-text-muted", "--color-info-bg", TEXT),
+    ("--color-link", "--color-info-bg", TEXT),
 ]
 
 

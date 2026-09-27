@@ -7,7 +7,7 @@ from apps.assets.models import AssetClass, MeterKind
 from apps.organizations.models import Location
 from apps.organizations.selectors import visible_locations
 
-from .models import MAX_HORIZON_DAYS, CalendarUnit, ItemType, PlanResource, PlanVersion
+from .models import MAX_HORIZON_DAYS, CalendarUnit, ItemType, MaintenancePlan, PlanResource, PlanVersion
 
 
 def _class_field(**kwargs):
@@ -210,3 +210,31 @@ class MaintenanceSettingsForm(forms.Form):
         max_value=MAX_HORIZON_DAYS,
         help_text=_("Por defecto, 14 días: la OT aparece dos semanas antes de vencer."),
     )
+
+
+class CalendarFilterForm(forms.Form):
+    """Filtros del calendario de preventivos (PM-06): ubicación (con lo que tiene debajo), clase,
+    activo y plan."""
+
+    location = forms.ModelChoiceField(
+        label=_("Ubicación"),
+        queryset=Location.all_tenants.none(),
+        required=False,
+        empty_label=_("Todas las ubicaciones"),
+    )
+    asset_class = _class_field(label=_("Clase de activo"), required=False, empty_label=_("Todas las clases"))
+    asset = forms.CharField(
+        label=_("Activo"), required=False, max_length=100, help_text=_("Código o nombre.")
+    )
+    plan = forms.ModelChoiceField(
+        label=_("Plan"), queryset=MaintenancePlan.all_tenants.none(), required=False, empty_label=_("Todos")
+    )
+
+    def __init__(self, *args, membership, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["location"].queryset = visible_locations(membership=membership).order_by("code")
+        self.fields["location"].label_from_instance = _location_label
+        self.fields["asset_class"].queryset = AssetClass.objects.order_by("name")
+        self.fields["plan"].queryset = MaintenancePlan.objects.filter(
+            is_active=True, current_version__isnull=False
+        ).order_by("name")

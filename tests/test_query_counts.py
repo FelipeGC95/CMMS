@@ -616,3 +616,65 @@ def test_generation_with_absorption_has_a_constant_cost_per_work_order(tenant_a)
     _absorbing_assets(tenant_a, 3, (major, minor))
     _generation_queries(tenant_a)
     assert _generation_queries(tenant_a)[0] == idle
+
+
+def _add_calendar_rows(tenant, n):
+    """Activos con un plan mayor que absorbe a uno menor, un plan por medidor y una OT abierta."""
+    import datetime as dt
+    from decimal import Decimal
+
+    from django.utils import timezone
+
+    from apps.assets.models import Meter
+    from apps.maintenance.models import MaintenancePlan
+    from apps.maintenance.services import add_plan_absorption, assign_plan, create_plan
+
+    item = [{"text": "Revisar", "item_type": "check"}]
+    today = timezone.localdate()
+    with tenant_context(tenant.org):
+        for i in range(n):
+            k = MaintenancePlan.objects.count()
+            big = create_plan(
+                code=f"CB-{k}", name=f"Mayor {i}", calendar_interval=3, calendar_unit="months", items=item
+            )
+            small = create_plan(
+                code=f"CS-{k}", name=f"Menor {i}", calendar_interval=2, calendar_unit="weeks", items=item
+            )
+            hours = create_plan(
+                code=f"CH-{k}", name=f"Horas {i}", meter_kind="hours", meter_interval=250, items=item
+            )
+            add_plan_absorption(membership=tenant.admin, plan=big, absorbed_plan=small)
+            asset = Asset.objects.create(
+                code=f"CAL-{Asset.objects.count():03d}",
+                name=f"Equipo {i}",
+                asset_class=tenant.asset.asset_class,
+            )
+            meter = Meter.objects.create(
+                asset=asset, kind="hours", current_value=Decimal(100), avg_daily_usage=Decimal(9)
+            )
+            assign_plan(plan=big, asset=asset, starts_on=today + dt.timedelta(days=i))
+            assign_plan(plan=small, asset=asset, starts_on=today + dt.timedelta(days=i))
+            assign_plan(plan=hours, asset=asset, meter=meter)
+            create_work_order(
+                work_type="preventive", title=f"Prev {i}", asset=asset, status="planned", due_on=today
+            )
+
+
+@pytest.mark.parametrize(
+    "url_name,params",
+    [
+        ("plan_calendar", {}),
+        ("plan_calendar", {"view": "year"}),
+        ("plan_calendar", {"view": "year", "asset": "CAL"}),
+        ("plan_calendar_export_xlsx", {}),
+    ],
+)
+def test_plan_calendar_queries_do_not_grow_with_assignments(client, tenant_a, url_name, params):
+    """Calendario de preventivos (PM-06): la proyección se calcula en memoria, sin consultas por fila."""
+    login(client, tenant_a.admin)
+    url = f"{reverse(url_name)}?{urlencode(params)}"
+    _add_calendar_rows(tenant_a, 2)
+    few = _count(client, url)
+    _add_calendar_rows(tenant_a, 10)
+    many = _count(client, url)
+    assert many == few, f"{url_name} {params}: {few} → {many} consultas"

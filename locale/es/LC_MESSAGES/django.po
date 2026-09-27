@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-27 05:10-0300\n"
+"POT-Creation-Date: 2026-09-27 05:42-0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1279,6 +1279,47 @@ msgstr ""
 msgid "%(version)s publicada."
 msgstr ""
 
+#, python-format
+msgid "OT %(code)s (%(status)s)"
+msgstr ""
+
+msgid "Proyectada"
+msgstr ""
+
+#, python-format
+msgid "Absorbida en %(plan)s"
+msgstr ""
+
+msgid "Vencida"
+msgstr ""
+
+msgid "Sin uso promedio: solo por calendario"
+msgstr ""
+
+msgid "Calendario"
+msgstr ""
+
+msgid "Plan"
+msgstr ""
+
+msgid "Nombre del activo"
+msgstr ""
+
+msgid "Origen"
+msgstr ""
+
+msgid "Disparador"
+msgstr ""
+
+msgid "Duración estimada (min)"
+msgstr ""
+
+msgid "Observación"
+msgstr ""
+
+msgid "Calendario de preventivos"
+msgstr ""
+
 msgid "Buscar"
 msgstr ""
 
@@ -1295,9 +1336,6 @@ msgid "Clase de activo"
 msgstr ""
 
 msgid "Todas las clases"
-msgstr ""
-
-msgid "Disparador"
 msgstr ""
 
 msgid "Por calendario"
@@ -1337,9 +1375,6 @@ msgid "Reprogramación"
 msgstr ""
 
 msgid "Tolerancia de cumplimiento (%)"
-msgstr ""
-
-msgid "Duración estimada (min)"
 msgstr ""
 
 msgid "Se muestran en la OT preventiva."
@@ -1382,9 +1417,6 @@ msgid "Buscar activo"
 msgstr ""
 
 msgid "Todas las ubicaciones"
-msgstr ""
-
-msgid "Plan"
 msgstr ""
 
 msgid "El primero del tipo del plan"
@@ -3822,6 +3854,16 @@ msgstr ""
 msgid "Agregar absorción"
 msgstr ""
 
+#, python-format
+msgid "%(n)s min"
+msgstr ""
+
+msgid "Por uso estimado"
+msgstr ""
+
+msgid "Sin uso promedio"
+msgstr ""
+
 msgid "Solo para mediciones (opcional)"
 msgstr ""
 
@@ -3891,6 +3933,82 @@ msgid "No hay activos sin este plan que coincidan con el filtro."
 msgstr ""
 
 msgid "Asignar a los marcados"
+msgstr ""
+
+msgid ""
+"OT planificadas y programadas, y la proyección de los planes asignados. La "
+"proyección no crea OT."
+msgstr ""
+
+msgid "Exportar Excel (12 meses)"
+msgstr ""
+
+msgid "Vista"
+msgstr ""
+
+msgid "Mes"
+msgstr ""
+
+msgid "12 meses"
+msgstr ""
+
+msgid "Filtros"
+msgstr ""
+
+msgid "Limpiar filtros"
+msgstr ""
+
+#, python-format
+msgid ""
+"La proyección se cortó en %(max)s ocurrencias. Filtra por ubicación, clase, "
+"activo o plan para verla completa."
+msgstr ""
+
+#, python-format
+msgid ""
+"%(n)s plan por medidor no se proyecta porque su medidor aún no tiene uso "
+"diario promedio (se calcula con dos lecturas o más)."
+msgid_plural ""
+"%(n)s planes por medidor no se proyectan porque su medidor aún no tiene uso "
+"diario promedio (se calcula con dos lecturas o más)."
+msgstr[0] ""
+msgstr[1] ""
+msgstr[2] ""
+
+msgid "OT previstas"
+msgstr ""
+
+msgid "Absorbidas"
+msgstr ""
+
+msgid "Horas estimadas"
+msgstr ""
+
+msgid "Total"
+msgstr ""
+
+msgid ""
+"Horas según la duración estimada de cada versión vigente; una OT con planes "
+"absorbidos suma la de todos."
+msgstr ""
+
+msgid "Mes anterior"
+msgstr ""
+
+msgid "Mes siguiente"
+msgstr ""
+
+#, python-format
+msgid "+%(n)s más"
+msgid_plural "+%(n)s más"
+msgstr[0] ""
+msgstr[1] ""
+msgstr[2] ""
+
+msgid "Hoy"
+msgstr ""
+
+msgid "No hay preventivos este mes."
 msgstr ""
 
 msgid "Nuevo plan"
@@ -4034,12 +4152,6 @@ msgstr[1] ""
 msgstr[2] ""
 
 msgid "Ajustes de preventivos"
-msgstr ""
-
-msgid "Filtros"
-msgstr ""
-
-msgid "Limpiar filtros"
 msgstr ""
 
 msgid "Publicado"
@@ -4603,6 +4715,57 @@ msgstr ""
 msgid "Bajo 720 px queda una sola columna."
 msgstr ""
 
+msgid "Calendario del mes"
+msgstr ""
+
+msgid ""
+"Navegación entre meses, grilla desde 720 px (hoy resaltado, días de otro mes "
+"atenuados) y lista por día, que es la vista del teléfono. Totales al pie de "
+"una tabla."
+msgstr ""
+
+msgid "Octubre 2026"
+msgstr ""
+
+msgid "lun"
+msgstr ""
+
+msgid "mar"
+msgstr ""
+
+msgid "mié"
+msgstr ""
+
+msgid "jue"
+msgstr ""
+
+msgid "vie"
+msgstr ""
+
+msgid "sáb"
+msgstr ""
+
+msgid "dom"
+msgstr ""
+
+msgid "Semestral"
+msgstr ""
+
+msgid "Mensual"
+msgstr ""
+
+msgid "+2 más"
+msgstr ""
+
+msgid "Jueves 1 de octubre"
+msgstr ""
+
+msgid "Compresor 1"
+msgstr ""
+
+msgid "Absorbida en Semestral"
+msgstr ""
+
 msgid "Secciones"
 msgstr ""
 
@@ -4665,9 +4828,6 @@ msgid "Subir foto"
 msgstr ""
 
 msgid "Sin respuesta"
-msgstr ""
-
-msgid "Observación"
 msgstr ""
 
 #, python-format

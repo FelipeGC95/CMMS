@@ -1,0 +1,98 @@
+{% extends "base.html" %}{% load i18n ui accounts_tags %}
+{% block title %}{% translate "Calendario de preventivos" %}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>{% translate "Calendario de preventivos" %}</h1>
+    <p class="muted">{% translate "OT planificadas y programadas, y la proyección de los planes asignados. La proyección no crea OT." %}</p>
+  </div>
+  <div class="page-actions">
+    <a class="btn btn--ghost" href="{% url 'plan_calendar_export_xlsx' %}?{{ export_query }}">{% icon 'list' %}{% translate "Exportar Excel (12 meses)" %}</a>
+    {% if membership|can:"plan.manage" %}<a class="btn btn--ghost" href="{% url 'plan_list' %}">{% icon 'calendar' %}{% translate "Planes preventivos" %}</a>{% endif %}
+  </div>
+</div>
+
+<nav class="chips" aria-label="{% translate 'Vista' %}">
+  <a class="chip" href="?{{ month_query }}"{% if view == "month" %} aria-current="true"{% endif %}>{% translate "Mes" %}</a>
+  <a class="chip" href="?{{ year_query }}"{% if view == "year" %} aria-current="true"{% endif %}>{% translate "12 meses" %}</a>
+</nav>
+
+<details class="card mb-4 filters"{% if active_filters %} open{% endif %}>
+  <summary class="filters__summary">
+    <h2 id="filters-title">{% translate "Filtros" %}</h2>
+    {% if active_filters %}<span class="badge badge--info">{% icon 'info' %}{% blocktranslate count n=active_filters %}{{ n }} activo{% plural %}{{ n }} activos{% endblocktranslate %}</span>{% endif %}
+  </summary>
+  <form method="get" class="form-grid" aria-labelledby="filters-title">
+    <input type="hidden" name="view" value="{{ view }}">
+    {% if month %}<input type="hidden" name="month" value="{{ month|date:'Y-m' }}">{% endif %}
+    {% include "_form_fields.html" with form=filter_form %}
+    <div class="row form-grid__actions">
+      <button class="btn btn--primary" type="submit">{% translate "Filtrar" %}</button>
+      <a class="btn btn--ghost" href="?view={{ view }}{% if month %}&amp;month={{ month|date:'Y-m' }}{% endif %}">{% translate "Limpiar filtros" %}</a>
+    </div>
+  </form>
+</details>
+
+{% if result.truncated %}<div class="alert alert--warning" role="status">{% icon 'alert' %}<span>{% blocktranslate with max=max_occurrences %}La proyección se cortó en {{ max }} ocurrencias. Filtra por ubicación, clase, activo o plan para verla completa.{% endblocktranslate %}</span></div>{% endif %}
+{% if result.unestimated %}
+<div class="alert alert--info" role="status">{% icon 'info' %}<span>{% blocktranslate count n=result.unestimated|length %}{{ n }} plan por medidor no se proyecta porque su medidor aún no tiene uso diario promedio (se calcula con dos lecturas o más).{% plural %}{{ n }} planes por medidor no se proyectan porque su medidor aún no tiene uso diario promedio (se calcula con dos lecturas o más).{% endblocktranslate %}</span></div>
+{% endif %}
+
+{% if view == "year" %}
+<div class="card card--flush">
+  <table class="table">
+    <thead><tr><th>{% translate "Mes" %}</th><th class="num">{% translate "OT previstas" %}</th><th class="num">{% translate "Absorbidas" %}</th><th class="num">{% translate "Horas estimadas" %}</th></tr></thead>
+    <tbody>
+      {% for row in months %}
+      <tr>
+        <td data-label=""><a href="?{{ row.query }}">{{ row.month|date:"F Y"|capfirst }}</a></td>
+        <td data-label="{% translate 'OT previstas' %}" class="num">{{ row.count }}</td>
+        <td data-label="{% translate 'Absorbidas' %}" class="num">{{ row.absorbed }}</td>
+        <td data-label="{% translate 'Horas estimadas' %}" class="num">{{ row.hours }}</td>
+      </tr>
+      {% endfor %}
+      <tr class="table__total">
+        <td data-label="">{% translate "Total" %}</td>
+        <td data-label="{% translate 'OT previstas' %}" class="num">{{ total_count }}</td>
+        <td data-label="" class="num"></td>
+        <td data-label="{% translate 'Horas estimadas' %}" class="num">{{ total_hours }}</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+<p class="muted mt-2">{% translate "Horas según la duración estimada de cada versión vigente; una OT con planes absorbidos suma la de todos." %}</p>
+{% else %}
+<div class="month-nav">
+  {% if prev_query %}<a class="btn btn--ghost" href="?{{ prev_query }}" aria-label="{% translate 'Mes anterior' %}">&larr; <span class="month-nav__label">{% translate "Anterior" %}</span></a>{% else %}<span></span>{% endif %}
+  <h2 class="month-nav__title">{{ month|date:"F Y"|capfirst }}</h2>
+  {% if next_query %}<a class="btn btn--ghost" href="?{{ next_query }}" aria-label="{% translate 'Mes siguiente' %}"><span class="month-nav__label">{% translate "Siguiente" %}</span> &rarr;</a>{% else %}<span></span>{% endif %}
+</div>
+
+{# Grilla del mes: desde 720 px. En el teléfono basta la lista por día de más abajo. #}
+<div class="month-grid card card--flush" aria-hidden="true">
+  {% for name in weekdays %}<div class="month-grid__head">{{ name }}</div>{% endfor %}
+  {% for week in weeks %}{% for cell in week %}
+  <div class="month-grid__day{% if not cell.in_month %} month-grid__day--out{% endif %}{% if cell.date == today %} month-grid__day--today{% endif %}">
+    <span class="month-grid__num">{{ cell.date|date:"j" }}</span>
+    {% for o in cell.items %}
+    <span class="month-grid__item{% if o.absorbed_into %} month-grid__item--absorbed{% endif %}">{% if o.work_order %}{% icon 'wrench' %}{% elif o.absorbed_into %}{% icon 'dot' %}{% else %}{% icon 'calendar' %}{% endif %}{% if o.plan %}{{ o.plan.name }}{% else %}{{ o.work_order.title }}{% endif %}{% if o.asset %} · {{ o.asset.code }}{% endif %}</span>
+    {% endfor %}
+    {% if cell.more %}<a class="month-grid__more" href="#d-{{ cell.date|date:'Y-m-d' }}" tabindex="-1">{% blocktranslate count n=cell.more %}+{{ n }} más{% plural %}+{{ n }} más{% endblocktranslate %}</a>{% endif %}
+  </div>
+  {% endfor %}{% endfor %}
+</div>
+
+<div class="card">
+  {% if days %}
+  {% for day, items in days %}
+  <section class="day-list__day" id="d-{{ day|date:'Y-m-d' }}" aria-labelledby="h-{{ day|date:'Y-m-d' }}">
+    <h3 class="day-list__title" id="h-{{ day|date:'Y-m-d' }}">{{ day|date:"l j \d\e F"|capfirst }}{% if day == today %} <span class="badge badge--info">{% icon 'calendar' %}{% translate "Hoy" %}</span>{% endif %}</h3>
+    <ul class="list">{% for o in items %}{% include "maintenance/_calendar_item.html" %}{% endfor %}</ul>
+  </section>
+  {% endfor %}
+  {% else %}
+  <p class="empty">{% icon 'calendar' %} {% translate "No hay preventivos este mes." %}</p>
+  {% endif %}
+</div>
+{% endif %}
+{% endblock %}

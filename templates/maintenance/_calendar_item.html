@@ -1,0 +1,19 @@
+{% load i18n ui %}{# Una ocurrencia del calendario de preventivos (PM-06): OT existente o proyectada. #}<li>
+  <div class="list__main">
+    {% if o.work_order %}
+    <a class="list__title" href="{% url 'work_order_detail' o.work_order.pk %}"><span class="mono">{{ o.work_order.code }}</span> {{ o.work_order.title }}</a>
+    <span class="list__meta">{% include "work/_target.html" with asset=o.work_order.asset location=o.work_order.location %}{% if o.work_order.estimated_minutes %} · {% icon 'clock' %} {% blocktranslate with n=o.work_order.estimated_minutes %}{{ n }} min{% endblocktranslate %}{% endif %}</span>
+    {% else %}
+    <span class="list__title">{{ o.plan.name }}</span>
+    <span class="list__meta">{% include "work/_target.html" with asset=o.asset %}{% if o.estimated_minutes %} · {% icon 'clock' %} {% blocktranslate with n=o.estimated_minutes %}{{ n }} min{% endblocktranslate %}{% endif %}</span>
+    {% endif %}
+  </div>
+  <div class="row">
+    {% if o.work_order %}{% status_badge o.work_order %}
+    {% elif o.absorbed_into %}<span class="badge badge--neutral">{% icon 'dot' %}{% blocktranslate with plan=o.absorbed_into.plan.name %}Absorbida en {{ plan }}{% endblocktranslate %}</span>
+    {% else %}<span class="badge badge--info">{% icon 'calendar' %}{% translate "Proyectada" %}</span>{% endif %}
+    {% if o.overdue %}<span class="badge badge--warning">{% icon 'alert' %}{% translate "Vencida" %}</span>{% endif %}
+    {% if o.trigger == "meter" and not o.work_order %}<span class="badge badge--neutral">{% icon 'clock' %}{% translate "Por uso estimado" %}</span>{% endif %}
+    {% if o.no_usage %}<span class="badge badge--neutral">{% icon 'info' %}{% translate "Sin uso promedio" %}</span>{% endif %}
+  </div>
+</li>
