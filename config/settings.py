@@ -34,6 +34,7 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "allauth",
     "allauth.account",
+    "allauth.mfa",
     "rest_framework",
     "drf_spectacular",
     "drf_spectacular_sidecar",
@@ -52,6 +53,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    "apps.core.middleware.ContentSecurityPolicyMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.locale.LocaleMiddleware",
@@ -61,6 +63,8 @@ MIDDLEWARE = [
     "apps.audit.middleware.AuditContextMiddleware",
     "allauth.account.middleware.AccountMiddleware",
     "apps.core.middleware.TenantMiddleware",
+    "apps.accounts.mfa.MFARequiredMiddleware",
+    "apps.organizations.modules.PlanModuleMiddleware",
     "apps.core.middleware.PrivateCacheMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
@@ -138,6 +142,17 @@ ACCOUNT_LOGIN_ON_EMAIL_CONFIRMATION = True
 ACCOUNT_LOGIN_ON_PASSWORD_RESET = True
 ACCOUNT_EMAIL_SUBJECT_PREFIX = "[GALBUST CMMS] "
 ACCOUNT_DEFAULT_HTTP_PROTOCOL = "http" if DEBUG else "https"
+# Verificación en dos pasos (ORG-08, ADR-022): app de autenticación (TOTP) y códigos de
+# recuperación. Quién debe usarla lo decide cada organización (`mfa_policy`);
+# MFA_ENFORCE=0 apaga la obligación (solo para tests que no tratan de MFA).
+MFA_ADAPTER = "apps.accounts.adapter.MFAAdapter"
+MFA_SUPPORTED_TYPES = ["totp", "recovery_codes"]
+MFA_ENFORCE = env_bool("MFA_ENFORCE", True)
+# Autoregistro con prueba gratuita (ORG-02): límite por IP con el rate limit de allauth
+# (sobre el caché en base de datos) y segundos mínimos entre mostrar y enviar el formulario.
+ACCOUNT_RATE_LIMITS = {"signup": "5/m/ip,20/d/ip"}
+ALLAUTH_TRUSTED_PROXY_COUNT = int(os.environ.get("AUDIT_TRUSTED_PROXIES", "0"))
+SIGNUP_MIN_SECONDS = int(os.environ.get("SIGNUP_MIN_SECONDS", "3"))
 # Límites de intentos por defecto de allauth (login, reinicio de clave) sobre el caché.
 # Caché en la base de datos: compartido entre workers de gunicorn (LocMem es por proceso).
 CACHES = {
@@ -151,7 +166,11 @@ CACHES = {
 # cuidar), alcance por token, límite de peticiones por token y errores con forma única.
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": ["apps.api.framework.OrganizationTokenAuthentication"],
-    "DEFAULT_PERMISSION_CLASSES": ["apps.api.framework.HasTokenScope"],
+    "DEFAULT_PERMISSION_CLASSES": [
+        "apps.api.framework.HasTokenScope",
+        # Módulos por plan (ORG-10 CA2): `api` y el módulo del endpoint.
+        "apps.organizations.modules.PlanIncludesModule",
+    ],
     "DEFAULT_THROTTLE_CLASSES": ["apps.api.framework.TokenRateThrottle"],
     "DEFAULT_THROTTLE_RATES": {"api_token": os.environ.get("API_RATE_LIMIT", "600/min")},
     "DEFAULT_PAGINATION_CLASS": "apps.api.framework.Pagination",
@@ -242,6 +261,9 @@ BACKUP_DIR = Path(os.environ.get("BACKUP_DIR", BASE_DIR / "backups"))
 BACKUP_RETENTION_DAYS = int(os.environ.get("BACKUP_RETENTION_DAYS", "30"))
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+# CSP estricta (ADR-023, docs/04 §5): sin scripts ni estilos en línea, sin marcos.
+CONTENT_SECURITY_POLICY = infra.content_security_policy(os.environ)
 
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = "Lax"

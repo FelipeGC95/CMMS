@@ -238,6 +238,7 @@ main { max-width: var(--content-max); margin: 0 auto; padding: var(--space-5) va
 .field .error { font-size: var(--text-sm); color: var(--color-error); display: flex; gap: var(--space-1); align-items: center; }
 .field input[type="file"] { font: inherit; font-size: var(--text-sm); color: var(--color-text-muted); max-width: 100%; }
 .field input[type="file"]::file-selector-button { min-height: var(--touch-target); padding: 0 var(--space-4); margin-right: var(--space-3); border: 1px solid var(--color-border-strong); border-radius: var(--radius-md); background: var(--color-surface); color: var(--color-text-brand); font: inherit; font-size: var(--text-md); font-weight: 600; cursor: pointer; }
+.field input[type="color"] { width: 96px; min-height: var(--touch-target); padding: var(--space-1); border: 1px solid var(--color-border-strong); border-radius: var(--radius-md); background: var(--color-surface); cursor: pointer; }
 .field--check { flex-direction: row; align-items: center; gap: var(--space-3); min-height: var(--touch-target); }
 .field--check input { width: 24px; height: 24px; accent-color: var(--color-accent-text); }
 /* Grupo de casillas (selección múltiple, p. ej. responsables de apoyo): cada opción ≥ 48 px. */
@@ -428,6 +429,16 @@ main { max-width: var(--content-max); margin: 0 auto; padding: var(--space-5) va
   body { background: var(--color-qr-bg); }
   main { padding: 0; max-width: none; }
 }
+
+/* Verificación en dos pasos (ORG-08): el QR siempre sobre blanco para escanearlo bien. */
+.mfa-setup__steps { padding-left: var(--space-5); display: grid; gap: var(--space-2); }
+.mfa-setup__qr { display: flex; justify-content: center; margin: var(--space-4) 0; }
+.mfa-setup__qr img { background: var(--color-qr-bg); padding: var(--space-2); border-radius: var(--radius-sm); max-width: 100%; height: auto; }
+.recovery-codes { list-style: none; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr)); gap: var(--space-2); }
+.recovery-codes li { padding: var(--space-2) var(--space-3); background: var(--color-surface-sunken); border-radius: var(--radius-sm); text-align: center; }
+
+/* Campo trampa del registro (ORG-02): fuera de la vista, no display:none (algunos bots lo detectan). */
+.hp-field { position: absolute; left: -10000px; width: 1px; height: 1px; overflow: hidden; }
 
 /* ---------- Utilidades (al final: ganan a los márgenes de los componentes, p. ej. .dl.mb-4) ---------- */
 .mt-2 { margin-top: var(--space-2); }

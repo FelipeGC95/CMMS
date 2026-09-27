@@ -1,0 +1,11 @@
+{% extends "base.html" %}{% load i18n ui %}
+{% block title %}{% translate "No incluido en tu plan" %}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div><h1>{% translate "No incluido en tu plan" %}</h1></div>
+</div>
+<section class="card">
+  <div class="alert alert--info" role="status">{% icon 'info' %}<span>{{ message }}</span></div>
+  <a class="btn btn--primary" href="{% url 'dashboard' %}">{% translate "Ir al inicio" %}</a>
+</section>
+{% endblock %}

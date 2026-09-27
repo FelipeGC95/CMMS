@@ -1,7 +1,7 @@
 from django import forms
 from django.utils.translation import gettext_lazy as _
 
-from .models import Location
+from .models import Location, Organization
 from .services import STATUS_LABEL_MAX_LENGTH
 
 
@@ -41,6 +41,31 @@ class OrganizationSettingsForm(forms.Form):
         required=False,
         help_text=_("Al completar una OT correctiva, el modo y la causa de la falla son obligatorios."),
     )
+
+
+class SecurityForm(forms.Form):
+    mfa_policy = forms.ChoiceField(
+        label=_("Verificación en dos pasos"),
+        choices=Organization.MfaPolicy.choices,
+        help_text=_(
+            "Quien deba usarla y no la tenga configurada lo hará al entrar. "
+            "Se recomienda al menos para los administradores."
+        ),
+    )
+
+
+class BrandColorForm(forms.Form):
+    primary_color = forms.CharField(
+        label=_("Color primario"),
+        max_length=7,
+        required=False,
+        widget=forms.TextInput(attrs={"type": "color"}),
+        help_text=_(
+            "Se usa en los botones principales, los enlaces y la navegación. Si no alcanza el "
+            "contraste necesario para leerse bien, ajustamos el tono automáticamente."
+        ),
+    )
+    reset = forms.BooleanField(label=_("Usar el color de GALBUST"), required=False)
 
 
 class WorkOrderStatusLabelsForm(forms.Form):

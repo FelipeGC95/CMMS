@@ -30,6 +30,32 @@
     </form>
   </section>
 
+  <section class="card" id="security" aria-labelledby="security-title">
+    <h2 id="security-title">{% translate "Seguridad" %}</h2>
+    <form method="post" action="{% url 'organization_settings' %}#security">
+      {% csrf_token %}
+      <input type="hidden" name="section" value="security">
+      {% include "_form_fields.html" with form=security_form %}
+      <button class="btn btn--primary" type="submit">{% translate "Guardar" %}</button>
+    </form>
+  </section>
+
+  <section class="card" id="brand" aria-labelledby="brand-title">
+    <h2 id="brand-title">{% translate "Color de la marca" %}</h2>
+    {% if brand_notes %}
+    <div class="alert alert--info" role="status">{% icon 'info' %}<span>{% translate "Ajustamos algunos tonos para que todo se lea bien:" %}{% for note in brand_notes %} {{ note }}{% endfor %}</span></div>
+    {% endif %}
+    <form method="post" action="{% url 'organization_settings' %}#brand">
+      {% csrf_token %}
+      <input type="hidden" name="section" value="brand">
+      {% include "_form_fields.html" with form=brand_form %}
+      <div class="row">
+        <button class="btn btn--primary" type="submit">{% translate "Guardar color" %}</button>
+        <a href="#brand">{% translate "Así se ven los enlaces" %}</a>
+      </div>
+    </form>
+  </section>
+
   <section class="card" id="logo" aria-labelledby="logo-title">
     <h2 id="logo-title">{% translate "Logo" %}</h2>
     <p class="muted">{% translate "Se imprime en las etiquetas QR de los activos. Sin logo, las etiquetas llevan el nombre de la organización." %}</p>
@@ -61,7 +87,7 @@
         {% for quota in quotas %}
         <tr>
           <td data-label="">{{ quota.label }}</td>
-          <td data-label="{% translate 'En uso' %}" class="num">{% if quota.is_over %}<span class="badge badge--warning">{% icon 'alert' %}{{ quota.used }} · {% translate "sobre el cupo" %}</span>{% else %}{{ quota.used }}{% endif %}</td>
+          <td data-label="{% translate 'En uso' %}" class="num">{% if quota.is_over %}<span class="badge badge--warning">{% icon 'alert' %}{{ quota.used }} · {% translate "sobre el cupo" %}</span>{% elif quota.is_near %}<span class="badge badge--warning">{% icon 'alert' %}{{ quota.used }} · {% translate "cerca del cupo" %}</span>{% else %}{{ quota.used }}{% endif %}</td>
           <td data-label="{% translate 'Máximo' %}" class="num">{% if quota.limit is None %}{% translate "Sin límite" %}{% else %}{{ quota.limit }}{% endif %}</td>
         </tr>
         {% endfor %}

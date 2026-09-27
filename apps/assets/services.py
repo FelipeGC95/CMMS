@@ -12,6 +12,7 @@ from apps.accounts.scoping import allowed_location_ids
 from apps.audit import services as audit
 from apps.audit.models import AuditEvent
 from apps.organizations.models import Location
+from apps.organizations.services import check_quota
 
 from . import attributes as attribute_values
 from .models import (
@@ -524,6 +525,7 @@ def create_asset(
     exigen al editar la ficha.
     """
     require_perm(membership, Perm.ASSET_MANAGE)
+    check_quota(organization=membership.organization, resource="assets")  # ORG-10 CA1
     code, name = code.strip(), name.strip()
     _validate_asset(
         membership=membership,

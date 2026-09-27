@@ -25,7 +25,9 @@ from openpyxl.utils.exceptions import InvalidFileException
 from openpyxl.worksheet.datavalidation import DataValidation
 
 from apps.accounts import scoping
+from apps.core.tenancy import require_current_organization
 from apps.organizations.models import Location
+from apps.organizations.services import check_quota
 
 from .models import Asset, AssetClass, Meter, MeterKind
 from .services import record_meter_reading
@@ -413,6 +415,10 @@ def apply_import(session_data: dict, *, assign_class_plans: bool = True) -> Impo
             result.locations_created += 1
 
     existing = {a.code.lower(): a for a in Asset.objects.all()}
+    # Cupo del plan (ORG-10 CA1): todo o nada, antes de guardar la primera fila.
+    new_codes = {row["data"]["code"].lower() for row in session_data["rows"]} - existing.keys()
+    if new_codes:
+        check_quota(organization=require_current_organization(), resource="assets", adding=len(new_codes))
     touched, new_assets = {}, []
     for row in session_data["rows"]:
         data = row["data"]

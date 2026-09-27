@@ -8,6 +8,7 @@ from django.core.files.base import ContentFile
 from django.db import transaction
 from django.template.defaultfilters import filesizeformat
 from django.utils.translation import gettext as _
+from django.utils.translation import gettext_lazy
 from PIL import Image, ImageOps, UnidentifiedImageError
 
 from apps.accounts.permissions import Perm, require_perm
@@ -16,6 +17,7 @@ from apps.attachments.selectors import storage_usage
 from apps.audit import services as audit
 from apps.audit.models import AuditEvent
 
+from .branding import brand_palette
 from .models import Location, Organization
 from .selectors import descendant_ids
 
@@ -101,6 +103,64 @@ def delete_location(*, membership, location):
     location.delete()
 
 
+# ---------- Cupos del plan (ORG-10 CA1) ----------
+
+QUOTA_WARNING_RATIO = 0.8
+
+
+class QuotaExceeded(ValidationError):
+    """Crear más superaría el cupo del plan. Leer y editar lo existente sigue permitido."""
+
+
+def _quota(organization, resource):
+    """(en uso, máximo) del recurso; máximo None = ilimitado. Cuenta en la organización activa."""
+    plan = organization.plan
+    if resource == "assets":
+        from apps.assets.models import Asset  # diferido: assets depende de organizations
+
+        # Cuentan todos los activos, también los dados de baja (igual que en Configuración).
+        return Asset.objects.filter(organization=organization).count(), plan.max_assets if plan else None
+    raise ValueError(f"Cupo desconocido: {resource}")
+
+
+QUOTA_LABELS = {"assets": gettext_lazy("activos")}
+
+
+def check_quota(*, organization, resource, adding=1):
+    """Bloquea la creación si superaría el cupo (100 %). Llamar dentro de la transacción que crea.
+
+    Bloquea la fila de la organización para que dos altas simultáneas no pasen ambas el límite.
+    """
+    Organization.objects.select_for_update().filter(pk=organization.pk).first()
+    used, limit = _quota(organization, resource)
+    if limit is not None and used + adding > limit:
+        raise QuotaExceeded(
+            _(
+                "Tu plan %(plan)s permite hasta %(limit)s %(resource)s y ya tienes %(used)s. "
+                "Puedes seguir viendo y editando, pero para crear más hay que cambiar de plan."
+            )
+            % {
+                "plan": organization.plan.name,
+                "limit": limit,
+                "resource": QUOTA_LABELS[resource],
+                "used": used,
+            }
+        )
+
+
+def quota_warning(*, organization, resource):
+    """Aviso al llegar al 80 % del cupo; None si no hay nada que avisar."""
+    used, limit = _quota(organization, resource)
+    if not limit or used < limit * QUOTA_WARNING_RATIO:
+        return None
+    return _("Usas %(used)s de %(limit)s %(resource)s de tu plan (%(percent)s %%).") % {
+        "used": used,
+        "limit": limit,
+        "resource": QUOTA_LABELS[resource],
+        "percent": min(100, round(used * 100 / limit)),
+    }
+
+
 # ---------- Configuración de la organización (WO-02 CA2, REQ-03 CA2) ----------
 
 SETTINGS_FIELDS = ["require_close_approval", "require_failure_details"]
@@ -121,6 +181,54 @@ def update_organization_settings(*, membership, require_close_approval, require_
             action=AuditEvent.Action.UPDATE, target=organization, membership=membership, changes=changes
         )
     return organization
+
+
+@transaction.atomic
+def update_mfa_policy(*, membership, mfa_policy):
+    """Quién debe usar verificación en dos pasos en la organización (ORG-08)."""
+    require_perm(membership, Perm.ORGANIZATION_MANAGE)
+    if mfa_policy not in Organization.MfaPolicy.values:
+        raise ValidationError(_("Política de verificación en dos pasos no válida."))
+    organization = Organization.objects.select_for_update().get(pk=membership.organization_id)
+    before = organization.mfa_policy
+    if before != mfa_policy:
+        organization.mfa_policy = mfa_policy
+        organization.save(update_fields=["mfa_policy", "updated_at"])
+        audit.record(
+            action=AuditEvent.Action.UPDATE,
+            target=organization,
+            membership=membership,
+            changes={"mfa_policy": [before, mfa_policy]},
+        )
+    return organization
+
+
+@transaction.atomic
+def set_primary_color(*, membership, color):
+    """Color primario de la organización (ORG-09). En blanco vuelve al de GALBUST.
+
+    Devuelve la paleta ajustada: sus `notes` informan los tonos cambiados por contraste (CA1).
+    """
+    require_perm(membership, Perm.ORGANIZATION_MANAGE)
+    palette = None
+    if color:
+        try:
+            palette = brand_palette(color)
+        except ValueError as error:
+            raise ValidationError(_("Elige un color en formato #RRGGBB.")) from error
+        color = palette.color
+    organization = Organization.objects.select_for_update().get(pk=membership.organization_id)
+    before = organization.primary_color
+    if before != color:
+        organization.primary_color = color
+        organization.save(update_fields=["primary_color", "updated_at"])
+        audit.record(
+            action=AuditEvent.Action.UPDATE,
+            target=organization,
+            membership=membership,
+            changes={"primary_color": [before, color]},
+        )
+    return palette
 
 
 # ---------- Nombres visibles de los estados de OT (WO-02 CA5) ----------

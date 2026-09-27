@@ -12,6 +12,7 @@ from django.views.decorators.http import require_POST
 
 from apps.accounts.permissions import Perm
 from apps.core.decorators import membership_required
+from apps.organizations.services import QuotaExceeded, quota_warning
 
 from .imports import MAX_ROWS, ImportFileError, apply_import, build_preview, build_template, parse_workbook
 
@@ -36,6 +37,10 @@ def _clear_pending(session):
 def asset_import_view(request):
     """Paso 1: instrucciones y subida. Al subir, valida y muestra la vista previa (sin guardar)."""
     form = AssetImportForm(request.POST or None, request.FILES or None)
+    if request.method == "GET" and (
+        warning := quota_warning(organization=request.organization, resource="assets")
+    ):
+        messages.warning(request, warning)  # ORG-10 CA1: aviso al 80 % del cupo
     if request.method == "POST" and form.is_valid():
         try:
             preview = build_preview(parse_workbook(form.cleaned_data["file"]), membership=request.membership)
@@ -65,7 +70,11 @@ def asset_import_confirm_view(request, token):
             request, gettext("La vista previa expiró o es de otra organización. Sube el archivo de nuevo.")
         )
         return redirect("asset_import")
-    result = apply_import(pending, assign_class_plans=request.POST.get("assign_plans") == "on")
+    try:
+        result = apply_import(pending, assign_class_plans=request.POST.get("assign_plans") == "on")
+    except QuotaExceeded as error:
+        messages.error(request, " ".join(error.messages))
+        return redirect("asset_import")
     counts = [
         (result.created, ngettext("%(n)s activo creado", "%(n)s activos creados", result.created), True),
         (result.updated, ngettext("%(n)s actualizado", "%(n)s actualizados", result.updated), True),

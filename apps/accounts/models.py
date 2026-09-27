@@ -150,3 +150,28 @@ class Invitation(TimeStampedModel):
     @property
     def is_pending(self):
         return self.accepted_at is None and self.revoked_at is None and self.expires_at > timezone.now()
+
+
+class PendingSignup(TimeStampedModel):
+    """Autoregistro esperando la verificación del correo (ORG-02 CA2).
+
+    No se crea usuario, organización ni membresía hasta que se abre el enlace del
+    correo: ahí se crean los tres en una transacción. Es de plataforma (sin tenant):
+    todavía no existe la organización. La contraseña se guarda ya con hash.
+    """
+
+    email = models.EmailField(_("correo"))
+    full_name = models.CharField(_("nombre completo"), max_length=150)
+    organization_name = models.CharField(_("nombre de la organización"), max_length=150)
+    password_hash = models.CharField(_("hash de la contraseña"), max_length=256, editable=False)
+    token_hash = models.CharField(_("hash del token"), max_length=64, unique=True, editable=False)
+    expires_at = models.DateTimeField(_("vence"))
+    completed_at = models.DateTimeField(_("completado"), null=True, blank=True)
+
+    class Meta:
+        verbose_name = _("registro pendiente")
+        verbose_name_plural = _("registros pendientes")
+        indexes = [models.Index(fields=["email"], name="pending_signup_email")]
+
+    def __str__(self):
+        return self.email

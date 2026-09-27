@@ -1,3 +1,5 @@
+from allauth.account.internal.flows.login import record_authentication
+from allauth.core import ratelimit
 from django.contrib import messages
 from django.contrib.auth import login
 from django.contrib.auth.decorators import login_required
@@ -13,7 +15,7 @@ from apps.core.middleware import SESSION_KEY
 from apps.organizations.models import Location
 
 from . import services
-from .forms import AcceptInvitationForm, InviteForm, MemberForm
+from .forms import AcceptInvitationForm, InviteForm, MemberForm, SignupForm
 from .models import Invitation, Membership, User
 from .permissions import Perm
 from .selectors import invitation_by_token, pending_invitations, team_member, team_members
@@ -161,3 +163,65 @@ def invitation_accept_view(request, token):
             login(request, user, backend="django.contrib.auth.backends.ModelBackend")
             return _enter_organization(request, invitation.organization)
     return render(request, "accounts/invitation_accept.html", {**context, "form": form})
+
+
+# ---------- Autoregistro con prueba gratuita (ORG-02) ----------
+
+SIGNUP_SENT_KEY = "signup_sent_to"
+
+
+def signup_view(request):
+    """Formulario público de registro. Solo guarda la solicitud y envía el correo (CA2)."""
+    if request.user.is_authenticated:
+        return redirect("dashboard")
+    form = SignupForm(request.POST or None)
+    if request.method == "POST":
+        # Límite por IP (CA3) con el rate limit de allauth: ACCOUNT_RATE_LIMITS["signup"].
+        if not ratelimit.consume(request, action="signup"):
+            return render(request, "accounts/signup_rate_limited.html", status=429)
+        if form.is_valid():
+            data = form.cleaned_data
+            services.request_signup(
+                email=data["email"],
+                full_name=data["full_name"],
+                organization_name=data["organization_name"],
+                password=data["password"],
+                confirm_url=lambda token: request.build_absolute_uri(reverse("signup_confirm", args=[token])),
+                login_url=request.build_absolute_uri(reverse("account_login")),
+            )
+            request.session[SIGNUP_SENT_KEY] = data["email"]
+            return redirect("signup_sent")
+    return render(request, "accounts/signup.html", {"form": form})
+
+
+def signup_sent_view(request):
+    email = request.session.get(SIGNUP_SENT_KEY)
+    if not email:
+        return redirect("signup")
+    return render(request, "accounts/signup_sent.html", {"email": email})
+
+
+def signup_confirm_view(request, token):
+    """Enlace del correo. Se confirma con un botón (POST): los antivirus de correo que
+    abren los enlaces con GET no consumen el registro."""
+    pending = services.pending_signup_by_token(token)
+    if pending is None:
+        return render(request, "accounts/signup_invalid.html", status=404)
+    if request.method == "POST":
+        try:
+            user, organization = services.complete_signup(token=token)
+        except services.SignupError as error:
+            return render(request, "accounts/signup_invalid.html", {"error": str(error)}, status=409)
+        login(request, user, backend="django.contrib.auth.backends.ModelBackend")
+        # Acaba de probar su correo y fijó la contraseña hace minutos: cuenta como ingreso
+        # reciente, así activar la verificación en dos pasos no le pide la clave otra vez.
+        record_authentication(request, user, method="password", email=user.email)
+        request.session[SESSION_KEY] = str(organization.pk)
+        request.session.pop(SIGNUP_SENT_KEY, None)
+        messages.success(
+            request,
+            _("¡Bienvenido! %(org)s está lista, con %(days)s días de prueba gratuita.")
+            % {"org": organization.name, "days": services.TRIAL_DAYS},
+        )
+        return redirect("dashboard")
+    return render(request, "accounts/signup_confirm.html", {"pending": pending})

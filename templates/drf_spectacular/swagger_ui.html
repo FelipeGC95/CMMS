@@ -1,0 +1,10 @@
+{% extends "drf_spectacular/swagger_ui.html" %}{% load static %}
+{# Igual a la de drf-spectacular pero sin el <style> en línea, que la CSP bloquea (ADR-022). #}
+{% block head %}
+    <title>{{ title|default:"Swagger" }}</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    {% if favicon_href %}<link rel="icon" href="{{ favicon_href }}">{% endif %}
+    <link rel="stylesheet" href="{{ swagger_ui_css }}">
+    <link rel="stylesheet" href="{% static 'css/swagger.css' %}">
+{% endblock head %}

@@ -13,27 +13,24 @@
   <section class="card">
     <h2>{% translate "Secciones" %}</h2>
     <ul class="list list--nav">
-      <li><a href="{% url 'work_order_list' %}">{% icon 'wrench' %}{% translate "Órdenes de trabajo" %}</a></li>
-      <li><a href="{% url 'manual_search' %}">{% icon 'list' %}{% translate "Buscar en manuales" %}</a></li>
-      {% if membership|can:"request.create" %}<li><a href="{% url 'location_report' %}">{% icon 'megaphone' %}{% translate "Avisar problema en una ubicación" %}</a></li>{% endif %}
-      {% if membership|can:"work_order.manage" %}<li><a href="{% url 'request_list' %}">{% icon 'megaphone' %}{% translate "Solicitudes" %}</a></li>{% endif %}
-      {% if membership|can:"work_order.manage" %}<li><a href="{% url 'failure_code_list' %}">{% icon 'alert' %}{% translate "Catálogo de falla" %}</a></li>{% endif %}
-      {% if membership|can:"work_order.execute" %}<li><a href="{% url 'plan_calendar' %}">{% icon 'calendar' %}{% translate "Calendario de preventivos" %}</a></li>{% endif %}
-      {% if membership|can:"plan.manage" %}
-      <li><a href="{% url 'plan_list' %}">{% icon 'calendar' %}{% translate "Planes preventivos" %}</a></li>
-      <li><a href="{% url 'industry_templates' %}">{% icon 'list' %}{% translate "Cargar plantilla de rubro" %}</a></li>
-      <li><a href="{% url 'plan_import' %}">{% icon 'list' %}{% translate "Importar o exportar planes (Excel)" %}</a></li>
-      {% endif %}
-      {% if membership|can:"organization.manage" %}<li><a href="{% url 'maintenance_settings' %}">{% icon 'wrench' %}{% translate "Ajustes de preventivos" %}</a></li>{% endif %}
+      {% if organization|has_module:"work_orders" %}<li><a href="{% url 'work_order_list' %}">{% icon 'wrench' %}{% translate "Órdenes de trabajo" %}</a></li>{% endif %}
+      {% if organization|has_module:"assets" %}<li><a href="{% url 'manual_search' %}">{% icon 'list' %}{% translate "Buscar en manuales" %}</a></li>{% endif %}
+      {% if membership|can:"request.create" and organization|has_module:"requests" %}<li><a href="{% url 'location_report' %}">{% icon 'megaphone' %}{% translate "Avisar problema en una ubicación" %}</a></li>{% endif %}
+      {% if membership|can:"work_order.manage" and organization|has_module:"requests" %}<li><a href="{% url 'request_list' %}">{% icon 'megaphone' %}{% translate "Solicitudes" %}</a></li>{% endif %}
+      {% if membership|can:"work_order.manage" and organization|has_module:"work_orders" %}<li><a href="{% url 'failure_code_list' %}">{% icon 'alert' %}{% translate "Catálogo de falla" %}</a></li>{% endif %}
+      {% if membership|can:"work_order.execute" and organization|has_module:"preventive" %}<li><a href="{% url 'plan_calendar' %}">{% icon 'calendar' %}{% translate "Calendario de preventivos" %}</a></li>{% endif %}
+      {% if membership|can:"plan.manage" and organization|has_module:"preventive" %}<li><a href="{% url 'plan_list' %}">{% icon 'calendar' %}{% translate "Planes preventivos" %}</a></li>{% endif %}
+      {% if membership|can:"plan.manage" and organization|has_module:"preventive" %}<li><a href="{% url 'industry_templates' %}">{% icon 'list' %}{% translate "Cargar plantilla de rubro" %}</a></li><li><a href="{% url 'plan_import' %}">{% icon 'list' %}{% translate "Importar o exportar planes (Excel)" %}</a></li>{% endif %}
+      {% if membership|can:"organization.manage" and organization|has_module:"preventive" %}<li><a href="{% url 'maintenance_settings' %}">{% icon 'wrench' %}{% translate "Ajustes de preventivos" %}</a></li>{% endif %}
       {% if membership|can:"asset.manage" %}
-      <li><a href="{% url 'asset_create' %}">{% icon 'box' %}{% translate "Nuevo activo" %}</a></li>
+      {% if organization|has_module:"assets" %}<li><a href="{% url 'asset_create' %}">{% icon 'box' %}{% translate "Nuevo activo" %}</a></li>{% endif %}
       <li><a href="{% url 'location_list' %}">{% icon 'home' %}{% translate "Ubicaciones" %}</a></li>
-      <li><a href="{% url 'asset_class_list' %}">{% icon 'box' %}{% translate "Clases de activo" %}</a></li>
-      <li><a href="{% url 'reading_import' %}">{% icon 'clock' %}{% translate "Importar lecturas (CSV)" %}</a></li>
+      {% if organization|has_module:"assets" %}<li><a href="{% url 'asset_class_list' %}">{% icon 'box' %}{% translate "Clases de activo" %}</a></li>
+      <li><a href="{% url 'reading_import' %}">{% icon 'clock' %}{% translate "Importar lecturas (CSV)" %}</a></li>{% endif %}
       {% endif %}
       {% if membership|can:"team.manage" %}<li><a href="{% url 'team' %}">{% icon 'list' %}{% translate "Equipo" %}</a></li>{% endif %}
       {% if membership|can:"audit.view" %}<li><a href="{% url 'audit_list' %}">{% icon 'clock' %}{% translate "Auditoría" %}</a></li>{% endif %}
-      {% if membership|can:"api_token.manage" %}<li><a href="{% url 'api_token_list' %}">{% icon 'key' %}{% translate "Tokens de API" %}</a></li>{% endif %}
+      {% if membership|can:"api_token.manage" and organization|has_module:"api" %}<li><a href="{% url 'api_token_list' %}">{% icon 'key' %}{% translate "Tokens de API" %}</a></li>{% endif %}
       {% if membership|can:"organization.manage" %}<li><a href="{% url 'organization_settings' %}">{% icon 'wrench' %}{% translate "Configuración de la organización" %}</a></li>{% endif %}
       {% if user.is_staff %}
       <li><a href="{% url 'admin:index' %}">{% icon 'wrench' %}{% translate "Administración de la plataforma" %}</a></li>
@@ -71,6 +68,7 @@
     </div>
     <ul class="list list--nav">
       <li><a href="{% url 'account_change_password' %}">{% icon 'key' %}{% translate "Cambiar contraseña" %}</a></li>
+      <li><a href="{% url 'mfa_index' %}">{% icon 'key' %}{% translate "Verificación en dos pasos" %}</a></li>
     </ul>
     <div class="row mt-2">
       {% include "_theme_button.html" with extra_class="btn btn--secondary" %}

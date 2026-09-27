@@ -27,7 +27,7 @@ class TenantMiddleware:
             from apps.accounts.models import Membership
 
             memberships = list(
-                Membership.objects.select_related("organization").filter(
+                Membership.objects.select_related("organization__plan").filter(
                     user=request.user, is_active=True, organization__is_active=True
                 )
             )
@@ -57,6 +57,20 @@ class TenantMiddleware:
             timezone.deactivate()
 
 
+class ContentSecurityPolicyMiddleware:
+    """Agrega la cabecera Content-Security-Policy (ADR-023) a toda respuesta que no la traiga."""
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+        self.policy = getattr(settings, "CONTENT_SECURITY_POLICY", "")
+
+    def __call__(self, request):
+        response = self.get_response(request)
+        if self.policy and "Content-Security-Policy" not in response:
+            response["Content-Security-Policy"] = self.policy
+        return response
+
+
 class PrivateCacheMiddleware:
     """Las páginas con sesión no se guardan en el caché del navegador (ORG-07 CA2).
 
@@ -65,7 +79,8 @@ class PrivateCacheMiddleware:
     respuestas a visitantes sin sesión.
     """
 
-    SKIPPED_PATHS = ("/healthz", "/readyz")
+    # /org-theme.css no tiene datos: solo los colores de la marca (ORG-09), cacheables.
+    SKIPPED_PATHS = ("/healthz", "/readyz", "/org-theme.css")
 
     def __init__(self, get_response):
         self.get_response = get_response

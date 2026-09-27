@@ -1,0 +1,17 @@
+{% extends "mfa/base_entrance.html" %}
+{% load i18n %}
+{% block head_title %}{% translate "Verificación en dos pasos" %}{% endblock %}
+{% block content %}
+<h1>{% translate "Verificación en dos pasos" %}</h1>
+<p>{% translate "Escribe el código de 6 dígitos de tu app de autenticación. Si no tienes el teléfono, usa uno de tus códigos de recuperación." %}</p>
+<form method="post" action="{% url 'mfa_authenticate' %}">
+  {% csrf_token %}
+  {% include "_form_fields.html" with form=form %}
+  <button class="btn btn--primary btn--lg btn--block" type="submit">{% translate "Ingresar" %}</button>
+</form>
+<form method="post" action="{% url 'account_logout' %}" class="mt-2">
+  {% csrf_token %}
+  <input type="hidden" name="next" value="{% url 'account_login' %}">
+  <button class="btn btn--secondary btn--block" type="submit">{% translate "Cancelar" %}</button>
+</form>
+{% endblock %}

@@ -1,0 +1,10 @@
+{% extends "allauth/layouts/base.html" %}{% load i18n ui %}
+{% block head_title %}{% translate "Confirmar registro" %}{% endblock %}
+{% block content %}
+<h1>{% translate "Tu correo está verificado" %}</h1>
+<p>{% blocktranslate with org=pending.organization_name email=pending.email %}Crearemos <strong>{{ org }}</strong> con {{ email }} como administrador y 30 días de prueba gratuita.{% endblocktranslate %}</p>
+<form method="post">
+  {% csrf_token %}
+  <button class="btn btn--primary btn--lg btn--block" type="submit">{% icon 'check' %}{% translate "Crear mi organización" %}</button>
+</form>
+{% endblock %}

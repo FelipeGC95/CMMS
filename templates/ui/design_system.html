@@ -309,6 +309,19 @@
   </div>
 </section>
 
+<section class="card mb-4" aria-labelledby="ds-mfa">
+  <h2 id="ds-mfa">{% translate "Verificación en dos pasos" %}</h2>
+  <ol class="mfa-setup__steps">
+    <li>{% translate "Abre la app de autenticación en tu teléfono y agrega una cuenta nueva." %}</li>
+    <li>{% translate "Escribe el código de 6 dígitos que muestra la app." %}</li>
+  </ol>
+  <div class="field">
+    <label for="ds-color">{% translate "Color primario" %}</label>
+    <input id="ds-color" type="color">
+  </div>
+  <ul class="recovery-codes" aria-label="{% translate 'Códigos sin usar' %}">
+    <li class="mono">1234-5678</li><li class="mono">2345-6789</li><li class="mono">3456-7890</li>
+  </ul>
 <section class="mb-4" aria-labelledby="ds-calendar">
   <h2 id="ds-calendar">{% translate "Calendario del mes" %}</h2>
   <p class="muted">{% translate "Navegación entre meses, grilla desde 720 px (hoy resaltado, días de otro mes atenuados) y lista por día, que es la vista del teléfono. Totales al pie de una tabla." %}</p>

@@ -1,0 +1,7 @@
+{% extends "allauth/layouts/base.html" %}{% load i18n ui %}
+{% block head_title %}{% translate "Demasiados intentos" %}{% endblock %}
+{% block content %}
+<h1>{% translate "Demasiados intentos" %}</h1>
+<div class="alert alert--warning" role="alert">{% icon 'alert' %}<span>{% translate "Recibimos muchos registros desde tu conexión. Espera unos minutos e inténtalo de nuevo." %}</span></div>
+<a class="btn btn--secondary btn--block" href="{% url 'account_login' %}">{% translate "Ir a ingresar" %}</a>
+{% endblock %}

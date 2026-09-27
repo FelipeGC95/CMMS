@@ -1,0 +1,7 @@
+{% load i18n %}{% autoescape off %}{% blocktranslate %}Hola:
+
+Alguien intentó registrarse en GALBUST CMMS con este correo, pero ya tienes una cuenta. Ingresa aquí (si olvidaste la contraseña, puedes recuperarla desde la misma página):{% endblocktranslate %}
+{{ login_url }}
+
+{% blocktranslate %}Si no fuiste tú, ignora este correo.{% endblocktranslate %}
+{% endautoescape %}

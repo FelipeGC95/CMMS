@@ -86,3 +86,12 @@ def test_site_scope_blocks_download_of_hidden_manuals(client, tenant_a, scoped):
     assert client.get(reverse("attachment", args=[other_class.pk])).status_code == 404
     html = client.get(reverse("manual_search"), {"q": "valvula"}).content.decode()
     assert "Caldera" not in html
+
+
+def test_manuals_belong_to_the_assets_module(client, tenant_a):
+    from tests.test_plan_limits import set_plan
+
+    set_plan(tenant_a, features=["work_orders"])
+    login(client, tenant_a.admin)
+    assert client.get(reverse("manual_search"), {"q": "x"}).status_code == 403
+    assert reverse("manual_search") not in client.get(reverse("menu")).content.decode()

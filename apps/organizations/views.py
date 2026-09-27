@@ -1,8 +1,9 @@
 from django.contrib import messages
 from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
-from django.http import Http404
+from django.http import Http404, HttpResponse, HttpResponseNotModified
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.utils.translation import gettext as _
 from django.views.decorators.http import require_POST
 
@@ -12,9 +13,19 @@ from apps.core.decorators import membership_required
 from apps.core.files import private_file_response
 
 from . import services
-from .forms import LocationForm, OrganizationLogoForm, OrganizationSettingsForm, WorkOrderStatusLabelsForm
+from .branding import brand_palette, theme_css
+from .forms import (
+    BrandColorForm,
+    LocationForm,
+    OrganizationLogoForm,
+    OrganizationSettingsForm,
+    SecurityForm,
+    WorkOrderStatusLabelsForm,
+)
 from .models import Location
 from .selectors import descendant_ids, location_tree, organization_quotas, visible_locations
+
+DEFAULT_PRIMARY_COLOR = "#12B3C8"  # cian GALBUST: valor inicial del selector de color
 
 
 def _form_values(form):
@@ -119,6 +130,28 @@ def organization_settings_view(request):
         services.update_organization_settings(membership=membership, **form.cleaned_data)
         messages.success(request, _("Configuración guardada."))
         return redirect("organization_settings")
+    security_form = SecurityForm(
+        request.POST if section == "security" else None, initial={"mfa_policy": organization.mfa_policy}
+    )
+    if section == "security" and security_form.is_valid():
+        services.update_mfa_policy(membership=membership, **security_form.cleaned_data)
+        messages.success(request, _("Configuración de seguridad guardada."))
+        return redirect("organization_settings")
+    brand_form = BrandColorForm(
+        request.POST if section == "brand" else None,
+        initial={"primary_color": organization.primary_color or DEFAULT_PRIMARY_COLOR},
+    )
+    if section == "brand" and brand_form.is_valid():
+        color = "" if brand_form.cleaned_data["reset"] else brand_form.cleaned_data["primary_color"]
+        try:
+            palette = services.set_primary_color(membership=membership, color=color)
+        except ValidationError as error:
+            brand_form.add_error("primary_color", error)
+        else:
+            messages.success(request, _("Color guardado.") if palette else _("Se usa el color de GALBUST."))
+            for note in palette.notes if palette else []:
+                messages.info(request, note)  # ORG-09 CA1: se informa el ajuste
+            return redirect(f"{reverse('organization_settings')}#brand")
     logo_form = OrganizationLogoForm(
         request.POST if section == "logo" else None, request.FILES if section == "logo" else None
     )
@@ -153,6 +186,11 @@ def organization_settings_view(request):
             "form": form,
             "labels_form": labels_form,
             "logo_form": logo_form,
+            "security_form": security_form,
+            "brand_form": brand_form,
+            "brand_notes": brand_palette(organization.primary_color).notes
+            if organization.primary_color
+            else [],
             "quotas": organization_quotas(membership=membership),
         },
     )
@@ -165,3 +203,22 @@ def organization_logo_view(request):
     if not logo:
         raise Http404
     return private_file_response(logo, content_type="image/png")
+
+
+def organization_theme_css_view(request):
+    """Tokens de color de la organización activa (ORG-09), sin estilos en línea (CSP).
+
+    Se enlaza con `?v=<color>`; el ETag permite revalidar sin volver a enviar la hoja.
+    """
+    organization = getattr(request, "organization", None)
+    color = organization.primary_color if organization else ""
+    etag = f'"{color.lstrip("#").lower() or "default"}"'
+    if request.headers.get("If-None-Match") == etag:
+        response = HttpResponseNotModified()
+    else:
+        css = theme_css(brand_palette(color)) if color else "/* Colores de GALBUST. */\n"
+        response = HttpResponse(css, content_type="text/css; charset=utf-8")
+    response["ETag"] = etag
+    response["Cache-Control"] = "private, max-age=86400"
+    response["Vary"] = "Cookie"
+    return response

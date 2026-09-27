@@ -31,6 +31,12 @@ para probar sin hablar con un vendedor.
   de administrador en una sola transacción.
 - CA2: Requiere verificación de correo antes de crear datos.
 - CA3: Tiene límite de intentos y protección anti‑bots.
+- Nota: `/signup/` guarda un `PendingSignup` (contraseña ya con hash) y envía
+  el enlace; al confirmar (botón POST, para que los antivirus del correo no lo
+  consuman) se crean usuario, organización y membresía en una transacción. Si
+  el correo ya existe se avisa por correo, no en pantalla. Anti‑bots sin JS de
+  terceros: campo trampa, tiempo mínimo y una suma firmada; límite por IP con
+  el rate limit de allauth. El registro propio de allauth sigue cerrado.
 
 **ORG-03 · Asistente de puesta en marcha (M1)**
 Como administrador nuevo quiero un asistente que me guíe, para tener el sistema
@@ -78,6 +84,9 @@ Como usuario quiero activar segundo factor (TOTP + códigos de recuperación);
 como administrador quiero exigirlo a mi organización.
 - CA1: Si la organización lo exige, el usuario sin MFA es forzado a configurarlo
   al entrar.
+- Nota: por defecto es obligatorio para administradores y opcional para el
+  resto; cada organización puede exigirlo a todos o dejarlo opcional
+  (`mfa_policy`). Con varias organizaciones manda la activa (ADR-022).
 
 **ORG-09 · Marca por organización (M1)**
 Como administrador quiero subir mi logo y elegir un color primario, para que la
@@ -91,6 +100,15 @@ app y los reportes lleven mi marca.
   (no la lectura ni la edición).
 - CA2: Los módulos no incluidos no aparecen en la navegación y sus URL/API
   responden 403 con mensaje de plan.
+- Nota: el cupo de activos se revisa en `create_asset` (web y API) y en la
+  importación Excel (todo o nada) con `organizations.services.check_quota`;
+  cuentan todos los activos, también los dados de baja. El aviso del 80 %
+  aparece al crear o importar activos y en Configuración. El mapa módulo ↔ URL
+  está en `apps/organizations/modules.py` (`assets`, `work_orders`,
+  `preventive`, `requests`, `api`, `exports`); la API exige además el módulo
+  `api`. El inicio con los KPI no se bloquea (portada de todos los planes). Un
+  plan sin módulos listados no restringe módulos. Pendiente: ocultar los botones
+  de exportar dentro de las listas (hoy responden 403).
 
 **ORG-11 · SSO SAML/OIDC (F3, plan Empresa)**
 

@@ -54,6 +54,12 @@ def make_tenant(slug: str) -> Tenant:
     return Tenant(org, admin, tech, viewer, asset, plan)
 
 
+@pytest.fixture(autouse=True)
+def _mfa_not_enforced(settings):
+    """La obligación de MFA (ORG-08) se prueba en tests/test_mfa.py; el resto entra sin ella."""
+    settings.MFA_ENFORCE = False
+
+
 @pytest.fixture
 def tenant_a(db):
     return make_tenant("empresa-a")

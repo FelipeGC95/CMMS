@@ -22,6 +22,7 @@ from apps.attachments.services import add_attachment as add_generic_attachment
 from apps.core.decorators import membership_required
 from apps.core.middleware import SESSION_KEY
 from apps.maintenance.selectors import active_assignments_for_asset, reactivatable_assignments_for_asset
+from apps.organizations.services import quota_warning
 from apps.reporting.selectors import asset_kpis
 from apps.work.forms import FailureReportForm
 from apps.work.selectors import work_order_list
@@ -290,6 +291,10 @@ def asset_create_view(request):
         if parent is not None:
             initial = {"parent": parent.pk, "location": parent.location_id}
     form = AssetForm(request.POST or None, membership=membership, initial=initial)
+    if request.method == "GET" and (
+        warning := quota_warning(organization=request.organization, resource="assets")
+    ):
+        messages.warning(request, warning)  # ORG-10 CA1: aviso al 80 % del cupo
     if request.method == "POST" and form.is_valid():
         try:
             asset = create_asset(membership=membership, **form.service_kwargs())
