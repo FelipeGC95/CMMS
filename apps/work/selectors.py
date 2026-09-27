@@ -1,7 +1,9 @@
+from dataclasses import dataclass
+
 from django.db.models import BooleanField, Case, Count, Exists, F, OuterRef, Q, Value, When
 from django.utils import timezone
 
-from apps.accounts.models import User
+from apps.accounts.models import Membership, User
 from apps.accounts.permissions import ROLE_PERMISSIONS, Perm, require_perm
 from apps.accounts.scoping import allowed_location_ids
 from apps.attachments.models import TargetType
@@ -103,6 +105,49 @@ def work_order_list(
     if scope in ("open", "overdue"):
         return qs.order_by("priority", "due_on", "created_at")
     return qs.order_by("-closed_at", "-created_at")
+
+
+@dataclass
+class WorkOrderListQuery:
+    """Lista de OT (WO-05) armada desde la URL: la usan la pantalla y el Excel."""
+
+    queryset: object
+    filter_form: object
+    scope: str
+    work_type: str
+
+    @property
+    def filters(self) -> dict:
+        return self.filter_form.cleaned_data
+
+
+def filter_work_orders(*, params, membership) -> WorkOrderListQuery:
+    """Lee vista (scope), tipo y filtros de `params` (request.GET) y devuelve la consulta.
+
+    El técnico entra por defecto a «Mis OT». Los campos con error se ignoran y
+    quedan en el formulario para mostrarlos.
+    """
+    from .forms import WorkOrderFilterForm  # forms importa este módulo
+
+    default_scope = "mine" if membership.role == Membership.Role.TECHNICIAN else "open"
+    scope = params.get("scope", default_scope)
+    work_type = params.get("type", "")
+    filter_form = WorkOrderFilterForm(params, membership=membership)
+    filter_form.is_valid()
+    filters = filter_form.cleaned_data
+    queryset = work_order_list(
+        membership=membership,
+        scope="open" if scope == "mine" else scope,
+        work_type=work_type,
+        status=filters.get("status", ""),
+        assigned_to=membership.user if scope == "mine" else filters.get("assigned_to"),
+        asset_q=filters.get("asset_q", ""),
+        location=filters.get("location"),
+        date_field=filters.get("date_field") or "due_on",
+        date_from=filters.get("date_from"),
+        date_to=filters.get("date_to"),
+    )
+    return WorkOrderListQuery(queryset=queryset, filter_form=filter_form, scope=scope, work_type=work_type)
 
 
 def assignable_members(*, membership):

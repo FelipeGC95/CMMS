@@ -10,7 +10,6 @@ from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from django.views.decorators.http import require_POST
 
-from apps.accounts.models import Membership
 from apps.accounts.permissions import Perm, PermissionDeniedError, has_perm
 from apps.attachments.models import Attachment, Purpose, TargetType
 from apps.attachments.selectors import attachments_for
@@ -31,19 +30,18 @@ from .forms import (
     OtherCostForm,
     PartUsageForm,
     WorkOrderCreateForm,
-    WorkOrderFilterForm,
 )
 from .models import FailureCode, FailureEvent, OtherCost, PartUsage, WorkOrder, WorkOrderChecklistItem
 from .selectors import (
     checklist_photos,
     checklist_plan_versions,
     failure_code_list,
+    filter_work_orders,
     open_requests_for_target,
     pending_requests,
     visible_requests,
     visible_work_orders,
     work_order_detail,
-    work_order_list,
 )
 from .services import (
     COST_LOCKED_STATUSES,
@@ -96,28 +94,9 @@ def _query_with(request, **overrides):
 
 @membership_required
 def work_order_list_view(request):
-    membership = request.membership
-    default_scope = "mine" if membership.role == Membership.Role.TECHNICIAN else "open"
-    scope = request.GET.get("scope", default_scope)
-    work_type = request.GET.get("type", "")
-
-    filter_form = WorkOrderFilterForm(request.GET, membership=membership)
-    filter_form.is_valid()
-    filters = filter_form.cleaned_data
-
-    assigned_to = request.user if scope == "mine" else filters.get("assigned_to")
-    qs = work_order_list(
-        membership=membership,
-        scope="open" if scope == "mine" else scope,
-        work_type=work_type,
-        status=filters.get("status", ""),
-        assigned_to=assigned_to,
-        asset_q=filters.get("asset_q", ""),
-        location=filters.get("location"),
-        date_field=filters.get("date_field") or "due_on",
-        date_from=filters.get("date_from"),
-        date_to=filters.get("date_to"),
-    )
+    query = filter_work_orders(params=request.GET, membership=request.membership)
+    scope, work_type, filters, filter_form = query.scope, query.work_type, query.filters, query.filter_form
+    qs = query.queryset
     page = Paginator(qs, 25).get_page(request.GET.get("page"))
     # «Buscar fecha en» solo indica dónde aplicar las fechas: no cuenta como filtro activo.
     active_filters = sum(1 for key, value in filters.items() if value and key != "date_field")

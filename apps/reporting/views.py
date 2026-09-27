@@ -14,9 +14,8 @@ from apps.attachments.selectors import attachments_for
 from apps.core.decorators import membership_required
 from apps.maintenance.selectors import active_assignments_for_asset
 from apps.onboarding.selectors import onboarding_for_dashboard
-from apps.work.forms import WorkOrderFilterForm
 from apps.work.models import WorkOrder
-from apps.work.selectors import visible_work_orders, work_order_detail, work_order_list
+from apps.work.selectors import filter_work_orders, visible_work_orders, work_order_detail, work_order_list
 
 from .excel import MAX_EXPORT_ROWS, XLSX_CONTENT_TYPE, assets_xlsx, work_orders_xlsx
 from .forms import DashboardFilterForm
@@ -89,34 +88,12 @@ def asset_list_xlsx_view(request):
     )
 
 
-def _work_order_queryset(request):
-    """La consulta de la lista de OT (WO-05) a partir de la URL, igual que la lista."""
-    membership = request.membership
-    default_scope = "mine" if membership.role == Membership.Role.TECHNICIAN else "open"
-    scope = request.GET.get("scope", default_scope)
-    filter_form = WorkOrderFilterForm(request.GET, membership=membership)
-    filter_form.is_valid()
-    filters = filter_form.cleaned_data
-    return work_order_list(
-        membership=membership,
-        scope="open" if scope == "mine" else scope,
-        work_type=request.GET.get("type", ""),
-        status=filters.get("status", ""),
-        assigned_to=request.user if scope == "mine" else filters.get("assigned_to"),
-        asset_q=filters.get("asset_q", ""),
-        location=filters.get("location"),
-        date_field=filters.get("date_field") or "due_on",
-        date_from=filters.get("date_from"),
-        date_to=filters.get("date_to"),
-    )
-
-
 @membership_required
 def work_order_list_xlsx_view(request):
     """Lista de OT a Excel: misma vista (scope), tipo, filtros y alcance que la pantalla."""
     return _xlsx_response(
         request,
-        queryset=_work_order_queryset(request),
+        queryset=filter_work_orders(params=request.GET, membership=request.membership).queryset,
         build=work_orders_xlsx,
         list_name="work_order_list",
         prefix="ordenes-de-trabajo",
