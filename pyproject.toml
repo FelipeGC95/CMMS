@@ -19,6 +19,9 @@ dependencies = [
     "procrastinate>=3.10.0",
     "django-storages[s3]>=1.14.6",
     "sentry-sdk>=2.70.0",
+    "djangorestframework>=3.18.1",
+    "drf-spectacular>=0.30.0",
+    "drf-spectacular-sidecar>=2026.9.1",
 ]
 
 [dependency-groups]
