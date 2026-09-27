@@ -212,6 +212,18 @@ def test_open_work_order_replaces_the_next_projection(in_a):
     assert sum(o.date == dt.date(2026, 10, 1) for o in occurrences) == 1
 
 
+@pytest.mark.parametrize("status", ["in_progress", "on_hold"])
+def test_started_work_orders_stay_in_the_calendar(in_a, status):
+    plan = _plan("CAL", calendar_interval=1, calendar_unit="months")
+    assign_plan(plan=plan, asset=in_a.asset, starts_on=dt.date(2026, 10, 1))
+    [wo] = generate_due_work_orders(today=TODAY, horizon_days=14)
+    wo.status = status
+    wo.save(update_fields=["status"])
+    occurrences = _calendar(in_a).occurrences
+    assert occurrences[0].work_order == wo and occurrences[0].is_started
+    assert occurrences[1].date == dt.date(2026, 11, 1) and not occurrences[1].is_work_order
+
+
 def test_twelve_month_summary_counts_and_minutes(in_a):
     _absorbing_plans(in_a)
     months = calendar_months(_calendar(in_a))

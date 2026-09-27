@@ -205,8 +205,11 @@ def busy_assignment_ids(assignments) -> set:
 # Quién ve el calendario: los roles que ejecutan o gestionan OT (administrador,
 # planificador, supervisor y técnico), cada uno dentro de su alcance por sitio.
 CALENDAR_PERM = Perm.WORK_ORDER_EXECUTE
-# OT existentes que se muestran junto a la proyección.
-CALENDAR_WO_STATUSES = ("planned", "scheduled")
+# OT existentes que se muestran junto a la proyección: las por hacer y las que
+# ya empezaron (en ejecución o en espera), para no perderlas de vista.
+CALENDAR_WO_STATUSES = ("planned", "scheduled", "in_progress", "on_hold")
+# OT ya iniciadas: el calendario las distingue con su estado (ícono + texto).
+CALENDAR_STARTED_STATUSES = ("in_progress", "on_hold")
 
 
 @dataclass
@@ -231,7 +234,7 @@ def plan_calendar(
     plan=None,
     today: datetime.date | None = None,
 ) -> PlanCalendar:
-    """Preventivos entre `start` y `end`: OT planificadas o programadas y la proyección (PM-06 CA1).
+    """Preventivos entre `start` y `end`: OT abiertas (por hacer o iniciadas) y la proyección (PM-06 CA1).
 
     Consultas acotadas (no crecen con las asignaciones): asignaciones de los
     activos visibles filtrados, reglas de absorción, OT abiertas de esas

@@ -39,6 +39,11 @@ class Occurrence:
         return self.work_order is not None
 
     @property
+    def is_started(self):
+        """OT ya iniciada (en ejecución o en espera): el calendario la muestra distinta."""
+        return self.work_order is not None and self.work_order.status in ("in_progress", "on_hold")
+
+    @property
     def estimated_minutes(self):
         """Minutos de la OT que resultaría (con los planes absorbidos); 0 si está absorbida."""
         if self.work_order is not None:
