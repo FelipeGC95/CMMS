@@ -27,6 +27,9 @@ class Kpis:
     overdue_work_orders: int
     stopped_assets: int
     upcoming_preventives: int
+    # Hay activos en el alcance, pero todos estuvieron de baja toda la ventana: sin
+    # tiempo en servicio, disponibilidad y MTBF no se pueden calcular.
+    no_service_time: bool = False
 
 
 def _overlap_seconds(start, end, window_start, window_end) -> float:
@@ -47,6 +50,7 @@ class Reliability:
     failures: int
     # Horas en servicio (no de baja) en la ventana, sumadas sobre los activos.
     calendar_hours: float = 0.0
+    asset_count: int = 0
 
 
 def _retired_at(intervals, at) -> bool:
@@ -105,7 +109,7 @@ def _reliability(*, assets, failures, window_start, now) -> Reliability:
     )
     operating = max(calendar - downtime, 0.0)
     mtbf = operating / len(failures) / 3600 if failures and calendar > 0 else None
-    return Reliability(availability, mttr, mtbf, len(failures), max(calendar, 0.0) / 3600)
+    return Reliability(availability, mttr, mtbf, len(failures), max(calendar, 0.0) / 3600, len(statuses))
 
 
 def asset_kpis(*, membership, asset, include_components: bool = False, days: int = 30, now=None):
@@ -173,4 +177,5 @@ def dashboard_kpis(*, membership, days: int = 30, now=None) -> Kpis:
         upcoming_preventives=_by_asset_scope(PlanAssignment.objects, location_ids)
         .filter(is_active=True, next_due_on__lte=today + datetime.timedelta(days=7))
         .count(),
+        no_service_time=reliability.asset_count > 0 and reliability.calendar_hours == 0,
     )

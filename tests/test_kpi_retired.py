@@ -134,3 +134,30 @@ def test_detail_explains_missing_kpis_for_retired_asset(client, in_a):
     login(client, in_a.admin)
     html = client.get(reverse("asset_detail", args=[in_a.asset.pk])).content.decode()
     assert "Sin tiempo en servicio en el período" in html
+
+
+def test_dashboard_explains_missing_kpis_when_the_whole_fleet_was_retired(client, in_a):
+    """Todos los activos de baja toda la ventana: sin tiempo en servicio, KPI en None y aviso."""
+    Asset.objects.update(status="retired")
+    kpis = dashboard_kpis(membership=in_a.admin, days=10, now=NOW)
+    assert kpis.no_service_time
+    assert (kpis.availability_pct, kpis.mtbf_hours, kpis.failures) == (None, None, 0)
+    login(client, in_a.admin)
+    html = client.get(reverse("dashboard")).content.decode()
+    assert "Sin tiempo en servicio en el período: todos los activos estuvieron de baja." in html
+
+
+def test_dashboard_without_retired_fleet_keeps_the_usual_hint(client, in_a):
+    kpis = dashboard_kpis(membership=in_a.admin, days=10, now=NOW)
+    assert not kpis.no_service_time and kpis.availability_pct == 100
+    login(client, in_a.admin)
+    html = client.get(reverse("dashboard")).content.decode()
+    assert "Tiempo operativo / tiempo calendario" in html and "todos los activos estuvieron" not in html
+
+
+def test_empty_scope_is_not_reported_as_retired(in_a):
+    """Un externo sin ubicaciones no ve activos: no hay flota, no es una flota de baja."""
+    in_a.tech.role = "external"
+    in_a.tech.save(update_fields=["role"])
+    kpis = dashboard_kpis(membership=in_a.tech, days=10, now=NOW)
+    assert not kpis.no_service_time and kpis.availability_pct is None
