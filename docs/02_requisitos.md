@@ -156,6 +156,10 @@ uso se calculen solos.
 - CA3: Importación idempotente por código de activo (actualiza si existe).
 
 **AST-09 · Importación de lecturas por CSV/API (M1)**
+- CA1: CSV con código de activo (o id de medidor), valor, fecha y reinicio opcional;
+  vista previa con errores por fila antes de confirmar (mismo patrón que AST-08).
+- CA2: Idempotente por (medidor, fecha, valor); origen "importación" (web) o "API".
+- CA3: Lo mismo por API (`POST /api/v1/readings/bulk/`), con resultado por fila.
 
 ## 3. Mantenimiento preventivo (`PM`)
 

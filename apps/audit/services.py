@@ -15,6 +15,8 @@ from .models import AuditEvent
 SENSITIVE_FIELD_PARTS = ("password", "secret", "token", "key")
 # Campos de sistema que no aportan a un diff.
 SKIPPED_FIELDS = {"id", "organization", "created_at", "updated_at"}
+# Correo de los usuarios de servicio de los tokens de API (apps.api): el actor es el token.
+API_TOKEN_EMAIL_DOMAIN = "@api.galbust.invalid"
 
 
 def is_sensitive(field_name: str) -> bool:
@@ -73,7 +75,7 @@ def record(
 
     return AuditEvent.objects.create(
         actor=actor,
-        actor_type=AuditEvent.ActorType.USER if actor else AuditEvent.ActorType.SYSTEM,
+        actor_type=_actor_type(actor),
         actor_repr=(actor.email if actor else "")[:254],
         action=action,
         target_type=ContentType.objects.get_for_model(target),
@@ -84,6 +86,14 @@ def record(
         user_agent=origin.user_agent,
         request_id=origin.request_id,
     )
+
+
+def _actor_type(actor) -> str:
+    if actor is None:
+        return AuditEvent.ActorType.SYSTEM
+    if actor.email.endswith(API_TOKEN_EMAIL_DOMAIN):
+        return AuditEvent.ActorType.API_TOKEN
+    return AuditEvent.ActorType.USER
 
 
 def login_membership(user):

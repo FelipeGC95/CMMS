@@ -4,6 +4,7 @@ from django.urls import include, path
 
 from apps.accounts.views import switch_organization
 from apps.assets import import_views as asset_import_views
+from apps.assets import reading_import_views
 from apps.assets import views as asset_views
 from apps.attachments.views import attachment_view
 from apps.core.views import healthz, readyz
@@ -27,6 +28,7 @@ urlpatterns = [
     path("", include("apps.organizations.urls")),
     path("", include("apps.assets.urls")),
     path("", include("apps.maintenance.urls")),
+    path("", include("apps.api.urls")),
     path("audit/", include("apps.audit.urls")),
     path("assets/", asset_views.asset_list_view, name="asset_list"),
     path("assets/labels/", asset_views.asset_labels_view, name="asset_labels"),
@@ -42,6 +44,12 @@ urlpatterns = [
         "assets/import/<str:token>/confirm/",
         asset_import_views.asset_import_confirm_view,
         name="asset_import_confirm",
+    ),
+    path("assets/readings/import/", reading_import_views.reading_import_view, name="reading_import"),
+    path(
+        "assets/readings/import/<str:token>/confirm/",
+        reading_import_views.reading_import_confirm_view,
+        name="reading_import_confirm",
     ),
     path("assets/<uuid:pk>/", asset_views.asset_detail_view, name="asset_detail"),
     path("assets/<uuid:pk>/report/", asset_views.asset_report_view, name="asset_report"),

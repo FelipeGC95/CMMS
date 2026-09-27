@@ -267,6 +267,30 @@ tener ingresos).
   permisos por objeto y throttling).
 - **Consecuencias:** los serializers son delgados y llaman a los mismos
   servicios que las vistas.
+- **Implementación (X-05, `apps/api`):**
+  - **Autenticación:** solo `Authorization: Bearer gbt_…` (sin sesión, así no
+    hay CSRF). El token fija el contexto de tenant y la zona horaria de su
+    organización (`TenantAPIMixin`); revocado, vencido, inexistente o de una
+    organización inactiva → 401.
+  - **Principal de servicio:** el token actúa como una membresía en memoria con
+    rol planificador sobre toda la organización (sin alcance por sitio) y un
+    usuario técnico propio; nunca administra equipo, auditoría, configuración ni
+    tokens. Alcance `read`: solo métodos GET; `write`: además escribe.
+  - **Límite de tasa:** `TokenRateThrottle`, por token, `API_RATE_LIMIT`
+    (por defecto `600/min`), sobre el caché en la base de datos.
+  - **Endpoints:** `/api/v1/assets/` (lista, detalle, alta, PATCH),
+    `/meters/`, `/readings/` (lista, alta, `bulk/`), `/work-orders/` (lista,
+    detalle, alta, `{id}/transition/`), `/requests/` (lista, detalle, alta).
+    Paginación por página (`page`, `page_size` ≤ 200). Altas de lecturas, OT y
+    solicitudes idempotentes por `client_uuid`; la carga masiva, por
+    (medidor, fecha, valor); repetir una transición al mismo estado no hace nada.
+  - **Errores:** `{"error": {"code", "message", "details"}}` con textos en español.
+  - **Documentación:** esquema en `/api/schema/` y Swagger UI en `/api/docs/`
+    servido desde estáticos locales (`drf-spectacular-sidecar`) con el script de
+    inicio en un archivo aparte, compatible con la CSP estricta (sin CDN ni JS en
+    línea). Un test genera el esquema con `--fail-on-warn`.
+  - **Pantalla:** `/settings/api-tokens/` (solo administradores, permiso
+    `api_token.manage`), enlazada desde "Más".
 
 ### ADR-006 · Autenticación con django-allauth
 - **Decisión:** allauth para registro, login por correo, verificación, MFA

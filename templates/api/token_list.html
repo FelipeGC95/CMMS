@@ -1,0 +1,72 @@
+{% extends "base.html" %}{% load i18n ui %}
+{% block title %}{% translate "Tokens de API" %}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>{% translate "Tokens de API" %}</h1>
+    <p class="muted">{% translate "Para conectar otros sistemas (ERP, telemetría) con la API REST. Cada token actúa sobre toda la organización." %} <a href="{% url 'api_docs' %}">{% translate "Documentación de la API" %}</a></p>
+  </div>
+</div>
+
+{% if raw_token %}
+<div class="alert alert--success" role="status">{% icon 'check' %}<span>
+  <strong>{% translate "Copia el token ahora: no se volverá a mostrar." %}</strong><br>
+  <code class="mono">{{ raw_token }}</code><br>
+  {% translate "Úsalo en el encabezado" %} <code class="mono">{{ "Authorization: Bearer …" }}</code>
+</span></div>
+{% endif %}
+
+<div class="grid grid--2">
+  <section class="card">
+    <h2>{% translate "Nuevo token" %}</h2>
+    <form method="post">
+      {% csrf_token %}
+      {% include "_form_fields.html" with form=form %}
+      <button class="btn btn--primary" type="submit">{% icon 'key' %}{% translate "Crear token" %}</button>
+    </form>
+  </section>
+  <section class="card">
+    <h2>{% translate "Alcances" %}</h2>
+    <ul class="stack">
+      <li><strong>{% translate "Solo lectura" %}</strong>: <span class="muted">{% translate "consulta activos, medidores, lecturas, OT y solicitudes." %}</span></li>
+      <li><strong>{% translate "Lectura y escritura" %}</strong>: <span class="muted">{% translate "además crea y edita activos, registra lecturas, crea OT, cambia su estado y crea solicitudes, con los permisos de un planificador." %}</span></li>
+    </ul>
+  </section>
+</div>
+
+<h2>{% translate "Tokens" %}</h2>
+{% if page.object_list %}
+<div class="card card--flush">
+  <table class="table">
+    <thead><tr><th>{% translate "Nombre" %}</th><th>{% translate "Prefijo" %}</th><th>{% translate "Alcance" %}</th><th>{% translate "Último uso" %}</th><th>{% translate "Vence" %}</th><th>{% translate "Estado" %}</th><th><span class="visually-hidden">{% translate "Acción" %}</span></th></tr></thead>
+    <tbody>
+      {% for token in page.object_list %}
+      <tr>
+        <td data-label="">{{ token.name }}<div class="muted">{% blocktranslate with who=token.created_by|default:"—" when=token.created_at|date:"d-m-Y" %}Creado por {{ who }} el {{ when }}{% endblocktranslate %}</div></td>
+        <td class="mono" data-label="{% translate 'Prefijo' %}">{{ "gbt_" }}{{ token.prefix }}…</td>
+        <td data-label="{% translate 'Alcance' %}">{{ token.get_scope_display }}</td>
+        <td class="num" data-label="{% translate 'Último uso' %}">{{ token.last_used_at|date:"d-m-Y H:i"|default:_("Nunca") }}</td>
+        <td class="num" data-label="{% translate 'Vence' %}">{{ token.expires_at|date:"d-m-Y"|default:_("Nunca") }}</td>
+        <td data-label="">
+          {% if token.revoked_at %}<span class="badge badge--neutral">{% icon 'dot' %}{% translate "Revocado" %}</span>
+          {% elif token.is_expired %}<span class="badge badge--warning">{% icon 'clock' %}{% translate "Vencido" %}</span>
+          {% else %}<span class="badge badge--success">{% icon 'check' %}{% translate "Activo" %}</span>{% endif %}
+        </td>
+        <td data-label="">
+          {% if not token.revoked_at %}
+          <form method="post" action="{% url 'api_token_revoke' token.pk %}">
+            {% csrf_token %}
+            <button class="btn btn--ghost" type="submit">{% translate "Revocar" %}</button>
+          </form>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% include "_pagination.html" %}
+{% else %}
+<p class="muted">{% translate "Aún no hay tokens." %}</p>
+{% endif %}
+{% endblock %}

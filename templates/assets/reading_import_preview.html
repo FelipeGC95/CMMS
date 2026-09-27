@@ -1,0 +1,52 @@
+{% extends "base.html" %}{% load i18n ui %}
+{% block title %}{% translate "Vista previa de lecturas" %}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <p class="muted"><a href="{% url 'reading_import' %}">{% translate "Importar lecturas" %}</a></p>
+    <h1>{% translate "Revisa antes de guardar" %}</h1>
+    <p class="muted">{% translate "Todavía no se ha guardado nada." %}</p>
+  </div>
+</div>
+
+<section class="grid grid--kpi mb-4" aria-label="{% translate 'Resumen' %}">
+  <div class="card kpi"><span class="kpi__label">{% translate "Lecturas nuevas" %}</span><span class="kpi__value">{{ counts.create }}</span></div>
+  <div class="card kpi"><span class="kpi__label">{% translate "Ya existían (se omiten)" %}</span><span class="kpi__value">{{ counts.duplicate }}</span></div>
+  <div class="card kpi {% if counts.error %}kpi--alert{% endif %}"><span class="kpi__label">{% translate "Con errores (se omiten)" %}</span><span class="kpi__value">{{ counts.error }}</span></div>
+</section>
+
+<div class="card card--flush mb-4">
+  <table class="table">
+    <thead><tr><th>{% translate "Fila" %}</th><th>{% translate "Activo" %}</th><th>{% translate "Medidor" %}</th><th>{% translate "Lectura" %}</th><th>{% translate "Fecha" %}</th><th>{% translate "Resultado" %}</th></tr></thead>
+    <tbody>
+      {% for row in preview.rows %}
+      <tr>
+        <td class="num" data-label="{% translate 'Fila' %}">{{ row.row }}</td>
+        <td class="mono" data-label="{% translate 'Activo' %}">{{ row.asset_code|default:"—" }}</td>
+        <td data-label="{% translate 'Medidor' %}">{{ row.meter_label|default:"—" }}</td>
+        <td class="num" data-label="{% translate 'Lectura' %}">{{ row.value|default:"—" }}{% if row.is_reset %} · {% translate "reinicio" %}{% endif %}</td>
+        <td class="num" data-label="{% translate 'Fecha' %}">{% if row.read_at_dt %}{{ row.read_at_dt|date:"d-m-Y H:i" }}{% else %}—{% endif %}</td>
+        <td data-label="">
+          {% if row.action == "create" %}<span class="badge badge--success">{% icon 'check' %}{% translate "Nueva" %}</span>
+          {% elif row.action == "duplicate" %}<span class="badge badge--neutral">{% icon 'dot' %}{% translate "Ya existe" %}</span>
+          {% else %}{% for e in row.errors %}<div><span class="badge badge--error">{% icon 'stop' %}{{ e }}</span></div>{% endfor %}{% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% if preview.valid_rows %}
+<form class="card" method="post" action="{% url 'reading_import_confirm' token %}">
+  {% csrf_token %}
+  <div class="row">
+    <button class="btn btn--primary btn--lg" type="submit">{% icon 'check' %}{% blocktranslate count n=preview.valid_rows|length %}Registrar {{ n }} lectura{% plural %}Registrar {{ n }} lecturas{% endblocktranslate %}</button>
+    <a class="btn btn--ghost" href="{% url 'reading_import' %}">{% translate "Subir otro archivo" %}</a>
+  </div>
+</form>
+{% else %}
+<div class="alert alert--error" role="alert">{% icon 'stop' %}<span>{% translate "No hay lecturas nuevas para registrar. Corrige el archivo y vuelve a subirlo." %}</span></div>
+<a class="btn btn--secondary" href="{% url 'reading_import' %}">{% translate "Subir otro archivo" %}</a>
+{% endif %}
+{% endblock %}

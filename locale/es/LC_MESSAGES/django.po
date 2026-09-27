@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-27 00:25-0300\n"
+"POT-Creation-Date: 2026-09-27 04:53-0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -202,6 +202,85 @@ msgstr ""
 msgid "Ingresa con %(email)s para aceptar la invitación."
 msgstr ""
 
+msgid "No encontrado."
+msgstr ""
+
+msgid "Revisa los datos enviados."
+msgstr ""
+
+msgid "Encabezado de autorización mal formado."
+msgstr ""
+
+msgid "Token inválido, revocado o vencido."
+msgstr ""
+
+msgid "El token no tiene permiso para esta operación."
+msgstr ""
+
+msgid "Lectura y escritura"
+msgstr ""
+
+msgid "nombre"
+msgstr ""
+
+msgid "alcance"
+msgstr ""
+
+msgid "prefijo"
+msgstr ""
+
+msgid "usuario de servicio"
+msgstr ""
+
+msgid "creado por"
+msgstr ""
+
+msgid "último uso"
+msgstr ""
+
+msgid "revocado"
+msgstr ""
+
+msgid "token de API"
+msgstr ""
+
+msgid "tokens de API"
+msgstr ""
+
+msgid "Indica un activo o una ubicación (solo uno)."
+msgstr ""
+
+msgid "Identificador inválido."
+msgstr ""
+
+msgid "Nunca"
+msgstr ""
+
+msgid "30 días"
+msgstr ""
+
+msgid "90 días"
+msgstr ""
+
+msgid "1 año"
+msgstr ""
+
+msgid "Nombre"
+msgstr ""
+
+msgid "Para reconocerlo, p. ej. «ERP» o «Telemetría»."
+msgstr ""
+
+msgid "Alcance"
+msgstr ""
+
+msgid "Vence"
+msgstr ""
+
+#, python-format
+msgid "Token «%(name)s» revocado."
+msgstr ""
+
 msgid "Sí"
 msgstr ""
 
@@ -255,9 +334,6 @@ msgid "Márcalo solo si el medidor volvió a cero o se reemplazó."
 msgstr ""
 
 msgid "Código"
-msgstr ""
-
-msgid "Nombre"
 msgstr ""
 
 msgid "Categoría ISO 14224"
@@ -634,9 +710,6 @@ msgstr ""
 msgid "código"
 msgstr ""
 
-msgid "nombre"
-msgstr ""
-
 msgid "categoría ISO 14224"
 msgstr ""
 
@@ -832,6 +905,63 @@ msgstr ""
 msgid "lecturas de medidor"
 msgstr ""
 
+msgid "Archivo CSV"
+msgstr ""
+
+#, python-format
+msgid "%(n)s lectura registrada"
+msgid_plural "%(n)s lecturas registradas"
+msgstr[0] ""
+msgstr[1] ""
+msgstr[2] ""
+
+#, python-format
+msgid "%(n)s ya existía"
+msgid_plural "%(n)s ya existían"
+msgstr[0] ""
+msgstr[1] ""
+msgstr[2] ""
+
+#, python-format
+msgid "Fila %(row)s: %(error)s"
+msgstr ""
+
+msgid "El archivo supera 2 MB."
+msgstr ""
+
+msgid "código de activo o id de medidor"
+msgstr ""
+
+msgid "Medidor no encontrado."
+msgstr ""
+
+msgid "El activo no existe o no tiene medidores."
+msgstr ""
+
+msgid "El activo tiene varios medidores: indica el id del medidor."
+msgstr ""
+
+msgid "Falta el código del activo o el id del medidor."
+msgstr ""
+
+msgid "Valor inválido."
+msgstr ""
+
+msgid "La lectura no puede ser negativa."
+msgstr ""
+
+msgid "Fecha inválida: usa aaaa-mm-dd hh:mm o dd-mm-aaaa hh:mm."
+msgstr ""
+
+msgid "La fecha está en el futuro."
+msgstr ""
+
+#, python-format
+msgid ""
+"La lectura (%(value)s) es menor que la anterior (%(previous)s). Si se cambió "
+"o reinició el medidor, márcalo."
+msgstr ""
+
 msgid "Indica el motivo del cambio."
 msgstr ""
 
@@ -851,9 +981,6 @@ msgid "El activo no está dado de baja."
 msgstr ""
 
 msgid "Elige solo planes desactivados de este activo."
-msgstr ""
-
-msgid "La lectura no puede ser negativa."
 msgstr ""
 
 #, python-format
@@ -2634,9 +2761,6 @@ msgstr ""
 msgid "Invitación pendiente"
 msgstr ""
 
-msgid "Vence"
-msgstr ""
-
 msgid "Revocar"
 msgstr ""
 
@@ -2646,13 +2770,66 @@ msgstr ""
 msgid "Miembros"
 msgstr ""
 
-msgid "Alcance"
-msgstr ""
-
 msgid "Sin ubicaciones"
 msgstr ""
 
 msgid "Toda la organización"
+msgstr ""
+
+msgid "Tokens de API"
+msgstr ""
+
+msgid ""
+"Para conectar otros sistemas (ERP, telemetría) con la API REST. Cada token "
+"actúa sobre toda la organización."
+msgstr ""
+
+msgid "Documentación de la API"
+msgstr ""
+
+msgid "Copia el token ahora: no se volverá a mostrar."
+msgstr ""
+
+msgid "Úsalo en el encabezado"
+msgstr ""
+
+msgid "Nuevo token"
+msgstr ""
+
+msgid "Crear token"
+msgstr ""
+
+msgid "Alcances"
+msgstr ""
+
+msgid "consulta activos, medidores, lecturas, OT y solicitudes."
+msgstr ""
+
+msgid ""
+"además crea y edita activos, registra lecturas, crea OT, cambia su estado y "
+"crea solicitudes, con los permisos de un planificador."
+msgstr ""
+
+msgid "Tokens"
+msgstr ""
+
+msgid "Prefijo"
+msgstr ""
+
+msgid "Último uso"
+msgstr ""
+
+#, python-format
+msgid "Creado por %(who)s el %(when)s"
+msgstr ""
+
+msgid "Revocado"
+msgstr ""
+
+msgid "Vencido"
+msgstr ""
+
+msgid "Aún no hay tokens."
 msgstr ""
 
 msgid "La clase elegida no tiene atributos técnicos."
@@ -3098,6 +3275,9 @@ msgstr[1] ""
 msgid "Importar desde Excel"
 msgstr ""
 
+msgid "Importar lecturas"
+msgstr ""
+
 msgid "Imprimir etiquetas QR"
 msgstr ""
 
@@ -3174,6 +3354,58 @@ msgid "Confirmar la reactivación"
 msgstr ""
 
 msgid "El activo no tiene planes preventivos para reactivar."
+msgstr ""
+
+msgid "Importar lecturas de medidor (CSV)"
+msgstr ""
+
+msgid "Prepara un CSV con estas columnas"
+msgstr ""
+
+msgid ""
+"asset_code (o meter_id si el activo tiene varios medidores), value, read_at "
+"y, opcional, is_reset (sí/no). Separado por coma o punto y coma."
+msgstr ""
+
+msgid "Súbelo y revisa la vista previa"
+msgstr ""
+
+#, python-format
+msgid ""
+"Nada se guarda hasta que confirmes. Las lecturas que ya existen (mismo "
+"medidor, fecha y valor) se omiten. Máximo %(max_rows)s filas."
+msgstr ""
+
+msgid "Vista previa de lecturas"
+msgstr ""
+
+msgid "Lecturas nuevas"
+msgstr ""
+
+msgid "Ya existían (se omiten)"
+msgstr ""
+
+msgid "Lectura"
+msgstr ""
+
+msgid "reinicio"
+msgstr ""
+
+msgid "Nueva"
+msgstr ""
+
+msgid "Ya existe"
+msgstr ""
+
+#, python-format
+msgid "Registrar %(n)s lectura"
+msgid_plural "Registrar %(n)s lecturas"
+msgstr[0] ""
+msgstr[1] ""
+msgstr[2] ""
+
+msgid ""
+"No hay lecturas nuevas para registrar. Corrige el archivo y vuelve a subirlo."
 msgstr ""
 
 #, python-format
@@ -3975,6 +4207,9 @@ msgid "Avisar problema en una ubicación"
 msgstr ""
 
 msgid "Catálogo de falla"
+msgstr ""
+
+msgid "Importar lecturas (CSV)"
 msgstr ""
 
 msgid "Configuración de la organización"

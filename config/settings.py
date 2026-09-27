@@ -34,6 +34,9 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "allauth",
     "allauth.account",
+    "rest_framework",
+    "drf_spectacular",
+    "drf_spectacular_sidecar",
     "apps.core",
     "apps.organizations",
     "apps.accounts",
@@ -43,6 +46,7 @@ INSTALLED_APPS = [
     "apps.work",
     "apps.reporting",
     "apps.audit",
+    "apps.api",
     "apps.ui",
 ]
 
@@ -139,6 +143,37 @@ CACHES = {
         "BACKEND": "django.core.cache.backends.db.DatabaseCache",
         "LOCATION": "django_cache",
     }
+}
+
+# API REST (X-05, ADR-005): solo tokens de organización (sin sesión: no hay CSRF que
+# cuidar), alcance por token, límite de peticiones por token y errores con forma única.
+REST_FRAMEWORK = {
+    "DEFAULT_AUTHENTICATION_CLASSES": ["apps.api.framework.OrganizationTokenAuthentication"],
+    "DEFAULT_PERMISSION_CLASSES": ["apps.api.framework.HasTokenScope"],
+    "DEFAULT_THROTTLE_CLASSES": ["apps.api.framework.TokenRateThrottle"],
+    "DEFAULT_THROTTLE_RATES": {"api_token": os.environ.get("API_RATE_LIMIT", "600/min")},
+    "DEFAULT_PAGINATION_CLASS": "apps.api.framework.Pagination",
+    "DEFAULT_RENDERER_CLASSES": ["rest_framework.renderers.JSONRenderer"],
+    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+    "EXCEPTION_HANDLER": "apps.api.exceptions.exception_handler",
+    "UNAUTHENTICATED_USER": None,
+}
+SPECTACULAR_SETTINGS = {
+    "TITLE": "GALBUST CMMS API",
+    "DESCRIPTION": "API REST v1: activos, medidores y lecturas, órdenes de trabajo y solicitudes. "
+    "Autenticación: `Authorization: Bearer <token>` (tokens en Más → Tokens de API).",
+    "VERSION": "1.0.0",
+    "SERVE_INCLUDE_SCHEMA": False,
+    "SERVE_PERMISSIONS": ["rest_framework.permissions.AllowAny"],
+    "SERVE_AUTHENTICATION": [],
+    "SWAGGER_UI_DIST": "SIDECAR",
+    "SWAGGER_UI_FAVICON_HREF": "SIDECAR",
+    "COMPONENT_SPLIT_REQUEST": True,
+    "ENUM_NAME_OVERRIDES": {
+        "AssetStatusEnum": "apps.assets.models.Asset.Status",
+        "WorkOrderStatusEnum": "apps.work.models.WorkOrder.Status",
+        "WorkRequestStatusEnum": "apps.work.models.WorkRequest.Status",
+    },
 }
 
 # Auditoría (X-01): cantidad de proxies de confianza delante de la app. Con N > 0

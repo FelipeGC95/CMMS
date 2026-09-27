@@ -48,7 +48,14 @@ Tablas de django‑allauth para verificación de correo, MFA y (F3) cuentas SSO.
 `organization_id` · `email` · `role` · `token_hash` · `invited_by_id` · `expires_at` · `accepted_at` · `revoked_at`.
 
 **`api_token`**
-`organization_id` · `name` · `prefix` (visible) · `token_hash` · `scopes` (array) · `created_by_id` · `last_used_at` · `expires_at` · `revoked_at`.
+`organization_id` · `name` · `prefix` (visible) · `token_hash` · `scope` (read, write) · `service_user_id` · `created_by_id` · `last_used_at` · `expires_at` · `revoked_at`.
+> Implementado como `api.ApiToken` (X-05). El token completo (`gbt_<prefix>_<secreto>`)
+> se muestra una sola vez; se guarda su SHA-256 (`UNIQUE`) y el `prefix` (`UNIQUE`).
+> En vez de un arreglo de alcances hay un único `scope`: `read` (solo GET) o `write`.
+> `service_user_id` (1:1) es un usuario técnico inactivo, sin clave ni membresía
+> (`api-<prefix>@api.galbust.invalid`), al que se atribuyen OT, lecturas y la
+> auditoría (`actor_type = api_token`). La búsqueda por hash usa `all_tenants`
+> porque la organización se deduce del token. Índice `(organization_id, created_at DESC)`.
 
 ### 2.2 Ubicaciones
 

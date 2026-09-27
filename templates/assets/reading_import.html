@@ -1,0 +1,30 @@
+{% extends "base.html" %}{% load i18n ui %}
+{% block title %}{% translate "Importar lecturas" %}{% endblock %}
+{% block content %}
+<div class="narrow">
+  <p class="muted"><a href="{% url 'asset_list' %}">{% translate "Activos" %}</a></p>
+  <h1>{% translate "Importar lecturas de medidor (CSV)" %}</h1>
+
+  <ol class="stack mb-4">
+    <li>
+      <strong>{% translate "Prepara un CSV con estas columnas" %}</strong>
+      <p class="muted">{% translate "asset_code (o meter_id si el activo tiene varios medidores), value, read_at y, opcional, is_reset (sí/no). Separado por coma o punto y coma." %}</p>
+      <p class="mono">{{ "asset_code;value;read_at;is_reset" }}<br>{{ "GH-01;1250,5;2026-09-24 08:00;no" }}</p>
+    </li>
+    <li>
+      <strong>{% translate "Súbelo y revisa la vista previa" %}</strong>
+      <p class="muted">{% blocktranslate %}Nada se guarda hasta que confirmes. Las lecturas que ya existen (mismo medidor, fecha y valor) se omiten. Máximo {{ max_rows }} filas.{% endblocktranslate %}</p>
+    </li>
+  </ol>
+
+  <form class="card" method="post" enctype="multipart/form-data" novalidate>
+    {% csrf_token %}
+    <div class="field">
+      <label for="{{ form.file.id_for_label }}">{{ form.file.label }}</label>
+      {{ form.file }}
+      {% for error in form.file.errors %}<span class="error">{% icon 'stop' %}{{ error }}</span>{% endfor %}
+    </div>
+    <button class="btn btn--primary btn--lg btn--block" type="submit">{% translate "Revisar archivo" %}</button>
+  </form>
+</div>
+{% endblock %}

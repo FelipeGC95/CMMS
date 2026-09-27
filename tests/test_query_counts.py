@@ -450,3 +450,54 @@ def test_plan_screens_do_not_grow_with_rows(client, tenant_a, which):
     _add_plan_rows(tenant_a, usage, 10)
     many = _count(client, url)
     assert many == few, f"{which}: {few} → {many} consultas"
+
+
+def _add_meter_rows(tenant, n):
+    from apps.assets.models import Meter, MeterKind, MeterReading
+
+    _add_rows(tenant, n)
+    with tenant_context(tenant.org):
+        for asset in Asset.objects.filter(meters__isnull=True):
+            meter = Meter.objects.create(asset=asset, kind=MeterKind.HOURS)
+            MeterReading.objects.create(meter=meter, value=1, read_at=asset.created_at)
+
+
+def _api_count(client, url):
+    with CaptureQueriesContext(connection) as ctx:
+        assert client.get(url).status_code == 200
+    # "Último uso" se escribe como mucho una vez por minuto: se cuentan solo las lecturas.
+    return len([q for q in ctx.captured_queries if "last_used_at" not in q["sql"]])
+
+
+@pytest.mark.parametrize("resource", ["assets", "meters", "readings", "work-orders", "requests"])
+def test_api_lists_do_not_grow_with_rows(tenant_a, resource):
+    """Listas de la API v1 (X-05): consultas acotadas sin importar cuántas filas haya."""
+    from tests.api_utils import api_client
+
+    client = api_client(tenant_a)
+    url = f"/api/v1/{resource}/"
+    _add_meter_rows(tenant_a, 2)
+    few = _api_count(client, url)
+    _add_meter_rows(tenant_a, 10)
+    many = _api_count(client, url)
+    assert many == few, f"{resource}: {few} → {many} consultas"
+
+
+def test_reading_import_preview_does_not_grow_with_rows(client, tenant_a):
+    """Vista previa del CSV de lecturas (AST-09): medidores y duplicados en consultas fijas."""
+    import io
+
+    _add_meter_rows(tenant_a, 12)
+    with tenant_context(tenant_a.org):
+        codes = list(Asset.objects.values_list("code", flat=True))
+    login(client, tenant_a.admin)
+
+    def preview(n):
+        body = "asset_code,value,read_at\n" + "".join(f"{c},5,2026-09-20\n" for c in codes[:n])
+        file = io.BytesIO(body.encode())
+        file.name = "l.csv"
+        with CaptureQueriesContext(connection) as ctx:
+            assert client.post(reverse("reading_import"), {"file": file}).status_code == 200
+        return len(ctx.captured_queries)
+
+    assert preview(2) == preview(12)
