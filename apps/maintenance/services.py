@@ -21,6 +21,7 @@ from .models import (
     ItemType,
     MaintenancePlan,
     MaintenanceSettings,
+    PlanAbsorption,
     PlanAssignment,
     PlanResource,
     PlanTaskItem,
@@ -165,16 +166,11 @@ def publish_version(*, version: PlanVersion, by=None, change_note: str = "") -> 
 def reschedule_after_trigger_change(*, plan, previous: PlanVersion, current: PlanVersion) -> int:
     """Recalcula vencimientos con la nueva frecuencia desde la última ejecución (o lectura).
 
-    Las asignaciones con una OT abierta no se tocan: esa OT ya está en curso y
-    al cerrarla se reprograma con la versión vigente.
+    Las asignaciones con una OT abierta (propia o de un plan que las absorbió)
+    no se tocan: esa OT ya está en curso y al cerrarla se reprograma con la
+    versión vigente.
     """
-    from apps.work.models import WorkOrder
-
-    open_ids = set(
-        WorkOrder.objects.filter(plan_assignment__plan=plan)
-        .exclude(status__in=WorkOrder.CLOSED_STATUSES)
-        .values_list("plan_assignment_id", flat=True)
-    )
+    open_ids = busy_assignment_ids(plan.assignments.all())
     today = timezone.localdate()
     changed = 0
     for assignment in plan.assignments.filter(is_active=True).select_related("asset", "meter"):
@@ -317,15 +313,77 @@ def _estimated_meter_date(assignment: PlanAssignment, today: datetime.date) -> d
     return today + datetime.timedelta(days=math.ceil(remaining / meter.avg_daily_usage))
 
 
+def busy_assignment_ids(assignments) -> set:
+    """Asignaciones con una OT abierta, propia o de un plan que las absorbió (PM-05 CA2/CA3)."""
+    from apps.work.models import WorkOrder, WorkOrderAbsorption
+
+    own = WorkOrder.objects.filter(plan_assignment__in=assignments).exclude(
+        status__in=WorkOrder.CLOSED_STATUSES
+    )
+    absorbed = WorkOrderAbsorption.objects.filter(plan_assignment__in=assignments).exclude(
+        work_order__status__in=WorkOrder.CLOSED_STATUSES
+    )
+    return set(own.values_list("plan_assignment_id", flat=True)) | set(
+        absorbed.values_list("plan_assignment_id", flat=True)
+    )
+
+
+def _active_assignments():
+    return (
+        PlanAssignment.objects.filter(
+            is_active=True,
+            plan__is_active=True,
+            plan__current_version__isnull=False,
+            asset__is_active=True,
+        )
+        .exclude(asset__status="retired")
+        .select_related("plan__current_version", "asset", "meter")
+    )
+
+
+def absorption_due(*, main: PlanAssignment, due_on: datetime.date | None, other: PlanAssignment) -> bool:
+    """¿El plan menor (`other`) vence junto al mayor (`main`) en el mismo activo? (PM-05 CA3)
+
+    «Junto» = a más tardar en el vencimiento del mayor más su tolerancia
+    (`tolerance_pct` del plan mayor aplicado a su frecuencia): por fecha, hasta
+    `due_on` + tolerancia en días; por medidor (el mismo medidor), hasta la
+    lectura objetivo del mayor + tolerancia en unidades. Un menor ya vencido
+    también entra: la OT del mayor lo cubre.
+    """
+    version, minor = main.plan.current_version, other.plan.current_version
+    pct = Decimal(version.tolerance_pct) / 100
+    if other.next_due_on is not None and due_on is not None:
+        # Tolerancia en días sobre la frecuencia por calendario del mayor (o, si no tiene, la del menor).
+        reference = version if version.calendar_interval else minor
+        period = reference.calendar_period_days(due_on) if reference.calendar_interval else 0
+        if other.next_due_on <= due_on + datetime.timedelta(days=math.floor(period * pct)):
+            return True
+    if (
+        other.next_due_meter_value is not None
+        and main.next_due_meter_value is not None
+        and other.meter_id is not None
+        and other.meter_id == main.meter_id
+        and version.uses_meter
+    ):
+        return other.next_due_meter_value <= main.next_due_meter_value + version.meter_interval * pct
+    return False
+
+
 def generate_due_work_orders(*, today: datetime.date | None = None, horizon_days=None, meter=None):
     """Genera OT preventivas que vencen por fecha o por uso, lo que ocurra primero (PM-02, PM-05).
 
     Usa la versión vigente del plan: la OT guarda esa versión y copia su
-    checklist. Idempotente: una asignación con OT abierta no genera otra
-    (además lo garantiza un índice único parcial en WorkOrder). Con `meter`,
-    revisa solo los planes de ese medidor (tras registrar una lectura).
+    checklist. Idempotente: una asignación con OT abierta (propia o de un plan
+    que la absorbió) no genera otra; además lo garantiza un índice único
+    parcial en WorkOrder. Con `meter`, revisa solo los planes de ese medidor
+    (tras registrar una lectura).
+
+    Absorción (PM-05 CA3): los planes que absorben a otros se revisan primero;
+    si en el mismo activo un plan absorbido vence junto al mayor
+    (`absorption_due`), la OT del mayor lleva los dos checklists en secciones
+    rotuladas y el menor no genera OT propia.
     """
-    from apps.work.models import WorkOrder
+    from apps.work.models import WorkOrder, WorkOrderAbsorption
     from apps.work.services import create_work_order
 
     from .selectors import maintenance_settings
@@ -334,27 +392,17 @@ def generate_due_work_orders(*, today: datetime.date | None = None, horizon_days
     if horizon_days is None:  # el de la organización (PM-05 CA1: configurable, 14 días por defecto)
         horizon_days = maintenance_settings().horizon_days
     limit = today + datetime.timedelta(days=horizon_days)
-    candidates = (
-        PlanAssignment.objects.filter(
-            is_active=True,
-            plan__is_active=True,
-            plan__current_version__isnull=False,
-            asset__is_active=True,
-        )
-        .filter(Q(next_due_on__lte=limit) | Q(meter__isnull=False, next_due_meter_value__isnull=False))
-        .exclude(asset__status="retired")
-        .select_related("plan__current_version", "asset", "meter")
+    candidates = _active_assignments().filter(
+        Q(next_due_on__lte=limit) | Q(meter__isnull=False, next_due_meter_value__isnull=False)
     )
     if meter is not None:
         candidates = candidates.filter(meter=meter)
-    open_ids = set(
-        WorkOrder.objects.filter(plan_assignment__in=candidates)
-        .exclude(status__in=WorkOrder.CLOSED_STATUSES)
-        .values_list("plan_assignment_id", flat=True)
-    )
-    created = []
+    candidates = list(candidates)
+    busy = busy_assignment_ids(candidates)
+
+    due = []
     for assignment in candidates:
-        if assignment.id in open_ids:
+        if assignment.id in busy:
             continue
         version = assignment.plan.current_version
         by_date = assignment.next_due_on is not None and assignment.next_due_on <= limit
@@ -364,21 +412,78 @@ def generate_due_work_orders(*, today: datetime.date | None = None, horizon_days
         due_dates = [d for d in [assignment.next_due_on] if d is not None]
         if by_meter:
             due_dates.append(_estimated_meter_date(assignment, today))
-        with transaction.atomic():
-            created.append(
-                create_work_order(
-                    work_type=WorkOrder.Type.PREVENTIVE,
-                    title=assignment.plan.name,
-                    asset=assignment.asset,
-                    due_on=min(due_dates),
-                    due_meter_value=assignment.next_due_meter_value if assignment.meter_id else None,
-                    estimated_minutes=version.estimated_minutes,
-                    plan_assignment=assignment,
-                    plan_version=version,
-                    checklist=list(version.items.all()),
-                    status=WorkOrder.Status.PLANNED,
-                )
+        due.append((assignment, min(due_dates)))
+
+    # Absorciones de los planes que vencen: una consulta para las reglas y otra para
+    # las asignaciones menores de esos mismos activos (sin consultas por fila).
+    absorbs = {}
+    for plan_id, absorbed_id in PlanAbsorption.objects.filter(
+        plan_id__in={a.plan_id for a, _due in due}, absorbed_plan__is_active=True
+    ).values_list("plan_id", "absorbed_plan_id"):
+        absorbs.setdefault(plan_id, set()).add(absorbed_id)
+    minors = {}
+    if absorbs:
+        others = list(
+            _active_assignments().filter(
+                asset_id__in={a.asset_id for a, _due in due if a.plan_id in absorbs},
+                plan_id__in=set().union(*absorbs.values()),
             )
+        )
+        busy |= busy_assignment_ids(others)
+        for other in others:
+            minors.setdefault(other.asset_id, []).append(other)
+    due.sort(key=lambda row: row[0].plan_id not in absorbs)  # primero los que absorben
+
+    created = []
+    for assignment, due_on in due:
+        if assignment.id in busy:
+            continue
+        version = assignment.plan.current_version
+        absorbed = [
+            other
+            for other in minors.get(assignment.asset_id, [])
+            if other.plan_id in absorbs.get(assignment.plan_id, ())
+            and other.id not in busy
+            and absorption_due(main=assignment, due_on=due_on, other=other)
+        ]
+        with transaction.atomic():
+            fields = {}
+            if absorbed:
+                fields["checklist_sections"] = [(assignment.plan.name, list(version.items.all()))] + [
+                    (other.plan.name, list(other.plan.current_version.items.all())) for other in absorbed
+                ]
+                fields["description"] = _("Incluye: %(plans)s.") % {
+                    "plans": ", ".join(other.plan.name for other in absorbed)
+                }
+            else:
+                fields["checklist"] = list(version.items.all())
+            work_order = create_work_order(
+                work_type=WorkOrder.Type.PREVENTIVE,
+                title=assignment.plan.name,
+                asset=assignment.asset,
+                due_on=due_on,
+                due_meter_value=assignment.next_due_meter_value if assignment.meter_id else None,
+                estimated_minutes=version.estimated_minutes
+                + sum(other.plan.current_version.estimated_minutes for other in absorbed),
+                plan_assignment=assignment,
+                plan_version=version,
+                status=WorkOrder.Status.PLANNED,
+                **fields,
+            )
+            WorkOrderAbsorption.objects.bulk_create(
+                [
+                    WorkOrderAbsorption(
+                        organization=work_order.organization,
+                        work_order=work_order,
+                        plan_assignment=other,
+                        plan_version=other.plan.current_version,
+                    )
+                    for other in absorbed
+                ]
+            )
+        busy.add(assignment.id)
+        busy.update(other.id for other in absorbed)
+        created.append(work_order)
     return created
 
 
@@ -867,3 +972,67 @@ def update_maintenance_settings(*, membership, horizon_days: int) -> Maintenance
             changes={"horizon_days": [before, horizon_days]},
         )
     return settings_row
+
+
+# --- Absorción de planes (PM-05 CA3) ------------------------------------------------
+
+
+def _absorbs_transitively(start_id, target_id) -> bool:
+    """¿`start` ya absorbe (directa o indirectamente) a `target`? Evita ciclos A ⊃ B ⊃ A."""
+    edges = {}
+    for plan_id, absorbed_id in PlanAbsorption.objects.values_list("plan_id", "absorbed_plan_id"):
+        edges.setdefault(plan_id, set()).add(absorbed_id)
+    pending, seen = [start_id], set()
+    while pending:
+        current = pending.pop()
+        if current == target_id:
+            return True
+        if current not in seen:
+            seen.add(current)
+            pending.extend(edges.get(current, ()))
+    return False
+
+
+@transaction.atomic
+def add_plan_absorption(
+    *, membership, plan: MaintenancePlan, absorbed_plan: MaintenancePlan
+) -> PlanAbsorption:
+    """Configura que `plan` (mayor) absorba a `absorbed_plan` (menor) en el mismo activo. Idempotente."""
+    _require_plan_manager(membership)
+    if (
+        absorbed_plan.organization_id != plan.organization_id
+        or plan.organization_id != membership.organization_id
+    ):
+        raise ValidationError(_("Elige un plan de esta organización."))
+    if absorbed_plan.pk == plan.pk:
+        raise ValidationError(_("Un plan no puede absorberse a sí mismo."))
+    locked_plans().get(pk=plan.pk)
+    existing = PlanAbsorption.objects.filter(plan=plan, absorbed_plan=absorbed_plan).first()
+    if existing is not None:
+        return existing
+    if _absorbs_transitively(absorbed_plan.pk, plan.pk):
+        raise ValidationError(
+            _("«%(other)s» ya absorbe a «%(plan)s»: no pueden absorberse mutuamente.")
+            % {"other": absorbed_plan.name, "plan": plan.name}
+        )
+    absorption = PlanAbsorption.objects.create(plan=plan, absorbed_plan=absorbed_plan)
+    audit.record(
+        action=AuditEvent.Action.CREATE,
+        target=plan,
+        membership=membership,
+        changes={"absorbs": [None, absorbed_plan.code]},
+    )
+    return absorption
+
+
+@transaction.atomic
+def remove_plan_absorption(*, membership, absorption: PlanAbsorption) -> None:
+    """Deja de absorber. Las OT ya generadas con ambos checklists no cambian."""
+    _require_plan_manager(membership)
+    audit.record(
+        action=AuditEvent.Action.UPDATE,
+        target=absorption.plan,
+        membership=membership,
+        changes={"absorbs": [absorption.absorbed_plan.code, None]},
+    )
+    absorption.delete()

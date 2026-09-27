@@ -52,3 +52,30 @@ def test_only_admins_edit_maintenance_settings(client, tenant_a, role):
     login(client, membership)
     assert client.get(reverse("maintenance_settings")).status_code == 403
     assert client.post(reverse("maintenance_settings"), {"horizon_days": "30"}).status_code == 403
+
+
+@pytest.mark.parametrize("role,status", [("technician", 403), ("supervisor", 403), ("planner", 302)])
+def test_only_plan_managers_configure_absorption(client, tenant_a, role, status):
+    from apps.accounts.models import Membership, User
+    from apps.maintenance.models import PlanAbsorption
+
+    with tenant_context(tenant_a.org):
+        minor = create_plan(
+            code="MIN", name="Menor", calendar_interval=7, items=[{"text": "x", "item_type": "check"}]
+        )
+    user = User.objects.create_user(f"{role}-abs@a.cl", "x")
+    login(client, Membership.objects.create(user=user, organization=tenant_a.org, role=role))
+    url = reverse("plan_absorption_add", args=[tenant_a.plan.pk])
+    assert client.post(url, {"absorbed_plan": minor.pk}).status_code == status
+    with tenant_context(tenant_a.org):
+        assert PlanAbsorption.objects.exists() == (status == 302)
+
+
+def test_technician_cannot_add_absorption_through_the_service(in_a):
+    from apps.maintenance.services import add_plan_absorption
+
+    minor = create_plan(
+        code="MIN", name="Menor", calendar_interval=7, items=[{"text": "x", "item_type": "check"}]
+    )
+    with pytest.raises(PermissionDeniedError):
+        add_plan_absorption(membership=in_a.tech, plan=in_a.plan, absorbed_plan=minor)

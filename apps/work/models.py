@@ -188,6 +188,41 @@ class WorkOrder(TenantModel):
         return self.asset if self.asset_id else self.location
 
 
+class WorkOrderAbsorption(TenantModel):
+    """Asignación de un plan menor absorbida por la OT de un plan mayor (PM-05 CA3).
+
+    La OT guarda la asignación del plan mayor en `plan_assignment`; cada plan
+    absorbido queda aquí con la versión cuyo checklist se copió. Mientras la OT
+    esté abierta la asignación absorbida no genera otra OT, y al cerrarla se
+    reprograma igual que la principal.
+    """
+
+    work_order = models.ForeignKey(
+        WorkOrder, on_delete=models.CASCADE, related_name="absorptions", verbose_name=_("OT")
+    )
+    plan_assignment = models.ForeignKey(
+        "maintenance.PlanAssignment",
+        on_delete=models.CASCADE,
+        related_name="absorbed_in",
+        verbose_name=_("asignación absorbida"),
+    )
+    plan_version = models.ForeignKey(
+        "maintenance.PlanVersion",
+        on_delete=models.PROTECT,
+        related_name="+",
+        verbose_name=_("versión del plan"),
+    )
+
+    class Meta:
+        verbose_name = _("plan absorbido en OT")
+        verbose_name_plural = _("planes absorbidos en OT")
+        constraints = [
+            models.UniqueConstraint(
+                fields=["organization", "work_order", "plan_assignment"], name="uniq_work_order_absorption"
+            ),
+        ]
+
+
 class WorkOrderHelper(TenantModel):
     """Responsable adicional de una OT (WO-01 CA2); el principal sigue en `assigned_to`."""
 
@@ -245,6 +280,8 @@ class WorkOrderChecklistItem(TenantModel):
         WorkOrder, on_delete=models.CASCADE, related_name="checklist", verbose_name=_("OT")
     )
     order = models.PositiveSmallIntegerField(default=0, verbose_name=_("orden"))
+    # Plan de origen cuando la OT reúne varios checklists (absorción, PM-05 CA3); vacío si es uno solo.
+    section = models.CharField(max_length=150, blank=True, verbose_name=_("sección"))
     text = models.CharField(max_length=250, verbose_name=_("texto"))
     item_type = models.CharField(
         max_length=20, choices=ItemType.choices, default=ItemType.CHECK, verbose_name=_("tipo")

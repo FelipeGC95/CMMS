@@ -64,3 +64,47 @@ def test_settings_screen_edits_only_the_active_organization(client, tenant_a, te
         assert maintenance_settings().horizon_days == 14
     with tenant_context(tenant_b.org):
         assert maintenance_settings().horizon_days == 45
+
+
+def test_b_cannot_absorb_or_reference_plans_of_a(client, tenant_a, tenant_b):
+    from django.core.exceptions import ValidationError
+
+    from apps.maintenance.models import PlanAbsorption
+    from apps.maintenance.services import add_plan_absorption
+
+    login(client, tenant_b.admin)
+    # B intenta que su plan absorba uno de A, y quitar/agregar sobre el plan de A.
+    url = reverse("plan_absorption_add", args=[tenant_b.plan.pk])
+    assert client.post(url, {"absorbed_plan": tenant_a.plan.pk}).status_code == 404
+    assert client.post(reverse("plan_absorption_add", args=[tenant_a.plan.pk]), {}).status_code == 404
+    with tenant_context(tenant_b.org), pytest.raises(ValidationError):
+        add_plan_absorption(membership=tenant_b.admin, plan=tenant_b.plan, absorbed_plan=tenant_a.plan)
+    with tenant_context(tenant_b.org):
+        assert not PlanAbsorption.objects.exists()
+
+
+def test_generation_never_absorbs_assignments_of_another_organization(tenant_a, tenant_b):
+    import datetime as dt
+
+    from apps.maintenance.models import PlanAbsorption
+    from apps.maintenance.services import assign_plan, generate_due_work_orders
+    from apps.work.models import WorkOrderAbsorption
+
+    today = dt.date(2026, 9, 24)
+    with tenant_context(tenant_a.org):
+        minor = create_plan(
+            code="MIN", name="Menor", calendar_interval=7, items=[{"text": "x", "item_type": "check"}]
+        )
+        PlanAbsorption.objects.create(plan=tenant_a.plan, absorbed_plan=minor)
+        assign_plan(plan=tenant_a.plan, asset=tenant_a.asset, starts_on=today)
+    with tenant_context(tenant_b.org):
+        # B tiene un plan con el mismo código «MIN» en su propio activo: no se mezcla con A.
+        b_minor = create_plan(
+            code="MIN", name="Menor B", calendar_interval=7, items=[{"text": "y", "item_type": "check"}]
+        )
+        assign_plan(plan=b_minor, asset=tenant_b.asset, starts_on=today)
+    with tenant_context(tenant_a.org):
+        [wo] = generate_due_work_orders(today=today, horizon_days=14)
+        assert not WorkOrderAbsorption.objects.filter(work_order=wo).exists()
+    with tenant_context(tenant_b.org):
+        assert len(generate_due_work_orders(today=today, horizon_days=14)) == 1

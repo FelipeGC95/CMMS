@@ -125,10 +125,15 @@ def create_work_order(
     plan_assignment=None,
     plan_version=None,
     checklist=(),
+    checklist_sections=(),
     by=None,
     client_uuid=None,
 ) -> WorkOrder:
-    """Crea la OT sobre un activo o una ubicación, con su snapshot de checklist."""
+    """Crea la OT sobre un activo o una ubicación, con su snapshot de checklist.
+
+    `checklist_sections`: pares (rótulo, ítems) cuando la OT reúne varios
+    checklists (absorción de planes, PM-05 CA3); se numeran de corrido.
+    """
     _require_single_target(asset=asset, location=location)
     helpers = list(helpers)
     _require_members(
@@ -152,12 +157,18 @@ def create_work_order(
         client_uuid=client_uuid,
     )
     # Snapshot del checklist: cambiar el plan después no altera esta OT.
+    if checklist_sections:
+        rows = [(label, item) for label, items in checklist_sections for item in items]
+        rows = [(index, label, item) for index, (label, item) in enumerate(rows, start=1)]
+    else:
+        rows = [(item.order, "", item) for item in checklist]
     WorkOrderChecklistItem.objects.bulk_create(
         [
             WorkOrderChecklistItem(
                 organization=work_order.organization,
                 work_order=work_order,
-                order=item.order,
+                order=order,
+                section=section[:150],
                 text=item.text,
                 item_type=item.item_type,
                 unit=item.unit,
@@ -165,7 +176,7 @@ def create_work_order(
                 max_value=item.max_value,
                 required=item.required,
             )
-            for item in checklist
+            for order, section, item in rows
         ]
     )
     if helpers:
@@ -406,6 +417,18 @@ def _close(*, work_order: WorkOrder, user, at, record=True):
             completed_on=timezone.localdate(at),
             meter_value=work_order.meter_value_at_completion,
         )
+        # Planes absorbidos (PM-05 CA3): la misma ejecución los reprograma a todos.
+        main_meter_id = work_order.plan_assignment.meter_id
+        for absorption in work_order.absorptions.select_related(
+            "plan_assignment__plan__current_version", "plan_assignment__meter"
+        ):
+            assignment = absorption.plan_assignment
+            same_meter = assignment.meter_id is not None and assignment.meter_id == main_meter_id
+            register_completion(
+                assignment=assignment,
+                completed_on=timezone.localdate(at),
+                meter_value=work_order.meter_value_at_completion if same_meter else None,
+            )
 
 
 MEASUREMENT_LIMIT = Decimal(10) ** 11  # max_digits=14, decimal_places=3

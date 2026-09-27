@@ -30,6 +30,12 @@ urlpatterns = [
         views.plan_resource_remove_view,
         name="plan_resource_remove",
     ),
+    path("plans/<uuid:pk>/absorptions/", views.plan_absorption_add_view, name="plan_absorption_add"),
+    path(
+        "plans/<uuid:pk>/absorptions/<uuid:absorption_pk>/remove/",
+        views.plan_absorption_remove_view,
+        name="plan_absorption_remove",
+    ),
     path("plans/<uuid:pk>/assign/", views.plan_assign_view, name="plan_assign"),
     path("plans/<uuid:pk>/assign/class/", views.plan_assign_class_view, name="plan_assign_class"),
     path(

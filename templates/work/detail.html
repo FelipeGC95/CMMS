@@ -46,6 +46,7 @@
       {% else %}
       <dt>{% translate "Ubicación" %}</dt><dd>{% icon 'home' %} {{ wo.location }} <span class="mono">({{ wo.location.code }})</span><br><span class="muted">{% translate "OT sobre una ubicación, sin activo" %}</span></dd>
       {% endif %}
+      {% with absorbed=wo.absorptions.all %}{% if absorbed %}<dt>{% translate "Incluye (plan absorbido)" %}</dt><dd><ul class="people">{% for absorption in absorbed %}<li>{{ absorption.plan_assignment.plan.name }} <span class="muted">(v{{ absorption.plan_version.number }})</span></li>{% endfor %}</ul></dd>{% endif %}{% endwith %}
       <dt>{% translate "Responsable" %}</dt><dd>{{ wo.assigned_to|default:"—" }}</dd>
       {% if helpers %}<dt>{% translate "Apoyo" %}</dt><dd><ul class="people">{% for person in helpers %}<li>{{ person }}</li>{% endfor %}</ul></dd>{% endif %}
       {% if wo.estimated_minutes %}<dt>{% translate "Estimación" %}</dt><dd class="num">{{ wo.estimated_minutes }} {% translate "min" %}</dd>{% endif %}
@@ -174,7 +175,7 @@
   </div>
   {% if checklist_items %}
   <ul class="checklist">
-    {% for item in checklist_items %}{% include "work/_checklist_item.html" %}{% endfor %}
+    {% for item in checklist_items %}{% ifchanged item.section %}{% if item.section %}<li class="checklist__section"><h3>{{ item.section }}</h3></li>{% endif %}{% endifchanged %}{% include "work/_checklist_item.html" %}{% endfor %}
   </ul>
   {% else %}
   <p class="empty">{% icon 'list' %} {% translate "Esta OT aún no tiene checklist. Agrega el de un plan o ítems propios para que el técnico lo ejecute desde el celular." %}</p>

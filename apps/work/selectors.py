@@ -135,6 +135,8 @@ def work_order_detail(pk, *, membership):
             "other_costs",
             "helpers",
             "plan_version__resources",
+            "absorptions__plan_assignment__plan",
+            "absorptions__plan_version",
         )
         .get(pk=pk)
     )

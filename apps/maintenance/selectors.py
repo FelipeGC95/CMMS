@@ -128,3 +128,13 @@ def reactivatable_assignments_for_asset(*, asset):
 def maintenance_settings() -> MaintenanceSettings:
     """Ajustes de la organización del contexto; sin fila guardada, los valores por defecto."""
     return MaintenanceSettings.objects.first() or MaintenanceSettings()
+
+
+def plan_absorptions(*, plan):
+    """Planes que `plan` absorbe y candidatos para agregar (activos, sin él mismo ni los ya elegidos)."""
+    absorptions = list(
+        plan.absorptions.select_related("absorbed_plan__current_version").order_by("absorbed_plan__name")
+    )
+    taken = {a.absorbed_plan_id for a in absorptions} | {plan.pk}
+    choices = MaintenancePlan.objects.filter(is_active=True).exclude(pk__in=taken).order_by("name")
+    return absorptions, choices

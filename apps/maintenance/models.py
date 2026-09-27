@@ -383,6 +383,41 @@ class PlanTaskItem(DraftContentMixin, TenantModel):
         return self.text
 
 
+class PlanAbsorption(TenantModel):
+    """«El plan mayor absorbe al menor» (PM-05 CA3): ej. la mantención de 500 h incluye la de 250 h.
+
+    Cuando `plan` vence en un activo y `absorbed_plan` vence en el mismo activo
+    dentro de la tolerancia de `plan`, se genera una sola OT con los dos
+    checklists (secciones rotuladas) y al cerrarla avanzan ambas asignaciones.
+    Es un dato del plan (no de la versión): rige desde que se configura.
+    """
+
+    plan = models.ForeignKey(
+        MaintenancePlan, on_delete=models.CASCADE, related_name="absorptions", verbose_name=_("plan mayor")
+    )
+    absorbed_plan = models.ForeignKey(
+        MaintenancePlan,
+        on_delete=models.CASCADE,
+        related_name="absorbed_by",
+        verbose_name=_("plan absorbido"),
+    )
+
+    class Meta:
+        verbose_name = _("absorción de plan")
+        verbose_name_plural = _("absorciones de planes")
+        constraints = [
+            models.UniqueConstraint(
+                fields=["organization", "plan", "absorbed_plan"], name="uniq_plan_absorption"
+            ),
+            models.CheckConstraint(
+                condition=~models.Q(plan=models.F("absorbed_plan")), name="plan_absorption_not_self"
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.plan} ⊃ {self.absorbed_plan}"
+
+
 class PlanAssignment(TenantModel):
     """Plan aplicado a un activo. Guarda el estado del programador."""
 

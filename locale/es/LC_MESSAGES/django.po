@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-27 01:25-0300\n"
+"POT-Creation-Date: 2026-09-27 01:38-0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1432,6 +1432,18 @@ msgstr ""
 msgid "checklist"
 msgstr ""
 
+msgid "plan mayor"
+msgstr ""
+
+msgid "plan absorbido"
+msgstr ""
+
+msgid "absorción de plan"
+msgstr ""
+
+msgid "absorciones de planes"
+msgstr ""
+
 msgid "próximo vencimiento"
 msgstr ""
 
@@ -1473,6 +1485,10 @@ msgid "%(asset)s no tiene un medidor de tipo «%(kind)s»."
 msgstr ""
 
 #, python-format
+msgid "Incluye: %(plans)s."
+msgstr ""
+
+#, python-format
 msgid "La versión %(number)s está publicada: crea un borrador para cambiarla."
 msgstr ""
 
@@ -1511,6 +1527,16 @@ msgstr ""
 
 #, python-format
 msgid "Usa entre 1 y %(max)s días."
+msgstr ""
+
+msgid "Elige un plan de esta organización."
+msgstr ""
+
+msgid "Un plan no puede absorberse a sí mismo."
+msgstr ""
+
+#, python-format
+msgid "«%(other)s» ya absorbe a «%(plan)s»: no pueden absorberse mutuamente."
 msgstr ""
 
 #, python-format
@@ -1574,6 +1600,13 @@ msgid "Plan quitado de %(code)s."
 msgstr ""
 
 msgid "Ajustes guardados."
+msgstr ""
+
+#, python-format
+msgid "«%(plan)s» absorberá a «%(other)s»."
+msgstr ""
+
+msgid "Absorción quitada."
 msgstr ""
 
 msgid "correo del administrador"
@@ -2074,6 +2107,15 @@ msgstr ""
 msgid "órdenes de trabajo"
 msgstr ""
 
+msgid "asignación absorbida"
+msgstr ""
+
+msgid "plan absorbido en OT"
+msgstr ""
+
+msgid "planes absorbidos en OT"
+msgstr ""
+
 msgid "apoyo de OT"
 msgstr ""
 
@@ -2108,6 +2150,9 @@ msgid "N.A."
 msgstr ""
 
 msgid "Hecho"
+msgstr ""
+
+msgid "sección"
 msgstr ""
 
 msgid "texto"
@@ -3362,6 +3407,31 @@ msgstr ""
 msgid "Ir a la administración de plataforma"
 msgstr ""
 
+msgid "Absorbe a otros planes"
+msgstr ""
+
+#, python-format
+msgid ""
+"Si «%(plan)s» vence en un activo y un plan de esta lista vence en el mismo "
+"activo dentro de la tolerancia, se genera una sola OT con ambos checklists y "
+"al cerrarla avanzan los dos. Rige de inmediato, sin publicar."
+msgstr ""
+
+msgid "Quitar"
+msgstr ""
+
+msgid "No absorbe a ningún plan."
+msgstr ""
+
+msgid "Plan menor que absorbe"
+msgstr ""
+
+msgid "Ej.: la mantención de 500 h absorbe a la de 250 h."
+msgstr ""
+
+msgid "Agregar absorción"
+msgstr ""
+
 msgid "Solo para mediciones (opcional)"
 msgstr ""
 
@@ -3515,9 +3585,6 @@ msgid "Próximo vencimiento"
 msgstr ""
 
 msgid "Última ejecución"
-msgstr ""
-
-msgid "Quitar"
 msgstr ""
 
 msgid "Ningún activo de tu alcance tiene este plan."
@@ -3924,6 +3991,9 @@ msgstr ""
 msgid "Otra foto"
 msgstr ""
 
+msgid "Mensual (plan absorbido: sección rotulada)"
+msgstr ""
+
 msgid "Observaciones del operador (texto)"
 msgstr ""
 
@@ -4242,6 +4312,9 @@ msgid "Aprobar cierre"
 msgstr ""
 
 msgid "OT sobre una ubicación, sin activo"
+msgstr ""
+
+msgid "Incluye (plan absorbido)"
 msgstr ""
 
 msgid "Estimación"

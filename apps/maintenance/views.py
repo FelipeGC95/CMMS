@@ -32,11 +32,12 @@ from .forms import (
     PublishForm,
     TriggerForm,
 )
-from .models import MaintenancePlan, PlanAssignment, PlanResource, PlanTaskItem, PlanVersion
+from .models import MaintenancePlan, PlanAbsorption, PlanAssignment, PlanResource, PlanTaskItem, PlanVersion
 from .selectors import (
     assignable_assets,
     assignable_plans,
     maintenance_settings,
+    plan_absorptions,
     plan_assignments,
     plan_list,
     plan_versions,
@@ -137,6 +138,7 @@ def plan_detail_view(request, pk):
             "items": items,
             "resources": resources,
             "page": page,
+            **_absorption_context(plan),
         },
     )
 
@@ -210,6 +212,7 @@ def plan_draft_view(request, pk):
             "trigger_form": trigger_form,
             "item_form": item_form,
             "resource_form": resource_form,
+            **_absorption_context(plan),
         },
     )
 
@@ -488,3 +491,47 @@ def maintenance_settings_view(request):
             messages.success(request, _("Ajustes guardados."))
             return redirect("maintenance_settings")
     return render(request, "maintenance/settings.html", {"form": form})
+
+
+# --- Absorción de planes (PM-05 CA3) --------------------------------------------
+
+
+def _absorption_context(plan):
+    absorptions, choices = plan_absorptions(plan=plan)
+    return {"absorptions": absorptions, "absorb_choices": choices}
+
+
+def _back(request, plan):
+    """Vuelve a la ficha o al borrador (solo rutas del propio plan)."""
+    target = request.POST.get("next", "")
+    allowed = {reverse("plan_detail", args=[plan.pk]), reverse("plan_draft", args=[plan.pk])}
+    return redirect(f"{target if target in allowed else allowed.pop()}#absorptions")
+
+
+@require_POST
+@manager_required
+def plan_absorption_add_view(request, pk):
+    plan = _plan(pk)
+    # El manager por defecto filtra por organización: un plan de otra empresa da 404.
+    absorbed = get_object_or_404(MaintenancePlan, pk=request.POST.get("absorbed_plan") or None)
+    try:
+        services.add_plan_absorption(membership=request.membership, plan=plan, absorbed_plan=absorbed)
+    except ValidationError as error:
+        messages.error(request, " ".join(error.messages))
+    else:
+        messages.success(
+            request, _("«%(plan)s» absorberá a «%(other)s».") % {"plan": plan.name, "other": absorbed.name}
+        )
+    return _back(request, plan)
+
+
+@require_POST
+@manager_required
+def plan_absorption_remove_view(request, pk, absorption_pk):
+    plan = _plan(pk)
+    absorption = get_object_or_404(
+        PlanAbsorption.objects.select_related("plan", "absorbed_plan"), pk=absorption_pk, plan=plan
+    )
+    services.remove_plan_absorption(membership=request.membership, absorption=absorption)
+    messages.success(request, _("Absorción quitada."))
+    return _back(request, plan)
