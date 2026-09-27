@@ -2,6 +2,7 @@
 
 import datetime
 import math
+from dataclasses import dataclass
 from decimal import Decimal
 
 from django.db.models import Count, Prefetch, Q
@@ -10,8 +11,17 @@ from django.utils import timezone
 from apps.accounts.permissions import Perm, require_perm
 from apps.assets.models import Meter
 from apps.assets.selectors import visible_assets
+from apps.organizations.selectors import descendant_ids
 
-from .models import MaintenancePlan, MaintenanceSettings, PlanAssignment, PlanVersion
+from .models import (
+    MaintenancePlan,
+    MaintenanceSettings,
+    PlanAbsorption,
+    PlanAssignment,
+    PlanVersion,
+    add_months,
+)
+from .projection import MAX_OCCURRENCES, Occurrence, project
 
 TRIGGERS = ("calendar", "meter", "mixed")
 
@@ -173,3 +183,142 @@ def is_on_time(work_order) -> bool | None:
         window = version.meter_interval * pct
         checks.append(abs(work_order.meter_value_at_completion - work_order.due_meter_value) <= window)
     return any(checks) if checks else None
+
+
+def busy_assignment_ids(assignments) -> set:
+    """Asignaciones con una OT abierta, propia o de un plan que las absorbió (PM-05 CA2/CA3)."""
+    from apps.work.models import WorkOrder, WorkOrderAbsorption
+
+    own = WorkOrder.objects.filter(plan_assignment__in=assignments).exclude(
+        status__in=WorkOrder.CLOSED_STATUSES
+    )
+    absorbed = WorkOrderAbsorption.objects.filter(plan_assignment__in=assignments).exclude(
+        work_order__status__in=WorkOrder.CLOSED_STATUSES
+    )
+    return set(own.values_list("plan_assignment_id", flat=True)) | set(
+        absorbed.values_list("plan_assignment_id", flat=True)
+    )
+
+
+# --- Calendario de preventivos (PM-06) ----------------------------------------
+
+# Quién ve el calendario: los roles que ejecutan o gestionan OT (administrador,
+# planificador, supervisor y técnico), cada uno dentro de su alcance por sitio.
+CALENDAR_PERM = Perm.WORK_ORDER_EXECUTE
+# OT existentes que se muestran junto a la proyección.
+CALENDAR_WO_STATUSES = ("planned", "scheduled")
+
+
+@dataclass
+class PlanCalendar:
+    start: datetime.date
+    end: datetime.date
+    # Proyectadas y OT existentes, por fecha (las absorbidas llevan `absorbed_into`).
+    occurrences: list
+    # Asignaciones por medidor sin uso promedio: no tienen fecha proyectable.
+    unestimated: list
+    truncated: bool
+
+
+def plan_calendar(
+    *,
+    membership,
+    start: datetime.date,
+    end: datetime.date,
+    location=None,
+    asset_class=None,
+    asset_q: str = "",
+    plan=None,
+    today: datetime.date | None = None,
+) -> PlanCalendar:
+    """Preventivos entre `start` y `end`: OT planificadas o programadas y la proyección (PM-06 CA1).
+
+    Consultas acotadas (no crecen con las asignaciones): asignaciones de los
+    activos visibles filtrados, reglas de absorción, OT abiertas de esas
+    asignaciones y OT del período. Con `plan`, se proyectan todos los planes
+    de los activos que lo tienen (para respetar las absorciones) y se muestran
+    solo las ocurrencias de ese plan.
+    """
+    from apps.work.selectors import in_locations, visible_work_orders
+
+    require_perm(membership, CALENDAR_PERM)
+    today = today or timezone.localdate()
+    location_ids = {location.pk, *descendant_ids(location)} if location is not None else None
+    assets = visible_assets(membership=membership).filter(is_active=True).exclude(status="retired")
+    if location_ids is not None:
+        assets = assets.filter(location_id__in=location_ids)
+    if asset_class is not None:
+        assets = assets.filter(asset_class=asset_class)
+    if asset_q:
+        assets = assets.filter(Q(code__icontains=asset_q) | Q(name__icontains=asset_q))
+    if plan is not None:
+        assets = assets.filter(plan_assignments__plan=plan, plan_assignments__is_active=True)
+
+    occurrences, unestimated, truncated = [], [], False
+    if end >= today:
+        assignments = list(
+            PlanAssignment.objects.filter(
+                is_active=True,
+                plan__is_active=True,
+                plan__current_version__isnull=False,
+                asset__in=assets.values("pk"),
+            ).select_related("plan__current_version", "asset__location", "meter")
+        )
+        if assignments:
+            absorptions = {}
+            for plan_id, absorbed_id in PlanAbsorption.objects.filter(
+                absorbed_plan__is_active=True
+            ).values_list("plan_id", "absorbed_plan_id"):
+                absorptions.setdefault(plan_id, set()).add(absorbed_id)
+            occurrences, unestimated, truncated = project(
+                assignments=assignments,
+                absorptions=absorptions,
+                busy=busy_assignment_ids([a.pk for a in assignments]),
+                today=today,
+                end=end,
+            )
+        occurrences = [o for o in occurrences if o.date >= start and (plan is None or o.plan.pk == plan.pk)]
+        unestimated = [a for a in unestimated if plan is None or a.plan_id == plan.pk]
+
+    orders = (
+        visible_work_orders(membership=membership)
+        .filter(status__in=CALENDAR_WO_STATUSES, due_on__gte=start, due_on__lte=end)
+        .select_related("asset__location", "location", "plan_assignment__plan")
+    )
+    if asset_class is not None or asset_q or plan is not None:
+        orders = orders.filter(asset__in=assets.values("pk"))
+    elif location_ids is not None:
+        orders = orders.filter(in_locations(location_ids))
+    if plan is not None:
+        orders = orders.filter(plan_assignment__plan=plan)
+    for order in orders.order_by("due_on", "number")[:MAX_OCCURRENCES]:
+        assignment = order.plan_assignment
+        occurrences.append(
+            Occurrence(
+                date=order.due_on,
+                plan=assignment.plan if assignment is not None else None,
+                asset=order.asset,
+                work_order=order,
+            )
+        )
+    occurrences.sort(key=lambda o: (o.date, o.work_order is None, o.absorbed_into is not None))
+    return PlanCalendar(start, end, occurrences, unestimated, truncated)
+
+
+def calendar_months(calendar: PlanCalendar) -> list[dict]:
+    """Resumen por mes (vista «12 meses»): OT previstas, absorbidas y minutos estimados."""
+    months = {}
+    cursor = calendar.start.replace(day=1)
+    while cursor <= calendar.end:
+        months[(cursor.year, cursor.month)] = {"month": cursor, "count": 0, "absorbed": 0, "minutes": 0}
+        cursor = add_months(cursor, 1)
+    for occurrence in calendar.occurrences:
+        row = months.get((occurrence.date.year, occurrence.date.month))
+        if row is None:
+            continue
+        if occurrence.absorbed_into is not None:
+            row["absorbed"] += 1
+        else:
+            row["count"] += 1
+            row["minutes"] += occurrence.estimated_minutes
+    return list(months.values())

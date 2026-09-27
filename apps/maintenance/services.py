@@ -26,6 +26,7 @@ from .models import (
     PlanVersion,
 )
 from .scheduling import absorbs, estimated_meter_date, next_schedule
+from .selectors import busy_assignment_ids
 
 # Aviso mínimo para planes por uso: generar la OT al 90 % del intervalo.
 METER_MIN_LEAD = Decimal("0.10")
@@ -314,21 +315,6 @@ def _estimated_meter_date(assignment: PlanAssignment, today: datetime.date) -> d
             today=today,
         )
         or today
-    )
-
-
-def busy_assignment_ids(assignments) -> set:
-    """Asignaciones con una OT abierta, propia o de un plan que las absorbió (PM-05 CA2/CA3)."""
-    from apps.work.models import WorkOrder, WorkOrderAbsorption
-
-    own = WorkOrder.objects.filter(plan_assignment__in=assignments).exclude(
-        status__in=WorkOrder.CLOSED_STATUSES
-    )
-    absorbed = WorkOrderAbsorption.objects.filter(plan_assignment__in=assignments).exclude(
-        work_order__status__in=WorkOrder.CLOSED_STATUSES
-    )
-    return set(own.values_list("plan_assignment_id", flat=True)) | set(
-        absorbed.values_list("plan_assignment_id", flat=True)
     )
 
 
