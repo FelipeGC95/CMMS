@@ -17,6 +17,7 @@
       {% if membership|can:"request.create" and organization|has_module:"requests" %}<li><a href="{% url 'location_report' %}">{% icon 'megaphone' %}{% translate "Avisar problema en una ubicación" %}</a></li>{% endif %}
       {% if membership|can:"work_order.manage" and organization|has_module:"requests" %}<li><a href="{% url 'request_list' %}">{% icon 'megaphone' %}{% translate "Solicitudes" %}</a></li>{% endif %}
       {% if membership|can:"work_order.manage" and organization|has_module:"work_orders" %}<li><a href="{% url 'failure_code_list' %}">{% icon 'alert' %}{% translate "Catálogo de falla" %}</a></li>{% endif %}
+      {% if membership|can:"work_order.execute" and organization|has_module:"preventive" %}<li><a href="{% url 'plan_calendar' %}">{% icon 'calendar' %}{% translate "Calendario de preventivos" %}</a></li>{% endif %}
       {% if membership|can:"plan.manage" and organization|has_module:"preventive" %}<li><a href="{% url 'plan_list' %}">{% icon 'calendar' %}{% translate "Planes preventivos" %}</a></li>{% endif %}
       {% if membership|can:"organization.manage" and organization|has_module:"preventive" %}<li><a href="{% url 'maintenance_settings' %}">{% icon 'wrench' %}{% translate "Ajustes de preventivos" %}</a></li>{% endif %}
       {% if membership|can:"asset.manage" %}

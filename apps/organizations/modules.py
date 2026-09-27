@@ -30,7 +30,7 @@ MODULE_LABELS = {
 
 # Rutas web → módulo. Gana la primera que coincide (las más específicas van primero).
 MODULE_ROUTES = [
-    (re.compile(r"^/(assets|work-orders)/export\.xlsx$"), "exports"),
+    (re.compile(r"^/(assets|work-orders|plans/calendar)/export\.xlsx$"), "exports"),
     (re.compile(r"^/(assets|work-orders)/[^/]+/sheet\.pdf$"), "exports"),
     (re.compile(r"^/settings/api-tokens/"), "api"),
     (re.compile(r"^/plans/"), "preventive"),

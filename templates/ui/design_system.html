@@ -322,5 +322,43 @@
   <ul class="recovery-codes" aria-label="{% translate 'Códigos sin usar' %}">
     <li class="mono">1234-5678</li><li class="mono">2345-6789</li><li class="mono">3456-7890</li>
   </ul>
+<section class="mb-4" aria-labelledby="ds-calendar">
+  <h2 id="ds-calendar">{% translate "Calendario del mes" %}</h2>
+  <p class="muted">{% translate "Navegación entre meses, grilla desde 720 px (hoy resaltado, días de otro mes atenuados) y lista por día, que es la vista del teléfono. Totales al pie de una tabla." %}</p>
+  <div class="month-nav">
+    <a class="btn btn--ghost" href="#ds-calendar">&larr; <span class="month-nav__label">{% translate "Anterior" %}</span></a>
+    <h2 class="month-nav__title">{% translate "Octubre 2026" %}</h2>
+    <a class="btn btn--ghost" href="#ds-calendar"><span class="month-nav__label">{% translate "Siguiente" %}</span> &rarr;</a>
+  </div>
+  <div class="month-grid card card--flush" aria-hidden="true">
+    <div class="month-grid__head">{% translate "lun" %}</div><div class="month-grid__head">{% translate "mar" %}</div><div class="month-grid__head">{% translate "mié" %}</div><div class="month-grid__head">{% translate "jue" %}</div><div class="month-grid__head">{% translate "vie" %}</div><div class="month-grid__head">{% translate "sáb" %}</div><div class="month-grid__head">{% translate "dom" %}</div>
+    <div class="month-grid__day month-grid__day--out"><span class="month-grid__num">28</span></div>
+    <div class="month-grid__day month-grid__day--out"><span class="month-grid__num">29</span></div>
+    <div class="month-grid__day month-grid__day--out"><span class="month-grid__num">30</span></div>
+    <div class="month-grid__day"><span class="month-grid__num">1</span><span class="month-grid__item">{% icon 'wrench' %}{% translate "Semestral" %} · CMP-01</span><span class="month-grid__item month-grid__item--absorbed">{% icon 'dot' %}{% translate "Mensual" %} · CMP-01</span></div>
+    <div class="month-grid__day month-grid__day--today"><span class="month-grid__num">2</span><span class="month-grid__item month-grid__item--absorbed">{% icon 'dot' %}{% translate "Mensual" %} · CMP-02</span><a class="month-grid__more" href="#ds-calendar" tabindex="-1">{% translate "+2 más" %}</a></div>
+    <div class="month-grid__day"><span class="month-grid__num">3</span></div>
+    <div class="month-grid__day"><span class="month-grid__num">4</span><span class="month-grid__item">{% icon 'calendar' %}{% translate "Mensual" %} · CMP-03</span></div>
+  </div>
+  <div class="card">
+    <section class="day-list__day">
+      <h3 class="day-list__title">{% translate "Jueves 1 de octubre" %} <span class="badge badge--info">{% icon 'calendar' %}{% translate "Hoy" %}</span></h3>
+      <ul class="list">
+        <li><div class="list__main"><span class="list__title">{% translate "Semestral" %}</span><span class="list__meta"><span class="mono">CMP-01</span> · {% translate "Compresor 1" %} · {% icon 'clock' %} 270 min</span></div>
+          <div class="row"><span class="badge badge--info">{% icon 'calendar' %}{% translate "Proyectada" %}</span><span class="badge badge--neutral">{% icon 'clock' %}{% translate "Por uso estimado" %}</span></div></li>
+        <li><div class="list__main"><span class="list__title">{% translate "Mensual" %}</span><span class="list__meta"><span class="mono">CMP-01</span> · {% translate "Compresor 1" %}</span></div>
+          <div class="row"><span class="badge badge--neutral">{% icon 'dot' %}{% translate "Absorbida en Semestral" %}</span><span class="badge badge--warning">{% icon 'alert' %}{% translate "Vencida" %}</span></div></li>
+      </ul>
+    </section>
+  </div>
+  <div class="card card--flush mt-2">
+    <table class="table">
+      <thead><tr><th>{% translate "Mes" %}</th><th class="num">{% translate "OT previstas" %}</th><th class="num">{% translate "Horas estimadas" %}</th></tr></thead>
+      <tbody>
+        <tr><td data-label="">{% translate "Octubre 2026" %}</td><td data-label="{% translate 'OT previstas' %}" class="num">12</td><td data-label="{% translate 'Horas estimadas' %}" class="num">18,5</td></tr>
+        <tr class="table__total"><td data-label="">{% translate "Total" %}</td><td data-label="{% translate 'OT previstas' %}" class="num">12</td><td data-label="{% translate 'Horas estimadas' %}" class="num">18,5</td></tr>
+      </tbody>
+    </table>
+  </div>
 </section>
 {% endblock %}

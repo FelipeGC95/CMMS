@@ -31,6 +31,9 @@ BRANDABLE_TOKENS = (
     "--color-nav-active",
 )
 
+# Fondos sobre los que aparecen enlaces (los mismos pares de tests/ui/test_contrast.py).
+LINK_BACKGROUNDS = ("--color-surface", "--color-bg", "--color-info-bg")
+
 
 def normalize(value: str) -> str:
     value = (value or "").strip()
@@ -102,8 +105,8 @@ def brand_palette(color: str) -> BrandPalette:
         hover = action
 
     # Enlaces y foco: AA de texto sobre la superficie y el fondo de cada tema.
-    link_light = _fit(color, [light["--color-surface"], light["--color-bg"]], TEXT, darker=True)
-    link_dark = _fit(color, [dark["--color-surface"], dark["--color-bg"]], TEXT, darker=False)
+    link_light = _fit(color, [light[bg] for bg in LINK_BACKGROUNDS], TEXT, darker=True)
+    link_dark = _fit(color, [dark[bg] for bg in LINK_BACKGROUNDS], TEXT, darker=False)
     if link_light != color:
         palette.notes.append(
             _("Los enlaces sobre fondo claro usan %(color)s, un tono más oscuro.") % {"color": link_light}

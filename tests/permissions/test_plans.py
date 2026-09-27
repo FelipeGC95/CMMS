@@ -35,7 +35,8 @@ def test_non_planners_get_403(client, tenant_a, role):
 @pytest.mark.parametrize("role", ["tech", "viewer"])
 def test_non_planners_do_not_see_plan_links(client, tenant_a, role):
     login(client, getattr(tenant_a, role))
-    assert reverse("plan_list") not in client.get(reverse("menu")).content.decode()
+    # Comparar el href exacto: /plans/calendar/ (que el técnico sí ve) empieza igual.
+    assert f'href="{reverse("plan_list")}"' not in client.get(reverse("menu")).content.decode()
     body = client.get(reverse("asset_detail", args=[tenant_a.asset.pk])).content.decode()
     assert reverse("asset_plan_assign", args=[tenant_a.asset.pk]) not in body
 
