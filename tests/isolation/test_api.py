@@ -9,7 +9,7 @@ from apps.api.models import ApiToken
 from apps.assets.models import Meter, MeterKind, MeterReading
 from apps.core.tenancy import tenant_context
 from apps.organizations.models import Location
-from apps.work.models import WorkOrder, WorkRequest
+from apps.work.models import WorkOrder, WorkOrderChecklistItem, WorkRequest
 from apps.work.services import create_work_order, report_failure
 from tests.api_utils import api_client, make_token
 from tests.conftest import login
@@ -130,6 +130,39 @@ def test_token_screen_lists_and_revokes_only_own_tokens(client, tenant_a, tenant
     assert token_b.prefix not in client.get(reverse("api_token_list")).content.decode()
     assert client.post(reverse("api_token_revoke", args=[token_b.pk])).status_code == 404
     assert ApiToken.all_tenants.get(pk=token_b.pk).revoked_at is None
+
+
+def test_cannot_complete_or_answer_other_organization_work_orders(tenant_a, tenant_b, b_data):
+    wo_b = b_data["work-orders"]
+    with tenant_context(tenant_b.org):
+        item_b = WorkOrderChecklistItem.objects.create(work_order_id=wo_b, text="B", item_type="check")
+    with tenant_context(tenant_a.org):
+        wo_a = create_work_order(work_type="corrective", title="A", asset=tenant_a.asset)
+    client = api_client(tenant_a)
+    payload = {"labor_minutes": 5, "impact": "none"}
+    assert client.post(f"/api/v1/work-orders/{wo_b}/complete/", payload, format="json").status_code == 404
+    for wo in (wo_b, wo_a.pk):  # ni por la OT de B ni colgando el ítem de B de una OT de A
+        url = f"/api/v1/work-orders/{wo}/checklist-items/{item_b.pk}/answer/"
+        assert client.post(url, {"result": "ok"}).status_code == 404
+    with tenant_context(tenant_b.org):
+        assert WorkOrder.objects.get(pk=wo_b).status not in ("completed", "closed")
+        assert WorkOrderChecklistItem.objects.get(pk=item_b.pk).result == ""
+
+
+def test_completion_key_of_other_organization_is_ignored(tenant_a, tenant_b, b_data):
+    key = "0190a000-0000-7000-8000-000000000002"
+    payload = {"labor_minutes": 5, "impact": "none", "client_uuid": key}
+    assert (
+        api_client(tenant_b)
+        .post(f"/api/v1/work-orders/{b_data['work-orders']}/complete/", payload, format="json")
+        .status_code
+        == 200
+    )
+    with tenant_context(tenant_a.org):
+        wo_a = create_work_order(work_type="corrective", title="A", asset=tenant_a.asset)
+    response = api_client(tenant_a).post(f"/api/v1/work-orders/{wo_a.pk}/complete/", payload, format="json")
+    assert response.status_code == 200 and response.json()["id"] == str(wo_a.pk)
+    assert response.json()["completed_at"] is not None
 
 
 def test_csv_import_does_not_see_other_organization_assets(client, tenant_a, b_data):

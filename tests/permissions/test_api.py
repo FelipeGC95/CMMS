@@ -13,6 +13,8 @@ from apps.accounts.permissions import Perm, PermissionDeniedError, has_perm
 from apps.api.models import ApiToken
 from apps.api.services import create_token, revoke_token
 from apps.core.tenancy import platform_context, tenant_context
+from apps.work.models import WorkOrder, WorkOrderChecklistItem
+from apps.work.services import create_work_order
 from tests.api_utils import api_client, make_token
 from tests.conftest import login
 
@@ -121,3 +123,17 @@ def test_csv_reading_import_is_for_asset_managers(client, tenant_a, role):
     csv.name = "l.csv"
     assert client.post(reverse("reading_import"), {"file": csv}).status_code == 403
     assert client.post(reverse("reading_import_confirm", args=["x"])).status_code == 403
+
+
+def test_read_scope_cannot_complete_or_answer(tenant_a):
+    with tenant_context(tenant_a.org):
+        wo = create_work_order(work_type="preventive", title="PM", asset=tenant_a.asset)
+        item = WorkOrderChecklistItem.objects.create(work_order=wo, text="x", item_type="check")
+    client = api_client(tenant_a, "read")
+    response = client.post(f"/api/v1/work-orders/{wo.pk}/complete/", {"labor_minutes": 5}, format="json")
+    assert response.status_code == 403 and response.json()["error"]["code"] == "permission_denied"
+    url = f"/api/v1/work-orders/{wo.pk}/checklist-items/{item.pk}/answer/"
+    assert client.post(url, {"result": "ok"}).status_code == 403
+    with tenant_context(tenant_a.org):
+        assert WorkOrder.objects.get(pk=wo.pk).status not in ("completed", "closed")
+        assert WorkOrderChecklistItem.objects.get(pk=item.pk).result == ""
