@@ -54,6 +54,20 @@ class SecurityForm(forms.Form):
     )
 
 
+class BrandColorForm(forms.Form):
+    primary_color = forms.CharField(
+        label=_("Color primario"),
+        max_length=7,
+        required=False,
+        widget=forms.TextInput(attrs={"type": "color"}),
+        help_text=_(
+            "Se usa en los botones principales, los enlaces y la navegación. Si no alcanza el "
+            "contraste necesario para leerse bien, ajustamos el tono automáticamente."
+        ),
+    )
+    reset = forms.BooleanField(label=_("Usar el color de GALBUST"), required=False)
+
+
 class WorkOrderStatusLabelsForm(forms.Form):
     """Un campo por estado de OT; en blanco usa el nombre por defecto (WO-02 CA5)."""
 

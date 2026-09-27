@@ -11,6 +11,7 @@
   <script src="{% static 'js/theme.js' %}"></script>
   <link rel="stylesheet" href="{% static 'css/tokens.css' %}">
   <link rel="stylesheet" href="{% static 'css/components.css' %}">
+  {% if organization.primary_color %}<link rel="stylesheet" href="{% url 'organization_theme_css' %}?v={{ organization.primary_color|slice:'1:'|lower }}">{% endif %}
   <script src="{% static 'vendor/htmx.min.js' %}" defer></script>
   <script src="{% static 'js/app.js' %}" defer></script>
   {% block extra_head %}{% endblock %}

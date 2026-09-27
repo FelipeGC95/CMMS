@@ -238,6 +238,7 @@ main { max-width: var(--content-max); margin: 0 auto; padding: var(--space-5) va
 .field .error { font-size: var(--text-sm); color: var(--color-error); display: flex; gap: var(--space-1); align-items: center; }
 .field input[type="file"] { font: inherit; font-size: var(--text-sm); color: var(--color-text-muted); max-width: 100%; }
 .field input[type="file"]::file-selector-button { min-height: var(--touch-target); padding: 0 var(--space-4); margin-right: var(--space-3); border: 1px solid var(--color-border-strong); border-radius: var(--radius-md); background: var(--color-surface); color: var(--color-text-brand); font: inherit; font-size: var(--text-md); font-weight: 600; cursor: pointer; }
+.field input[type="color"] { width: 96px; min-height: var(--touch-target); padding: var(--space-1); border: 1px solid var(--color-border-strong); border-radius: var(--radius-md); background: var(--color-surface); cursor: pointer; }
 .field--check { flex-direction: row; align-items: center; gap: var(--space-3); min-height: var(--touch-target); }
 .field--check input { width: 24px; height: 24px; accent-color: var(--color-accent-text); }
 /* Grupo de casillas (selección múltiple, p. ej. responsables de apoyo): cada opción ≥ 48 px. */

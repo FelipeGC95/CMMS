@@ -4,6 +4,7 @@ from . import views
 
 urlpatterns = [
     path("settings/", views.organization_settings_view, name="organization_settings"),
+    path("org-theme.css", views.organization_theme_css_view, name="organization_theme_css"),
     path("settings/logo.png", views.organization_logo_view, name="organization_logo"),
     path("locations/", views.location_list_view, name="location_list"),
     path("locations/<uuid:pk>/", views.location_edit_view, name="location_edit"),

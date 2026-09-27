@@ -79,6 +79,9 @@ class Organization(TimeStampedModel):
     logo = models.ImageField(_("logo"), upload_to=organization_logo_upload_to, blank=True)
     # Tamaño del logo guardado: cuenta para el cupo de almacenamiento (ORG-10).
     logo_size_bytes = models.PositiveIntegerField(_("tamaño del logo (bytes)"), default=0)
+    # Color primario de la marca (ORG-09), "#RRGGBB"; en blanco usa el de GALBUST.
+    # Los tonos por uso con contraste AA se calculan en `branding.brand_palette`.
+    primary_color = models.CharField(_("color primario"), max_length=7, blank=True)
     # Verificación en dos pasos exigida al entrar (ORG-08); se aplica la de la organización activa.
     mfa_policy = models.CharField(
         _("verificación en dos pasos"),

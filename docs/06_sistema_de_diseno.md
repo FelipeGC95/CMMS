@@ -197,20 +197,29 @@ Una organización puede sobrescribir **solo**:
   etiquetas QR). Si no sube una versión para fondo oscuro, en modo oscuro su
   logo se muestra sobre una placa clara (`--color-surface` claro con radio
   `--radius-md`).
-- **Color primario** → reemplaza `--color-action-bg`, `--color-action-bg-hover`,
-  `--color-nav-active` y `--color-link`.
+- **Color primario** (Configuración → Color de la marca) → reemplaza
+  `--color-action-bg`, `--color-action-text`, `--color-action-bg-hover`,
+  `--color-link`, `--color-accent-text` y `--color-nav-active`
+  (`BRANDABLE_TOKENS` en `apps/organizations/branding.py`).
 
-Al guardar, un servicio calcula automáticamente:
+Se guarda solo el color elegido (`organization.primary_color`); los tonos por
+uso se calculan con los fondos reales de `tokens.css`:
 
-1. El color de texto del botón (el tono oscuro de marca o blanco, el que
-   tenga mayor contraste; si ninguno alcanza 4,5:1, oscurece o aclara el
-   color hasta alcanzarlo e informa del ajuste).
+1. El color de texto del botón (el azul de marca `#0B2E4F` o blanco, el que
+   tenga mayor contraste; si ninguno alcanza 4,5:1, aclara u oscurece el
+   fondo hasta alcanzarlo). El cian nunca queda con texto blanco.
 2. El hover (±8 % de luminosidad, manteniendo el contraste).
-3. La variante del color para texto sobre claro y sobre oscuro (≥ 4,5:1).
+3. La variante para enlaces sobre claro y sobre oscuro (≥ 4,5:1 contra la
+   superficie y el fondo de cada tema) y el indicador de navegación activa
+   (≥ 3:1 sobre la barra).
 
-Los valores se guardan en la organización y se inyectan como un `<style>` con
-nonce que define las variables en `:root`. **No se sobrescriben** los tokens
-de estado, texto, fondo, foco ni bordes. La marca GALBUST sigue visible como
+Cada ajuste se informa al guardar y queda visible en la tarjeta (ORG-09 CA1).
+Los tokens se sirven en `/org-theme.css?v=<color>` (sin estilos en línea, por
+la CSP; caché privada de un día con ETag), enlazada en `base.html` después de
+`components.css` y solo si la organización eligió un color. **No se
+sobrescriben** los tokens de estado, texto, fondo, foco ni bordes (CA2).
+`tests/ui/test_brand_contrast.py` repite todos los pares de `CONTRAST_PAIRS`
+con colores difíciles en ambos temas. La marca GALBUST sigue visible como
 "con tecnología de GALBUST" en el pie de página y en los reportes.
 
 ## 5. Componentes base

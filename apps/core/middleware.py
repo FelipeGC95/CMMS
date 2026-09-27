@@ -65,7 +65,8 @@ class PrivateCacheMiddleware:
     respuestas a visitantes sin sesión.
     """
 
-    SKIPPED_PATHS = ("/healthz", "/readyz")
+    # /org-theme.css no tiene datos: solo los colores de la marca (ORG-09), cacheables.
+    SKIPPED_PATHS = ("/healthz", "/readyz", "/org-theme.css")
 
     def __init__(self, get_response):
         self.get_response = get_response

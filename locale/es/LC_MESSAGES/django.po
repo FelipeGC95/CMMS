@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-27 06:03-0300\n"
+"POT-Creation-Date: 2026-09-27 06:11-0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1803,6 +1803,18 @@ msgstr ""
 msgid "Invitación de administrador enviada a %(email)s."
 msgstr ""
 
+#, python-format
+msgid "El botón principal usa %(color)s para que su texto se lea bien."
+msgstr ""
+
+#, python-format
+msgid "Los enlaces sobre fondo claro usan %(color)s, un tono más oscuro."
+msgstr ""
+
+#, python-format
+msgid "En modo oscuro los enlaces usan %(color)s, un tono más claro."
+msgstr ""
+
 msgid "Dentro de"
 msgstr ""
 
@@ -1837,6 +1849,18 @@ msgstr ""
 msgid ""
 "Quien deba usarla y no la tenga configurada lo hará al entrar. Se recomienda "
 "al menos para los administradores."
+msgstr ""
+
+msgid "Color primario"
+msgstr ""
+
+msgid ""
+"Se usa en los botones principales, los enlaces y la navegación. Si no "
+"alcanza el contraste necesario para leerse bien, ajustamos el tono "
+"automáticamente."
+msgstr ""
+
+msgid "Usar el color de GALBUST"
 msgstr ""
 
 msgid "Archivo del logo"
@@ -1908,6 +1932,9 @@ msgid "logo"
 msgstr ""
 
 msgid "tamaño del logo (bytes)"
+msgstr ""
+
+msgid "color primario"
 msgstr ""
 
 msgid "verificación en dos pasos"
@@ -2007,6 +2034,9 @@ msgstr ""
 msgid "Política de verificación en dos pasos no válida."
 msgstr ""
 
+msgid "Elige un color en formato #RRGGBB."
+msgstr ""
+
 #, python-format
 msgid "Estado de OT desconocido: %(keys)s."
 msgstr ""
@@ -2044,6 +2074,12 @@ msgid "Configuración guardada."
 msgstr ""
 
 msgid "Configuración de seguridad guardada."
+msgstr ""
+
+msgid "Color guardado."
+msgstr ""
+
+msgid "Se usa el color de GALBUST."
 msgstr ""
 
 msgid "Logo guardado."
@@ -4418,6 +4454,18 @@ msgid ""
 msgstr ""
 
 msgid "Guardar nombres"
+msgstr ""
+
+msgid "Color de la marca"
+msgstr ""
+
+msgid "Ajustamos algunos tonos para que todo se lea bien:"
+msgstr ""
+
+msgid "Guardar color"
+msgstr ""
+
+msgid "Así se ven los enlaces"
 msgstr ""
 
 msgid "Logo"

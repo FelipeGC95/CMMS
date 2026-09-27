@@ -17,6 +17,7 @@ from apps.attachments.selectors import storage_usage
 from apps.audit import services as audit
 from apps.audit.models import AuditEvent
 
+from .branding import brand_palette
 from .models import Location, Organization
 from .selectors import descendant_ids
 
@@ -200,6 +201,34 @@ def update_mfa_policy(*, membership, mfa_policy):
             changes={"mfa_policy": [before, mfa_policy]},
         )
     return organization
+
+
+@transaction.atomic
+def set_primary_color(*, membership, color):
+    """Color primario de la organización (ORG-09). En blanco vuelve al de GALBUST.
+
+    Devuelve la paleta ajustada: sus `notes` informan los tonos cambiados por contraste (CA1).
+    """
+    require_perm(membership, Perm.ORGANIZATION_MANAGE)
+    palette = None
+    if color:
+        try:
+            palette = brand_palette(color)
+        except ValueError as error:
+            raise ValidationError(_("Elige un color en formato #RRGGBB.")) from error
+        color = palette.color
+    organization = Organization.objects.select_for_update().get(pk=membership.organization_id)
+    before = organization.primary_color
+    if before != color:
+        organization.primary_color = color
+        organization.save(update_fields=["primary_color", "updated_at"])
+        audit.record(
+            action=AuditEvent.Action.UPDATE,
+            target=organization,
+            membership=membership,
+            changes={"primary_color": [before, color]},
+        )
+    return palette
 
 
 # ---------- Nombres visibles de los estados de OT (WO-02 CA5) ----------

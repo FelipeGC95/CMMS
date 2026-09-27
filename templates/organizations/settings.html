@@ -40,6 +40,22 @@
     </form>
   </section>
 
+  <section class="card" id="brand" aria-labelledby="brand-title">
+    <h2 id="brand-title">{% translate "Color de la marca" %}</h2>
+    {% if brand_notes %}
+    <div class="alert alert--info" role="status">{% icon 'info' %}<span>{% translate "Ajustamos algunos tonos para que todo se lea bien:" %}{% for note in brand_notes %} {{ note }}{% endfor %}</span></div>
+    {% endif %}
+    <form method="post" action="{% url 'organization_settings' %}#brand">
+      {% csrf_token %}
+      <input type="hidden" name="section" value="brand">
+      {% include "_form_fields.html" with form=brand_form %}
+      <div class="row">
+        <button class="btn btn--primary" type="submit">{% translate "Guardar color" %}</button>
+        <a href="#brand">{% translate "Así se ven los enlaces" %}</a>
+      </div>
+    </form>
+  </section>
+
   <section class="card" id="logo" aria-labelledby="logo-title">
     <h2 id="logo-title">{% translate "Logo" %}</h2>
     <p class="muted">{% translate "Se imprime en las etiquetas QR de los activos. Sin logo, las etiquetas llevan el nombre de la organización." %}</p>
