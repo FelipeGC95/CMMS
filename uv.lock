@@ -611,6 +611,7 @@ dependencies = [
     { name = "pillow" },
     { name = "procrastinate" },
     { name = "psycopg", extra = ["binary"] },
+    { name = "pypdf" },
     { name = "reportlab" },
     { name = "segno" },
     { name = "sentry-sdk" },
@@ -621,7 +622,6 @@ dependencies = [
 [package.dev-dependencies]
 dev = [
     { name = "pre-commit" },
-    { name = "pypdf" },
     { name = "pytest" },
     { name = "pytest-django" },
     { name = "ruff" },
@@ -642,6 +642,7 @@ requires-dist = [
     { name = "pillow", specifier = ">=12.3.0" },
     { name = "procrastinate", specifier = ">=3.10.0" },
     { name = "psycopg", extras = ["binary"], specifier = ">=3.2" },
+    { name = "pypdf", specifier = ">=6.19.0" },
     { name = "reportlab", specifier = ">=5.0" },
     { name = "segno", specifier = ">=1.6" },
     { name = "sentry-sdk", specifier = ">=2.70.0" },
@@ -652,7 +653,6 @@ requires-dist = [
 [package.metadata.requires-dev]
 dev = [
     { name = "pre-commit", specifier = ">=4" },
-    { name = "pypdf", specifier = ">=6.19.0" },
     { name = "pytest", specifier = ">=8" },
     { name = "pytest-django", specifier = ">=4.9" },
     { name = "ruff", specifier = ">=0.6" },

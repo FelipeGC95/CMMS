@@ -29,6 +29,7 @@ urlpatterns = [
     path("", include("apps.onboarding.urls")),
     path("", include("apps.assets.urls")),
     path("", include("apps.maintenance.urls")),
+    path("", include("apps.attachments.urls")),
     path("", include("apps.api.urls")),
     path("", include("apps.reporting.urls")),
     path("audit/", include("apps.audit.urls")),

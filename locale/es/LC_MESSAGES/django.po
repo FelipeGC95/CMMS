@@ -1150,6 +1150,15 @@ msgstr ""
 msgid "Adjuntos"
 msgstr ""
 
+msgid "Manual (PDF)"
+msgstr ""
+
+msgid "PDF de hasta 20 MB. Se lee su texto para buscarlo después."
+msgstr ""
+
+msgid "Buscar en manuales"
+msgstr ""
+
 msgid "Activo"
 msgstr ""
 
@@ -1159,6 +1168,9 @@ msgstr ""
 msgid "Ítem de checklist"
 msgstr ""
 
+msgid "Clase de activo"
+msgstr ""
+
 msgid "Foto"
 msgstr ""
 
@@ -1166,6 +1178,21 @@ msgid "Documento"
 msgstr ""
 
 msgid "Firma"
+msgstr ""
+
+msgid "No aplica"
+msgstr ""
+
+msgid "Texto pendiente"
+msgstr ""
+
+msgid "Texto listo"
+msgstr ""
+
+msgid "Sin texto (escaneado)"
+msgstr ""
+
+msgid "No se pudo leer"
 msgstr ""
 
 msgid "tipo de objeto"
@@ -1198,10 +1225,28 @@ msgstr ""
 msgid "subido por"
 msgstr ""
 
+msgid "estado del texto"
+msgstr ""
+
+msgid "páginas"
+msgstr ""
+
 msgid "adjunto"
 msgstr ""
 
 msgid "adjuntos"
+msgstr ""
+
+msgid "página"
+msgstr ""
+
+msgid "texto"
+msgstr ""
+
+msgid "página de documento"
+msgstr ""
+
+msgid "páginas de documento"
 msgstr ""
 
 msgid ""
@@ -1219,6 +1264,25 @@ msgstr ""
 msgid ""
 "No hay espacio para este archivo (%(size)s): la organización usa %(used)s de "
 "%(quota)s de su plan. Pide al administrador ampliar el plan."
+msgstr ""
+
+msgid "Los manuales se adjuntan a un activo o a una clase de activo."
+msgstr ""
+
+msgid "El manual debe ser un archivo PDF."
+msgstr ""
+
+msgid "Solo se pueden quitar manuales."
+msgstr ""
+
+msgid "Revisa el archivo: es obligatorio y debe ser un PDF de hasta 20 MB."
+msgstr ""
+
+msgid "Manual guardado."
+msgstr ""
+
+#, python-format
+msgid "Manual «%(name)s» quitado."
 msgstr ""
 
 msgid "Auditoría"
@@ -1421,9 +1485,6 @@ msgid "Estado"
 msgstr ""
 
 msgid "Inactivos"
-msgstr ""
-
-msgid "Clase de activo"
 msgstr ""
 
 msgid "Todas las clases"
@@ -3126,9 +3187,6 @@ msgstr ""
 msgid "sección"
 msgstr ""
 
-msgid "texto"
-msgstr ""
-
 msgid "resultado"
 msgstr ""
 
@@ -4469,6 +4527,40 @@ msgid ""
 "detenido y en mantención descuentan de la disponibilidad."
 msgstr ""
 
+msgid "Manuales"
+msgstr ""
+
+msgid "De la clase"
+msgstr ""
+
+msgid "De este activo"
+msgstr ""
+
+#, python-format
+msgid "%(n)s página"
+msgid_plural "%(n)s páginas"
+msgstr[0] ""
+msgstr[1] ""
+msgstr[2] ""
+
+msgid "Quitar"
+msgstr ""
+
+msgid ""
+"Sin manuales. Los que subas aquí aparecen en todos los activos de esta clase."
+msgstr ""
+
+msgid "Sin manuales para este activo ni para su clase."
+msgstr ""
+
+msgid ""
+"Para que un manual sirva a todos los equipos del mismo tipo, súbelo en la "
+"clase de activo."
+msgstr ""
+
+msgid "Subir manual"
+msgstr ""
+
 msgid "Almacenamiento"
 msgstr ""
 
@@ -4484,6 +4576,56 @@ msgstr ""
 
 #, python-format
 msgid "%(used)s MB de %(quota)s MB usados"
+msgstr ""
+
+msgid "Texto listo para buscar"
+msgstr ""
+
+msgid "Leyendo el texto…"
+msgstr ""
+
+msgid "PDF escaneado: sin texto"
+msgstr ""
+
+msgid "No se pudo leer el PDF"
+msgstr ""
+
+msgid "Quitar manual"
+msgstr ""
+
+#, python-format
+msgid "¿Quitar «%(name)s»?"
+msgstr ""
+
+msgid ""
+"Se borran el archivo y su texto, y se libera su espacio. Queda registrado en "
+"la auditoría."
+msgstr ""
+
+msgid "Sí, quitar"
+msgstr ""
+
+msgid ""
+"Busca en el texto de los manuales PDF de tus activos y clases de activo."
+msgstr ""
+
+msgid "Ej.: presión de aceite"
+msgstr ""
+
+#, python-format
+msgid "%(n)s página encontrada"
+msgid_plural "%(n)s páginas encontradas"
+msgstr[0] ""
+msgstr[1] ""
+msgstr[2] ""
+
+#, python-format
+msgid "Página %(n)s"
+msgstr ""
+
+msgid ""
+"Sin resultados. Prueba con otras palabras; los PDF escaneados no tienen "
+"texto para buscar."
 msgstr ""
 
 #, python-format
@@ -4563,9 +4705,6 @@ msgid ""
 "Si «%(plan)s» vence en un activo y un plan de esta lista vence en el mismo "
 "activo dentro de la tolerancia, se genera una sola OT con ambos checklists y "
 "al cerrarla avanzan los dos. Rige de inmediato, sin publicar."
-msgstr ""
-
-msgid "Quitar"
 msgstr ""
 
 msgid "No absorbe a ningún plan."
@@ -6150,9 +6289,6 @@ msgstr ""
 
 msgid ""
 "Los demás ítems se renumeran. Esta acción queda en el historial de la OT."
-msgstr ""
-
-msgid "Sí, quitar"
 msgstr ""
 
 msgid "Hallazgo No OK"

@@ -22,6 +22,7 @@ lo único nuevo que expone es `/readyz`. Decisión en ADR-020
 | `EMAIL_BACKEND` | Forzar otro backend (opcional). | Según `EMAIL_HOST`. |
 | `DEFAULT_FROM_EMAIL`, `SERVER_EMAIL` | Remitente (dominio verificado en el proveedor). | `GALBUST CMMS <no-reply@galbust.cl>`. |
 | `EMAIL_USE_QUEUE=1` | Enviar correos desde el worker (reintentos). Requiere worker corriendo. | Envío sincrónico. |
+| `DOCUMENT_TEXT_USE_QUEUE=1` | Extraer el texto de los manuales PDF en el worker. Requiere worker corriendo. | Extracción al subir, en la misma petición. |
 | `BACKUPS_ENABLED=1` | Respaldo diario (07:00 UTC) desde el worker. | La tarea diaria no hace nada. |
 | `BACKUP_DIR`, `BACKUP_RETENTION_DAYS` | Carpeta local de respaldos (sin R2) y retención. | `./backups`, `30`. |
 | `ACCOUNT_EMAIL_VERIFICATION` | Quitarla (queda `mandatory`) al tener proveedor de correo. | `mandatory`. |

@@ -1,0 +1,32 @@
+{% load i18n ui attachments accounts_tags %}{% manuals_for target as manuals %}
+<section class="card mt-4" id="manuals" aria-labelledby="manuals-title">
+  <div class="card__header">
+    <h2 id="manuals-title">{% translate "Manuales" %}</h2>
+    <a class="btn btn--ghost" href="{% url 'manual_search' %}">{% icon 'list' %}{% translate "Buscar en manuales" %}</a>
+  </div>
+  {% if manuals %}
+  <ul class="list">
+    {% for manual in manuals %}
+    <li>
+      <div class="list__main">
+        <span class="list__title"><a href="{% url 'attachment' manual.pk %}">{{ manual.filename }}</a></span>
+        <span class="list__meta">{% if kind != "class" %}{% if manual.target_type == "asset_class" %}{% translate "De la clase" %} {{ target.asset_class }}{% else %}{% translate "De este activo" %}{% endif %} · {% endif %}{{ manual.size_bytes|filesizeformat }}{% if manual.page_count %} · {% blocktranslate count n=manual.page_count %}{{ n }} página{% plural %}{{ n }} páginas{% endblocktranslate %}{% endif %}</span>
+        <span>{% include "attachments/_text_status.html" with status=manual.text_status %}</span>
+      </div>
+      {% if membership|can:"asset.manage" %}{% if kind == "class" or manual.target_type == "asset" %}<a class="btn btn--ghost" href="{% url 'manual_remove' manual.pk %}">{% icon 'x' %}{% translate "Quitar" %}</a>{% endif %}{% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="muted">{% if kind == "class" %}{% translate "Sin manuales. Los que subas aquí aparecen en todos los activos de esta clase." %}{% else %}{% translate "Sin manuales para este activo ni para su clase." %}{% endif %}</p>
+  {% endif %}
+  {% if membership|can:"asset.manage" %}
+  {% storage_usage as usage %}{% manual_form as form %}
+  <form method="post" action="{% if kind == 'class' %}{% url 'asset_class_manual_add' target.pk %}{% else %}{% url 'asset_manual_add' target.pk %}{% endif %}" enctype="multipart/form-data" class="mt-4">
+    {% csrf_token %}
+    {% include "_form_fields.html" with form=form %}
+    {% if kind != "class" %}<p class="muted">{% translate "Para que un manual sirva a todos los equipos del mismo tipo, súbelo en la clase de activo." %}</p>{% endif %}
+    <button class="btn btn--secondary" type="submit"{% if usage.is_full %} disabled{% endif %}>{% translate "Subir manual" %}</button>
+  </form>
+  {% endif %}
+</section>

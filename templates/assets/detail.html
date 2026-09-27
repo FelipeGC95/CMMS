@@ -203,6 +203,8 @@
   </section>
 </div>
 
+{% include "attachments/_manuals.html" with target=asset kind="asset" %}
+
 <section class="card mt-4" id="attachments" aria-labelledby="attachments-title">
   <h2 id="attachments-title">{% translate "Documentos y fotos" %}</h2>
   {% if attachments %}

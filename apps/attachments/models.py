@@ -23,12 +23,24 @@ class TargetType(models.TextChoices):
     ASSET = "asset", _("Activo")
     WORK_ORDER = "work_order", _("Orden de trabajo")
     CHECKLIST_ITEM = "checklist_item", _("Ítem de checklist")
+    ASSET_CLASS = "asset_class", _("Clase de activo")
 
 
 class Purpose(models.TextChoices):
     PHOTO = "photo", _("Foto")
     DOCUMENT = "document", _("Documento")
     SIGNATURE = "signature", _("Firma")
+    MANUAL = "manual", _("Manual")
+
+
+class TextStatus(models.TextChoices):
+    """Extracción del texto de un manual (AST-06 CA3); en blanco para los demás adjuntos."""
+
+    NOT_APPLICABLE = "", _("No aplica")
+    PENDING = "pending", _("Texto pendiente")
+    DONE = "done", _("Texto listo")
+    NO_TEXT = "no_text", _("Sin texto (escaneado)")
+    FAILED = "failed", _("No se pudo leer")
 
 
 class Attachment(TenantModel):
@@ -49,6 +61,10 @@ class Attachment(TenantModel):
         "accounts.User", on_delete=models.SET_NULL, null=True, related_name="+", verbose_name=_("subido por")
     )
     client_uuid = models.UUIDField(null=True, blank=True, verbose_name=_("UUID del cliente"))
+    text_status = models.CharField(
+        _("estado del texto"), max_length=10, choices=TextStatus.choices, default="", blank=True
+    )
+    page_count = models.PositiveIntegerField(_("páginas"), null=True, blank=True)
 
     class Meta:
         verbose_name = _("adjunto")
@@ -65,3 +81,30 @@ class Attachment(TenantModel):
 
     def __str__(self):
         return self.filename
+
+
+class DocumentPage(TenantModel):
+    """Texto de una página de un manual PDF (AST-06 CA3), para la búsqueda y el asistente (ADR-018).
+
+    Lo llena la extracción en segundo plano (`services.extract_document_text`);
+    se borra junto con el adjunto.
+    """
+
+    attachment = models.ForeignKey(
+        Attachment, on_delete=models.CASCADE, related_name="pages", verbose_name=_("adjunto")
+    )
+    page_number = models.PositiveIntegerField(_("página"))
+    text = models.TextField(_("texto"))
+
+    class Meta:
+        verbose_name = _("página de documento")
+        verbose_name_plural = _("páginas de documento")
+        ordering = ["attachment", "page_number"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["organization", "attachment", "page_number"], name="uniq_document_page"
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.attachment} · {self.page_number}"

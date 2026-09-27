@@ -93,6 +93,8 @@ psycopg-pool==3.3.3
     # via psycopg
 pycparser==3.0 ; implementation_name != 'PyPy'
     # via cffi
+pypdf==6.19.0
+    # via galbust-cmms
 python-dateutil==2.9.0.post0
     # via
     #   botocore

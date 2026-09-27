@@ -14,6 +14,7 @@
     <h2>{% translate "Secciones" %}</h2>
     <ul class="list list--nav">
       {% if organization|has_module:"work_orders" %}<li><a href="{% url 'work_order_list' %}">{% icon 'wrench' %}{% translate "Órdenes de trabajo" %}</a></li>{% endif %}
+      {% if organization|has_module:"assets" %}<li><a href="{% url 'manual_search' %}">{% icon 'list' %}{% translate "Buscar en manuales" %}</a></li>{% endif %}
       {% if membership|can:"request.create" and organization|has_module:"requests" %}<li><a href="{% url 'location_report' %}">{% icon 'megaphone' %}{% translate "Avisar problema en una ubicación" %}</a></li>{% endif %}
       {% if membership|can:"work_order.manage" and organization|has_module:"requests" %}<li><a href="{% url 'request_list' %}">{% icon 'megaphone' %}{% translate "Solicitudes" %}</a></li>{% endif %}
       {% if membership|can:"work_order.manage" and organization|has_module:"work_orders" %}<li><a href="{% url 'failure_code_list' %}">{% icon 'alert' %}{% translate "Catálogo de falla" %}</a></li>{% endif %}

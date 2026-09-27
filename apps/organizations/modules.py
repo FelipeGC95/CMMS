@@ -37,7 +37,7 @@ MODULE_ROUTES = [
     (re.compile(r"^/assets/[^/]+/plans/"), "preventive"),
     (re.compile(r"^/(requests|report)/"), "requests"),
     (re.compile(r"^/(work-orders|failure-codes)/"), "work_orders"),
-    (re.compile(r"^/(assets|asset-classes|q)/"), "assets"),
+    (re.compile(r"^/(assets|asset-classes|q|manuals)/"), "assets"),
 ]
 
 # Endpoints de la API v1 (basename del router) → módulo, además del módulo `api`.
