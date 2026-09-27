@@ -9,7 +9,9 @@
   <div class="page-actions">
     <a class="btn btn--primary page-actions__primary" href="{% url 'plan_create' %}">{% icon 'calendar' %}{% translate "Nuevo plan" %}</a>
     <a class="btn btn--secondary" href="{% url 'plan_calendar' %}">{% icon 'calendar' %}{% translate "Calendario" %}</a>
-    <a class="btn btn--secondary" href="{% url 'industry_templates' %}">{% icon 'list' %}{% translate "Cargar plantilla de rubro" %}</a>    {% if membership|can:"organization.manage" %}<a class="btn btn--ghost" href="{% url 'maintenance_settings' %}">{% icon 'wrench' %}{% translate "Ajustes de preventivos" %}</a>{% endif %}
+    <a class="btn btn--secondary" href="{% url 'industry_templates' %}">{% icon 'list' %}{% translate "Cargar plantilla de rubro" %}</a>
+    <a class="btn btn--ghost" href="{% url 'plan_import' %}">{% icon 'list' %}{% translate "Importar o exportar (Excel)" %}</a>
+    {% if membership|can:"organization.manage" %}<a class="btn btn--ghost" href="{% url 'maintenance_settings' %}">{% icon 'wrench' %}{% translate "Ajustes de preventivos" %}</a>{% endif %}
   </div>
 </div>
 

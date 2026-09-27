@@ -113,7 +113,8 @@ Regla: al generar la OT del mayor en un activo, un menor del mismo activo sin OT
 Pendiente del diseño original: `work_type` del plan.
 
 **`plan_assignment`** — plan aplicado a un activo; aquí vive el estado del programador.
-`organization_id` · `plan_id` · `asset_id` · `meter_id` · `starts_on` · `last_done_at` · `last_done_meter_value` · `next_due_at` · `next_due_meter_value` · `open_work_order_id` · `is_active`.
+`organization_id` · `plan_id` · `asset_id` · `meter_id` · `starts_on` · `anchor_day` · `last_done_at` · `last_done_meter_value` · `next_due_at` · `next_due_meter_value` · `open_work_order_id` · `is_active`.
+`anchor_day` (1–31): día del mes del primer vencimiento; en modo fijo por meses cada vencimiento vuelve a ese día aunque el anterior se haya ajustado a un mes corto (31‑ene → 28/29‑feb → 31‑mar). Lo usan por igual el generador de OT y la proyección del calendario (`scheduling.next_fixed_date`).
 `UNIQUE (organization_id, plan_id, asset_id)`; índices `(organization_id, next_due_at) WHERE is_active`, `(meter_id) WHERE is_active`.
 
 ### 2.5 Órdenes de trabajo
@@ -287,3 +288,13 @@ erDiagram
    registrar una lectura, un servicio revisa las asignaciones de ese medidor.
 5. **Snapshot**: una OT generada desde un plan copia sus ítems al crearse; la
    versión del plan nunca se edita después de publicada.
+6. **Plantillas de rubro** (ORG-03 CA3, PM-07, ADR-021): no son tablas; son
+   archivos JSON versionados en `apps/maintenance/templates_library/`. Al
+   aplicarlas se crean filas normales de `asset_class`,
+   `asset_class_attribute`, `failure_code`, `maintenance_plan` y
+   `plan_version` (v1 publicada) en la organización: copias editables, sin
+   referencia a la plantilla. La auditoría guarda qué rubro y versión se
+   aplicó.
+7. **Importación de planes** (PM-08): un código nuevo crea el plan con su v1
+   publicada; un código existente con cambios crea una `plan_version`
+   borrador (nunca modifica la publicada); sin cambios, se omite.

@@ -633,3 +633,26 @@ tener ingresos).
   cola. `render.production.example.yaml` describe web + worker + Postgres
   pagados, pero Render solo lee `render.yaml`. Mientras la demo no tenga
   worker, los preventivos siguen generándose al arrancar el servidor.
+
+### ADR-021 · Plantillas de rubro como archivos versionados que se copian
+- **Contexto:** la puesta en marcha (ORG-03) y la biblioteca de planes (PM-07)
+  necesitan clases de activo, atributos, catálogo de fallas y planes típicos
+  por rubro. Una sola persona los mantiene y el dueño debe poder revisarlos.
+- **Decisión:** cada rubro es un JSON en
+  `apps/maintenance/templates_library/<rubro>.json` (flota, planta
+  industrial, alimentos, edificios), revisado como código y validado por un
+  test (tipos, unidades, medidores, rangos, códigos únicos). JSON y no YAML:
+  sin dependencias nuevas. El contenido es un dato en español, no pasa por
+  gettext. `industry_templates.apply_industry_template(*, organization,
+  industry, by, parts, plan_codes)` copia a la organización lo que aún no
+  tiene (por código), sin sobrescribir nada, por lotes (consultas acotadas);
+  `preview_industry_template` muestra lo mismo sin escribir. Los planes se
+  crean con su v1 publicada (`services.bulk_create_published_plans`). La
+  web ofrece «Cargar plantilla de rubro» (vista previa y confirmación) y
+  `manage.py apply_industry_template` sirve a la plataforma. El asistente
+  ORG-03 reutiliza el servicio con `parts` y `plan_codes`.
+- **Consecuencias:** las organizaciones reciben copias editables; cambiar la
+  plantilla no toca a quien ya la aplicó (la auditoría registra rubro y
+  versión). Cada archivo lleva `review_status` y `review_note`; mientras sea
+  `draft` («Borrador — revisar antes del piloto») los administradores de la
+  plataforma lo ven marcado en la interfaz.

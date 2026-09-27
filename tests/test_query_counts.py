@@ -680,6 +680,52 @@ def test_plan_calendar_queries_do_not_grow_with_assignments(client, tenant_a, ur
     assert many == few, f"{url_name} {params}: {few} → {many} consultas"
 
 
+def _add_plans(tenant, start, n):
+    from apps.maintenance.services import create_plan
+
+    with tenant_context(tenant.org):
+        for i in range(start, start + n):
+            create_plan(
+                code=f"XP-{i:03d}",
+                name=f"Plan {i}",
+                calendar_interval=1,
+                calendar_unit="months",
+                items=[{"text": "A", "item_type": "check"}, {"text": "B", "item_type": "check"}],
+                resources=[{"kind": "part", "description": "Filtro", "quantity": 1}],
+            )
+
+
+def test_plan_export_queries_do_not_grow_with_plans(client, tenant_a):
+    """Exportar planes a Excel (PM-08): ítems y recursos por lotes, no por plan."""
+    login(client, tenant_a.admin)
+    url = reverse("plan_export")
+    _add_plans(tenant_a, 0, 2)
+    few = _count(client, url)
+    _add_plans(tenant_a, 2, 10)
+    many = _count(client, url)
+    assert many == few, f"{few} → {many} consultas"
+
+
+def test_plan_import_preview_queries_do_not_grow_with_plans(client, tenant_a):
+    """Vista previa de importación de planes (PM-08): compara con lo existente por lotes."""
+    from django.core.files.uploadedfile import SimpleUploadedFile
+
+    login(client, tenant_a.admin)
+
+    def upload_count():
+        content = client.get(reverse("plan_export")).content
+        with CaptureQueriesContext(connection) as ctx:
+            response = client.post(reverse("plan_import"), {"file": SimpleUploadedFile("p.xlsx", content)})
+        assert response.status_code == 200
+        return len(ctx.captured_queries)
+
+    _add_plans(tenant_a, 0, 2)
+    few = upload_count()
+    _add_plans(tenant_a, 2, 10)
+    many = upload_count()
+    assert many == few, f"{few} → {many} consultas"
+
+
 @pytest.mark.parametrize("industry", ["fleet", "industrial", "food", "buildings"])
 def test_industry_template_apply_uses_bounded_queries(tenant_a, industry, django_assert_max_num_queries):
     """Aplicar una plantilla de rubro (ORG-03 CA3): por lotes, sin consultas por clase, plan o ítem."""
