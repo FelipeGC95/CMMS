@@ -26,6 +26,8 @@ NAVIGATE = {
 def two_orgs(tenant_a, tenant_b):
     """El técnico de A también es técnico en B; su organización activa es A."""
     Membership.objects.create(user=tenant_a.tech.user, organization=tenant_b.org, role="technician")
+    # Sin esto la organización inicial dependería del orden de las membresías.
+    User.objects.filter(pk=tenant_a.tech.user.pk).update(last_organization=tenant_a.org)
     return tenant_a, tenant_b
 
 

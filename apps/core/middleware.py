@@ -49,9 +49,10 @@ class TenantMiddleware:
             from apps.accounts.models import Membership
 
             memberships = list(
-                Membership.objects.select_related("organization__plan").filter(
-                    user=request.user, is_active=True, organization__is_active=True
-                )
+                Membership.objects.select_related("organization__plan")
+                .filter(user=request.user, is_active=True, organization__is_active=True)
+                # Orden estable: sin última organización guardada se abre siempre la misma.
+                .order_by("organization__name", "organization_id")
             )
             request.memberships = memberships
             if ORG_PARAM in request.GET and is_top_level_navigation(request):
