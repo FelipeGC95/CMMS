@@ -65,3 +65,25 @@ def test_exports_require_login(client, tenant_a):
     for name in ("asset_export_xlsx", "work_order_export_xlsx"):
         response = client.get(reverse(name))
         assert response.status_code == 302 and "login" in response["Location"]
+
+
+@pytest.mark.parametrize("role", ["external", "technician"])
+def test_scoped_pdfs_follow_the_detail_scope(client, tenant_a, sites, role):
+    with tenant_context(tenant_a.org):
+        from apps.work.models import WorkOrder
+
+        inside_wo = WorkOrder.objects.get(title="Dentro")
+        outside_wo = WorkOrder.objects.get(title="Fuera")
+    login(client, _member(tenant_a, role, sites["north"]))
+    assert client.get(reverse("asset_pdf", args=[sites["inside"].pk])).status_code == 200
+    assert client.get(reverse("work_order_pdf", args=[inside_wo.pk])).status_code == 200
+    assert client.get(reverse("asset_pdf", args=[sites["outside"].pk])).status_code == 404
+    assert client.get(reverse("work_order_pdf", args=[outside_wo.pk])).status_code == 404
+
+
+def test_scoped_asset_pdf_shows_the_asset_work_orders(client, tenant_a, sites):
+    from tests.test_exports_pdf import pdf_text
+
+    login(client, _member(tenant_a, "external", sites["north"]))
+    _reader, text = pdf_text(client.get(reverse("asset_pdf", args=[sites["inside"].pk])))
+    assert "Dentro" in text and "Fuera" not in text

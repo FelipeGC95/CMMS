@@ -9,7 +9,7 @@ from functools import cache
 from pathlib import Path
 
 from reportlab.lib.utils import ImageReader
-from reportlab.pdfbase.pdfmetrics import registerFont
+from reportlab.pdfbase.pdfmetrics import registerFont, registerFontFamily
 from reportlab.pdfbase.ttfonts import TTFont
 
 FONTS_DIR = Path(__file__).resolve().parent.parent / "assets" / "fonts"
@@ -28,6 +28,9 @@ def register_fonts() -> None:
     """Registra las fuentes una vez por proceso; reportlab incrusta solo los glifos usados."""
     for name, filename in FONT_FILES.items():
         registerFont(TTFont(name, str(FONTS_DIR / filename)))
+    # Familia para los párrafos de platypus (negrita sin cursiva: DejaVu Sans no la incluye aquí).
+    for name in (TEXT_FONT, BOLD_FONT):
+        registerFontFamily(name, normal=name, bold=BOLD_FONT, italic=name, boldItalic=BOLD_FONT)
 
 
 def read_logo(organization):

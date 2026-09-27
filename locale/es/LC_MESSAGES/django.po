@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-27 01:12-0300\n"
+"POT-Creation-Date: 2026-09-27 01:20-0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1789,6 +1789,126 @@ msgid "La fecha de término debe ser igual o posterior a la de inicio."
 msgstr ""
 
 #, python-format
+msgid "%(org)s · generado el %(date)s · página %(page)s"
+msgstr ""
+
+msgid "Datos técnicos"
+msgstr ""
+
+msgid "Medidores"
+msgstr ""
+
+msgid "Valor actual"
+msgstr ""
+
+msgid "Última lectura"
+msgstr ""
+
+msgid "Sin medidores."
+msgstr ""
+
+msgid "Planes preventivos"
+msgstr ""
+
+msgid "Próximo vencimiento"
+msgstr ""
+
+msgid "Última ejecución"
+msgstr ""
+
+msgid "Sin planes asignados."
+msgstr ""
+
+msgid "OT recientes"
+msgstr ""
+
+msgid "Sin OT."
+msgstr ""
+
+msgid "Fallas recientes"
+msgstr ""
+
+msgid "Inicio"
+msgstr ""
+
+msgid "Término"
+msgstr ""
+
+msgid "Impacto"
+msgstr ""
+
+msgid "Modo de falla"
+msgstr ""
+
+msgid "Sin fallas registradas."
+msgstr ""
+
+#, python-format
+msgid "Ficha de activo %(code)s"
+msgstr ""
+
+msgid "Apoyo"
+msgstr ""
+
+msgid "Cierre"
+msgstr ""
+
+msgid "Checklist"
+msgstr ""
+
+msgid "N.º"
+msgstr ""
+
+msgid "Ítem"
+msgstr ""
+
+msgid "Resultado"
+msgstr ""
+
+msgid "Valor"
+msgstr ""
+
+msgid "Nota"
+msgstr ""
+
+msgid "Sin checklist."
+msgstr ""
+
+msgid "Costos"
+msgstr ""
+
+msgid "Mano de obra"
+msgstr ""
+
+msgid "Otro costo"
+msgstr ""
+
+msgid "Detalle"
+msgstr ""
+
+msgid "Costo"
+msgstr ""
+
+msgid "Sin costos."
+msgstr ""
+
+msgid "Repuestos"
+msgstr ""
+
+msgid "Otros costos"
+msgstr ""
+
+msgid "Comentario de cierre"
+msgstr ""
+
+msgid "Firma de conformidad"
+msgstr ""
+
+#, python-format
+msgid "Orden de trabajo %(code)s"
+msgstr ""
+
+#, python-format
 msgid ""
 "Son %(total)s filas y un Excel admite hasta %(max)s. Filtra la lista y "
 "exporta por partes."
@@ -1821,13 +1941,7 @@ msgstr ""
 msgid "¿Qué viste? Puedes dictarlo con el micrófono del teclado."
 msgstr ""
 
-msgid "Comentario de cierre"
-msgstr ""
-
 msgid "Tiempo trabajado (minutos)"
-msgstr ""
-
-msgid "Impacto"
 msgstr ""
 
 msgid "Inicio de la detención"
@@ -1840,9 +1954,6 @@ msgid "Fin de la detención"
 msgstr ""
 
 msgid "Si lo dejas vacío, se usa la hora actual."
-msgstr ""
-
-msgid "Modo de falla"
 msgstr ""
 
 msgid "Causa"
@@ -1910,9 +2021,6 @@ msgid "Todos los estados"
 msgstr ""
 
 msgid "La fecha «desde» no puede ser posterior a «hasta»."
-msgstr ""
-
-msgid "Apoyo"
 msgstr ""
 
 msgid "Otras personas que trabajan en la OT; también la ven en «Mis OT»."
@@ -2722,9 +2830,6 @@ msgstr[0] ""
 msgstr[1] ""
 msgstr[2] ""
 
-msgid "Datos técnicos"
-msgstr ""
-
 msgid "Volver al activo"
 msgstr ""
 
@@ -2870,6 +2975,9 @@ msgstr ""
 msgid "Cambiar estado"
 msgstr ""
 
+msgid "PDF"
+msgstr ""
+
 msgid "Avisar falla"
 msgstr ""
 
@@ -2912,9 +3020,6 @@ msgid ""
 "abre directamente el aviso de falla."
 msgstr ""
 
-msgid "Medidores"
-msgstr ""
-
 #, python-format
 msgid "Leído el %(d)s"
 msgstr ""
@@ -2932,13 +3037,7 @@ msgstr ""
 msgid "Registrar"
 msgstr ""
 
-msgid "Planes preventivos"
-msgstr ""
-
 msgid "última"
-msgstr ""
-
-msgid "Sin planes asignados."
 msgstr ""
 
 msgid "Asignar plan"
@@ -3003,9 +3102,6 @@ msgid "Falla sin describir"
 msgstr ""
 
 msgid "en"
-msgstr ""
-
-msgid "Sin fallas registradas."
 msgstr ""
 
 msgid "Cambios de estado"
@@ -3098,12 +3194,6 @@ msgid "Se crearán estas ubicaciones:"
 msgstr ""
 
 msgid "Fila"
-msgstr ""
-
-msgid "Resultado"
-msgstr ""
-
-msgid "Detalle"
 msgstr ""
 
 msgid "Nuevo"
@@ -3301,9 +3391,6 @@ msgstr ""
 msgid "Principal"
 msgstr ""
 
-msgid "Inicio"
-msgstr ""
-
 msgid "Solicitudes"
 msgstr ""
 
@@ -3344,9 +3431,6 @@ msgid "Solo para mediciones (opcional)"
 msgstr ""
 
 msgid "Usa días, medidor o ambos: vence lo que ocurra primero."
-msgstr ""
-
-msgid "Checklist"
 msgstr ""
 
 msgid "Verificación"
@@ -3485,12 +3569,6 @@ msgstr ""
 
 #, python-format
 msgid "Asignar a todos los activos de la clase %(cls)s"
-msgstr ""
-
-msgid "Próximo vencimiento"
-msgstr ""
-
-msgid "Última ejecución"
 msgstr ""
 
 msgid "Quitar"
@@ -4220,9 +4298,6 @@ msgstr ""
 msgid "Lectura al cerrar"
 msgstr ""
 
-msgid "Cierre"
-msgstr ""
-
 msgid "Firma de cierre"
 msgstr ""
 
@@ -4245,22 +4320,10 @@ msgstr ""
 msgid "Repuestos y herramientas previstos"
 msgstr ""
 
-msgid "Costos"
-msgstr ""
-
-msgid "Mano de obra"
-msgstr ""
-
 msgid "Repuestos y materiales"
 msgstr ""
 
-msgid "Otros costos"
-msgstr ""
-
 msgid "Concepto"
-msgstr ""
-
-msgid "Costo"
 msgstr ""
 
 msgid "h"

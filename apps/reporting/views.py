@@ -1,19 +1,25 @@
 from django.contrib import messages
-from django.http import HttpResponse
-from django.shortcuts import redirect, render
+from django.http import Http404, HttpResponse
+from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.translation import gettext as _
 
 from apps.accounts.models import Membership
-from apps.assets.selectors import asset_list, visible_assets
+from apps.assets.attributes import attribute_rows
+from apps.assets.selectors import active_attributes, asset_failure_history, asset_list, visible_assets
 from apps.assets.views import _list_filters as asset_list_filters
+from apps.attachments.models import Purpose, TargetType
+from apps.attachments.selectors import attachments_for
 from apps.core.decorators import membership_required
+from apps.maintenance.selectors import active_assignments_for_asset
 from apps.work.forms import WorkOrderFilterForm
-from apps.work.selectors import work_order_list
+from apps.work.models import WorkOrder
+from apps.work.selectors import visible_work_orders, work_order_detail, work_order_list
 
 from .excel import MAX_EXPORT_ROWS, XLSX_CONTENT_TYPE, assets_xlsx, work_orders_xlsx
 from .forms import DashboardFilterForm
+from .pdf import asset_sheet_pdf, work_order_pdf
 from .selectors import DOWN_STATUSES, dashboard_kpis
 
 
@@ -109,3 +115,61 @@ def work_order_list_xlsx_view(request):
         list_name="work_order_list",
         prefix="ordenes-de-trabajo",
     )
+
+
+# --- PDF de ficha de activo y OT (KPI-03) ----------------------------------------
+
+# Registros recientes en la ficha impresa; el historial completo está en la app.
+PDF_HISTORY_LIMIT = 15
+
+
+def _pdf_response(content, filename):
+    response = HttpResponse(content, content_type="application/pdf")
+    response["Content-Disposition"] = f'inline; filename="{filename}"'
+    return response
+
+
+@membership_required
+def asset_pdf_view(request, pk):
+    """Ficha del activo en PDF: mismo alcance que la ficha en pantalla."""
+    membership = request.membership
+    asset = get_object_or_404(
+        visible_assets(membership=membership).select_related("asset_class", "location", "parent"), pk=pk
+    )
+    work_orders = (
+        visible_work_orders(membership=membership)
+        .filter(asset=asset)
+        .order_by("-created_at")[:PDF_HISTORY_LIMIT]
+    )
+    pdf = asset_sheet_pdf(
+        organization=request.organization,
+        asset=asset,
+        attributes=attribute_rows(asset, active_attributes(asset.asset_class)),
+        meters=asset.meters.filter(is_active=True).order_by("name"),
+        assignments=active_assignments_for_asset(asset=asset),
+        work_orders=work_orders,
+        failures=asset_failure_history(asset)[:PDF_HISTORY_LIMIT],
+    )
+    return _pdf_response(pdf, f"activo-{asset.code}.pdf")
+
+
+@membership_required
+def work_order_pdf_view(request, pk):
+    """OT en PDF: mismo alcance que el detalle de la OT."""
+    try:
+        work_order = work_order_detail(pk, membership=request.membership)
+    except WorkOrder.DoesNotExist as exc:
+        raise Http404 from exc
+    signatures = [
+        a
+        for a in attachments_for(target_type=TargetType.WORK_ORDER, target_id=work_order.pk)
+        if a.purpose == Purpose.SIGNATURE
+    ]
+    pdf = work_order_pdf(
+        organization=request.organization,
+        work_order=work_order,
+        helpers=list(work_order.helpers.all()),
+        checklist=list(work_order.checklist.all()),
+        signature=signatures[-1] if signatures else None,
+    )
+    return _pdf_response(pdf, f"ot-{work_order.code}.pdf")

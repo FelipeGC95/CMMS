@@ -47,3 +47,11 @@ def test_dashboard_filters_reject_foreign_class_and_asset(client, tenant_a, tena
     )
     errors = response.context["filter_form"].errors
     assert "asset_class" in errors and "asset" in errors
+
+
+def test_foreign_pdfs_are_404(client, tenant_a, tenant_b):
+    with tenant_context(tenant_a.org):
+        wo = create_work_order(work_type="corrective", title="Solo de A", asset=tenant_a.asset)
+    login(client, tenant_b.admin)
+    assert client.get(reverse("asset_pdf", args=[tenant_a.asset.pk])).status_code == 404
+    assert client.get(reverse("work_order_pdf", args=[wo.pk])).status_code == 404
