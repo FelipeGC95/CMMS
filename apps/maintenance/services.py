@@ -1,7 +1,6 @@
 """Planes preventivos: versiones, asignaciones y programador (PM-01..05, ADR-016)."""
 
 import datetime
-import math
 from decimal import Decimal
 
 from django.core.exceptions import ValidationError
@@ -17,7 +16,6 @@ from apps.audit.models import AuditEvent
 from .models import (
     DEFAULT_HORIZON_DAYS,
     MAX_HORIZON_DAYS,
-    CalendarUnit,
     ItemType,
     MaintenancePlan,
     MaintenanceSettings,
@@ -27,6 +25,7 @@ from .models import (
     PlanTaskItem,
     PlanVersion,
 )
+from .scheduling import absorbs, estimated_meter_date, next_schedule
 
 # Aviso mínimo para planes por uso: generar la OT al 90 % del intervalo.
 METER_MIN_LEAD = Decimal("0.10")
@@ -305,12 +304,17 @@ def _meter_due(assignment: PlanAssignment, version: PlanVersion, horizon_days: i
 
 
 def _estimated_meter_date(assignment: PlanAssignment, today: datetime.date) -> datetime.date:
-    """Fecha estimada en que el medidor llegará al vencimiento (según uso promedio)."""
+    """Fecha estimada en que el medidor llegará al vencimiento (según uso promedio; sin él, hoy)."""
     meter = assignment.meter
-    remaining = assignment.next_due_meter_value - meter.current_value
-    if remaining <= 0 or not meter.avg_daily_usage:
-        return today
-    return today + datetime.timedelta(days=math.ceil(remaining / meter.avg_daily_usage))
+    return (
+        estimated_meter_date(
+            current=meter.current_value,
+            target=assignment.next_due_meter_value,
+            avg_daily_usage=meter.avg_daily_usage,
+            today=today,
+        )
+        or today
+    )
 
 
 def busy_assignment_ids(assignments) -> set:
@@ -344,29 +348,18 @@ def _active_assignments():
 def absorption_due(*, main: PlanAssignment, due_on: datetime.date | None, other: PlanAssignment) -> bool:
     """¿El plan menor (`other`) vence junto al mayor (`main`) en el mismo activo? (PM-05 CA3)
 
-    «Junto» = a más tardar en el vencimiento del mayor más su tolerancia
-    (`tolerance_pct` del plan mayor aplicado a su frecuencia): por fecha, hasta
-    `due_on` + tolerancia en días; por medidor (el mismo medidor), hasta la
-    lectura objetivo del mayor + tolerancia en unidades. Un menor ya vencido
-    también entra: la OT del mayor lo cubre.
+    Regla en `scheduling.absorbs`, compartida con la proyección del calendario (PM-06).
     """
-    version, minor = main.plan.current_version, other.plan.current_version
-    pct = Decimal(version.tolerance_pct) / 100
-    if other.next_due_on is not None and due_on is not None:
-        # Tolerancia en días sobre la frecuencia por calendario del mayor (o, si no tiene, la del menor).
-        reference = version if version.calendar_interval else minor
-        period = reference.calendar_period_days(due_on) if reference.calendar_interval else 0
-        if other.next_due_on <= due_on + datetime.timedelta(days=math.floor(period * pct)):
-            return True
-    if (
-        other.next_due_meter_value is not None
-        and main.next_due_meter_value is not None
-        and other.meter_id is not None
-        and other.meter_id == main.meter_id
-        and version.uses_meter
-    ):
-        return other.next_due_meter_value <= main.next_due_meter_value + version.meter_interval * pct
-    return False
+    return absorbs(
+        version=main.plan.current_version,
+        minor_version=other.plan.current_version,
+        due_on=due_on,
+        meter_target=main.next_due_meter_value,
+        meter_id=main.meter_id,
+        other_due_on=other.next_due_on,
+        other_meter_target=other.next_due_meter_value,
+        other_meter_id=other.meter_id,
+    )
 
 
 def generate_due_work_orders(*, today: datetime.date | None = None, horizon_days=None, meter=None):
@@ -487,34 +480,6 @@ def generate_due_work_orders(*, today: datetime.date | None = None, horizon_days
     return created
 
 
-def _next_fixed_target(previous, interval, after):
-    """Modo fijo: siguiente objetivo = anterior + k·intervalo, el primero posterior a `after`.
-
-    Así, una OT cerrada con más de un intervalo de atraso no genera OT en el pasado.
-    """
-    target = previous + interval
-    if target <= after:
-        periods = math.floor((after - previous) / interval) + 1
-        target = previous + interval * periods
-    return target
-
-
-def _next_fixed_date(previous: datetime.date, version: PlanVersion, after: datetime.date) -> datetime.date:
-    """Modo fijo por calendario: anterior + k·frecuencia, el primero posterior a `after`.
-
-    En meses se cuenta desde la fecha anterior (k meses de una vez, no mes a mes),
-    así el día del mes se conserva: 31-ene → 28-feb → 31-mar.
-    """
-    if version.calendar_unit != CalendarUnit.MONTHS:
-        days = version.calendar_interval * (7 if version.calendar_unit == CalendarUnit.WEEKS else 1)
-        return _next_fixed_target(previous, datetime.timedelta(days=days), after)
-    months = (after.year - previous.year) * 12 + after.month - previous.month
-    k = max(1, months // version.calendar_interval - 1)
-    while version.shift(previous, k) <= after:
-        k += 1
-    return version.shift(previous, k)
-
-
 def register_completion(
     *, assignment: PlanAssignment, completed_on: datetime.date, meter_value=None
 ) -> PlanAssignment:
@@ -524,25 +489,19 @@ def register_completion(
     programado, sin quedar en el pasado.
     """
     version = assignment.plan.current_version
-    fixed = version.schedule_mode == PlanVersion.ScheduleMode.FIXED
     assignment.last_done_on = completed_on
-    if version.calendar_interval:
-        if fixed and assignment.next_due_on is not None:
-            assignment.next_due_on = _next_fixed_date(assignment.next_due_on, version, completed_on)
-        else:
-            assignment.next_due_on = version.shift(completed_on)
-    else:
-        assignment.next_due_on = None
+    base = None
     if version.uses_meter and assignment.meter_id:
         base = meter_value if meter_value is not None else assignment.meter.current_value
         if base is not None:
             assignment.last_done_meter_value = base
-            if fixed and assignment.next_due_meter_value is not None:
-                assignment.next_due_meter_value = _next_fixed_target(
-                    assignment.next_due_meter_value, version.meter_interval, base
-                )
-            else:
-                assignment.next_due_meter_value = base + version.meter_interval
+    assignment.next_due_on, assignment.next_due_meter_value = next_schedule(
+        version=version,
+        next_due_on=assignment.next_due_on,
+        next_due_meter_value=assignment.next_due_meter_value,
+        completed_on=completed_on,
+        meter_value=base,
+    )
     assignment.save(
         update_fields=[
             "last_done_on",
