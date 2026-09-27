@@ -114,8 +114,12 @@ absorción de planes (`supersedes_plans`, PM‑05 CA3).
 `UNIQUE (organization_id, work_type, number)`; `UNIQUE (organization_id, client_uuid)`; índices `(organization_id, status, due_at)`, `(organization_id, asset_id, completed_at)`, `(organization_id, scheduled_for)`.
 Índice único parcial `(plan_assignment_id) WHERE status NOT IN ('closed','cancelled')`: garantiza que no existan dos OT abiertas de la misma asignación.
 
-**`work_order_assignee`** — responsables de la OT.
-`organization_id` · `work_order_id` · `membership_id` · `is_lead`.
+**`work_order_helper`** — responsables adicionales de la OT (el principal es
+`work_order.assigned_to_id`).
+`organization_id` · `work_order_id` · `user_id`. `UNIQUE (organization_id, work_order_id, user_id)`.
+Se usa `user_id` (no `membership_id` + `is_lead`) igual que `assigned_to`; el
+servicio exige que cada usuario tenga membresía activa en la organización.
+`asset_id` y `location_id` de la OT son excluyentes: exactamente uno (CHECK).
 
 **`work_order_transition`**
 `organization_id` · `work_order_id` · `from_status` · `to_status` · `by_id` · `at` · `comment`.
@@ -144,6 +148,9 @@ absorción de planes (`supersedes_plans`, PM‑05 CA3).
 **`failure_event`**
 `organization_id` · `asset_id` · `component_id` (activo hijo, opcional) · `failure_mode_id` · `failure_cause_id` · `failure_mechanism_id` · `detection_method_id` · `impact` (total_stop, partial, none) · `started_at` · `ended_at` · `description` · `request_id` · `work_order_id`.
 Índice `(organization_id, asset_id, started_at)`.
+`asset_id` es obligatorio: la falla (ISO 14224) es de un equipo. Una OT
+correctiva sobre una ubicación no registra `failure_event` y no entra en
+MTBF/MTTR; si el problema resulta ser de un equipo, la OT se crea sobre él.
 
 ### 2.7 Transversales
 
@@ -228,8 +235,8 @@ erDiagram
     MAINTENANCE_PLAN_VERSION |o--o{ WORK_ORDER : "version usada"
     WORK_ORDER ||--o{ WORK_ORDER_CHECKLIST_ITEM : "snapshot"
     WORK_ORDER ||--o{ WORK_ORDER_TRANSITION : "ciclo de vida"
-    WORK_ORDER ||--o{ WORK_ORDER_ASSIGNEE : "responsables"
-    MEMBERSHIP ||--o{ WORK_ORDER_ASSIGNEE : ""
+    WORK_ORDER ||--o{ WORK_ORDER_HELPER : "responsables"
+    USER ||--o{ WORK_ORDER_HELPER : ""
     WORK_ORDER ||--o{ LABOR_ENTRY : "mano de obra"
     WORK_ORDER ||--o{ PART_USAGE : "repuestos"
     WORK_ORDER ||--o{ OTHER_COST : "otros costos"

@@ -90,11 +90,9 @@ sobre ubicación con varios responsables, nombres de estado por organización,
 checklist aplicable a correctivas, fotos por ítem y firma. La demo del "Hecho
 cuando" funciona con `seed_demo` sin atajos.
 
-Quedan fuera, a propósito: color de marca y el resto de ORG-09 (M1); el logo
-no cuenta para el cupo de almacenamiento; el PDF de etiquetas solo imprime
-texto Latin-1; las OT sobre ubicación no registran falla (`FailureEvent`
-exige activo); los responsables adicionales usan `User` en vez de
-`membership` + `is_lead` como dice 03; el catálogo `.mo` no se compila hasta
+Quedan fuera, a propósito: color de marca y el resto de ORG-09 (M1); las OT
+sobre ubicación no registran falla (`FailureEvent`
+exige activo, ver 03); el catálogo `.mo` no se compila hasta
 que haya traducciones (F3).
 
 | # | Entregable | Req. | Sem. |
