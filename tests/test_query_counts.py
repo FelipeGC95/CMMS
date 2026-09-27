@@ -734,3 +734,32 @@ def test_industry_template_apply_uses_bounded_queries(tenant_a, industry, django
     with django_assert_max_num_queries(30):
         summary = apply_industry_template(organization=tenant_a.org, industry=industry)
     assert summary.plans
+
+
+def _add_manuals(tenant, n):
+    """Manuales del activo y de su clase, cada uno con una página que contiene "bomba" (AST-06 CA3)."""
+    from tests.conftest import make_manual
+
+    with tenant_context(tenant.org):
+        for i in range(n):
+            make_manual(tenant.asset, [f"bomba {i}"], by=tenant.admin.user, name=f"a{i}.pdf")
+            make_manual(
+                tenant.asset.asset_class, [f"bomba clase {i}"], by=tenant.admin.user, name=f"c{i}.pdf"
+            )
+
+
+@pytest.mark.parametrize("which", ["asset_detail", "asset_class_detail", "manual_search"])
+def test_manual_lists_and_search_do_not_grow_with_rows(client, tenant_a, settings, tmp_path, which):
+    settings.MEDIA_ROOT = tmp_path
+    login(client, tenant_a.admin)
+    if which == "asset_detail":
+        url = reverse(which, args=[tenant_a.asset.pk])
+    elif which == "asset_class_detail":
+        url = reverse(which, args=[tenant_a.asset.asset_class_id])
+    else:
+        url = reverse(which) + "?q=bomba"
+    _add_manuals(tenant_a, 2)
+    few = _count(client, url)
+    _add_manuals(tenant_a, 8)
+    many = _count(client, url)
+    assert many == few, f"{which}: {few} → {many} consultas"

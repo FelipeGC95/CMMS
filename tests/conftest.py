@@ -89,3 +89,40 @@ def tiny_jpeg_bytes(size=(10, 10), color="red") -> bytes:
     buffer = io.BytesIO()
     Image.new("RGB", size, color=color).save(buffer, format="JPEG")
     return buffer.getvalue()
+
+
+def pdf_bytes(pages: list[str]) -> bytes:
+    """PDF real con una página por texto; una página vacía no tiene capa de texto (como un escaneo)."""
+    import io
+
+    from reportlab.pdfgen import canvas
+
+    buffer = io.BytesIO()
+    pdf = canvas.Canvas(buffer)
+    for text in pages:
+        if text:
+            pdf.drawString(72, 720, text)
+        else:
+            pdf.rect(72, 500, 300, 200, fill=1)  # solo dibujo, sin texto
+        pdf.showPage()
+    pdf.save()
+    return buffer.getvalue()
+
+
+def make_manual(target, pages: list[str], *, by, name="manual.pdf"):
+    """Sube un manual con el servicio y extrae su texto en el acto (en los tests no corre on_commit)."""
+    from django.core.files.uploadedfile import SimpleUploadedFile
+
+    from apps.assets.models import AssetClass
+    from apps.attachments import services
+    from apps.attachments.models import TargetType
+
+    target_type = TargetType.ASSET_CLASS if isinstance(target, AssetClass) else TargetType.ASSET
+    manual = services.add_manual(
+        target_type=target_type,
+        target_id=target.pk,
+        uploaded_file=SimpleUploadedFile(name, pdf_bytes(pages), content_type="application/pdf"),
+        by=by,
+    )
+    services.extract_document_text(attachment=manual)
+    return manual

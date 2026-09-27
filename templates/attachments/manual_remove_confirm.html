@@ -1,0 +1,20 @@
+{% extends "base.html" %}{% load i18n ui %}
+{% block title %}{% translate "Quitar manual" %}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>{% translate "Quitar manual" %}</h1>
+  </div>
+</div>
+<section class="card" aria-labelledby="confirm-title">
+  <h2 id="confirm-title">{% blocktranslate with name=manual.filename %}¿Quitar «{{ name }}»?{% endblocktranslate %}</h2>
+  <p class="muted">{% translate "Se borran el archivo y su texto, y se libera su espacio. Queda registrado en la auditoría." %}</p>
+  <form method="post" action="{% url 'manual_remove' manual.pk %}">
+    {% csrf_token %}
+    <div class="row">
+      <button class="btn btn--danger btn--lg" type="submit">{% icon 'x' %}{% translate "Sí, quitar" %}</button>
+      <a class="btn btn--ghost btn--lg" href="{{ back }}">{% translate "Cancelar" %}</a>
+    </div>
+  </form>
+</section>
+{% endblock %}

@@ -14,6 +14,7 @@
     <h2>{% translate "Secciones" %}</h2>
     <ul class="list list--nav">
       <li><a href="{% url 'work_order_list' %}">{% icon 'wrench' %}{% translate "Órdenes de trabajo" %}</a></li>
+      <li><a href="{% url 'manual_search' %}">{% icon 'list' %}{% translate "Buscar en manuales" %}</a></li>
       {% if membership|can:"request.create" %}<li><a href="{% url 'location_report' %}">{% icon 'megaphone' %}{% translate "Avisar problema en una ubicación" %}</a></li>{% endif %}
       {% if membership|can:"work_order.manage" %}<li><a href="{% url 'request_list' %}">{% icon 'megaphone' %}{% translate "Solicitudes" %}</a></li>{% endif %}
       {% if membership|can:"work_order.manage" %}<li><a href="{% url 'failure_code_list' %}">{% icon 'alert' %}{% translate "Catálogo de falla" %}</a></li>{% endif %}

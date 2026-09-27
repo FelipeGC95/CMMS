@@ -1,0 +1,38 @@
+{% extends "base.html" %}{% load i18n ui accounts_tags %}
+{% block title %}{% translate "Buscar en manuales" %}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>{% translate "Buscar en manuales" %}</h1>
+    <p class="muted">{% translate "Busca en el texto de los manuales PDF de tus activos y clases de activo." %}</p>
+  </div>
+</div>
+
+<form class="search-bar" method="get" role="search">
+  <label class="visually-hidden" for="q">{% translate "Buscar" %}</label>
+  <input class="input" type="search" id="q" name="q" value="{{ query }}" maxlength="200" placeholder="{% translate 'Ej.: presión de aceite' %}">
+  <button class="btn btn--secondary" type="submit">{% translate "Buscar" %}</button>
+</form>
+
+{% if query %}
+<section class="card" aria-labelledby="results-title">
+  <h2 id="results-title">{% blocktranslate count n=page.paginator.count %}{{ n }} página encontrada{% plural %}{{ n }} páginas encontradas{% endblocktranslate %}</h2>
+  {% if page.object_list %}
+  <ul class="list">
+    {% for hit in page %}
+    <li>
+      <div class="list__main">
+        <span class="list__title"><a href="{% url 'attachment' hit.attachment.pk %}#page={{ hit.page_number }}">{{ hit.attachment.filename }}</a></span>
+        <span class="list__meta">{% blocktranslate with n=hit.page_number %}Página {{ n }}{% endblocktranslate %} · {% if hit.attachment.target_type == class_type %}{% translate "Clase" %} {% if membership|can:"asset.manage" %}<a href="{% url 'asset_class_detail' hit.attachment.target_id %}">{{ hit.target|default:"—" }}</a>{% else %}{{ hit.target|default:"—" }}{% endif %}{% else %}{% translate "Activo" %} <a href="{% url 'asset_detail' hit.attachment.target_id %}">{{ hit.target|default:"—" }}</a>{% endif %}</span>
+        <p class="muted">{{ hit.snippet }}</p>
+      </div>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="muted">{% translate "Sin resultados. Prueba con otras palabras; los PDF escaneados no tienen texto para buscar." %}</p>
+  {% endif %}
+</section>
+{% include "_pagination.html" %}
+{% endif %}
+{% endblock %}
