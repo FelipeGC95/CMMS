@@ -1,0 +1,13 @@
+{% load i18n %}<!doctype html>
+<html lang="es-CL">
+<head><meta charset="utf-8"><title>{% translate "OT por vencer y vencidas" %}</title></head>
+<body>
+  <p>{% blocktranslate with name=user.short_name org=organization.name %}Hola {{ name }}: estas órdenes de trabajo de {{ org }} están por vencer o vencidas.{% endblocktranslate %}</p>
+  <ul>
+    {% for item in items %}
+    <li><strong>{% if item.overdue %}{% translate "Vencida" %}{% else %}{% translate "Por vencer" %}{% endif %}</strong> · <a href="{{ item.url }}">{{ item.code }}</a> · {{ item.title }} · {% blocktranslate with date=item.due_on|date:"d-m-Y" %}vence el {{ date }}{% endblocktranslate %}</li>
+    {% endfor %}
+  </ul>
+  <p><small><a href="{{ preferences_url }}">{% translate "Elegir qué avisos recibir por correo" %}</a></small></p>
+</body>
+</html>

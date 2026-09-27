@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-27 10:35-0300\n"
+"POT-Creation-Date: 2026-09-27 11:32-0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1275,6 +1275,42 @@ msgstr ""
 msgid "Eliminación en administración"
 msgstr ""
 
+msgid "Asignación"
+msgstr ""
+
+msgid "Edición de checklist"
+msgstr ""
+
+msgid "Costo agregado"
+msgstr ""
+
+msgid "Costo quitado"
+msgstr ""
+
+msgid "Término de OT"
+msgstr ""
+
+msgid "Invitación enviada"
+msgstr ""
+
+msgid "Invitación revocada"
+msgstr ""
+
+msgid "Invitación aceptada"
+msgstr ""
+
+msgid "Cambio de rol o alcance"
+msgstr ""
+
+msgid "Desactivación"
+msgstr ""
+
+msgid "Reactivación"
+msgstr ""
+
+msgid "Revocación"
+msgstr ""
+
 msgid "actor"
 msgstr ""
 
@@ -2083,6 +2119,101 @@ msgstr ""
 msgid "Absorción quitada."
 msgstr ""
 
+msgid "Notificaciones"
+msgstr ""
+
+msgid "OT asignada a mí"
+msgstr ""
+
+msgid "OT por vencer"
+msgstr ""
+
+msgid "OT vencida"
+msgstr ""
+
+msgid "Nueva solicitud"
+msgstr ""
+
+msgid "Mi solicitud resuelta"
+msgstr ""
+
+msgid "destinatario"
+msgstr ""
+
+msgid "título"
+msgstr ""
+
+msgid "detalle"
+msgstr ""
+
+msgid "enlace"
+msgstr ""
+
+msgid "solicitud"
+msgstr ""
+
+msgid "en la app"
+msgstr ""
+
+msgid "clave de envío único"
+msgstr ""
+
+msgid "leída"
+msgstr ""
+
+msgid "notificación"
+msgstr ""
+
+msgid "notificaciones"
+msgstr ""
+
+msgid "por correo"
+msgstr ""
+
+msgid "preferencia de notificación"
+msgstr ""
+
+msgid "preferencias de notificación"
+msgstr ""
+
+#, python-format
+msgid "Te asignaron la %(code)s"
+msgstr ""
+
+#, python-format
+msgid "Nueva solicitud #%(number)s"
+msgstr ""
+
+#, python-format
+msgid "Tu solicitud #%(number)s fue rechazada"
+msgstr ""
+
+#, python-format
+msgid "Tu solicitud #%(number)s se unió a otra por el mismo problema"
+msgstr ""
+
+#, python-format
+msgid "Tu solicitud #%(number)s fue atendida"
+msgstr ""
+
+#, python-format
+msgid "OT por vencer y vencidas (%(count)s)"
+msgstr ""
+
+#, python-format
+msgid "La %(code)s está vencida (vencía el %(date)s)"
+msgstr ""
+
+#, python-format
+msgid "La %(code)s vence el %(date)s"
+msgstr ""
+
+msgid "Todas las notificaciones quedaron leídas."
+msgstr ""
+
+msgid "Preferencias de notificación guardadas."
+msgstr ""
+
 msgid "correo del administrador"
 msgstr ""
 
@@ -2782,9 +2913,6 @@ msgstr ""
 msgid "prioridad"
 msgstr ""
 
-msgid "título"
-msgstr ""
-
 msgid "versión del plan"
 msgstr ""
 
@@ -3032,9 +3160,6 @@ msgid "motivo de rechazo"
 msgstr ""
 
 msgid "fusionada en"
-msgstr ""
-
-msgid "solicitud"
 msgstr ""
 
 msgid "solicitudes"
@@ -4896,6 +5021,101 @@ msgstr ""
 msgid "Activar"
 msgstr ""
 
+#, python-format
+msgid "%(n)s sin leer"
+msgid_plural "%(n)s sin leer"
+msgstr[0] ""
+msgstr[1] ""
+msgstr[2] ""
+
+msgid "OT por vencer y vencidas"
+msgstr ""
+
+#, python-format
+msgid ""
+"Hola %(name)s: estas órdenes de trabajo de %(org)s están por vencer o "
+"vencidas."
+msgstr ""
+
+msgid "Por vencer"
+msgstr ""
+
+#, python-format
+msgid "vence el %(date)s"
+msgstr ""
+
+msgid "Elegir qué avisos recibir por correo"
+msgstr ""
+
+#, python-format
+msgid ""
+"Hola %(name)s:\n"
+"\n"
+"Estas órdenes de trabajo de %(org)s están por vencer o vencidas:"
+msgstr ""
+
+msgid "VENCIDA"
+msgstr ""
+
+msgid "Puedes elegir qué avisos recibir por correo en tus preferencias:"
+msgstr ""
+
+#, python-format
+msgid "Hola %(name)s: tienes un aviso nuevo en %(org)s."
+msgstr ""
+
+msgid "Ver en GALBUST CMMS"
+msgstr ""
+
+#, python-format
+msgid ""
+"Hola %(name)s:\n"
+"\n"
+"Tienes un aviso nuevo en %(org)s."
+msgstr ""
+
+msgid "Ver en GALBUST CMMS:"
+msgstr ""
+
+#, python-format
+msgid "%(n)s notificación"
+msgid_plural "%(n)s notificaciones"
+msgstr[0] ""
+msgstr[1] ""
+msgstr[2] ""
+
+msgid "Marcar todas como leídas"
+msgstr ""
+
+msgid "Preferencias"
+msgstr ""
+
+msgid "Leída"
+msgstr ""
+
+msgid "No tienes notificaciones."
+msgstr ""
+
+msgid "Preferencias de notificación"
+msgstr ""
+
+msgid ""
+"Elige por dónde quieres enterarte de cada aviso. Solo cambia tu cuenta en "
+"esta organización."
+msgstr ""
+
+msgid "Ver notificaciones"
+msgstr ""
+
+msgid "En la app"
+msgstr ""
+
+msgid "Por correo"
+msgstr ""
+
+msgid "Guardar preferencias"
+msgstr ""
+
 msgid "Avisar problema"
 msgstr ""
 
@@ -5399,6 +5619,9 @@ msgid "Mi cuenta (menú Más)"
 msgstr ""
 
 msgid "Cambiar contraseña"
+msgstr ""
+
+msgid "Campana y bandeja de notificaciones (X-02)"
 msgstr ""
 
 msgid "Tarjetas de alto natural en dos columnas"

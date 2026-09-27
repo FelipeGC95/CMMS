@@ -1,0 +1,11 @@
+{% load i18n %}<!doctype html>
+<html lang="es-CL">
+<head><meta charset="utf-8"><title>{{ title }}</title></head>
+<body>
+  <p>{% blocktranslate with name=user.short_name org=organization.name %}Hola {{ name }}: tienes un aviso nuevo en {{ org }}.{% endblocktranslate %}</p>
+  <p><strong>{{ title }}</strong></p>
+  {% if body %}<p>{{ body|linebreaksbr }}</p>{% endif %}
+  {% if url %}<p><a href="{{ url }}">{% translate "Ver en GALBUST CMMS" %}</a></p>{% endif %}
+  <p><small><a href="{{ preferences_url }}">{% translate "Elegir qué avisos recibir por correo" %}</a></small></p>
+</body>
+</html>

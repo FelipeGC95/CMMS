@@ -31,6 +31,7 @@ urlpatterns = [
     path("", include("apps.api.urls")),
     path("", include("apps.reporting.urls")),
     path("audit/", include("apps.audit.urls")),
+    path("", include("apps.notifications.urls")),
     path("assets/", asset_views.asset_list_view, name="asset_list"),
     path("assets/labels/", asset_views.asset_labels_view, name="asset_labels"),
     path("assets/labels/selection/", asset_views.asset_labels_select_view, name="asset_labels_select"),

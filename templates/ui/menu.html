@@ -66,6 +66,8 @@
       </div>
     </div>
     <ul class="list list--nav">
+      {% if membership %}<li><a href="{% url 'notification_list' %}">{% icon 'bell' %}{% translate "Notificaciones" %}</a></li>
+      <li><a href="{% url 'notification_preferences' %}">{% icon 'bell' %}{% translate "Preferencias de notificación" %}</a></li>{% endif %}
       <li><a href="{% url 'account_change_password' %}">{% icon 'key' %}{% translate "Cambiar contraseña" %}</a></li>
       <li><a href="{% url 'mfa_index' %}">{% icon 'key' %}{% translate "Verificación en dos pasos" %}</a></li>
     </ul>

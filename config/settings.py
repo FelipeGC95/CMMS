@@ -47,6 +47,7 @@ INSTALLED_APPS = [
     "apps.work",
     "apps.reporting",
     "apps.audit",
+    "apps.notifications",
     "apps.api",
     "apps.ui",
 ]
@@ -220,6 +221,9 @@ SERVER_EMAIL = os.environ.get("SERVER_EMAIL", DEFAULT_FROM_EMAIL)
 if env_bool("EMAIL_USE_QUEUE", False) and TASK_QUEUE_ENABLED:
     EMAIL_DELIVERY_BACKEND = EMAIL_BACKEND
     EMAIL_BACKEND = "apps.core.mail.QueuedEmailBackend"
+# URL pública para los enlaces de los correos de notificación (X-02), que también
+# salen desde tareas y comandos sin petición.
+SITE_URL = os.environ.get("SITE_URL", f"https://{render_host}" if render_host else "http://localhost:8000")
 
 # Idioma fuente de la interfaz: español de Chile.
 LANGUAGE_CODE = "es-cl"

@@ -1,0 +1,1 @@
+{% load i18n %}{% if unread_count %}<span class="bell-count num" aria-hidden="true">{% if unread_count > 99 %}99+{% else %}{{ unread_count }}{% endif %}</span><span class="visually-hidden">{% blocktranslate count n=unread_count %}{{ n }} sin leer{% plural %}{{ n }} sin leer{% endblocktranslate %}</span>{% endif %}

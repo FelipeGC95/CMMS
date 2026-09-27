@@ -1,0 +1,10 @@
+{% load i18n %}{% autoescape off %}{% blocktranslate with name=user.short_name org=organization.name %}Hola {{ name }}:
+
+Estas órdenes de trabajo de {{ org }} están por vencer o vencidas:{% endblocktranslate %}
+{% for item in items %}
+- {% if item.overdue %}{% translate "VENCIDA" %}{% else %}{% translate "Por vencer" %}{% endif %} · {{ item.code }} · {{ item.title }} · {% blocktranslate with date=item.due_on|date:"d-m-Y" %}vence el {{ date }}{% endblocktranslate %}
+  {{ item.url }}{% endfor %}
+
+{% translate "Puedes elegir qué avisos recibir por correo en tus preferencias:" %}
+{{ preferences_url }}
+{% endautoescape %}

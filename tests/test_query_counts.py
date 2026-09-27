@@ -734,3 +734,27 @@ def test_industry_template_apply_uses_bounded_queries(tenant_a, industry, django
     with django_assert_max_num_queries(30):
         summary = apply_industry_template(organization=tenant_a.org, industry=industry)
     assert summary.plans
+
+
+def test_notification_list_and_bell_are_bounded(client, tenant_a, django_assert_max_num_queries):
+    """Bandeja (X-02) sin N+1 y campana con una sola consulta de conteo."""
+    from apps.notifications.models import Kind, Notification
+    from apps.notifications.selectors import unread_count
+
+    def add(n):
+        with tenant_context(tenant_a.org):
+            for i in range(n):
+                Notification.objects.create(
+                    recipient=tenant_a.admin.user, kind=Kind.WO_ASSIGNED, title=f"A {i}"
+                )
+
+    login(client, tenant_a.admin)
+    add(2)
+    few = _count(client, reverse("notification_list"))
+    add(15)
+    assert _count(client, reverse("notification_list")) == few
+    with tenant_context(tenant_a.org), django_assert_max_num_queries(1):
+        assert unread_count(membership=tenant_a.admin) == 17
+    badge_queries = _count(client, reverse("notification_badge"))
+    add(5)
+    assert _count(client, reverse("notification_badge")) == badge_queries

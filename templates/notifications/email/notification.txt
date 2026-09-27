@@ -1,0 +1,13 @@
+{% load i18n %}{% autoescape off %}{% blocktranslate with name=user.short_name org=organization.name %}Hola {{ name }}:
+
+Tienes un aviso nuevo en {{ org }}.{% endblocktranslate %}
+
+{{ title }}
+{% if body %}{{ body }}
+{% endif %}{% if url %}
+{% translate "Ver en GALBUST CMMS:" %}
+{{ url }}
+{% endif %}
+{% translate "Puedes elegir qué avisos recibir por correo en tus preferencias:" %}
+{{ preferences_url }}
+{% endautoescape %}

@@ -1,0 +1,42 @@
+{% extends "base.html" %}{% load i18n ui %}
+{% block title %}{% translate "Notificaciones" %}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>{% translate "Notificaciones" %}</h1>
+    <p class="muted">{% blocktranslate count n=page.paginator.count %}{{ n }} notificación{% plural %}{{ n }} notificaciones{% endblocktranslate %}</p>
+  </div>
+  <div class="row">
+    <form method="post" action="{% url 'notification_read_all' %}">
+      {% csrf_token %}
+      <button class="btn btn--secondary" type="submit">{% icon 'check' %}{% translate "Marcar todas como leídas" %}</button>
+    </form>
+    <a class="btn btn--ghost" href="{% url 'notification_preferences' %}">{% translate "Preferencias" %}</a>
+  </div>
+</div>
+
+<div class="card">
+  {% if page.object_list %}
+  <ul class="list notification-list">
+    {% for notification in page.object_list %}
+    <li class="notification{% if not notification.read_at %} notification--unread{% endif %}">
+      <form class="notification__main" method="post" action="{% url 'notification_open' notification.pk %}">
+        {% csrf_token %}
+        <button class="notification__open" type="submit">{{ notification.title }}</button>
+        {% if notification.body %}<span class="notification__body">{{ notification.body|truncatechars:160 }}</span>{% endif %}
+        <span class="notification__meta num">{{ notification.created_at|date:"d-m-Y H:i" }} · {{ notification.get_kind_display }}</span>
+      </form>
+      {% if notification.read_at %}
+      <span class="badge badge--neutral">{% icon 'check' %}{% translate "Leída" %}</span>
+      {% else %}
+      <span class="badge badge--info">{% icon 'dot' %}{% translate "Nueva" %}</span>
+      {% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="empty">{% icon 'check' %} {% translate "No tienes notificaciones." %}</p>
+  {% endif %}
+</div>
+{% include "_pagination.html" %}
+{% endblock %}

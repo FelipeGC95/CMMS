@@ -293,6 +293,25 @@
   <div class="row mt-2">
     <button class="btn btn--secondary" type="button">{% icon 'logout' %}{% translate "Salir" %}</button>
   </div>
+  <h3>{% translate "Campana y bandeja de notificaciones (X-02)" %}</h3>
+  <div class="navbar navbar--sample"><div class="navbar__inner"><a class="navbar__bell" href="#ds-lists">{% icon 'bell' %}<span class="visually-hidden">{% translate "Notificaciones" %}</span><span class="bell-count num" aria-hidden="true">3</span></a></div></div>
+  <ul class="list notification-list">
+    <li class="notification notification--unread">
+      <div class="notification__main">
+        <button class="notification__open" type="button">Te asignaron la OT-C-00031</button>
+        <span class="notification__body">Gotera sobre la línea 2</span>
+        <span class="notification__meta num">27-09-2026 08:10 · OT asignada a mí</span>
+      </div>
+      <span class="badge badge--info">{% icon 'dot' %}{% translate "Nueva" %}</span>
+    </li>
+    <li class="notification">
+      <div class="notification__main">
+        <button class="notification__open" type="button">Nueva solicitud #12</button>
+        <span class="notification__meta num">26-09-2026 17:45 · Nueva solicitud</span>
+      </div>
+      <span class="badge badge--neutral">{% icon 'check' %}{% translate "Leída" %}</span>
+    </li>
+  </ul>
 </section>
 
 <section class="mb-4" aria-labelledby="ds-masonry">

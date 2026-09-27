@@ -1,0 +1,25 @@
+{% extends "base.html" %}{% load i18n ui %}
+{% block title %}{% translate "Preferencias de notificación" %}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>{% translate "Preferencias de notificación" %}</h1>
+    <p class="muted">{% translate "Elige por dónde quieres enterarte de cada aviso. Solo cambia tu cuenta en esta organización." %}</p>
+  </div>
+  <a class="btn btn--secondary" href="{% url 'notification_list' %}">{% icon 'bell' %}{% translate "Ver notificaciones" %}</a>
+</div>
+
+<form class="card" method="post">
+  {% csrf_token %}
+  {% for row in rows %}
+  <fieldset class="check-group">
+    <legend>{{ row.label }}</legend>
+    <div class="check-group__options">
+      <label class="check-group__option" for="pref-{{ row.kind }}-in_app"><input type="checkbox" id="pref-{{ row.kind }}-in_app" name="{{ row.kind }}-in_app"{% if row.in_app %} checked{% endif %}><span>{% translate "En la app" %}</span></label>
+      <label class="check-group__option" for="pref-{{ row.kind }}-email"><input type="checkbox" id="pref-{{ row.kind }}-email" name="{{ row.kind }}-email"{% if row.email %} checked{% endif %}><span>{% translate "Por correo" %}</span></label>
+    </div>
+  </fieldset>
+  {% endfor %}
+  <button class="btn btn--primary" type="submit">{% translate "Guardar preferencias" %}</button>
+</form>
+{% endblock %}

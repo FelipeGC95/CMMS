@@ -23,6 +23,8 @@ from apps.audit import services as audit
 from apps.audit.models import AuditEvent
 from apps.core.tenancy import require_current_organization, tenant_context
 from apps.maintenance.models import ItemType, PlanVersion, format_number
+from apps.notifications.services import notify_request_created, notify_request_resolved
+from apps.notifications.services import notify_work_order_assigned as notify_assignment
 from apps.organizations.models import Location
 from apps.ui.templatetags.ui import work_order_status_label
 
@@ -193,6 +195,7 @@ def create_work_order(
             work_order, fields={"work_type", "status", "priority", "title", "asset", "location", "due_on"}
         ),
     )
+    notify_assignment(work_order=work_order, users=[assigned_to, *helpers], actor=by)
     return work_order
 
 
@@ -207,6 +210,7 @@ def set_assignees(*, work_order: WorkOrder, membership, assigned_to=None, helper
         [*helpers, *([assigned_to] if assigned_to else [])], organization=membership.organization
     )
     before_lead = str(work_order.assigned_to) if work_order.assigned_to_id else ""
+    before_users = {work_order.assigned_to_id, *(user.pk for user in work_order.helpers.all())}
     before_helpers = sorted(str(user) for user in work_order.helpers.all())
     work_order.assigned_to = assigned_to
     work_order.save(update_fields=["assigned_to", "updated_at"])
@@ -220,6 +224,9 @@ def set_assignees(*, work_order: WorkOrder, membership, assigned_to=None, helper
     if changes:
         audit.record(
             action=AuditEvent.Action.ASSIGN, target=work_order, actor=membership.user, changes=changes
+        )
+        notify_assignment(
+            work_order=work_order, users=[assigned_to, *helpers], previous=before_users, actor=membership.user
         )
     return work_order
 
@@ -295,6 +302,7 @@ def report_failure(
             request, fields={"number", "asset", "location", "asset_stopped", "work_order"}
         ),
     )
+    notify_request_created(work_request=request, actor=user)
     if asset_stopped:
         failure = FailureEvent.objects.create(
             asset=asset,
@@ -395,6 +403,12 @@ def transition(*, work_order: WorkOrder, to_status: str, membership, comment: st
         changes={"status": [from_status, to_status], **({"comment": comment} if comment else {})},
     )
 
+    if to_status == S.COMPLETED:
+        # Quien avisó la falla se entera de que su solicitud fue atendida (X-02).
+        for work_request in WorkRequest.objects.filter(
+            work_order=work_order, status__in=(R.PENDING, R.ACCEPTED)
+        ):
+            notify_request_resolved(work_request=work_request, actor=user)
     if to_status == S.COMPLETED and not work_order.organization.require_close_approval:
         _close(work_order=work_order, user=user, at=now)
     elif to_status == S.CLOSED:
@@ -1228,6 +1242,7 @@ def reject_request(*, work_request: WorkRequest, membership, reason: str) -> Wor
         actor=membership.user,
         changes={"status": [R.PENDING, R.REJECTED], "reason": work_request.rejection_reason},
     )
+    notify_request_resolved(work_request=work_request, actor=membership.user)
     return work_request
 
 
@@ -1263,6 +1278,7 @@ def merge_request(*, work_request: WorkRequest, into: WorkRequest, membership) -
         actor=membership.user,
         changes={"status": [R.PENDING, R.MERGED], "merged_into": into.number},
     )
+    notify_request_resolved(work_request=work_request, actor=membership.user)
     return work_request
 
 
