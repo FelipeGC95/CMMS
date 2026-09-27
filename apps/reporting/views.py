@@ -6,6 +6,7 @@ from django.utils import timezone
 from django.utils.translation import gettext as _
 
 from apps.accounts.models import Membership
+from apps.accounts.permissions import Perm
 from apps.assets.attributes import attribute_rows
 from apps.assets.selectors import active_attributes, asset_failure_history, asset_list, visible_assets
 from apps.assets.views import _list_filters as asset_list_filters
@@ -15,9 +16,15 @@ from apps.core.decorators import membership_required
 from apps.maintenance.selectors import active_assignments_for_asset
 from apps.onboarding.selectors import onboarding_for_dashboard
 from apps.work.models import WorkOrder
-from apps.work.selectors import filter_work_orders, visible_work_orders, work_order_detail, work_order_list
+from apps.work.selectors import (
+    filter_backlog,
+    filter_work_orders,
+    visible_work_orders,
+    work_order_detail,
+    work_order_list,
+)
 
-from .excel import MAX_EXPORT_ROWS, XLSX_CONTENT_TYPE, assets_xlsx, work_orders_xlsx
+from .excel import MAX_EXPORT_ROWS, XLSX_CONTENT_TYPE, assets_xlsx, backlog_xlsx, work_orders_xlsx
 from .forms import DashboardFilterForm
 from .pdf import asset_sheet_pdf, work_order_pdf
 from .selectors import DOWN_STATUSES, dashboard_kpis
@@ -97,6 +104,15 @@ def work_order_list_xlsx_view(request):
         build=work_orders_xlsx,
         list_name="work_order_list",
         prefix="ordenes-de-trabajo",
+    )
+
+
+@membership_required(perm=Perm.WORK_ORDER_MANAGE)
+def backlog_xlsx_view(request):
+    """Backlog priorizado a Excel (REQ-04): mismos filtros, alcance y orden que la pantalla."""
+    queryset, _form = filter_backlog(params=request.GET, membership=request.membership)
+    return _xlsx_response(
+        request, queryset=queryset, build=backlog_xlsx, list_name="work_order_backlog", prefix="backlog"
     )
 
 

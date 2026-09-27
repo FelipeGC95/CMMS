@@ -1,4 +1,7 @@
+from decimal import Decimal
+
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
@@ -84,6 +87,15 @@ class Membership(TimeStampedModel):
     is_active = models.BooleanField(_("activa"), default=True)
     # ORG-06: si está marcado, solo ve lo de sus ubicaciones (MembershipLocation) y descendientes.
     restricted_to_locations = models.BooleanField(_("limitado a ciertas ubicaciones"), default=False)
+    # Capacidad de trabajo (REQ-04/05): horas semanales para el backlog en semanas y la
+    # carga del tablero; se reparte en 5 días hábiles. Solo cuenta para técnicos.
+    weekly_capacity_hours = models.DecimalField(
+        _("horas semanales"),
+        max_digits=4,
+        decimal_places=1,
+        default=Decimal("40"),
+        validators=[MinValueValidator(Decimal("0")), MaxValueValidator(Decimal("168"))],
+    )
 
     class Meta:
         verbose_name = _("membresía")

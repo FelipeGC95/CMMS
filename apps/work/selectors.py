@@ -1,14 +1,29 @@
+import datetime
 from dataclasses import dataclass
+from decimal import Decimal
 
-from django.db.models import BooleanField, Case, Count, Exists, F, OuterRef, Q, Value, When
+from django.db.models import (
+    BooleanField,
+    Case,
+    Count,
+    Exists,
+    F,
+    IntegerField,
+    OuterRef,
+    Q,
+    Sum,
+    Value,
+    When,
+)
 from django.utils import timezone
 
 from apps.accounts.models import Membership, User
 from apps.accounts.permissions import ROLE_PERMISSIONS, Perm, require_perm
-from apps.accounts.scoping import allowed_location_ids
+from apps.accounts.scoping import allowed_location_ids, is_scoped
 from apps.attachments.models import TargetType
 from apps.attachments.selectors import attachments_by_target
 from apps.maintenance.models import PlanAssignment, PlanVersion
+from apps.organizations.models import Location
 from apps.organizations.selectors import descendant_ids
 
 from .models import FailureCode, WorkOrder, WorkOrderHelper, WorkRequest
@@ -270,3 +285,243 @@ def checklist_plan_versions(*, work_order):
 def checklist_photos(*, items) -> dict:
     """Fotos de los ítems del checklist en una sola consulta: {item_id: [adjuntos]}."""
     return attachments_by_target(target_type=TargetType.CHECKLIST_ITEM, target_ids=[i.pk for i in items])
+
+
+# --- Backlog priorizado y programación semanal (REQ-04, REQ-05) -----------------
+
+# Puntaje del backlog (REQ-04 CA1) = peso de criticidad × peso de prioridad (1 a 12).
+CRITICALITY_WEIGHTS = {"A": 3, "B": 2, "C": 1}
+# Una OT sobre una ubicación no tiene activo: se toma como criticidad media (B).
+LOCATION_CRITICALITY_WEIGHT = 2
+PRIORITY_WEIGHTS = {1: 4, 2: 3, 3: 2, 4: 1}  # urgente, alta, normal, baja
+
+# La capacidad semanal se reparte de lunes a viernes; el fin de semana no tiene capacidad.
+WORKDAYS_PER_WEEK = 5
+
+# Estados que se pueden programar: la ejecución aún no empieza (REQ-05 CA2).
+SCHEDULABLE_STATUSES = (WorkOrder.Status.REQUESTED, WorkOrder.Status.PLANNED, WorkOrder.Status.SCHEDULED)
+
+
+def backlog_score() -> Case:
+    """Expresión SQL del puntaje del backlog (criticidad × prioridad)."""
+    whens = [
+        When(asset__criticality=crit, priority=prio, then=Value(c_weight * p_weight))
+        for crit, c_weight in CRITICALITY_WEIGHTS.items()
+        for prio, p_weight in PRIORITY_WEIGHTS.items()
+    ] + [
+        When(asset__isnull=True, priority=prio, then=Value(LOCATION_CRITICALITY_WEIGHT * p_weight))
+        for prio, p_weight in PRIORITY_WEIGHTS.items()
+    ]
+    return Case(*whens, default=Value(0), output_field=IntegerField())
+
+
+BACKLOG_ORDER = ("-score", F("due_on").asc(nulls_last=True), "created_at")
+
+
+def backlog(*, membership, location=None, work_type: str = "", status: str = "", assigned_to=None):
+    """OT pendientes ordenadas por puntaje (REQ-04 CA1), dentro del alcance de la membresía.
+
+    Pendiente = abierta (ni completada, ni cerrada, ni cancelada): una OT completada que
+    espera aprobación ya no tiene trabajo por hacer. Desempate: fecha límite (sin fecha al
+    final) y luego antigüedad.
+    """
+    require_perm(membership, Perm.WORK_ORDER_MANAGE)
+    qs = visible_work_orders(membership=membership).filter(status__in=OPEN_STATUSES)
+    if status:
+        qs = qs.filter(status=status)
+    if work_type:
+        qs = qs.filter(work_type=work_type)
+    if assigned_to is not None:
+        qs = qs.filter(assigned_to_user(assigned_to))
+    if location is not None:
+        qs = qs.filter(in_locations({location.pk, *descendant_ids(location)}))
+    return (
+        qs.select_related("asset", "asset__location", "location", "assigned_to")
+        .annotate(score=backlog_score())
+        .order_by(*BACKLOG_ORDER)
+    )
+
+
+def filter_backlog(*, params, membership):
+    """Backlog con los filtros de la URL (sitio, tipo, estado, responsable): pantalla y Excel.
+
+    Devuelve `(consulta, formulario)`; los campos con error se ignoran y quedan en el formulario.
+    """
+    from .forms import BacklogFilterForm  # forms importa este módulo
+
+    form = BacklogFilterForm(params, membership=membership)
+    form.is_valid()
+    filters = form.cleaned_data
+    queryset = backlog(
+        membership=membership,
+        location=filters.get("location"),
+        work_type=filters.get("work_type", ""),
+        status=filters.get("status", ""),
+        assigned_to=filters.get("assigned_to"),
+    )
+    return queryset, form
+
+
+def _with_descendants(roots, children) -> set:
+    found, pending = set(roots), list(roots)
+    while pending:
+        for child in children.get(pending.pop(), []):
+            if child not in found:
+                found.add(child)
+                pending.append(child)
+    return found
+
+
+def technicians_in_scope(*, membership, location=None) -> list:
+    """Técnicos activos que trabajan en lo que se mira (capacidad del equipo, REQ-04 CA2 / REQ-05).
+
+    Un técnico sin alcance por sitio cuenta en todas partes; con alcance, cuenta si
+    alguna de sus ubicaciones (o descendientes) cae dentro del sitio filtrado y del
+    alcance de quien mira. Devuelve membresías con su usuario.
+    """
+    technicians = list(
+        Membership.objects.filter(
+            organization=membership.organization,
+            role=Membership.Role.TECHNICIAN,
+            is_active=True,
+            user__is_active=True,
+        )
+        .select_related("user")
+        .prefetch_related("scope")
+        .order_by("user__full_name", "user__email")
+    )
+    viewer_ids = allowed_location_ids(membership)
+    if location is None and viewer_ids is None:
+        return technicians
+    children: dict = {}
+    for location_id, parent_id in Location.objects.values_list("id", "parent_id"):
+        children.setdefault(parent_id, []).append(location_id)
+    wanted = _with_descendants([location.pk], children) if location is not None else None
+    if viewer_ids is not None:
+        wanted = set(viewer_ids) if wanted is None else wanted & set(viewer_ids)
+    return [
+        t
+        for t in technicians
+        if not is_scoped(t) or _with_descendants([s.location_id for s in t.scope.all()], children) & wanted
+    ]
+
+
+def _hours(minutes) -> Decimal:
+    return (Decimal(minutes or 0) / 60).quantize(Decimal("0.1"))
+
+
+@dataclass
+class BacklogSummary:
+    count: int
+    estimated_hours: Decimal
+    unestimated: int
+    weekly_capacity_hours: Decimal
+    technicians: int
+
+    @property
+    def weeks(self) -> Decimal | None:
+        """Backlog en semanas (REQ-04 CA2) = horas estimadas / capacidad semanal del equipo."""
+        if not self.weekly_capacity_hours:
+            return None
+        return (self.estimated_hours / self.weekly_capacity_hours).quantize(Decimal("0.1"))
+
+
+def backlog_summary(queryset, *, technicians) -> BacklogSummary:
+    """Totales del backlog filtrado en una consulta; las OT sin estimación no suman horas."""
+    totals = queryset.order_by().aggregate(
+        count=Count("pk"),
+        minutes=Sum("estimated_minutes"),
+        unestimated=Count("pk", filter=Q(estimated_minutes__isnull=True)),
+    )
+    return BacklogSummary(
+        count=totals["count"],
+        estimated_hours=_hours(totals["minutes"]),
+        unestimated=totals["unestimated"],
+        weekly_capacity_hours=sum((t.weekly_capacity_hours for t in technicians), Decimal(0)),
+        technicians=len(technicians),
+    )
+
+
+def week_start(day: datetime.date) -> datetime.date:
+    """Lunes de la semana de `day`."""
+    return day - datetime.timedelta(days=day.weekday())
+
+
+def scheduled_in_week(*, membership, monday, location=None, user=None):
+    """OT programadas de lunes a domingo (sin las canceladas), por día y puntaje.
+
+    `user` limita a las OT de esa persona (responsable o apoyo): «Mi semana».
+    """
+    qs = visible_work_orders(membership=membership).filter(
+        scheduled_for__gte=monday, scheduled_for__lte=monday + datetime.timedelta(days=6)
+    )
+    qs = qs.exclude(status=WorkOrder.Status.CANCELLED)
+    if user is not None:
+        qs = qs.filter(assigned_to_user(user))
+    if location is not None:
+        qs = qs.filter(in_locations({location.pk, *descendant_ids(location)}))
+    return (
+        qs.select_related("asset", "asset__location", "location", "assigned_to")
+        .annotate(score=backlog_score())
+        .order_by("scheduled_for", *BACKLOG_ORDER)
+    )
+
+
+def unscheduled_backlog(*, membership, location=None):
+    """Backlog sin día asignado: lo que falta ubicar en el tablero (REQ-05 CA1)."""
+    return backlog(membership=membership, location=location).filter(
+        status__in=SCHEDULABLE_STATUSES, scheduled_for__isnull=True
+    )
+
+
+@dataclass
+class LoadCell:
+    minutes: int
+    capacity_minutes: int
+
+    @property
+    def over(self) -> bool:
+        return self.minutes > self.capacity_minutes
+
+    @property
+    def hours(self) -> Decimal:
+        return _hours(self.minutes)
+
+    @property
+    def capacity_hours(self) -> Decimal:
+        return _hours(self.capacity_minutes)
+
+
+@dataclass
+class LoadRow:
+    user: object
+    days: list
+    week: LoadCell
+
+
+def daily_capacity_minutes(membership, day: datetime.date) -> int:
+    """Capacidad del día: la semanal repartida de lunes a viernes; sábado y domingo, cero."""
+    if day.weekday() >= WORKDAYS_PER_WEEK:
+        return 0
+    return int(membership.weekly_capacity_hours * 60 / WORKDAYS_PER_WEEK)
+
+
+def technician_load(*, work_orders, technicians, days) -> list[LoadRow]:
+    """Carga vs. capacidad por técnico y día (REQ-05 CA1), a partir de las OT ya consultadas.
+
+    Suma la estimación de las OT donde el técnico es responsable principal; el apoyo
+    no suma carga (la estimación es de la OT, no por persona).
+    """
+    minutes: dict = {}
+    for wo in work_orders:
+        key = (wo.assigned_to_id, wo.scheduled_for)
+        minutes[key] = minutes.get(key, 0) + (wo.estimated_minutes or 0)
+    rows = []
+    for technician in technicians:
+        cells = [
+            LoadCell(minutes.get((technician.user_id, day), 0), daily_capacity_minutes(technician, day))
+            for day in days
+        ]
+        week = LoadCell(sum(c.minutes for c in cells), int(technician.weekly_capacity_hours * 60))
+        rows.append(LoadRow(user=technician.user, days=cells, week=week))
+    return rows

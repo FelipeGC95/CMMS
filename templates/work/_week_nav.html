@@ -1,0 +1,9 @@
+{% load i18n %}<div class="month-nav">
+  <a class="btn btn--ghost" href="?{{ prev_query }}" aria-label="{% translate 'Semana anterior' %}">&larr; <span class="month-nav__label">{% translate "Anterior" %}</span></a>
+  <h2 class="month-nav__title">{% blocktranslate with start=monday|date:"j M" end=sunday|date:"j M Y" %}Semana del {{ start }} al {{ end }}{% endblocktranslate %}</h2>
+  <a class="btn btn--ghost" href="?{{ next_query }}" aria-label="{% translate 'Semana siguiente' %}"><span class="month-nav__label">{% translate "Siguiente" %}</span> &rarr;</a>
+</div>
+<nav class="chips" aria-label="{% translate 'Vista' %}">
+  {% if not is_this_week %}<a class="chip" href="?{{ this_week_query }}">{% translate "Esta semana" %}</a>{% endif %}
+  <a class="chip" href="?{{ weekend_query }}"{% if weekend %} aria-current="true"{% endif %}>{% translate "Con fin de semana" %}</a>
+</nav>

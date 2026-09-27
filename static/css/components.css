@@ -516,3 +516,47 @@ main { max-width: var(--content-max); margin: 0 auto; padding: var(--space-5) va
 /* Opciones con título y detalle (asistente de puesta en marcha): separadas y con la casilla arriba. */
 .check-group--rich .check-group__options { row-gap: var(--space-3); }
 .check-group--rich .check-group__option { align-items: flex-start; }
+
+/* ---------- Programación semanal (REQ-05) ---------- */
+/* Backlog sin programar + días de la semana. Teléfono: todo en una columna (lista por día);
+   720 px: dos días por fila; 1100 px: backlog al costado y un día por columna. */
+.alert[hidden] { display: none; }
+.board { display: grid; gap: var(--space-4); }
+/* Hasta 1100 px la semana va primero y el backlog sin programar debajo. */
+.board__backlog { order: 2; }
+.board__week { display: grid; gap: var(--space-3); min-width: 0; }
+@media (min-width: 720px) {
+  .board__week { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (min-width: 1100px) {
+  .board { grid-template-columns: 17rem minmax(0, 1fr); align-items: start; }
+  .board__backlog { order: 0; }
+  .board__week { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: var(--space-2); }
+  .board__week--7 { grid-template-columns: repeat(7, minmax(0, 1fr)); }
+}
+.board__backlog h2 { font-size: var(--text-md); margin: 0; }
+.board__hint, .board__empty { font-size: var(--text-sm); margin: var(--space-1) 0 var(--space-3); }
+.board__day { min-width: 0; min-height: 8rem; padding: var(--space-3); }
+.board__day--today { background: var(--color-info-bg); }
+.board__day-title { display: flex; flex-wrap: wrap; gap: var(--space-1); align-items: center; margin: 0 0 var(--space-2); font-size: var(--text-md); }
+.board__cards { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-2); }
+.board .is-drop-target { outline: 3px dashed var(--color-focus); outline-offset: 2px; }
+.board-card {
+  display: flex; flex-direction: column; gap: var(--space-1); min-width: 0; padding: var(--space-2);
+  background: var(--color-surface); border: 1px solid var(--color-border-strong); border-radius: var(--radius-md);
+  font-size: var(--text-sm); overflow-wrap: anywhere;
+}
+.board-card--movable { border-left-width: 4px; cursor: grab; }
+.board-card.is-dragging, .board-card.is-saving { opacity: 0.5; }
+.board-card__title { font-weight: 600; }
+.board-card__meta { display: flex; flex-wrap: wrap; gap: var(--space-1); align-items: center; color: var(--color-text-muted); }
+.board-card__badges { display: flex; flex-wrap: wrap; gap: var(--space-1); }
+.board-card__badges:empty { display: none; }
+.board-card__schedule > summary { display: flex; align-items: center; gap: var(--space-1); min-height: var(--touch-target); cursor: pointer; color: var(--color-link); font-weight: 500; }
+.board-card__schedule form { margin-top: var(--space-2); }
+.board-card__schedule .btn { margin-top: var(--space-2); }
+/* Carga vs. capacidad: horas / capacidad; sobre capacidad con ícono + texto. */
+.load { display: inline-flex; flex-wrap: wrap; gap: var(--space-1); align-items: center; justify-content: flex-end; }
+.load--over { font-weight: 600; }
+/* Puntaje del backlog (REQ-04). */
+.score { font-weight: 600; font-family: var(--font-ui); }

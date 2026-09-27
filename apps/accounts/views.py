@@ -83,6 +83,7 @@ def member_edit_view(request, pk):
         "role": target.role,
         "restricted_to_locations": target.restricted_to_locations,
         "locations": [scope.location_id for scope in target.scope.all()],
+        "weekly_capacity_hours": target.weekly_capacity_hours,
     }
     form = MemberForm(request.POST or None, initial=initial, locations=locations)
     if request.method == "POST" and form.is_valid():
@@ -93,6 +94,7 @@ def member_edit_view(request, pk):
                 role=form.cleaned_data["role"],
                 restricted_to_locations=form.cleaned_data["restricted_to_locations"],
                 locations=form.cleaned_data["locations"],
+                weekly_capacity_hours=form.cleaned_data["weekly_capacity_hours"],
             )
         except services.TeamError as error:
             form.add_error(None, str(error))

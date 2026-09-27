@@ -1,0 +1,81 @@
+{% extends "base.html" %}{% load i18n ui %}
+{% block title %}{% translate "Backlog" %}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>{% translate "Backlog" %}</h1>
+    <p class="muted">{% translate "OT pendientes ordenadas por puntaje: criticidad del activo × prioridad de la OT; desempata la fecha límite." %}</p>
+  </div>
+  <div class="page-actions">
+    <a class="btn btn--ghost" href="{% url 'work_order_backlog_export_xlsx' %}?{{ request.GET.urlencode }}">{% icon 'list' %}{% translate "Exportar Excel" %}</a>
+    <a class="btn btn--secondary" href="{% url 'work_order_board' %}{% if filter_form.cleaned_data.location %}?location={{ filter_form.cleaned_data.location.pk }}{% endif %}">{% icon 'calendar' %}{% translate "Programación semanal" %}</a>
+  </div>
+</div>
+
+<div class="grid grid--kpi mb-4">
+  <div class="card kpi">
+    <span class="kpi__label">{% translate "OT pendientes" %}</span>
+    <span class="kpi__value num">{{ summary.count }}</span>
+    {% if summary.unestimated %}<span class="kpi__hint">{% blocktranslate count n=summary.unestimated %}{{ n }} sin estimación{% plural %}{{ n }} sin estimación{% endblocktranslate %}</span>{% endif %}
+  </div>
+  <div class="card kpi">
+    <span class="kpi__label">{% translate "Horas estimadas" %}</span>
+    <span class="kpi__value num">{{ summary.estimated_hours|num }} <span class="kpi__unit">h</span></span>
+  </div>
+  <div class="card kpi">
+    <span class="kpi__label">{% translate "Capacidad semanal del equipo" %}</span>
+    <span class="kpi__value num">{{ summary.weekly_capacity_hours|num }} <span class="kpi__unit">h</span></span>
+    <span class="kpi__hint">{% blocktranslate count n=summary.technicians %}{{ n }} técnico{% plural %}{{ n }} técnicos{% endblocktranslate %}</span>
+  </div>
+  <div class="card kpi">
+    <span class="kpi__label">{% translate "Backlog en semanas" %}</span>
+    {% if summary.weeks is not None %}
+    <span class="kpi__value num">{{ summary.weeks|num }} <span class="kpi__unit">{% translate "semanas" %}</span></span>
+    {% else %}
+    <span class="kpi__value">—</span>
+    <span class="kpi__hint">{% translate "Sin técnicos con horas en este alcance." %}</span>
+    {% endif %}
+  </div>
+</div>
+
+<details class="card mb-4 filters"{% if filters_open %} open{% endif %}>
+  <summary class="filters__summary">
+    <h2 id="filters-title">{% translate "Filtros" %}</h2>
+    {% if active_filters %}<span class="badge badge--info">{% icon 'info' %}{% blocktranslate count n=active_filters %}{{ n }} activo{% plural %}{{ n }} activos{% endblocktranslate %}</span>{% endif %}
+  </summary>
+  <form method="get" class="form-grid" aria-labelledby="filters-title">
+    {% include "_form_fields.html" with form=filter_form %}
+    <div class="row form-grid__actions">
+      <button class="btn btn--primary" type="submit">{% translate "Filtrar" %}</button>
+      <a class="btn btn--ghost" href="{% url 'work_order_backlog' %}">{% translate "Limpiar filtros" %}</a>
+    </div>
+  </form>
+</details>
+
+<div class="card card--flush">
+  {% if page.object_list %}
+  <table class="table">
+    <caption class="visually-hidden">{% translate "Backlog priorizado" %}</caption>
+    <thead><tr><th class="num">{% translate "Puntaje" %}</th><th>{% translate "OT" %}</th><th>{% translate "Activo o ubicación" %}</th><th>{% translate "Prioridad" %}</th><th>{% translate "Estado" %}</th><th>{% translate "Fecha límite" %}</th><th>{% translate "Responsable" %}</th><th class="num">{% translate "Estimación" %}</th></tr></thead>
+    <tbody>
+      {% for wo in page.object_list %}
+      <tr>
+        <td data-label="{% translate 'Puntaje' %}" class="num"><span class="score">{{ wo.score }}</span></td>
+        <td data-label=""><a href="{% url 'work_order_detail' wo.pk %}"><span class="mono">{{ wo.code }}</span> {{ wo.title }}</a></td>
+        <td data-label="{% translate 'Activo o ubicación' %}">{% include "work/_target.html" with asset=wo.asset location=wo.location %}{% if wo.asset_id %} · {% translate "Criticidad" %} {{ wo.asset.criticality }}{% endif %}</td>
+        <td data-label="{% translate 'Prioridad' %}">{% priority_badge wo %}</td>
+        <td data-label="{% translate 'Estado' %}">{% status_badge wo %}{% if wo.scheduled_for %} <span class="muted">{{ wo.scheduled_for|date:"D j" }}</span>{% endif %}</td>
+        <td data-label="{% translate 'Fecha límite' %}" class="num">{{ wo.due_on|date:"d-m-Y"|default:"—" }}</td>
+        <td data-label="{% translate 'Responsable' %}">{{ wo.assigned_to|default:"—" }}</td>
+        <td data-label="{% translate 'Estimación' %}" class="num">{% if wo.estimated_minutes %}{{ wo.estimated_minutes|minutes_as_hours }} h{% else %}—{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="empty">{% icon 'check' %} {% translate "No hay OT pendientes con estos filtros." %}</p>
+  {% endif %}
+</div>
+{% include "_pagination.html" %}
+<p class="muted mt-2">{% translate "Puntaje = criticidad (A 3, B 2, C 1; una OT sobre una ubicación cuenta como B) × prioridad (urgente 4, alta 3, normal 2, baja 1). Backlog en semanas = horas estimadas ÷ capacidad semanal de los técnicos del alcance." %}</p>
+{% endblock %}

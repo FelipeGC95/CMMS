@@ -31,6 +31,12 @@
       {% endfor %}
       {% for error in form.locations.errors %}<span class="error">{% icon 'stop' %}{{ error }}</span>{% endfor %}
     </fieldset>
+    <div class="field">
+      <label for="{{ form.weekly_capacity_hours.id_for_label }}">{{ form.weekly_capacity_hours.label }}</label>
+      {{ form.weekly_capacity_hours }}
+      <span class="help">{{ form.weekly_capacity_hours.help_text }}</span>
+      {% for error in form.weekly_capacity_hours.errors %}<span class="error">{% icon 'stop' %}{{ error }}</span>{% endfor %}
+    </div>
     <button class="btn btn--primary" type="submit">{% translate "Guardar" %}</button>
   </form>
 </div>

@@ -1,5 +1,6 @@
 import datetime
 import secrets
+from decimal import Decimal
 
 from allauth.account.models import EmailAddress
 from django.conf import settings
@@ -223,8 +224,10 @@ def _ensure_other_admin(target):
 
 
 @transaction.atomic
-def update_member(*, membership, target, role, restricted_to_locations, locations):
-    """Cambia rol y alcance por sitio. Requiere el contexto de tenant de la organización."""
+def update_member(
+    *, membership, target, role, restricted_to_locations, locations, weekly_capacity_hours=None
+):
+    """Cambia rol, alcance por sitio y capacidad semanal (REQ-04/05). Requiere el contexto de tenant."""
     require_perm(membership, Perm.TEAM_MANAGE)
     if target.organization_id != membership.organization_id:
         raise TeamError(_("Miembro no encontrado."))
@@ -238,10 +241,15 @@ def update_member(*, membership, target, role, restricted_to_locations, location
         raise TeamError(_("Ubicación no válida."))
     if (restricted_to_locations or role == Membership.Role.EXTERNAL) and not location_ids:
         raise TeamError(_("Elige al menos una ubicación para limitar el acceso."))
+    if weekly_capacity_hours is None:
+        weekly_capacity_hours = target.weekly_capacity_hours
+    if not 0 <= weekly_capacity_hours <= 168:
+        raise TeamError(_("Las horas por semana deben estar entre 0 y 168."))
 
     before = {
         "role": target.role,
         "restricted_to_locations": target.restricted_to_locations,
+        "weekly_capacity_hours": f"{Decimal(target.weekly_capacity_hours):.1f}",
         "locations": sorted(
             str(pk)
             for pk in MembershipLocation.objects.filter(membership=target).values_list(
@@ -251,7 +259,8 @@ def update_member(*, membership, target, role, restricted_to_locations, location
     }
     target.role = role
     target.restricted_to_locations = restricted_to_locations
-    target.save(update_fields=["role", "restricted_to_locations", "updated_at"])
+    target.weekly_capacity_hours = Decimal(weekly_capacity_hours).quantize(Decimal("0.1"))
+    target.save(update_fields=["role", "restricted_to_locations", "weekly_capacity_hours", "updated_at"])
     # El alcance es configuración, no historial: se reemplaza.
     MembershipLocation.objects.filter(membership=target).exclude(location_id__in=location_ids).delete()
     existing = set(MembershipLocation.objects.filter(membership=target).values_list("location_id", flat=True))
@@ -260,6 +269,7 @@ def update_member(*, membership, target, role, restricted_to_locations, location
     after = {
         "role": role,
         "restricted_to_locations": restricted_to_locations,
+        "weekly_capacity_hours": f"{Decimal(target.weekly_capacity_hours):.1f}",
         "locations": sorted(str(pk) for pk in location_ids),
     }
     if changes := audit.diff(before, after):

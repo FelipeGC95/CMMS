@@ -1,12 +1,15 @@
+import datetime
 import uuid
 
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.paginator import Paginator
-from django.http import Http404
+from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.formats import date_format
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.utils.translation import gettext_lazy as _
 from django.views.decorators.http import require_POST
 
@@ -19,6 +22,7 @@ from apps.ui.templatetags.ui import work_order_status_label
 from .forms import (
     ApplyChecklistForm,
     AssigneesForm,
+    BacklogFilterForm,
     ChecklistItemForm,
     ChecklistPhotoForm,
     ChecklistSignatureForm,
@@ -29,22 +33,32 @@ from .forms import (
     LocationRequestForm,
     OtherCostForm,
     PartUsageForm,
+    ScheduleForm,
     WorkOrderCreateForm,
 )
 from .models import FailureCode, FailureEvent, OtherCost, PartUsage, WorkOrder, WorkOrderChecklistItem
 from .selectors import (
+    assignable_members,
+    backlog_summary,
     checklist_photos,
     checklist_plan_versions,
     failure_code_list,
+    filter_backlog,
     filter_work_orders,
     open_requests_for_target,
     pending_requests,
+    scheduled_in_week,
+    technician_load,
+    technicians_in_scope,
+    unscheduled_backlog,
     visible_requests,
     visible_work_orders,
+    week_start,
     work_order_detail,
 )
 from .services import (
     COST_LOCKED_STATUSES,
+    SCHEDULABLE,
     WorkOrderError,
     accept_request,
     add_checklist_item,
@@ -71,9 +85,11 @@ from .services import (
     rename_failure_code,
     report_failure,
     save_checklist_note,
+    schedule_work_order,
     set_assignees,
     set_failure_code_active,
     transition,
+    unschedule_work_order,
     work_order_meter,
 )
 
@@ -854,3 +870,185 @@ def checklist_item_corrective_view(request, pk, item_pk):
             "can_manage": has_perm(request.membership, Perm.WORK_ORDER_MANAGE),
         },
     )
+
+
+# --- Backlog y programación semanal (REQ-04, REQ-05) -----------------------------
+
+BOARD_BACKLOG_PAGE = 12
+
+
+def _backlog_filters(request):
+    form = BacklogFilterForm(request.GET, membership=request.membership)
+    form.is_valid()  # los campos con error se ignoran y se muestran en el formulario
+    return form, form.cleaned_data
+
+
+@membership_required(perm=Perm.WORK_ORDER_MANAGE)
+def backlog_view(request):
+    """Backlog priorizado (REQ-04): puntaje, horas estimadas y backlog en semanas."""
+    membership = request.membership
+    qs, filter_form = filter_backlog(params=request.GET, membership=membership)
+    technicians = technicians_in_scope(
+        membership=membership, location=filter_form.cleaned_data.get("location")
+    )
+    active_filters = filter_form.active_count
+    return render(
+        request,
+        "work/backlog.html",
+        {
+            "page": Paginator(qs, 25).get_page(request.GET.get("page")),
+            "summary": backlog_summary(qs, technicians=technicians),
+            "filter_form": filter_form,
+            "active_filters": active_filters,
+            "filters_open": bool(active_filters or filter_form.errors),
+        },
+    )
+
+
+def _week_from(request):
+    try:
+        day = datetime.date.fromisoformat(request.GET.get("week", ""))
+    except ValueError:
+        day = timezone.localdate()
+    return week_start(day)
+
+
+def _week_context(request, monday, *, weekend: bool):
+    days = [monday + datetime.timedelta(days=i) for i in range(7)]
+    today = timezone.localdate()
+    return {
+        "monday": monday,
+        "sunday": days[-1],
+        "days": days,
+        "visible_days": days if weekend else days[:5],
+        "weekend": weekend,
+        "today": today,
+        "prev_query": _query_with(request, week=(monday - datetime.timedelta(days=7)).isoformat()),
+        "next_query": _query_with(request, week=(monday + datetime.timedelta(days=7)).isoformat()),
+        "this_week_query": _query_with(request, week=""),
+        "weekend_query": _query_with(request, weekend="" if weekend else "1"),
+        "is_this_week": monday == week_start(today),
+    }
+
+
+def _by_day(work_orders, days):
+    grouped = {day: [] for day in days}
+    for wo in work_orders:
+        grouped.setdefault(wo.scheduled_for, []).append(wo)
+    return [(day, grouped[day]) for day in days]
+
+
+def _has_weekend(request, work_orders) -> bool:
+    """El fin de semana se muestra si se pide o si ya hay OT programadas esos días."""
+    return request.GET.get("weekend") == "1" or any(wo.scheduled_for.weekday() >= 5 for wo in work_orders)
+
+
+@membership_required(perm=Perm.WORK_ORDER_MANAGE)
+def board_view(request):
+    """Tablero semanal (REQ-05): días con sus OT, backlog sin programar y carga por técnico."""
+    membership = request.membership
+    filter_form, filters = _backlog_filters(request)
+    location = filters.get("location")
+    monday = _week_from(request)
+    work_orders = list(scheduled_in_week(membership=membership, monday=monday, location=location))
+    context = _week_context(request, monday, weekend=_has_weekend(request, work_orders))
+    technicians = technicians_in_scope(membership=membership, location=location)
+    loads = technician_load(work_orders=work_orders, technicians=technicians, days=context["days"])
+    backlog_page = Paginator(
+        unscheduled_backlog(membership=membership, location=location), BOARD_BACKLOG_PAGE
+    ).get_page(request.GET.get("page"))
+    for wo in [*work_orders, *backlog_page.object_list]:
+        wo.movable = wo.status in SCHEDULABLE
+    for row in loads:
+        row.visible = list(zip(context["visible_days"], row.days, strict=False))
+    context.update(
+        {
+            "columns": _by_day(work_orders, context["visible_days"]),
+            "backlog_page": backlog_page,
+            "loads": loads,
+            "overloaded": sum(1 for row in loads for cell in row.days if cell.over),
+            "members": list(assignable_members(membership=membership)),
+            "filter_form": filter_form,
+            "return_to": request.get_full_path(),
+            # Día sugerido en «Programar» (sin JS): hoy, o el lunes si se mira una semana futura.
+            "default_day": max(monday, context["today"]).isoformat(),
+        }
+    )
+    return render(request, "work/board.html", context)
+
+
+@membership_required(perm=Perm.WORK_ORDER_EXECUTE)
+def my_week_view(request):
+    """«Mi semana» (REQ-05): las OT programadas de la persona, solo lectura, con su carga."""
+    membership = request.membership
+    monday = _week_from(request)
+    work_orders = list(scheduled_in_week(membership=membership, monday=monday, user=request.user))
+    context = _week_context(request, monday, weekend=_has_weekend(request, work_orders))
+    load = technician_load(work_orders=work_orders, technicians=[membership], days=context["days"])[0]
+    context.update(
+        {
+            "columns": _by_day(work_orders, context["visible_days"]),
+            "load": load,
+            "count": len(work_orders),
+        }
+    )
+    return render(request, "work/my_week.html", context)
+
+
+def _board_response(request, *, error=None, success=None):
+    """Al arrastrar (fetch): 204, o 400 con el mensaje. Sin JS: mensaje y de vuelta al tablero."""
+    if request.headers.get("X-Board-Drop"):
+        if error:
+            return HttpResponse(error, status=400, content_type="text/plain; charset=utf-8")
+        return HttpResponse(status=204)
+    if error:
+        messages.error(request, error)
+    elif success:
+        messages.success(request, success)
+    target = request.POST.get("next", "")
+    if not url_has_allowed_host_and_scheme(target, allowed_hosts={request.get_host()}):
+        target = reverse("work_order_board")
+    return redirect(target)
+
+
+def _board_work_order_or_404(request, pk):
+    return get_object_or_404(
+        visible_work_orders(membership=request.membership).select_related("asset", "organization"), pk=pk
+    )
+
+
+@membership_required(perm=Perm.WORK_ORDER_MANAGE)
+@require_POST
+def work_order_schedule_view(request, pk):
+    work_order = _board_work_order_or_404(request, pk)
+    form = ScheduleForm(request.POST, membership=request.membership)
+    if not form.is_valid():
+        return _board_response(request, error=str(_("Elige un día y un responsable válidos.")))
+    kwargs = {}
+    if form.cleaned_data["assigned_to"] is not None:
+        kwargs["assigned_to"] = form.cleaned_data["assigned_to"]
+    try:
+        schedule_work_order(
+            work_order=work_order,
+            membership=request.membership,
+            scheduled_for=form.cleaned_data["scheduled_for"],
+            **kwargs,
+        )
+    except WorkOrderError as exc:
+        return _board_response(request, error=exc.message)
+    return _board_response(
+        request,
+        success=_("%(code)s programada para el %(date)s.")
+        % {"code": work_order.code, "date": date_format(work_order.scheduled_for, "l j")},
+    )
+
+
+@membership_required(perm=Perm.WORK_ORDER_MANAGE)
+@require_POST
+def work_order_unschedule_view(request, pk):
+    work_order = _board_work_order_or_404(request, pk)
+    try:
+        unschedule_work_order(work_order=work_order, membership=request.membership)
+    except WorkOrderError as exc:
+        return _board_response(request, error=exc.message)
+    return _board_response(request, success=_("%(code)s volvió al backlog.") % {"code": work_order.code})

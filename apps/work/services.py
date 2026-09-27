@@ -25,6 +25,7 @@ from apps.core.tenancy import require_current_organization, tenant_context
 from apps.maintenance.models import ItemType, PlanVersion, format_number
 from apps.notifications.services import notify_request_created, notify_request_resolved
 from apps.notifications.services import notify_work_order_assigned as notify_assignment
+from apps.notifications.services import notify_work_order_scheduled as notify_scheduled
 from apps.organizations.models import Location
 from apps.ui.templatetags.ui import work_order_status_label
 
@@ -231,6 +232,89 @@ def set_assignees(*, work_order: WorkOrder, membership, assigned_to=None, helper
     return work_order
 
 
+# --- Programación semanal (REQ-05) ------------------------------------------------
+
+SCHEDULABLE = (S.REQUESTED, S.PLANNED, S.SCHEDULED)
+KEEP_ASSIGNEE = object()  # sin cambio de responsable al programar
+
+
+def _require_visible(work_order: WorkOrder, membership) -> None:
+    from .selectors import visible_work_orders
+
+    if not visible_work_orders(membership=membership).filter(pk=work_order.pk).exists():
+        raise WorkOrderError(_("OT no encontrada."))
+
+
+@transaction.atomic
+def schedule_work_order(
+    *, work_order: WorkOrder, membership, scheduled_for: datetime.date, assigned_to=KEEP_ASSIGNEE
+) -> WorkOrder:
+    """Programa la OT para un día (y opcionalmente un responsable) y avisa (REQ-05 CA2).
+
+    Solo se programa lo que aún no empieza: solicitada o planificada pasan a
+    `scheduled` con la transición normal (queda en el historial); una ya programada
+    solo cambia de día. Una OT en ejecución, en espera o terminada no se mueve.
+    """
+    require_perm(membership, Perm.WORK_ORDER_MANAGE)
+    _require_visible(work_order, membership)
+    if work_order.status not in SCHEDULABLE:
+        raise WorkOrderError(
+            _("Solo se programan OT solicitadas, planificadas o ya programadas; esta está «%(status)s».")
+            % {"status": work_order_status_label(work_order.status)}
+        )
+    if scheduled_for < timezone.localdate():
+        raise WorkOrderError(_("No se puede programar en un día que ya pasó."))
+    if assigned_to is not KEEP_ASSIGNEE and assigned_to is not None:
+        if assigned_to.pk != work_order.assigned_to_id:
+            from .selectors import assignable_members
+
+            if not assignable_members(membership=membership).filter(pk=assigned_to.pk).exists():
+                raise WorkOrderError(_("Solo puedes asignar personas de esta organización."))
+            set_assignees(
+                work_order=work_order,
+                membership=membership,
+                assigned_to=assigned_to,
+                helpers=list(work_order.helpers.all()),
+            )
+    before = work_order.scheduled_for
+    work_order.scheduled_for = scheduled_for
+    if work_order.status == S.SCHEDULED:
+        work_order.save(update_fields=["scheduled_for", "updated_at"])
+    else:
+        transition(work_order=work_order, to_status=S.SCHEDULED, membership=membership)
+    if before != scheduled_for:
+        audit.record(
+            action=AuditEvent.Action.UPDATE,
+            target=work_order,
+            actor=membership.user,
+            changes={"scheduled_for": [before.isoformat() if before else "", scheduled_for.isoformat()]},
+        )
+        notify_scheduled(work_order=work_order, actor=membership.user)
+    return work_order
+
+
+@transaction.atomic
+def unschedule_work_order(*, work_order: WorkOrder, membership) -> WorkOrder:
+    """Devuelve una OT programada al backlog sin día: vuelve a `planned` (REQ-05)."""
+    require_perm(membership, Perm.WORK_ORDER_MANAGE)
+    _require_visible(work_order, membership)
+    if work_order.status != S.SCHEDULED:
+        raise WorkOrderError(
+            _("Solo se quita del tablero una OT programada; esta está «%(status)s».")
+            % {"status": work_order_status_label(work_order.status)}
+        )
+    before = work_order.scheduled_for
+    transition(work_order=work_order, to_status=S.PLANNED, membership=membership)
+    if before is not None:
+        audit.record(
+            action=AuditEvent.Action.UPDATE,
+            target=work_order,
+            actor=membership.user,
+            changes={"scheduled_for": [before.isoformat(), ""]},
+        )
+    return work_order
+
+
 def _suggest_priority(asset: Asset | None, asset_stopped: bool) -> int:
     if asset is None:
         return WorkOrder.Priority.NORMAL
@@ -392,6 +476,9 @@ def transition(*, work_order: WorkOrder, to_status: str, membership, comment: st
             )
     elif to_status == S.COMPLETED:
         work_order.completed_at = now
+    elif to_status == S.PLANNED:
+        # Volver a «planificada» la saca del tablero semanal (REQ-05): queda sin día.
+        work_order.scheduled_for = None
     work_order.save()
     WorkOrderTransition.objects.create(
         work_order=work_order, from_status=from_status, to_status=to_status, by=user, comment=comment

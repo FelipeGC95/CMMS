@@ -66,6 +66,15 @@ urlpatterns = [
     path("assets/<uuid:pk>/attachments/", asset_views.asset_attachment_add_view, name="asset_attachment_add"),
     path("work-orders/", work_views.work_order_list_view, name="work_order_list"),
     path("work-orders/new/", work_views.work_order_create_view, name="work_order_create"),
+    path("work-orders/backlog/", work_views.backlog_view, name="work_order_backlog"),
+    path("work-orders/board/", work_views.board_view, name="work_order_board"),
+    path("work-orders/my-week/", work_views.my_week_view, name="work_order_my_week"),
+    path("work-orders/<uuid:pk>/schedule/", work_views.work_order_schedule_view, name="work_order_schedule"),
+    path(
+        "work-orders/<uuid:pk>/unschedule/",
+        work_views.work_order_unschedule_view,
+        name="work_order_unschedule",
+    ),
     path("work-orders/<uuid:pk>/", work_views.work_order_detail_view, name="work_order_detail"),
     path(
         "work-orders/<uuid:pk>/transition/",

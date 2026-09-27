@@ -113,3 +113,39 @@ def work_orders_xlsx(work_orders) -> bytes:
         for wo in work_orders.select_related("asset", "location", "assigned_to").iterator()
     )
     return _workbook(_("Órdenes de trabajo"), headers, rows)
+
+
+def backlog_xlsx(work_orders) -> bytes:
+    """`work_orders`: backlog filtrado (REQ-04), anotado con `score` y en su orden."""
+    headers = [
+        _("Puntaje"),
+        _("OT"),
+        _("Tipo"),
+        _("Estado"),
+        _("Prioridad"),
+        _("Criticidad"),
+        _("Título"),
+        _("Activo o ubicación"),
+        _("Responsable"),
+        _("Fecha límite"),
+        _("Programada para"),
+        _("Estimación (h)"),
+    ]
+    rows = (
+        (
+            wo.score,
+            wo.code,
+            wo.get_work_type_display(),
+            str(work_order_status_label(wo.status)),
+            wo.get_priority_display(),
+            wo.asset.criticality if wo.asset_id else "",
+            wo.title,
+            str(wo.asset.code if wo.asset_id else wo.location.name if wo.location_id else ""),
+            (wo.assigned_to.full_name or wo.assigned_to.email) if wo.assigned_to_id else "",
+            wo.due_on,
+            wo.scheduled_for,
+            round(wo.estimated_minutes / 60, 1) if wo.estimated_minutes else None,
+        )
+        for wo in work_orders.iterator()
+    )
+    return _workbook(_("Backlog"), headers, rows)

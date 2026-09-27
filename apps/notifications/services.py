@@ -19,6 +19,7 @@ from django.db import transaction
 from django.template.loader import render_to_string
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.formats import date_format
 from django.utils.translation import gettext as _
 
 from apps.accounts.models import Membership
@@ -189,6 +190,36 @@ def _deliver_assignment(*, work_order_id, user_ids, actor) -> None:
         kind=Kind.WO_ASSIGNED,
         memberships=active_memberships(user_ids=user_ids),
         title=_("Te asignaron la %(code)s") % {"code": work_order.code},
+        body=work_order.title,
+        url=reverse("work_order_detail", args=[work_order.pk]),
+        work_order=work_order,
+        actor=actor,
+        location_id=target_location_id(work_order),
+    )
+
+
+def notify_work_order_scheduled(*, work_order, actor=None) -> None:
+    """Al responsable y al apoyo de la OT: se programó (o reprogramó) para un día (REQ-05 CA2)."""
+    _on_commit(_deliver_scheduled, work_order_id=work_order.pk, actor=actor)
+
+
+def _deliver_scheduled(*, work_order_id, actor) -> None:
+    from apps.work.models import WorkOrder, WorkOrderHelper
+
+    work_order = WorkOrder.objects.select_related("asset").get(pk=work_order_id)
+    if work_order.scheduled_for is None:
+        return
+    user_ids = {
+        work_order.assigned_to_id,
+        *WorkOrderHelper.objects.filter(work_order=work_order).values_list("user_id", flat=True),
+    } - {None}
+    if not user_ids:
+        return
+    deliver(
+        kind=Kind.WO_SCHEDULED,
+        memberships=active_memberships(user_ids=user_ids),
+        title=_("%(code)s programada para el %(date)s")
+        % {"code": work_order.code, "date": date_format(work_order.scheduled_for, "l j \\d\\e F")},
         body=work_order.title,
         url=reverse("work_order_detail", args=[work_order.pk]),
         work_order=work_order,

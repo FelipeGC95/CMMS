@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-27 11:51-0300\n"
+"POT-Creation-Date: 2026-09-27 12:24-0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -37,6 +37,14 @@ msgid ""
 msgstr ""
 
 msgid "Ubicaciones"
+msgstr ""
+
+msgid "Horas de trabajo por semana"
+msgstr ""
+
+msgid ""
+"Capacidad para el backlog y la programación semanal; se reparte de lunes a "
+"viernes."
 msgstr ""
 
 msgid "Elige al menos una ubicación para limitar el acceso."
@@ -135,6 +143,9 @@ msgstr ""
 msgid "limitado a ciertas ubicaciones"
 msgstr ""
 
+msgid "horas semanales"
+msgstr ""
+
 msgid "membresía"
 msgstr ""
 
@@ -217,6 +228,9 @@ msgid "Miembro no encontrado."
 msgstr ""
 
 msgid "Ubicación no válida."
+msgstr ""
+
+msgid "Las horas por semana deben estar entre 0 y 168."
 msgstr ""
 
 msgid "No puedes desactivar tu propia cuenta."
@@ -2186,6 +2200,9 @@ msgstr ""
 msgid "OT asignada a mí"
 msgstr ""
 
+msgid "OT programada para mí"
+msgstr ""
+
 msgid "OT por vencer"
 msgstr ""
 
@@ -2239,6 +2256,10 @@ msgstr ""
 
 #, python-format
 msgid "Te asignaron la %(code)s"
+msgstr ""
+
+#, python-format
+msgid "%(code)s programada para el %(date)s"
 msgstr ""
 
 #, python-format
@@ -2713,6 +2734,18 @@ msgstr ""
 msgid "Costo total"
 msgstr ""
 
+msgid "Puntaje"
+msgstr ""
+
+msgid "Programada para"
+msgstr ""
+
+msgid "Estimación (h)"
+msgstr ""
+
+msgid "Backlog"
+msgstr ""
+
 msgid "Período"
 msgstr ""
 
@@ -2984,6 +3017,15 @@ msgstr ""
 msgid "La fecha «desde» no puede ser posterior a «hasta»."
 msgstr ""
 
+msgid "Todos los tipos"
+msgstr ""
+
+msgid "Día"
+msgstr ""
+
+msgid "Sin cambio"
+msgstr ""
+
 msgid "Otras personas que trabajan en la OT; también la ven en «Mis OT»."
 msgstr ""
 
@@ -3104,6 +3146,9 @@ msgid "vence al llegar a"
 msgstr ""
 
 msgid "estimación (min)"
+msgstr ""
+
+msgid "programada para"
 msgstr ""
 
 msgid "fecha de inicio"
@@ -3340,6 +3385,22 @@ msgstr ""
 msgid "La OT ya no admite cambios."
 msgstr ""
 
+msgid "OT no encontrada."
+msgstr ""
+
+#, python-format
+msgid ""
+"Solo se programan OT solicitadas, planificadas o ya programadas; esta está "
+"«%(status)s»."
+msgstr ""
+
+msgid "No se puede programar en un día que ya pasó."
+msgstr ""
+
+#, python-format
+msgid "Solo se quita del tablero una OT programada; esta está «%(status)s»."
+msgstr ""
+
 msgid "«Equipo detenido» solo aplica a un activo."
 msgstr ""
 
@@ -3568,9 +3629,6 @@ msgstr ""
 msgid "Cerradas"
 msgstr ""
 
-msgid "Todos los tipos"
-msgstr ""
-
 #, python-format
 msgid "%(code)s creada."
 msgstr ""
@@ -3640,6 +3698,17 @@ msgstr ""
 
 #, python-format
 msgid "%(code)s creada desde el hallazgo."
+msgstr ""
+
+msgid "Elige un día y un responsable válidos."
+msgstr ""
+
+#, python-format
+msgid "%(code)s programada para el %(date)s."
+msgstr ""
+
+#, python-format
+msgid "%(code)s volvió al backlog."
 msgstr ""
 
 msgid "No hay opciones."
@@ -3887,6 +3956,9 @@ msgid "No hay invitaciones pendientes."
 msgstr ""
 
 msgid "Miembros"
+msgstr ""
+
+msgid "Horas/semana"
 msgstr ""
 
 msgid "Sin ubicaciones"
@@ -6171,7 +6243,57 @@ msgstr ""
 msgid "Absorbida en Semestral"
 msgstr ""
 
+msgid "Tablero semanal y carga"
+msgstr ""
+
+msgid ""
+"Tarjeta de OT (con borde grueso si se puede mover), día de hoy donde se "
+"suelta, carga sobre capacidad y puntaje del backlog."
+msgstr ""
+
+msgid "Sin programar"
+msgstr ""
+
+msgid "Cambiar rodamiento"
+msgstr ""
+
+msgid "Sin responsable"
+msgstr ""
+
+msgid "Programar"
+msgstr ""
+
+msgid "Día y responsable."
+msgstr ""
+
+msgid "Lunes 5"
+msgstr ""
+
+msgid "Sin OT. Suelta una aquí."
+msgstr ""
+
+msgid "Martes 6"
+msgstr ""
+
+msgid "Lun 5"
+msgstr ""
+
+msgid "Semana"
+msgstr ""
+
+msgid "Sobre capacidad"
+msgstr ""
+
 msgid "Secciones"
+msgstr ""
+
+msgid "Backlog priorizado"
+msgstr ""
+
+msgid "Programación semanal"
+msgstr ""
+
+msgid "Mi semana"
 msgstr ""
 
 msgid "Avisar problema en una ubicación"
@@ -6193,6 +6315,15 @@ msgid "Organización activa"
 msgstr ""
 
 msgid "Cambiar de organización"
+msgstr ""
+
+msgid "sin estimación"
+msgstr ""
+
+msgid "Mover"
+msgstr ""
+
+msgid "Quitar del día"
 msgstr ""
 
 msgid "Ítems actuales"
@@ -6256,6 +6387,108 @@ msgid "Reanudar"
 msgstr ""
 
 msgid "Reabrir"
+msgstr ""
+
+msgid "Semana anterior"
+msgstr ""
+
+#, python-format
+msgid "Semana del %(start)s al %(end)s"
+msgstr ""
+
+msgid "Semana siguiente"
+msgstr ""
+
+msgid "Esta semana"
+msgstr ""
+
+msgid "Con fin de semana"
+msgstr ""
+
+msgid ""
+"OT pendientes ordenadas por puntaje: criticidad del activo × prioridad de la "
+"OT; desempata la fecha límite."
+msgstr ""
+
+msgid "OT pendientes"
+msgstr ""
+
+#, python-format
+msgid "%(n)s sin estimación"
+msgid_plural "%(n)s sin estimación"
+msgstr[0] ""
+msgstr[1] ""
+msgstr[2] ""
+
+msgid "Capacidad semanal del equipo"
+msgstr ""
+
+#, python-format
+msgid "%(n)s técnico"
+msgid_plural "%(n)s técnicos"
+msgstr[0] ""
+msgstr[1] ""
+msgstr[2] ""
+
+msgid "Backlog en semanas"
+msgstr ""
+
+msgid "Sin técnicos con horas en este alcance."
+msgstr ""
+
+msgid "Estimación"
+msgstr ""
+
+msgid "No hay OT pendientes con estos filtros."
+msgstr ""
+
+msgid ""
+"Puntaje = criticidad (A 3, B 2, C 1; una OT sobre una ubicación cuenta como "
+"B) × prioridad (urgente 4, alta 3, normal 2, baja 1). Backlog en semanas = "
+"horas estimadas ÷ capacidad semanal de los técnicos del alcance."
+msgstr ""
+
+msgid ""
+"Arrastra una OT del backlog a un día, o usa «Programar» en cada tarjeta. Al "
+"programarla pasa a «Programada» y se avisa al responsable."
+msgstr ""
+
+msgid "Filtrar por sitio"
+msgstr ""
+
+#, python-format
+msgid ""
+"%(n)s día de técnico supera su capacidad esta semana. Revisa la tabla de "
+"carga."
+msgid_plural ""
+"%(n)s días de técnico superan su capacidad esta semana. Revisa la tabla de "
+"carga."
+msgstr[0] ""
+msgstr[1] ""
+msgstr[2] ""
+
+msgid "No se pudo guardar. Revisa tu conexión e inténtalo de nuevo."
+msgstr ""
+
+msgid "Por puntaje. Suelta aquí una OT programada para devolverla al backlog."
+msgstr ""
+
+msgid "Todo el backlog está programado."
+msgstr ""
+
+msgid "Carga vs. capacidad"
+msgstr ""
+
+msgid "Horas programadas por técnico y día frente a su capacidad"
+msgstr ""
+
+msgid "No hay técnicos activos en este alcance."
+msgstr ""
+
+msgid ""
+"Carga = estimación de las OT donde el técnico es responsable. Capacidad "
+"diaria = horas semanales ÷ 5 (lunes a viernes); el fin de semana no tiene "
+"capacidad. Las horas semanales se editan en Equipo."
 msgstr ""
 
 msgid "Checklist de la OT"
@@ -6344,9 +6577,6 @@ msgid "Hallazgo"
 msgstr ""
 
 msgid "Incluye (plan absorbido)"
-msgstr ""
-
-msgid "Estimación"
 msgstr ""
 
 msgid "Avisado por"
@@ -6475,6 +6705,26 @@ msgstr ""
 msgid ""
 "Se creará una orden de trabajo correctiva sobre la ubicación y se avisará a "
 "mantención."
+msgstr ""
+
+#, python-format
+msgid "%(n)s OT programada para ti (como responsable o apoyo)."
+msgid_plural "%(n)s OT programadas para ti (como responsable o apoyo)."
+msgstr[0] ""
+msgstr[1] ""
+msgstr[2] ""
+
+msgid "Mi carga"
+msgstr ""
+
+#, python-format
+msgid "%(load)s h programadas de %(capacity)s h de capacidad semanal."
+msgstr ""
+
+msgid "Tu semana supera tu capacidad. Conversa con quien planifica."
+msgstr ""
+
+msgid "Sin OT programadas."
 msgstr ""
 
 #, python-format

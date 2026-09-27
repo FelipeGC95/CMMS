@@ -1,9 +1,12 @@
 """Las listas no hacen consultas N+1: el número de consultas no crece con los datos."""
 
+import datetime
+
 import pytest
 from django.db import connection
 from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
+from django.utils import timezone
 from django.utils.http import urlencode
 
 from apps.accounts.models import Membership, MembershipLocation, User
@@ -826,3 +829,64 @@ def test_manual_lists_and_search_do_not_grow_with_rows(client, tenant_a, setting
     _add_manuals(tenant_a, 8)
     many = _count(client, url)
     assert many == few, f"{which}: {few} → {many} consultas"
+
+
+def _add_planning_rows(tenant, n, monday):
+    """OT programadas y sin programar, con técnicos con alcance por sitio (REQ-04/05)."""
+    from apps.work.services import schedule_work_order
+
+    with tenant_context(tenant.org):
+        for i in range(n):
+            site = Location.objects.create(code=f"PL-{Location.objects.count():03d}", name=f"Planta {i}")
+            asset = Asset.objects.create(
+                code=f"PA-{Asset.objects.count():03d}",
+                name=f"Equipo {i}",
+                asset_class=tenant.asset.asset_class,
+                location=site,
+                criticality="ABC"[i % 3],
+            )
+            user = User.objects.create_user(f"pt{User.objects.count()}@{tenant.org.slug}.cl")
+            tech = Membership.objects.create(
+                user=user, organization=tenant.org, role="technician", restricted_to_locations=True
+            )
+            MembershipLocation.objects.create(membership=tech, location=site)
+            for day in range(2):
+                wo = create_work_order(
+                    work_type="corrective",
+                    title=f"Programada {i}",
+                    asset=asset,
+                    assigned_to=user,
+                    helpers=[tenant.tech.user],
+                    estimated_minutes=120,
+                )
+                schedule_work_order(
+                    work_order=wo,
+                    membership=tenant.admin,
+                    scheduled_for=monday + datetime.timedelta(days=day),
+                )
+            create_work_order(
+                work_type="inspection", title=f"Sin día {i}", location=site, estimated_minutes=60, priority=1
+            )
+
+
+@pytest.mark.parametrize(
+    "url_name,who",
+    [
+        ("work_order_backlog", "admin"),
+        ("work_order_backlog_export_xlsx", "admin"),
+        ("work_order_board", "admin"),
+        ("work_order_my_week", "tech"),
+    ],
+)
+def test_planning_screens_do_not_grow_with_rows(client, tenant_a, url_name, who):
+    """Backlog, tablero semanal y «Mi semana» (REQ-04/05): consultas fijas."""
+    from apps.work.selectors import week_start
+
+    monday = week_start(timezone.localdate()) + datetime.timedelta(days=7)
+    login(client, getattr(tenant_a, who))
+    url = f"{reverse(url_name)}?week={monday.isoformat()}"
+    _add_planning_rows(tenant_a, 2, monday)
+    few = _count(client, url)
+    _add_planning_rows(tenant_a, 6, monday)
+    many = _count(client, url)
+    assert many == few, f"{url_name}: {few} → {many} consultas"

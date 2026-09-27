@@ -131,6 +131,14 @@ def hours(value, digits=1):
 
 
 @register.filter
+def minutes_as_hours(value):
+    """Minutos (estimación de una OT) como horas con un decimal: 90 → «1,5»."""
+    if not value:
+        return "—"
+    return hours(value / 60)
+
+
+@register.filter
 def pct(value):
     if value is None:
         return "—"

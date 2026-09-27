@@ -1,0 +1,76 @@
+{% extends "base.html" %}{% load i18n static ui %}
+{% block title %}{% translate "Programación semanal" %}{% endblock %}
+{% block extra_head %}<script src="{% static 'js/board.js' %}" defer></script>{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>{% translate "Programación semanal" %}</h1>
+    <p class="muted">{% translate "Arrastra una OT del backlog a un día, o usa «Programar» en cada tarjeta. Al programarla pasa a «Programada» y se avisa al responsable." %}</p>
+  </div>
+  <div class="page-actions">
+    <a class="btn btn--ghost" href="{% url 'work_order_backlog' %}">{% icon 'list' %}{% translate "Backlog" %}</a>
+    <a class="btn btn--ghost" href="{% url 'work_order_my_week' %}">{% icon 'user' %}{% translate "Mi semana" %}</a>
+  </div>
+</div>
+
+{% include "work/_week_nav.html" %}
+
+<form method="get" class="search-bar mb-4" aria-label="{% translate 'Filtrar por sitio' %}">
+  <input type="hidden" name="week" value="{{ monday|date:'Y-m-d' }}">
+  {% if weekend %}<input type="hidden" name="weekend" value="1">{% endif %}
+  <label class="visually-hidden" for="{{ filter_form.location.id_for_label }}">{{ filter_form.location.label }}</label>
+  {{ filter_form.location }}
+  <button class="btn btn--secondary" type="submit">{% translate "Filtrar" %}</button>
+</form>
+
+<div class="alert alert--error" role="alert" data-board-status hidden>{% icon 'stop' %}<span data-board-status-text></span></div>
+{% if overloaded %}<div class="alert alert--warning" role="status">{% icon 'alert' %}<span>{% blocktranslate count n=overloaded %}{{ n }} día de técnico supera su capacidad esta semana. Revisa la tabla de carga.{% plural %}{{ n }} días de técnico superan su capacidad esta semana. Revisa la tabla de carga.{% endblocktranslate %}</span></div>{% endif %}
+
+<div class="board" data-board data-csrf="{{ csrf_token }}" data-network-error="{% translate 'No se pudo guardar. Revisa tu conexión e inténtalo de nuevo.' %}">
+  <section class="card board__backlog" data-drop-unschedule aria-labelledby="board-backlog-title">
+    <h2 id="board-backlog-title">{% translate "Sin programar" %} <span class="muted num">({{ backlog_page.paginator.count }})</span></h2>
+    <p class="muted board__hint">{% translate "Por puntaje. Suelta aquí una OT programada para devolverla al backlog." %}</p>
+    {% if backlog_page.object_list %}
+    <ul class="board__cards">{% for wo in backlog_page.object_list %}{% include "work/_board_card.html" %}{% endfor %}</ul>
+    {% include "_pagination.html" with page=backlog_page %}
+    {% else %}
+    <p class="empty">{% icon 'check' %} {% translate "Todo el backlog está programado." %}</p>
+    {% endif %}
+  </section>
+
+  <div class="board__week{% if weekend %} board__week--7{% endif %}">
+    {% for day, items in columns %}
+    <section class="card board__day{% if day == today %} board__day--today{% endif %}"{% if day >= today %} data-drop-date="{{ day|date:'Y-m-d' }}"{% endif %} aria-labelledby="board-day-{{ forloop.counter }}">
+      <h3 class="board__day-title" id="board-day-{{ forloop.counter }}">{{ day|date:"l j"|capfirst }}{% if day == today %} <span class="badge badge--info">{% icon 'calendar' %}{% translate "Hoy" %}</span>{% endif %}</h3>
+      {% if items %}
+      <ul class="board__cards">{% for wo in items %}{% include "work/_board_card.html" %}{% endfor %}</ul>
+      {% else %}
+      <p class="muted board__empty">{% if day < today %}{% translate "Sin OT." %}{% else %}{% translate "Sin OT. Suelta una aquí." %}{% endif %}</p>
+      {% endif %}
+    </section>
+    {% endfor %}
+  </div>
+</div>
+
+<h2 class="mt-4">{% translate "Carga vs. capacidad" %}</h2>
+<div class="card card--flush">
+  {% if loads %}
+  <table class="table">
+    <caption class="visually-hidden">{% translate "Horas programadas por técnico y día frente a su capacidad" %}</caption>
+    <thead><tr><th>{% translate "Técnico" %}</th>{% for day in visible_days %}<th class="num">{{ day|date:"D j" }}</th>{% endfor %}<th class="num">{% translate "Semana" %}</th></tr></thead>
+    <tbody>
+      {% for row in loads %}
+      <tr>
+        <td data-label="">{{ row.user }}</td>
+        {% for day, cell in row.visible %}<td data-label="{{ day|date:'D j' }}" class="num">{% include "work/_load_cell.html" %}</td>{% endfor %}
+        <td data-label="{% translate 'Semana' %}" class="num">{% include "work/_load_cell.html" with cell=row.week %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="empty">{% icon 'user' %} {% translate "No hay técnicos activos en este alcance." %}</p>
+  {% endif %}
+</div>
+<p class="muted mt-2">{% translate "Carga = estimación de las OT donde el técnico es responsable. Capacidad diaria = horas semanales ÷ 5 (lunes a viernes); el fin de semana no tiene capacidad. Las horas semanales se editan en Equipo." %}</p>
+{% endblock %}

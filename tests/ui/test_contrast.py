@@ -47,6 +47,8 @@ CONTRAST_PAIRS = [
     ("--color-text", "--color-info-bg", TEXT),
     ("--color-text-muted", "--color-info-bg", TEXT),
     ("--color-link", "--color-info-bg", TEXT),
+    # Tablero semanal (REQ-05): contorno del día donde se suelta una OT (hoy, fondo info).
+    ("--color-focus", "--color-info-bg", UI),
 ]
 
 

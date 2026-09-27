@@ -59,7 +59,7 @@
 <h2>{% translate "Miembros" %}</h2>
 <div class="card card--flush">
   <table class="table">
-    <thead><tr><th>{% translate "Nombre" %}</th><th>{% translate "Correo" %}</th><th>{% translate "Rol" %}</th><th>{% translate "Alcance" %}</th><th>{% translate "Estado" %}</th></tr></thead>
+    <thead><tr><th>{% translate "Nombre" %}</th><th>{% translate "Correo" %}</th><th>{% translate "Rol" %}</th><th>{% translate "Alcance" %}</th><th class="num">{% translate "Horas/semana" %}</th><th>{% translate "Estado" %}</th></tr></thead>
     <tbody>
       {% for member in page.object_list %}
       <tr>
@@ -67,6 +67,7 @@
         <td data-label="{% translate 'Correo' %}">{{ member.user.email }}</td>
         <td data-label="{% translate 'Rol' %}">{{ member.get_role_display }}</td>
         <td data-label="{% translate 'Alcance' %}">{% if member.restricted_to_locations or member.role == "external" %}{% for scope in member.scope.all %}{{ scope.location.name }}{% if not forloop.last %}, {% endif %}{% empty %}{% translate "Sin ubicaciones" %}{% endfor %}{% else %}{% translate "Toda la organización" %}{% endif %}</td>
+        <td data-label="{% translate 'Horas/semana' %}" class="num">{{ member.weekly_capacity_hours|num }}</td>
         <td data-label="">{% if member.is_active %}<span class="badge badge--success">{% icon 'check' %}{% translate "Activo" %}</span>{% else %}<span class="badge badge--neutral">{% icon 'dot' %}{% translate "Desactivado" %}</span>{% endif %}</td>
       </tr>
       {% endfor %}

@@ -1,0 +1,1 @@
+{% load i18n ui %}<span class="load{% if cell.over %} load--over{% endif %}">{{ cell.hours|num }} / {{ cell.capacity_hours|num }} h{% if cell.over %} <span class="badge badge--warning">{% icon 'alert' %}{% translate "Sobre capacidad" %}</span>{% endif %}</span>

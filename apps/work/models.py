@@ -148,6 +148,8 @@ class WorkOrder(TenantModel):
         _("vence al llegar a"), max_digits=14, decimal_places=3, null=True, blank=True
     )
     estimated_minutes = models.PositiveIntegerField(_("estimación (min)"), null=True, blank=True)
+    # Día en que se hará (REQ-05): lo fija la programación semanal; distinto de la fecha límite.
+    scheduled_for = models.DateField(_("programada para"), null=True, blank=True)
     started_at = models.DateTimeField(null=True, blank=True, verbose_name=_("fecha de inicio"))
     completed_at = models.DateTimeField(null=True, blank=True, verbose_name=_("fecha de término"))
     closed_at = models.DateTimeField(null=True, blank=True, verbose_name=_("fecha de cierre"))
@@ -186,6 +188,7 @@ class WorkOrder(TenantModel):
             models.Index(fields=["organization", "status", "due_on"]),
             models.Index(fields=["organization", "asset", "completed_at"]),
             models.Index(fields=["organization", "location", "completed_at"], name="wo_org_location_idx"),
+            models.Index(fields=["organization", "scheduled_for"], name="wo_org_scheduled_idx"),
         ]
 
     def __str__(self):

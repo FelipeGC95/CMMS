@@ -10,6 +10,7 @@ from apps.core.models import TenantModel
 
 class Kind(models.TextChoices):
     WO_ASSIGNED = "wo_assigned", _("OT asignada a mí")
+    WO_SCHEDULED = "wo_scheduled", _("OT programada para mí")
     WO_DUE_SOON = "wo_due_soon", _("OT por vencer")
     WO_OVERDUE = "wo_overdue", _("OT vencida")
     REQUEST_NEW = "request_new", _("Nueva solicitud")

@@ -29,6 +29,15 @@ class MemberForm(forms.Form):
     locations = forms.ModelMultipleChoiceField(
         label=_("Ubicaciones"), queryset=None, required=False, widget=forms.CheckboxSelectMultiple
     )
+    weekly_capacity_hours = forms.DecimalField(
+        label=_("Horas de trabajo por semana"),
+        min_value=0,
+        max_value=168,
+        max_digits=4,
+        decimal_places=1,
+        required=False,  # vacío: se mantiene la capacidad actual
+        help_text=_("Capacidad para el backlog y la programación semanal; se reparte de lunes a viernes."),
+    )
 
     def __init__(self, *args, locations, **kwargs):
         super().__init__(*args, **kwargs)

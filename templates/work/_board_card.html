@@ -1,0 +1,35 @@
+{% load i18n ui %}
+<li class="board-card{% if wo.movable %} board-card--movable{% endif %}"{% if wo.movable %} draggable="true" data-schedule-url="{% url 'work_order_schedule' wo.pk %}"{% if wo.status == "scheduled" %} data-unschedule-url="{% url 'work_order_unschedule' wo.pk %}"{% endif %}{% endif %}>
+  <a class="board-card__title" href="{% url 'work_order_detail' wo.pk %}"><span class="mono">{{ wo.code }}</span> {{ wo.title }}</a>
+  <span class="board-card__meta">{% include "work/_target.html" with asset=wo.asset location=wo.location %}</span>
+  <span class="board-card__meta">{% icon 'user' %} {{ wo.assigned_to|default:_("Sin responsable") }} · {% icon 'clock' %} {% if wo.estimated_minutes %}{{ wo.estimated_minutes|minutes_as_hours }} h{% else %}{% translate "sin estimación" %}{% endif %}</span>
+  <span class="board-card__badges">{% if wo.priority <= 2 %}{% priority_badge wo %}{% endif %}{% if wo.status != "scheduled" %}{% status_badge wo %}{% endif %}</span>
+  {% if wo.movable %}
+  <details class="board-card__schedule">
+    <summary>{% icon 'calendar' %}{% if wo.scheduled_for %}{% translate "Mover" %}{% else %}{% translate "Programar" %}{% endif %}</summary>
+    <form method="post" action="{% url 'work_order_schedule' wo.pk %}" class="board-card__form">
+      {% csrf_token %}
+      <input type="hidden" name="next" value="{{ return_to }}">
+      <div class="field">
+        <label for="day-{{ wo.pk }}">{% translate "Día" %}</label>
+        <input type="date" id="day-{{ wo.pk }}" name="scheduled_for" min="{{ today|date:'Y-m-d' }}" value="{{ wo.scheduled_for|date:'Y-m-d'|default:default_day }}" required>
+      </div>
+      <div class="field">
+        <label for="tech-{{ wo.pk }}">{% translate "Responsable" %}</label>
+        <select id="tech-{{ wo.pk }}" name="assigned_to">
+          <option value="">{% translate "Sin cambio" %}</option>
+          {% for member in members %}<option value="{{ member.pk }}"{% if member.pk == wo.assigned_to_id %} selected{% endif %}>{{ member }}</option>{% endfor %}
+        </select>
+      </div>
+      <button class="btn btn--primary btn--block" type="submit">{% translate "Programar" %}</button>
+    </form>
+    {% if wo.status == "scheduled" and wo.scheduled_for %}
+    <form method="post" action="{% url 'work_order_unschedule' wo.pk %}">
+      {% csrf_token %}
+      <input type="hidden" name="next" value="{{ return_to }}">
+      <button class="btn btn--ghost btn--block" type="submit">{% icon 'x' %}{% translate "Quitar del día" %}</button>
+    </form>
+    {% endif %}
+  </details>
+  {% endif %}
+</li>

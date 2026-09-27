@@ -1,0 +1,35 @@
+{% extends "base.html" %}{% load i18n ui accounts_tags %}
+{% block title %}{% translate "Mi semana" %}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>{% translate "Mi semana" %}</h1>
+    <p class="muted">{% blocktranslate count n=count %}{{ n }} OT programada para ti (como responsable o apoyo).{% plural %}{{ n }} OT programadas para ti (como responsable o apoyo).{% endblocktranslate %}</p>
+  </div>
+  <div class="page-actions">
+    <a class="btn btn--ghost" href="{% url 'work_order_list' %}?scope=mine">{% icon 'list' %}{% translate "Mis OT" %}</a>
+    {% if membership|can:"work_order.manage" %}<a class="btn btn--secondary" href="{% url 'work_order_board' %}">{% icon 'calendar' %}{% translate "Programación semanal" %}</a>{% endif %}
+  </div>
+</div>
+
+{% include "work/_week_nav.html" %}
+
+<div class="card mb-4">
+  <h2>{% translate "Mi carga" %}</h2>
+  <p>{% blocktranslate with load=load.week.hours|num capacity=load.week.capacity_hours|num %}{{ load }} h programadas de {{ capacity }} h de capacidad semanal.{% endblocktranslate %}</p>
+  {% if load.week.over %}<div class="alert alert--warning" role="status">{% icon 'alert' %}<span>{% translate "Tu semana supera tu capacidad. Conversa con quien planifica." %}</span></div>{% endif %}
+</div>
+
+<div class="card">
+  {% for day, items in columns %}
+  <section class="day-list__day" aria-labelledby="week-day-{{ forloop.counter }}">
+    <h3 class="day-list__title" id="week-day-{{ forloop.counter }}">{{ day|date:"l j \d\e F"|capfirst }}{% if day == today %} <span class="badge badge--info">{% icon 'calendar' %}{% translate "Hoy" %}</span>{% endif %}</h3>
+    {% if items %}
+    <ul class="list">{% for wo in items %}{% include "work/_wo_item.html" %}{% endfor %}</ul>
+    {% else %}
+    <p class="muted">{% translate "Sin OT programadas." %}</p>
+    {% endif %}
+  </section>
+  {% endfor %}
+</div>
+{% endblock %}

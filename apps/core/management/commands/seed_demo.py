@@ -273,6 +273,7 @@ class Command(BaseCommand):
             with tenant_context(org):
                 self._seed_main(org, members)
             self._assign_open_work_orders(org)
+            self._schedule_demo_week(org, members["admin"])
 
             other = Organization.objects.create(
                 name="Maestranza Norte Ltda.",
@@ -319,6 +320,22 @@ class Command(BaseCommand):
             for index, work_order in enumerate(pending):
                 work_order.assigned_to = technicians[index % len(technicians)]
                 work_order.save(update_fields=["assigned_to", "updated_at"])
+
+    def _schedule_demo_week(self, org, admin):
+        """Programa algunas OT en los próximos días hábiles (REQ-05) para que el tablero
+        semanal y «Mi semana» no partan vacíos en la demo."""
+        from apps.work.services import schedule_work_order
+
+        day = timezone.localdate() + datetime.timedelta(days=1)
+        with tenant_context(org):
+            planned = WorkOrder.objects.filter(
+                status=WorkOrder.Status.PLANNED, assigned_to__isnull=False
+            ).order_by("due_on", "created_at")[:4]
+            for work_order in planned:
+                while day.weekday() >= 5:
+                    day += datetime.timedelta(days=1)
+                schedule_work_order(work_order=work_order, membership=admin, scheduled_for=day)
+                day += datetime.timedelta(days=1)
 
     def _user(self, email, name, staff=False, superuser=False):
         user = User.objects.filter(email=email).first()

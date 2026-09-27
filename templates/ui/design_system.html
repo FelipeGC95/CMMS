@@ -397,4 +397,41 @@
     </table>
   </div>
 </section>
+
+<section class="mb-4" aria-labelledby="ds-board">
+  <h2 id="ds-board">{% translate "Tablero semanal y carga" %}</h2>
+  <p class="muted">{% translate "Tarjeta de OT (con borde grueso si se puede mover), día de hoy donde se suelta, carga sobre capacidad y puntaje del backlog." %}</p>
+  <div class="board">
+    <section class="card board__backlog">
+      <h2>{% translate "Sin programar" %} <span class="muted num">(1)</span></h2>
+      <ul class="board__cards">
+        <li class="board-card board-card--movable">
+          <a class="board-card__title" href="#ds-board"><span class="mono">OT-C-00012</span> {% translate "Cambiar rodamiento" %}</a>
+          <span class="board-card__meta"><span class="mono">CMP-01</span> · {% translate "Compresor 1" %}</span>
+          <span class="board-card__meta">{% icon 'user' %} {% translate "Sin responsable" %} · {% icon 'clock' %} 2,0 h</span>
+          <span class="board-card__badges"><span class="badge badge--error">{% icon 'alert' %}{% translate "Urgente" %}</span></span>
+          <details class="board-card__schedule"><summary>{% icon 'calendar' %}{% translate "Programar" %}</summary><p class="muted">{% translate "Día y responsable." %}</p></details>
+        </li>
+      </ul>
+    </section>
+    <div class="board__week">
+      <section class="card board__day board__day--today is-drop-target">
+        <h3 class="board__day-title">{% translate "Lunes 5" %} <span class="badge badge--info">{% icon 'calendar' %}{% translate "Hoy" %}</span></h3>
+        <p class="muted board__empty">{% translate "Sin OT. Suelta una aquí." %}</p>
+      </section>
+      <section class="card board__day">
+        <h3 class="board__day-title">{% translate "Martes 6" %}</h3>
+        <ul class="board__cards"><li class="board-card"><a class="board-card__title" href="#ds-board"><span class="mono">OT-P-00003</span> {% translate "Mensual" %}</a><span class="board-card__badges"><span class="badge badge--warning">{% icon 'wrench' %}{% translate "En ejecución" %}</span></span></li></ul>
+      </section>
+    </div>
+  </div>
+  <div class="card card--flush mt-2">
+    <table class="table">
+      <thead><tr><th>{% translate "Técnico" %}</th><th class="num">{% translate "Lun 5" %}</th><th class="num">{% translate "Semana" %}</th><th class="num">{% translate "Puntaje" %}</th></tr></thead>
+      <tbody>
+        <tr><td data-label="">{% translate "Técnico" %}</td><td data-label="{% translate 'Lun 5' %}" class="num"><span class="load load--over">9,0 / 8,0 h <span class="badge badge--warning">{% icon 'alert' %}{% translate "Sobre capacidad" %}</span></span></td><td data-label="{% translate 'Semana' %}" class="num"><span class="load">10,0 / 40,0 h</span></td><td data-label="{% translate 'Puntaje' %}" class="num"><span class="score">12</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
 {% endblock %}

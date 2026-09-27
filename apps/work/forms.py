@@ -15,7 +15,7 @@ from apps.organizations.selectors import visible_locations
 from apps.ui.templatetags.ui import work_order_status_label
 
 from .models import FailureCode, FailureEvent, WorkOrder
-from .selectors import assignable_members, failure_codes
+from .selectors import OPEN_STATUSES, assignable_members, failure_codes
 
 
 class FailureReportForm(forms.Form):
@@ -300,6 +300,55 @@ class WorkOrderFilterForm(forms.Form):
         if date_from and date_to and date_from > date_to:
             raise forms.ValidationError(_("La fecha «desde» no puede ser posterior a «hasta»."))
         return cleaned
+
+
+class BacklogFilterForm(forms.Form):
+    """Filtros del backlog y del tablero semanal (REQ-04/05); todos opcionales."""
+
+    location = forms.ModelChoiceField(
+        # `all_tenants`: al definir la clase no hay organización activa en el contexto.
+        label=_("Sitio"),
+        queryset=Location.all_tenants.none(),
+        required=False,
+        empty_label=_("Todos los sitios"),
+    )
+    work_type = forms.ChoiceField(label=_("Tipo"), choices=(), required=False)
+    status = forms.ChoiceField(label=_("Estado"), choices=(), required=False)
+    assigned_to = forms.ModelChoiceField(
+        label=_("Responsable"), queryset=User.objects.none(), required=False, empty_label=_("Todos")
+    )
+
+    def __init__(self, *args, membership, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["location"].queryset = visible_locations(membership=membership).order_by("code")
+        self.fields["location"].label_from_instance = _location_label
+        self.fields["location"].widget.attrs["class"] = "input"  # también va suelto en el tablero
+        self.fields["work_type"].choices = [("", _("Todos los tipos")), *WorkOrder.Type.choices]
+        self.fields["status"].choices = [
+            ("", _("Todos los estados")),
+            *((value, work_order_status_label(value)) for value in OPEN_STATUSES),
+        ]
+        self.fields["assigned_to"].queryset = assignable_members(membership=membership)
+
+    @property
+    def active_count(self) -> int:
+        return sum(1 for value in getattr(self, "cleaned_data", {}).values() if value)
+
+
+class ScheduleForm(forms.Form):
+    """Programar una OT desde el tablero sin arrastrar (REQ-05): día y, si se quiere, responsable."""
+
+    scheduled_for = forms.DateField(label=_("Día"), widget=forms.DateInput(attrs={"type": "date"}))
+    assigned_to = forms.ModelChoiceField(
+        label=_("Responsable"),
+        queryset=User.objects.none(),
+        required=False,
+        empty_label=_("Sin cambio"),
+    )
+
+    def __init__(self, *args, membership, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["assigned_to"].queryset = assignable_members(membership=membership)
 
 
 class HelpersField(forms.ModelMultipleChoiceField):
