@@ -1,6 +1,11 @@
 """Lecturas de planes preventivos."""
 
+import datetime
+import math
+from decimal import Decimal
+
 from django.db.models import Count, Prefetch, Q
+from django.utils import timezone
 
 from apps.accounts.permissions import Perm, require_perm
 from apps.assets.models import Meter
@@ -138,3 +143,33 @@ def plan_absorptions(*, plan):
     taken = {a.absorbed_plan_id for a in absorptions} | {plan.pk}
     choices = MaintenancePlan.objects.filter(is_active=True).exclude(pk__in=taken).order_by("name")
     return absorptions, choices
+
+
+def is_on_time(work_order) -> bool | None:
+    """¿La OT preventiva se completó dentro de su vencimiento ± tolerancia? (PM-02 CA3)
+
+    La tolerancia es `tolerance_pct` de la versión con que se generó la OT,
+    aplicada a su frecuencia: por calendario, en días del ciclo que vence en
+    `due_on` (redondeo hacia abajo); por medidor, en unidades sobre
+    `due_meter_value` con la lectura de cierre. Con los dos disparadores basta
+    cumplir uno (vence lo que ocurra primero). Devuelve None si no aplica: no
+    es preventiva, no está completada o no hay con qué medir. Para indicadores.
+    """
+    version = work_order.plan_version
+    if work_order.work_type != "preventive" or work_order.completed_at is None or version is None:
+        return None
+    pct = Decimal(version.tolerance_pct) / 100
+    checks = []
+    if work_order.due_on is not None:
+        period = version.calendar_period_days(work_order.due_on) if version.calendar_interval else 0
+        window = datetime.timedelta(days=math.floor(period * pct))
+        done = timezone.localdate(work_order.completed_at)
+        checks.append(work_order.due_on - window <= done <= work_order.due_on + window)
+    if (
+        work_order.due_meter_value is not None
+        and work_order.meter_value_at_completion is not None
+        and version.meter_interval
+    ):
+        window = version.meter_interval * pct
+        checks.append(abs(work_order.meter_value_at_completion - work_order.due_meter_value) <= window)
+    return any(checks) if checks else None
