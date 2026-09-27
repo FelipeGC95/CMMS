@@ -44,6 +44,7 @@ def test_audit_list_view_does_not_show_other_organization_events(client, tenant_
     own, other = _record_in(tenant_a), _record_in(tenant_b)
     login(client, tenant_a.admin)
     page = client.get(reverse("audit_list")).context["page"]
-    shown = {event.pk for event in page.paginator.object_list}
+    with tenant_context(tenant_a.org):  # queryset perezoso: se evalúa aquí, con RLS
+        shown = {event.pk for event in page.paginator.object_list}
     assert own.pk in shown
     assert other.pk not in shown

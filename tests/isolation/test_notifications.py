@@ -6,7 +6,7 @@ import pytest
 from django.urls import reverse
 
 from apps.accounts.models import Membership
-from apps.core.tenancy import tenant_context
+from apps.core.tenancy import platform_context, tenant_context
 from apps.notifications.models import Kind, Notification
 from apps.notifications.services import send_due_notifications
 from apps.work.services import WorkOrderError, create_work_order, report_failure
@@ -64,5 +64,7 @@ def test_list_badge_and_open_show_only_own_notifications_of_the_active_org(clien
         own.refresh_from_db()
         other_user.refresh_from_db()
     assert own.read_at and other_user.read_at is None
-    foreign.refresh_from_db()
+    # Fuera del contexto de la petición la fila solo se ve con bypass de RLS (ADR-026).
+    with platform_context():
+        foreign.refresh_from_db()
     assert foreign.read_at is None

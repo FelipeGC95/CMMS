@@ -7,7 +7,7 @@ from django.urls import reverse
 
 from apps.assets.models import Asset
 from apps.assets.services import create_asset, update_asset
-from apps.core.tenancy import tenant_context
+from apps.core.tenancy import platform_context, tenant_context
 from apps.organizations.models import Location
 from tests.conftest import login
 
@@ -23,7 +23,9 @@ def test_edit_view_of_foreign_asset_is_404(client, tenant_a, tenant_b):
     url = reverse("asset_edit", args=[tenant_a.asset.pk])
     assert client.get(url).status_code == 404
     assert client.post(url, {"code": "HACK", "name": "x"}).status_code == 404
-    tenant_a.asset.refresh_from_db()
+    # Fuera del contexto de la petición la fila solo se ve con bypass de RLS (ADR-026).
+    with platform_context():
+        tenant_a.asset.refresh_from_db()
     assert tenant_a.asset.code == "CMP-01"
 
 

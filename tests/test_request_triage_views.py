@@ -101,7 +101,8 @@ def test_request_tray_hides_foreign_organization_requests(client, tenant_a, tena
         )
     login(client, tenant_a.admin)
     page = client.get(reverse("request_list")).context["page"]
-    shown = {r.pk for r in page.paginator.object_list}
+    with tenant_context(tenant_a.org):  # queryset perezoso: se evalúa aquí, con RLS
+        shown = {r.pk for r in page.paginator.object_list}
     assert own.pk in shown
     assert foreign.pk not in shown
     assert client.post(reverse("request_accept", args=[foreign.pk])).status_code == 404

@@ -10,7 +10,7 @@ from apps.accounts.permissions import PermissionDeniedError
 from apps.assets.models import Asset, AssetClass, AssetStatusPeriod, AttributeType
 from apps.assets.services import add_class_attribute, create_asset, creates_cycle, update_asset
 from apps.audit.models import AuditEvent
-from apps.core.tenancy import tenant_context
+from apps.core.tenancy import platform_context, tenant_context
 from apps.organizations.models import Location
 from apps.work.services import report_failure
 from tests.conftest import login
@@ -261,7 +261,9 @@ def test_edit_view_saves_attributes_of_the_class(client, tenant_a):
         },
     )
     assert response.status_code == 302
-    tenant_a.asset.refresh_from_db()
+    # Fuera del contexto de la petición la fila solo se ve con bypass de RLS (ADR-026).
+    with platform_context():
+        tenant_a.asset.refresh_from_db()
     assert tenant_a.asset.attributes == {"combustible": "Diésel"}
     assert tenant_a.asset.in_service_on == datetime.date(2022, 5, 10)
 

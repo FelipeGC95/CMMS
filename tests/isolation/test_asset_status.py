@@ -11,7 +11,7 @@ from apps.accounts.permissions import PermissionDeniedError
 from apps.assets.models import Asset, AssetStatusPeriod
 from apps.assets.selectors import asset_scope_ids
 from apps.assets.services import decommission_asset, set_asset_status
-from apps.core.tenancy import tenant_context
+from apps.core.tenancy import platform_context, tenant_context
 from apps.maintenance.services import assign_plan
 from apps.reporting.selectors import asset_kpis
 from apps.work.models import FailureEvent
@@ -40,7 +40,9 @@ def test_foreign_status_and_decommission_views_are_404(client, tenant_a, tenant_
         url = reverse(name, args=[tenant_a.asset.pk])
         assert client.get(url).status_code == 404
         assert client.post(url, {"status": "stopped", "reason": "hack"}).status_code == 404
-    tenant_a.asset.refresh_from_db()
+    # Fuera del contexto de la petición la fila solo se ve con bypass de RLS (ADR-026).
+    with platform_context():
+        tenant_a.asset.refresh_from_db()
     assert tenant_a.asset.status == "operational"
 
 

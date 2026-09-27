@@ -7,7 +7,7 @@ from apps.accounts.models import MembershipLocation
 from apps.accounts.permissions import PermissionDeniedError
 from apps.assets.models import Asset
 from apps.assets.services import change_asset_status, reactivate_asset
-from apps.core.tenancy import tenant_context
+from apps.core.tenancy import platform_context, tenant_context
 from apps.organizations.models import Location
 from tests.conftest import login
 
@@ -27,7 +27,9 @@ def test_view_forbidden_without_asset_manage(client, tenant_a, retired_a, role):
     assert client.post(url, {"reason": "x"}).status_code == 403
     html = client.get(reverse("asset_detail", args=[retired_a.pk])).content.decode()
     assert url not in html
-    retired_a.refresh_from_db()
+    # Fuera del contexto de la petición la fila solo se ve con bypass de RLS (ADR-026).
+    with platform_context():
+        retired_a.refresh_from_db()
     assert retired_a.status == "retired"
 
 

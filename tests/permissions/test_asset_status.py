@@ -9,7 +9,7 @@ from apps.accounts.permissions import PermissionDeniedError
 from apps.assets.models import Asset
 from apps.assets.selectors import asset_scope_ids
 from apps.assets.services import decommission_asset, set_asset_status
-from apps.core.tenancy import tenant_context
+from apps.core.tenancy import platform_context, tenant_context
 from apps.organizations.models import Location
 from tests.conftest import login
 
@@ -21,7 +21,9 @@ def test_views_forbidden_without_asset_manage(client, tenant_a, role):
         url = reverse(name, args=[tenant_a.asset.pk])
         assert client.get(url).status_code == 403
         assert client.post(url, {"status": "stopped", "reason": "x"}).status_code == 403
-    tenant_a.asset.refresh_from_db()
+    # Fuera del contexto de la petición la fila solo se ve con bypass de RLS (ADR-026).
+    with platform_context():
+        tenant_a.asset.refresh_from_db()
     assert tenant_a.asset.status == "operational"
 
 

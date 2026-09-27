@@ -87,7 +87,8 @@ def test_audit_list_dates_use_the_organization_timezone(client, tenant_a):
 
     def shown(**params):
         page = client.get(reverse("audit_list"), params).context["page"]
-        return event.pk in {e.pk for e in page.paginator.object_list}
+        with tenant_context(tenant_a.org):  # queryset perezoso: se evalúa aquí, con RLS
+            return event.pk in {e.pk for e in page.paginator.object_list}
 
     assert shown(date_from="2026-09-24", date_to="2026-09-24")
     assert not shown(date_from="2026-09-25")

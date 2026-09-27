@@ -99,7 +99,8 @@ def test_scoped_member_cannot_edit_or_move_assets_outside_its_sites(client, tena
     login(client, membership)
     assert client.get(reverse("asset_edit", args=[outside.pk])).status_code == 404
     form = client.get(reverse("asset_edit", args=[inside.pk])).context["form"]
-    assert list(form.fields["location"].queryset) == [north]
+    with tenant_context(membership.organization):  # queryset perezoso: se evalúa aquí, con RLS
+        assert list(form.fields["location"].queryset) == [north]
     assert outside not in form.fields["parent"].queryset
     with tenant_context(tenant_a.org):
         with pytest.raises(PermissionDeniedError):

@@ -123,7 +123,8 @@ def test_django_admin_is_scoped_to_active_organization(client, tenant_a, tenant_
     user.user_permissions.set(Permission.objects.filter(content_type__app_label="assets"))
     login(client, tenant_a.admin)
     listing = client.get(reverse("admin:assets_asset_changelist"))
-    assert list(listing.context["cl"].queryset) == [tenant_a.asset]
+    with tenant_context(tenant_a.org):  # queryset perezoso: se evalúa aquí, con RLS
+        assert list(listing.context["cl"].queryset) == [tenant_a.asset]
     assert client.get(reverse("admin:assets_asset_change", args=[tenant_b.asset.pk])).status_code == 302
 
 

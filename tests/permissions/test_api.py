@@ -12,7 +12,7 @@ from apps.accounts.models import Membership
 from apps.accounts.permissions import Perm, PermissionDeniedError, has_perm
 from apps.api.models import ApiToken
 from apps.api.services import create_token, revoke_token
-from apps.core.tenancy import tenant_context
+from apps.core.tenancy import platform_context, tenant_context
 from tests.api_utils import api_client, make_token
 from tests.conftest import login
 
@@ -52,7 +52,9 @@ def test_admin_creates_token_shown_once_and_revokes(client, tenant_a):
     assert raw not in client.get(reverse("api_token_list")).content.decode()
     assert reverse("api_token_list") in client.get(reverse("menu")).content.decode()
     client.post(reverse("api_token_revoke", args=[token.pk]))
-    token.refresh_from_db()
+    # Fuera del contexto de la petición la fila solo se ve con bypass de RLS (ADR-026).
+    with platform_context():
+        token.refresh_from_db()
     assert token.revoked_at is not None
 
 

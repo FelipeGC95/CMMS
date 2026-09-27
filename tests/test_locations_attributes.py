@@ -8,7 +8,7 @@ from apps.accounts.models import MembershipLocation
 from apps.assets.models import Asset, AssetClassAttribute
 from apps.assets.services import add_class_attribute, set_asset_attributes, update_class_attribute
 from apps.audit.models import AuditEvent
-from apps.core.tenancy import tenant_context
+from apps.core.tenancy import platform_context, tenant_context
 from apps.organizations.models import Location
 from apps.organizations.selectors import location_tree
 from apps.organizations.services import create_location, delete_location, update_location
@@ -106,7 +106,9 @@ def test_location_screens(client, tenant_a):
         {"code": "P1", "name": "Planta Norte", "kind": "site", "is_active": "on"},
     )
     assert response.status_code == 302
-    plant.refresh_from_db()
+    # Fuera del contexto de la petición la fila solo se ve con bypass de RLS (ADR-026).
+    with platform_context():
+        plant.refresh_from_db()
     assert plant.name == "Planta Norte"
     assert client.get(reverse("location_list")).status_code == 200
 
@@ -254,6 +256,8 @@ def test_class_screens(client, tenant_a):
         {"label": "Capacidad", "unit": "t", "order": "1"},
     )
     assert response.status_code == 302
-    attribute.refresh_from_db()
+    # Fuera del contexto de la petición la fila solo se ve con bypass de RLS (ADR-026).
+    with platform_context():
+        attribute.refresh_from_db()
     assert attribute.unit == "t" and not attribute.is_active  # desmarcado = oculto
     assert client.get(reverse("asset_class_list")).status_code == 200
