@@ -9,6 +9,11 @@
 </div>
 
 <div class="masonry">
+  <section class="card" aria-labelledby="onboarding-title">
+    <h2 id="onboarding-title">{% translate "Puesta en marcha" %}</h2>
+    <p>{% translate "Asistente paso a paso: rubro, sitios, activos, planes sugeridos, lecturas y calendario. Cada paso se puede saltar y retomar." %}</p>
+    <a class="btn btn--secondary" href="{% url 'onboarding' %}">{% translate "Abrir el asistente" %}</a>
+  </section>
   <section class="card" aria-labelledby="closing-title">
     <h2 id="closing-title">{% translate "Cierre de órdenes de trabajo" %}</h2>
     <form method="post">

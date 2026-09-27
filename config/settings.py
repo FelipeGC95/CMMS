@@ -49,6 +49,7 @@ INSTALLED_APPS = [
     "apps.audit",
     "apps.api",
     "apps.ui",
+    "apps.onboarding",
 ]
 
 MIDDLEWARE = [

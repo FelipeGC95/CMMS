@@ -62,7 +62,9 @@ def test_verification_creates_user_org_and_admin_membership(client, db):
     assert client.get(url).status_code == 200
     assert not Organization.objects.exists()
     response = client.post(url)
-    assert response.status_code == 302 and response["Location"] == reverse("dashboard")
+    assert response.status_code == 302 and response["Location"] == reverse(
+        "onboarding"
+    )  # puesta en marcha (ORG-03)
     user = User.objects.get(email="ana@planta.cl")
     org = Organization.objects.get()
     assert org.name == "Planta Sur SpA" and org.slug == "planta-sur-spa"

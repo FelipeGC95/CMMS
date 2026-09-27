@@ -9,6 +9,14 @@
   <a class="btn btn--primary btn--lg" href="{% url 'asset_list' %}?report=1">{% icon 'megaphone' %}{% translate "Avisar falla" %}</a>
 </div>
 
+{% if onboarding %}
+<div class="alert alert--info" role="status">{% icon 'info' %}<span>
+  <a href="{% url 'onboarding' %}">{% blocktranslate with n=onboarding.step_number %}Continúa la puesta en marcha (paso {{ n }} de 6){% endblocktranslate %}</a>
+</span>
+  <form method="post" action="{% url 'onboarding_dismiss' %}">{% csrf_token %}<button class="btn btn--ghost" type="submit">{% translate "No mostrar más" %}</button></form>
+</div>
+{% endif %}
+
 {% if my_work_orders %}
 <section class="card mb-4" aria-labelledby="mine-title">
   <div class="card__header"><h2 id="mine-title">{% translate "Mis OT abiertas" %}</h2><a href="{% url 'work_order_list' %}?scope=mine">{% translate "Ver todas" %}</a></div>

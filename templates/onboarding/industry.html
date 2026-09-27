@@ -1,0 +1,20 @@
+{% extends "onboarding/_step.html" %}{% load i18n ui %}
+{% block step_title %}{% translate "¿A qué se dedica tu empresa?" %}{% endblock %}
+{% block step_intro %}{% translate "Copiamos a tu organización las clases de activo, sus atributos y el catálogo de fallas del rubro. Son copias tuyas: las puedes editar." %}{% endblock %}
+{% block step_body %}
+<section class="card">
+  <form method="post">{% csrf_token %}
+    {% for error in form.non_field_errors %}<div class="alert alert--error" role="alert">{% icon 'stop' %}<span>{{ error }}</span></div>{% endfor %}
+    <fieldset class="check-group">
+      <legend>{{ form.industry.label }} *</legend>
+      <div class="check-group__options">
+        {% for choice, t in form.options %}
+        <label class="check-group__option" for="{{ choice.id_for_label }}">{{ choice.tag }}<span><strong>{{ t.name }}</strong><br><span class="muted">{{ t.description }}</span></span></label>
+        {% endfor %}
+      </div>
+      {% for error in form.industry.errors %}<span class="error">{% icon 'stop' %}{{ error }}</span>{% endfor %}
+    </fieldset>
+    <div class="wizard-actions"><button class="btn btn--primary btn--lg" type="submit">{% translate "Copiar y continuar" %}</button></div>
+  </form>
+</section>
+{% endblock %}

@@ -50,6 +50,10 @@ Tablas de django‑allauth para verificación de correo, MFA y (F3) cuentas SSO.
 **`pending_signup`** (plataforma, sin tenant; ORG-02) — autoregistro esperando la verificación del correo.
 `email` · `full_name` · `organization_name` · `password_hash` · `token_hash` · `expires_at` (2 días) · `completed_at`. Al confirmar se crean usuario, organización y membresía y se borra el hash de la contraseña.
 
+**`onboarding_state`** (ORG-03) — avance del asistente de puesta en marcha, uno por organización.
+`organization_id` · `current_step` (industry, locations, assets, plans, readings, calendar) · `completed_steps` (JSON) · `skipped_steps` (JSON) · `industry` · `started_at` · `finished_at` · `dismissed_at`.
+`UNIQUE (organization_id)`. Se crea al confirmar el autoregistro con `started_at` vacío (el inicio lleva al asistente) o al abrirlo desde Configuración. Implementado como `onboarding.OnboardingState`.
+
 **`api_token`**
 `organization_id` · `name` · `prefix` (visible) · `token_hash` · `scope` (read, write) · `service_user_id` · `created_by_id` · `last_used_at` · `expires_at` · `revoked_at`.
 > Implementado como `api.ApiToken` (X-05). El token completo (`gbt_<prefix>_<secreto>`)

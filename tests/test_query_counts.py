@@ -734,3 +734,42 @@ def test_industry_template_apply_uses_bounded_queries(tenant_a, industry, django
     with django_assert_max_num_queries(30):
         summary = apply_industry_template(organization=tenant_a.org, industry=industry)
     assert summary.plans
+
+
+def _onboarding_rows(tenant, n):
+    """Activos con medidor y plan por uso (paso de lecturas) y ubicaciones (paso de sitios)."""
+    from apps.assets.models import AssetClass
+    from apps.onboarding import services as onboarding
+
+    with tenant_context(tenant.org):
+        onboarding.choose_industry(membership=tenant.admin, industry="fleet")
+        forklift = AssetClass.objects.get(code="GRH-COMB")
+        start = Asset.objects.count()
+        onboarding.quick_add_assets(
+            membership=tenant.admin,
+            rows=[
+                {
+                    "name": f"Grúa {start + i}",
+                    "asset_class": forklift,
+                    "location": None,
+                    "meter_kind": "hours",
+                }
+                for i in range(n)
+            ],
+        )
+        onboarding.create_locations(
+            membership=tenant.admin, site_name=f"Sitio {start}", areas=[f"Área {i}" for i in range(n)]
+        )
+        onboarding.create_suggested_plans(membership=tenant.admin, plan_codes=["GRH-C-250H"])
+
+
+@pytest.mark.parametrize("step", ["industry", "locations", "assets", "plans", "readings", "calendar"])
+def test_onboarding_steps_do_not_grow_with_rows(client, tenant_a, step):
+    login(client, tenant_a.admin)
+    url = reverse("onboarding_step", args=[step])
+    client.get(url)  # la primera visita marca el asistente como abierto (una escritura)
+    _onboarding_rows(tenant_a, 2)
+    few = _count(client, url)
+    _onboarding_rows(tenant_a, 8)
+    many = _count(client, url)
+    assert many == few, f"{step}: {few} → {many} consultas"

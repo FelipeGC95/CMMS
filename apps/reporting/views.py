@@ -13,6 +13,7 @@ from apps.attachments.models import Purpose, TargetType
 from apps.attachments.selectors import attachments_for
 from apps.core.decorators import membership_required
 from apps.maintenance.selectors import active_assignments_for_asset
+from apps.onboarding.selectors import onboarding_for_dashboard
 from apps.work.forms import WorkOrderFilterForm
 from apps.work.models import WorkOrder
 from apps.work.selectors import visible_work_orders, work_order_detail, work_order_list
@@ -26,6 +27,10 @@ from .selectors import DOWN_STATUSES, dashboard_kpis
 @membership_required
 def dashboard(request):
     membership = request.membership
+    onboarding = onboarding_for_dashboard(membership=membership)
+    if onboarding is not None and onboarding.started_at is None:
+        # Organización recién registrada (ORG-03): el primer inicio lleva al asistente.
+        return redirect("onboarding")
     is_technician = membership.role == Membership.Role.TECHNICIAN
     filter_form = DashboardFilterForm(request.GET or None, membership=membership)
     filters = None
@@ -43,6 +48,7 @@ def dashboard(request):
         .filter(status__in=DOWN_STATUSES)
         .select_related("location"),
         "is_technician": is_technician,
+        "onboarding": onboarding,
     }
     return render(request, "reporting/dashboard.html", context)
 

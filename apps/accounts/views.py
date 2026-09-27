@@ -12,6 +12,7 @@ from django.views.decorators.http import require_POST
 
 from apps.core.decorators import membership_required
 from apps.core.middleware import SESSION_KEY
+from apps.onboarding.services import create_for_new_organization as create_onboarding
 from apps.organizations.models import Location
 
 from . import services
@@ -223,5 +224,8 @@ def signup_confirm_view(request, token):
             _("¡Bienvenido! %(org)s está lista, con %(days)s días de prueba gratuita.")
             % {"org": organization.name, "days": services.TRIAL_DAYS},
         )
-        return redirect("dashboard")
+        # Puesta en marcha (ORG-03): si la política exige segundo factor, el middleware
+        # lo pide antes; al volver al inicio, este lleva al asistente.
+        create_onboarding(organization=organization)
+        return redirect("onboarding")
     return render(request, "accounts/signup_confirm.html", {"pending": pending})

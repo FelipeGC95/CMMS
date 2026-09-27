@@ -6,6 +6,7 @@ from django import forms
 from django.contrib import messages
 from django.http import HttpResponse
 from django.shortcuts import redirect, render
+from django.urls import reverse
 from django.utils.translation import gettext, ngettext
 from django.utils.translation import gettext_lazy as _
 from django.views.decorators.http import require_POST
@@ -17,6 +18,8 @@ from apps.organizations.services import QuotaExceeded, quota_warning
 from .imports import MAX_ROWS, ImportFileError, apply_import, build_preview, build_template, parse_workbook
 
 SESSION_PREFIX = "asset_import:"
+# URL fija que guarda el asistente de puesta en marcha (nunca viene del usuario).
+IMPORT_RETURN_KEY = "asset_import_return"
 
 
 class AssetImportForm(forms.Form):
@@ -37,6 +40,11 @@ def _clear_pending(session):
 def asset_import_view(request):
     """Paso 1: instrucciones y subida. Al subir, valida y muestra la vista previa (sin guardar)."""
     form = AssetImportForm(request.POST or None, request.FILES or None)
+    if request.method == "GET":
+        if request.GET.get("from") == "onboarding":
+            request.session[IMPORT_RETURN_KEY] = reverse("onboarding_step", args=["assets"])
+        else:
+            request.session.pop(IMPORT_RETURN_KEY, None)
     if request.method == "GET" and (
         warning := quota_warning(organization=request.organization, resource="assets")
     ):
@@ -105,7 +113,8 @@ def asset_import_confirm_view(request, token):
     messages.success(request, gettext("Importación lista: %(summary)s.") % {"summary": ", ".join(parts)})
     for warning in result.warnings[:10]:
         messages.warning(request, warning)
-    return redirect("asset_list")
+    # Abierta desde la puesta en marcha (ORG-03): vuelve al paso de activos.
+    return redirect(request.session.pop(IMPORT_RETURN_KEY, None) or "asset_list")
 
 
 @membership_required(perm=Perm.ASSET_MANAGE)
