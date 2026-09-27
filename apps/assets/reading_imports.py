@@ -246,7 +246,7 @@ def build_reading_preview(raw_rows: list[dict], *, membership) -> ReadingPreview
             row.errors.append(gettext("Falta el código del activo o el id del medidor."))
         if meter is not None:
             row.meter_id, row.asset_code = str(meter.pk), meter.asset.code
-            row.meter_label = f"{meter.name or meter.get_kind_display()} ({meter.unit})"
+            row.meter_label = f"{meter.name} ({meter.unit})" if meter.name else meter.get_kind_display()
             meters[row.meter_id] = meter
         try:
             value = parse_value(raw.get("value") if raw.get("value") is not None else "")
