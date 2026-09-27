@@ -1,6 +1,6 @@
 # 05 — Roadmap
 
-**Estado:** borrador v0.2 (2026-09-26): MVP‑0 hecho; sigue MVP‑1.
+**Estado:** borrador v0.3 (2026-09-27): MVP‑0 hecho; código del MVP‑1 hecho, falta activar producción y el piloto.
 
 > **Supuesto de dedicación: 15 h/semana.** Aún no está confirmado; ajústalo y
 > reescalo las semanas. Las estimaciones incluyen tests y un margen de ~20 %
@@ -113,6 +113,27 @@ falla por QR con sesión → convertirla en OT → ejecutar el checklist en el
 celular → cerrarla con costos y falla registrada.
 
 ## MVP‑1 · Piloto (14 semanas)
+
+**Estado (2026-09-27): código hecho.** Están en `main`, con CI en PostgreSQL
+bajo RLS: pantallas y motor de planes (tipos de ítem, semanas/meses de
+calendario con día ancla, absorción, horizonte por organización), calendario y
+proyección a 12 meses, backlog priorizado y tablero semanal, KPIs con filtros
+y fórmulas, exportaciones Excel/PDF, importación de activos, planes y lecturas,
+manuales con texto por página, plantillas de 4 rubros y asistente de puesta en
+marcha, auditoría y notificaciones, MFA (obligatorio para administradores),
+autoregistro, cupos y módulos por plan, color de marca, aviso por QR sin
+cuenta, API REST v1, CSP estricta, RLS (ADR-026), exportación ZIP y borrado de
+la organización (ADR-027), y la infraestructura de producción inactiva por
+variables de entorno (ADR-020).
+
+Para el "Hecho cuando" faltan pasos que no son código: crear las cuentas
+(Render pagado con worker, R2, Sentry, correo) y seguir
+`docs/07_operacion.md`; revisar el contenido de las plantillas de rubro
+(marcadas como borrador); y la empresa piloto con sus datos reales.
+Pendientes menores: cumplimiento de preventivos con tolerancia
+(`is_on_time` aún sin usar en KPIs), completar OT por API, enlaces de correo
+sin `?org=`, preferencias de notificación que muestran tipos que el rol no
+recibe, carriles por técnico en el tablero.
 
 | # | Entregable | Req. | Sem. |
 |---|---|---|---|
