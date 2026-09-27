@@ -16,6 +16,9 @@ dependencies = [
     "openpyxl>=3.1",
     "pillow>=12.3.0",
     "reportlab>=5.0",
+    "procrastinate>=3.10.0",
+    "django-storages[s3]>=1.14.6",
+    "sentry-sdk>=2.70.0",
 ]
 
 [dependency-groups]

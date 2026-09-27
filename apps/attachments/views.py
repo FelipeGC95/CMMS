@@ -1,7 +1,8 @@
-from django.http import FileResponse, Http404
+from django.http import Http404
 from django.shortcuts import get_object_or_404
 
 from apps.core.decorators import membership_required
+from apps.core.files import private_file_response
 
 from .models import Attachment, TargetType
 
@@ -34,6 +35,6 @@ def attachment_view(request, pk):
         target_type=attachment.target_type, target_id=attachment.target_id, membership=request.membership
     ):
         raise Http404
-    return FileResponse(
-        attachment.file.open("rb"), content_type=attachment.content_type, filename=attachment.filename
+    return private_file_response(
+        attachment.file, content_type=attachment.content_type, filename=attachment.filename
     )

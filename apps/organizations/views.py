@@ -1,7 +1,7 @@
 from django.contrib import messages
 from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
-from django.http import FileResponse, Http404
+from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils.translation import gettext as _
 from django.views.decorators.http import require_POST
@@ -9,6 +9,7 @@ from django.views.decorators.http import require_POST
 from apps.accounts.permissions import Perm
 from apps.accounts.scoping import is_scoped
 from apps.core.decorators import membership_required
+from apps.core.files import private_file_response
 
 from . import services
 from .forms import LocationForm, OrganizationLogoForm, OrganizationSettingsForm, WorkOrderStatusLabelsForm
@@ -163,4 +164,4 @@ def organization_logo_view(request):
     logo = request.organization.logo
     if not logo:
         raise Http404
-    return FileResponse(logo.open("rb"), content_type="image/png")
+    return private_file_response(logo, content_type="image/png")

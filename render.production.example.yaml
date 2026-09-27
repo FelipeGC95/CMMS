@@ -1,0 +1,86 @@
+# EJEMPLO de Blueprint para producción (planes pagados). Render NO lo usa: solo
+# lee `render.yaml` (la demo gratuita). Para activarlo, seguir el checklist de
+# docs/07_operacion.md §4 y crear un Blueprint nuevo apuntando a este archivo.
+
+databases:
+  - name: cmms-prod-db
+    plan: basic-1gb
+    region: ohio
+    postgresMajorVersion: "16"
+    databaseName: cmms
+    user: cmms
+
+envVarGroups:
+  - name: cmms-prod
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.13.7"
+      - key: DJANGO_DEBUG
+        value: "0"
+      - key: DJANGO_SECRET_KEY
+        generateValue: true
+      - key: DJANGO_ALLOWED_HOSTS
+        sync: false # dominio definitivo, ej. app.galbust.cl
+      - key: AUDIT_TRUSTED_PROXIES
+        value: "1"
+      - key: LOG_FORMAT
+        value: json
+      - key: SENTRY_DSN
+        sync: false
+      - key: SENTRY_ENVIRONMENT
+        value: production
+      - key: R2_BUCKET
+        sync: false
+      - key: R2_ENDPOINT_URL
+        sync: false
+      - key: R2_ACCESS_KEY_ID
+        sync: false
+      - key: R2_SECRET_ACCESS_KEY
+        sync: false
+      - key: EMAIL_HOST
+        sync: false # smtp.postmarkapp.com o smtp-relay.brevo.com
+      - key: EMAIL_HOST_USER
+        sync: false
+      - key: EMAIL_HOST_PASSWORD
+        sync: false
+      - key: DEFAULT_FROM_EMAIL
+        sync: false
+
+services:
+  - type: web
+    name: galbust-cmms-prod
+    runtime: python
+    plan: starter
+    region: ohio
+    branch: main
+    autoDeploy: false # producción se promueve a mano (NF-14)
+    buildCommand: pip install -r requirements.txt && python manage.py collectstatic --noinput
+    preDeployCommand: python manage.py migrate --noinput
+    startCommand: gunicorn config.wsgi:application --workers 2 --timeout 60 --access-logfile -
+    healthCheckPath: /readyz
+    envVars:
+      - fromGroup: cmms-prod
+      - key: DATABASE_URL
+        fromDatabase:
+          name: cmms-prod-db
+          property: connectionString
+
+  - type: worker
+    name: galbust-cmms-worker
+    runtime: python
+    plan: starter
+    region: ohio
+    branch: main
+    autoDeploy: false
+    buildCommand: pip install -r requirements.txt
+    startCommand: python manage.py procrastinate worker
+    envVars:
+      - fromGroup: cmms-prod
+      - key: DATABASE_URL
+        fromDatabase:
+          name: cmms-prod-db
+          property: connectionString
+      - key: PROCRASTINATE_LOG_LEVEL
+        value: INFO
+      - key: BACKUPS_ENABLED
+        value: "1"
