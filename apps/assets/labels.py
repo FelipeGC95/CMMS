@@ -8,18 +8,17 @@ nombre de la organización.
 
 import io
 from dataclasses import dataclass
-from functools import cache
-from pathlib import Path
 
 import segno
 from django.utils.translation import gettext_lazy as _
 from reportlab.lib.colors import HexColor
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.units import mm
-from reportlab.lib.utils import ImageReader, simpleSplit
-from reportlab.pdfbase.pdfmetrics import registerFont, stringWidth
-from reportlab.pdfbase.ttfonts import TTFont
+from reportlab.lib.utils import simpleSplit
+from reportlab.pdfbase.pdfmetrics import stringWidth
 from reportlab.pdfgen import canvas
+
+from apps.core import pdf as pdf_fonts
 
 # Tope de etiquetas por PDF: 500 son 21 hojas de 24; más que eso se filtra la lista.
 MAX_LABELS = 500
@@ -32,24 +31,11 @@ PAGE_MARGIN = 6 * mm  # dentro del área que imprime cualquier impresora de ofic
 CELL_PADDING = 3 * mm
 QR_BORDER_MODULES = 2  # zona silenciosa del QR; el relleno de la celda suma el resto
 
-# Fuentes TTF incrustadas (DejaVu, licencia libre en fonts/LICENSE_DEJAVU.txt): las
-# estándar del PDF solo cubren Latin-1 y cortan nombres como «Ñandú – Nº 3 ø25».
-FONTS_DIR = Path(__file__).resolve().parent / "fonts"
-TEXT_FONT = "GalbustLabelSans"
-ORG_FONT = "GalbustLabelSans-Bold"
-CODE_FONT = "GalbustLabelMono-Bold"
-FONT_FILES = {
-    TEXT_FONT: "DejaVuSans.ttf",
-    ORG_FONT: "DejaVuSans-Bold.ttf",
-    CODE_FONT: "DejaVuSansMono-Bold.ttf",
-}
-
-
-@cache
-def register_fonts() -> None:
-    """Registra las fuentes una vez por proceso; reportlab incrusta solo los glifos usados."""
-    for name, filename in FONT_FILES.items():
-        registerFont(TTFont(name, str(FONTS_DIR / filename)))
+# Fuentes TTF incrustadas (DejaVu, ver apps/core/pdf.py): cubren «Ñandú – Nº 3 ø25».
+TEXT_FONT = pdf_fonts.TEXT_FONT
+ORG_FONT = pdf_fonts.BOLD_FONT
+CODE_FONT = pdf_fonts.MONO_BOLD_FONT
+register_fonts = pdf_fonts.register_fonts
 
 
 @dataclass(frozen=True)
@@ -122,14 +108,7 @@ def _wrap(text, font, size, width, max_lines):
     return [_fit_line(line, font, size, width, size)[0] for line in lines]
 
 
-def _read_logo(organization):
-    if not organization.logo:
-        return None
-    try:
-        with organization.logo.open("rb") as stored:
-            return ImageReader(io.BytesIO(stored.read()))
-    except (OSError, ValueError):
-        return None  # archivo perdido o ilegible: la etiqueta usa el nombre
+_read_logo = pdf_fonts.read_logo
 
 
 def _draw_label(pdf, *, asset, url, organization, logo, layout, x, y, width, height):
