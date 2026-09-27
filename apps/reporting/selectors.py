@@ -10,8 +10,9 @@ from apps.accounts.scoping import allowed_location_ids
 from apps.assets.models import Asset, AssetStatusPeriod
 from apps.assets.selectors import asset_scope_ids, visible_assets
 from apps.maintenance.models import PlanAssignment
+from apps.organizations.selectors import descendant_ids
 from apps.work.models import FailureEvent, WorkOrder
-from apps.work.selectors import OPEN_STATUSES, visible_work_orders
+from apps.work.selectors import OPEN_STATUSES, in_locations, visible_work_orders
 
 DOWN_STATUSES = (Asset.Status.STOPPED, Asset.Status.IN_MAINTENANCE)
 
@@ -30,6 +31,9 @@ class Kpis:
     # Hay activos en el alcance, pero todos estuvieron de baja toda la ventana: sin
     # tiempo en servicio, disponibilidad y MTBF no se pueden calcular.
     no_service_time: bool = False
+    # Días (en la zona activa) que abarca la ventana medida.
+    period_start: datetime.date | None = None
+    period_end: datetime.date | None = None
 
 
 def _overlap_seconds(start, end, window_start, window_end) -> float:
@@ -132,39 +136,114 @@ def asset_kpis(*, membership, asset, include_components: bool = False, days: int
     )
 
 
-def dashboard_kpis(*, membership, days: int = 30, now=None) -> Kpis:
-    """KPIs de la organización o, si la membresía tiene alcance, solo de sus sitios (ORG-06)."""
+@dataclass(frozen=True)
+class KpiFilters:
+    """Filtros del tablero (KPI-01): ventana y conjunto de activos.
+
+    Sin `date_from`/`date_to` la ventana son los últimos `days` días; con ellos,
+    del inicio de `date_from` al final de `date_to` (en la zona activa), sin
+    pasar de ahora. `location` incluye sus descendientes.
+    """
+
+    days: int = 30
+    date_from: datetime.date | None = None
+    date_to: datetime.date | None = None
+    location: object = None
+    asset_class: object = None
+    criticality: str = ""
+    asset: object = None
+
+    @property
+    def narrows_assets(self) -> bool:
+        return bool(self.asset_class or self.criticality or self.asset)
+
+    @property
+    def any(self) -> bool:
+        return self.narrows_assets or self.location is not None
+
+    def window(self, now):
+        """(inicio, término) de la ventana como instantes; el término nunca pasa de `now`."""
+        if self.date_to is not None:
+            end = min(_start_of(self.date_to + datetime.timedelta(days=1)), now)
+        else:
+            end = now
+        if self.date_from is not None:
+            start = _start_of(self.date_from)
+        else:
+            start = end - datetime.timedelta(days=self.days)
+        return min(start, end), end
+
+
+def _start_of(day: datetime.date):
+    return timezone.make_aware(datetime.datetime.combine(day, datetime.time.min))
+
+
+def filtered_assets(*, membership, filters: KpiFilters, location_ids=None):
+    """Activos vigentes y visibles que cumplen los filtros del tablero."""
+    qs = visible_assets(membership=membership).filter(is_active=True)
+    if location_ids is not None:
+        qs = qs.filter(location_id__in=location_ids)
+    if filters.asset_class is not None:
+        qs = qs.filter(asset_class=filters.asset_class)
+    if filters.criticality:
+        qs = qs.filter(criticality=filters.criticality)
+    if filters.asset is not None:
+        qs = qs.filter(pk=filters.asset.pk)
+    return qs
+
+
+def _closed_on_time(work_order) -> bool:
+    """OT preventiva cerrada a tiempo: completada a más tardar el día de su fecha límite.
+
+    TODO(KPI-01): cuando maintenance exponga `is_on_time` (tolerancia del plan),
+    usarlo aquí; es el único punto que decide "dentro de tolerancia".
+    """
+    return bool(work_order.completed_at) and timezone.localdate(work_order.completed_at) <= work_order.due_on
+
+
+def dashboard_kpis(*, membership, days: int = 30, now=None, filters: KpiFilters | None = None) -> Kpis:
+    """KPIs de la organización o, si la membresía tiene alcance, solo de sus sitios (ORG-06).
+
+    `filters` acota la ventana y los activos (KPI-01); sin él, últimos `days` días.
+    Los contadores del momento (OT abiertas, equipos detenidos, próximos
+    preventivos) respetan los filtros de activos, no la ventana.
+    """
     now = now or timezone.now()
-    window_start = now - datetime.timedelta(days=days)
+    filters = filters or KpiFilters(days=days)
+    window_start, window_end = filters.window(now)
     today = timezone.localdate(now)
     location_ids = allowed_location_ids(membership)
-
-    assets = visible_assets(membership=membership).filter(is_active=True)
-    reliability = _reliability(
-        assets=assets,
-        failures=_by_asset_scope(FailureEvent.objects, location_ids),
-        window_start=window_start,
-        now=now,
+    filter_location_ids = (
+        {filters.location.pk, *descendant_ids(filters.location)} if filters.location is not None else None
     )
 
-    due_preventives = (
-        visible_work_orders(membership=membership)
-        .filter(
-            work_type=WorkOrder.Type.PREVENTIVE,
-            due_on__gte=window_start.date(),
-            due_on__lt=today,
-        )
-        .exclude(status=WorkOrder.Status.CANCELLED)
-    )
+    assets = filtered_assets(membership=membership, filters=filters, location_ids=filter_location_ids)
+    failures = _by_asset_scope(FailureEvent.objects, location_ids)
+    assignments = _by_asset_scope(PlanAssignment.objects, location_ids)
+    work_orders = visible_work_orders(membership=membership)
+    if filters.any:
+        failures = FailureEvent.objects.filter(asset__in=assets)
+        assignments = PlanAssignment.objects.filter(asset__in=assets)
+        if filters.narrows_assets:
+            work_orders = work_orders.filter(asset__in=assets)
+        else:
+            work_orders = work_orders.filter(in_locations(filter_location_ids))
+    reliability = _reliability(assets=assets, failures=failures, window_start=window_start, now=window_end)
+
+    # Preventivas vencidas en la ventana: fecha límite ya pasada (antes de hoy) y dentro del período.
+    due_before = today
+    if filters.date_to is not None:
+        due_before = min(today, filters.date_to + datetime.timedelta(days=1))
+    due_preventives = work_orders.filter(
+        work_type=WorkOrder.Type.PREVENTIVE,
+        due_on__gte=window_start.date(),
+        due_on__lt=due_before,
+    ).exclude(status=WorkOrder.Status.CANCELLED)
     due_count = due_preventives.count()
-    on_time = sum(
-        1
-        for wo in due_preventives.only("due_on", "completed_at")
-        if wo.completed_at and timezone.localdate(wo.completed_at) <= wo.due_on
-    )
+    on_time = sum(1 for wo in due_preventives.only("due_on", "completed_at") if _closed_on_time(wo))
     compliance = 100 * on_time / due_count if due_count else None
 
-    open_qs = visible_work_orders(membership=membership).filter(status__in=OPEN_STATUSES)
+    open_qs = work_orders.filter(status__in=OPEN_STATUSES)
     return Kpis(
         availability_pct=reliability.availability_pct,
         mttr_hours=reliability.mttr_hours,
@@ -174,8 +253,10 @@ def dashboard_kpis(*, membership, days: int = 30, now=None) -> Kpis:
         open_work_orders=open_qs.count(),
         overdue_work_orders=open_qs.filter(due_on__lt=today).count(),
         stopped_assets=assets.filter(status__in=DOWN_STATUSES).count(),
-        upcoming_preventives=_by_asset_scope(PlanAssignment.objects, location_ids)
-        .filter(is_active=True, next_due_on__lte=today + datetime.timedelta(days=7))
-        .count(),
+        upcoming_preventives=assignments.filter(
+            is_active=True, next_due_on__lte=today + datetime.timedelta(days=7)
+        ).count(),
         no_service_time=reliability.asset_count > 0 and reliability.calendar_hours == 0,
+        period_start=timezone.localdate(window_start),
+        period_end=timezone.localdate(window_end - datetime.timedelta(microseconds=1)),
     )

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-27 00:25-0300\n"
+"POT-Creation-Date: 2026-09-27 01:08-0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1717,6 +1717,42 @@ msgid "Logo quitado."
 msgstr ""
 
 msgid "Nombres de los estados guardados."
+msgstr ""
+
+msgid "Período"
+msgstr ""
+
+msgid "Últimos 30 días"
+msgstr ""
+
+msgid "Últimos 90 días"
+msgstr ""
+
+msgid "Último año"
+msgstr ""
+
+msgid "Personalizado"
+msgstr ""
+
+msgid "Sitio o ubicación"
+msgstr ""
+
+msgid "Incluye las ubicaciones que contiene."
+msgstr ""
+
+msgid "Código exacto de un activo."
+msgstr ""
+
+msgid "No hay un activo visible con ese código."
+msgstr ""
+
+msgid "Indica desde qué día medir."
+msgstr ""
+
+msgid "La fecha de inicio no puede ser futura."
+msgstr ""
+
+msgid "La fecha de término debe ser igual o posterior a la de inicio."
 msgstr ""
 
 msgid "¿Qué pasó?"
@@ -3647,6 +3683,12 @@ msgstr ""
 msgid "Ver todas"
 msgstr ""
 
+msgid "Filtros de indicadores"
+msgstr ""
+
+msgid "Aplicar"
+msgstr ""
+
 msgid "Indicadores"
 msgstr ""
 
@@ -3654,10 +3696,59 @@ msgid ""
 "Sin tiempo en servicio en el período: todos los activos estuvieron de baja."
 msgstr ""
 
+msgid "Fórmula"
+msgstr ""
+
+msgid "(tiempo calendario − detención) / tiempo calendario × 100"
+msgstr ""
+
+msgid ""
+"Tiempo calendario: horas del período de cada activo, sin los períodos de "
+"baja. Detención: tiempo detenido o en mantención."
+msgstr ""
+
+msgid ""
+"Referencia: EN 15341 (disponibilidad) · SMRP Best Practices (Availability)."
+msgstr ""
+
+msgid "tiempo operativo / número de fallas con detención"
+msgstr ""
+
+msgid "Solo cuentan las fallas con detención total iniciadas en el período."
+msgstr ""
+
+msgid ""
+"Referencia: EN 15341 · SMRP Best Practices (Mean Time Between Failures)."
+msgstr ""
+
+msgid "tiempo total de reparación / número de reparaciones"
+msgstr ""
+
+msgid ""
+"Reparación: desde el inicio hasta el término de cada falla con detención "
+"total ya resuelta."
+msgstr ""
+
+msgid "Referencia: EN 15341 · SMRP Best Practices (Mean Time To Repair)."
+msgstr ""
+
 msgid "Cumplimiento preventivo"
 msgstr ""
 
 msgid "OT preventivas cerradas a tiempo"
+msgstr ""
+
+msgid ""
+"OT preventivas cerradas a tiempo / OT preventivas vencidas en el período × "
+"100"
+msgstr ""
+
+msgid ""
+"A tiempo: completada a más tardar en su fecha límite. Las canceladas no "
+"cuentan."
+msgstr ""
+
+msgid "Referencia: SMRP Best Practices (PM Compliance) · EN 15341."
 msgstr ""
 
 msgid "Equipos detenidos"
