@@ -415,6 +415,81 @@ def report_failure(
     return request
 
 
+@transaction.atomic
+def report_anonymous_failure(
+    *, asset: Asset, name: str, description: str, asset_stopped: bool = False, photo=None
+) -> WorkRequest:
+    """Aviso por QR sin cuenta (REQ-02): solo crea la solicitud, marcada anónima.
+
+    Requiere revisión (CA3): no crea OT ni cambia el estado del activo aunque diga
+    "detenido" (queda como información para quien revisa). Aceptarla crea la OT
+    (`accept_request`). Se llama dentro del contexto de la organización del activo
+    del QR; si la organización no lo permite, falla.
+
+    Si la foto no cabe en el cupo, el aviso se guarda sin ella (`photo_warning`),
+    igual que el aviso con sesión.
+    """
+    organization = require_current_organization()
+    if asset.organization_id != organization.pk or not asset.is_active:
+        raise PermissionDeniedError(_("Este activo no recibe avisos."))
+    if not organization.allow_anonymous_reports:
+        raise PermissionDeniedError(_("La organización no recibe avisos sin cuenta."))
+    request = WorkRequest.objects.create(
+        number=next_number(key="request"),
+        asset=asset,
+        description=description,
+        asset_stopped=asset_stopped,
+        is_anonymous=True,
+        anonymous_name=name.strip()[:100],
+    )
+    audit.record(
+        action=AuditEvent.Action.CREATE,
+        target=request,
+        changes=audit.snapshot(request, fields={"number", "asset", "asset_stopped", "is_anonymous"}),
+    )
+    notify_request_created(work_request=request)
+    request.photo_warning = ""
+    if photo is not None:
+        try:
+            attachments_services.add_attachment(
+                target_type=AttachmentTargetType.WORK_ORDER,
+                target_id=request.pk,  # pasa a la OT al aceptar la solicitud
+                uploaded_file=photo,
+                by=None,
+                purpose=AttachmentPurpose.PHOTO,
+            )
+        except AttachmentError as error:
+            if not isinstance(error, QuotaExceededError):
+                raise WorkOrderError(error.message) from error
+            request.photo_warning = _("El aviso se envió sin la foto.")
+    return request
+
+
+def _create_work_order_for_anonymous(*, work_request: WorkRequest, membership) -> WorkOrder:
+    """Al aceptar un aviso anónimo se crea su OT correctiva; la foto pasa a la OT.
+
+    El estado del activo no se cambia: "detenido" fue información de alguien sin
+    cuenta; si sigue detenido, quien acepta lo registra en la ficha del activo.
+    """
+    description = work_request.description
+    header = _("Aviso por QR sin cuenta de %(name)s") % {"name": work_request.anonymous_name}
+    work_order = create_work_order(
+        work_type=WorkOrder.Type.CORRECTIVE,
+        title=description.strip().splitlines()[0][:120] or _("Falla reportada"),
+        description=f"{description}\n\n{header}",
+        asset=work_request.asset,
+        location=work_request.location,
+        priority=_suggest_priority(work_request.asset, work_request.asset_stopped),
+        status=S.REQUESTED,
+        by=membership.user,
+    )
+    from .selectors import anonymous_request_photos  # import local, como el resto del módulo
+
+    anonymous_request_photos(work_request).update(target_id=work_order.pk)
+    work_request.work_order = work_order
+    return work_order
+
+
 def add_attachment(
     *, work_order: WorkOrder, uploaded_file, by, purpose=AttachmentPurpose.PHOTO
 ) -> Attachment:
@@ -1288,18 +1363,23 @@ def accept_request(*, work_request: WorkRequest, membership) -> WorkRequest:
 
     La OT correctiva ya existe (se crea al avisar, `report_failure`): aceptar
     solo formaliza la decisión y saca la solicitud de la bandeja de pendientes.
+    Un aviso anónimo (REQ-02) aún no tiene OT: aceptarlo la crea.
     """
     require_perm(membership, Perm.WORK_ORDER_MANAGE)
     _require_pending_request(work_request)
+    changes = {"status": [R.PENDING, R.ACCEPTED]}
+    if work_request.work_order_id is None and work_request.is_anonymous:
+        work_order = _create_work_order_for_anonymous(work_request=work_request, membership=membership)
+        changes["work_order"] = work_order.code
     work_request.status = R.ACCEPTED
     work_request.decided_by = membership.user
     work_request.decided_at = timezone.now()
-    work_request.save(update_fields=["status", "decided_by", "decided_at", "updated_at"])
+    work_request.save(update_fields=["status", "work_order", "decided_by", "decided_at", "updated_at"])
     audit.record(
         action=AuditEvent.Action.TRANSITION,
         target=work_request,
         actor=membership.user,
-        changes={"status": [R.PENDING, R.ACCEPTED]},
+        changes=changes,
     )
     return work_request
 

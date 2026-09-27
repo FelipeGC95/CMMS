@@ -43,6 +43,18 @@ class OrganizationSettingsForm(forms.Form):
     )
 
 
+class AnonymousReportsForm(forms.Form):
+    allow_anonymous_reports = forms.BooleanField(
+        label=_("Permitir avisos por QR sin cuenta"),
+        required=False,
+        help_text=_(
+            "Quien escanee el QR de un activo sin haber ingresado verá un formulario corto para "
+            "avisar una falla. El aviso llega a Solicitudes marcado como anónimo y no crea una OT "
+            "hasta que alguien lo acepte."
+        ),
+    )
+
+
 class SecurityForm(forms.Form):
     mfa_policy = forms.ChoiceField(
         label=_("Verificación en dos pasos"),

@@ -184,6 +184,24 @@ def update_organization_settings(*, membership, require_close_approval, require_
 
 
 @transaction.atomic
+def set_anonymous_reports(*, membership, allow_anonymous_reports: bool):
+    """Enciende o apaga el aviso por QR sin cuenta (REQ-02 CA1). Solo el administrador."""
+    require_perm(membership, Perm.ORGANIZATION_MANAGE)
+    organization = Organization.objects.select_for_update().get(pk=membership.organization_id)
+    before = organization.allow_anonymous_reports
+    if before != allow_anonymous_reports:
+        organization.allow_anonymous_reports = allow_anonymous_reports
+        organization.save(update_fields=["allow_anonymous_reports", "updated_at"])
+        audit.record(
+            action=AuditEvent.Action.UPDATE,
+            target=organization,
+            membership=membership,
+            changes={"allow_anonymous_reports": [before, allow_anonymous_reports]},
+        )
+    return organization
+
+
+@transaction.atomic
 def update_mfa_policy(*, membership, mfa_policy):
     """Quién debe usar verificación en dos pasos en la organización (ORG-08)."""
     require_perm(membership, Perm.ORGANIZATION_MANAGE)

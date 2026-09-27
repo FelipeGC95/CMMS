@@ -1,0 +1,8 @@
+{% extends "allauth/layouts/base.html" %}{% load i18n ui %}
+{% block head_title %}{% translate "Aviso enviado" %}{% endblock %}
+{% block content %}
+{% include "assets/_public_header.html" %}
+<h1>{% translate "Aviso enviado" %}</h1>
+<div class="alert alert--success" role="status">{% icon 'check' %}<span>{% blocktranslate with name=asset.name %}Gracias. Mantención recibió tu aviso sobre {{ name }} y lo revisará.{% endblocktranslate %}</span></div>
+<a class="btn btn--secondary btn--block" href="{% url 'asset_qr' asset.qr_token %}">{% icon 'megaphone' %}{% translate "Enviar otro aviso" %}</a>
+{% endblock %}

@@ -15,6 +15,7 @@ from apps.core.files import private_file_response
 from . import services
 from .branding import brand_palette, theme_css
 from .forms import (
+    AnonymousReportsForm,
     BrandColorForm,
     LocationForm,
     OrganizationLogoForm,
@@ -130,6 +131,14 @@ def organization_settings_view(request):
         services.update_organization_settings(membership=membership, **form.cleaned_data)
         messages.success(request, _("Configuración guardada."))
         return redirect("organization_settings")
+    anonymous_form = AnonymousReportsForm(
+        request.POST if section == "anonymous" else None,
+        initial={"allow_anonymous_reports": organization.allow_anonymous_reports},
+    )
+    if section == "anonymous" and anonymous_form.is_valid():
+        services.set_anonymous_reports(membership=membership, **anonymous_form.cleaned_data)
+        messages.success(request, _("Configuración guardada."))
+        return redirect(f"{reverse('organization_settings')}#anonymous")
     security_form = SecurityForm(
         request.POST if section == "security" else None, initial={"mfa_policy": organization.mfa_policy}
     )
@@ -187,6 +196,7 @@ def organization_settings_view(request):
             "labels_form": labels_form,
             "logo_form": logo_form,
             "security_form": security_form,
+            "anonymous_form": anonymous_form,
             "brand_form": brand_form,
             "brand_notes": brand_palette(organization.primary_color).notes
             if organization.primary_color

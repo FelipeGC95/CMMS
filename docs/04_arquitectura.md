@@ -113,7 +113,10 @@ revés; los modelos no llaman servicios; las vistas HTML y la API llaman a
    filtra por la organización del contexto y **lanza `TenantNotSet`** si no
    hay contexto. Para operaciones de plataforma existe un manager explícito
    `all_tenants` que solo se usa en código revisado (comandos de admin,
-   migraciones de datos) y se busca con grep en revisiones.
+   migraciones de datos) y se busca con grep en revisiones. Excepción
+   acotada: el QR sin sesión (REQ-02) busca el activo por su token no
+   adivinable y fija `tenant_context` con la organización de ese activo
+   (`assets.selectors.asset_for_anonymous_report`).
 4. **Escritura**: `TenantModel.save()` asigna `organization_id` desde el
    contexto y rechaza guardar si no coincide.
 5. **Alcance por sitio**: los selectors aplican además el filtro de
@@ -131,6 +134,92 @@ revés; los modelos no llaman servicios; las vistas HTML y la API llaman a
    `app.current_organization`. `tenant_context()` la fija al entrar y la
    restaura al salir; `request_finished` la limpia. Activa antes del piloto
    con datos reales.
+
+## 5. Seguridad
+
+| Tema | Medida |
+|---|---|
+| Autenticación | allauth, Argon2, verificación de correo, MFA TOTP con códigos de recuperación, exigible por organización. |
+| Fuerza bruta | Límite de intentos por usuario e IP (django-axes o el rate limit de allauth), bloqueo temporal; límite de tasa en formularios públicos: registro (rate limit de allauth) y aviso por QR sin cuenta (por IP y por activo, `apps.accounts.antibot.consume_rate`), ambos con campo trampa, tiempo mínimo y suma firmada. |
+| Sesión | Cookies `Secure`, `HttpOnly`, `SameSite=Lax`; rotación al iniciar sesión y al cambiar de organización; expiración por inactividad configurable. |
+| Autorización | Permisos por rol verificados en servicios y selectors (no solo en la UI); objetos siempre obtenidos por selectors con alcance. |
+| Transporte | HTTPS obligatorio, HSTS (1 año, preload cuando el dominio sea estable). |
+| Cabeceras | CSP estricta en toda respuesta (ADR-023: sin scripts ni estilos en línea; htmx y Alpine servidos localmente; Alpine en su build compatible con CSP), `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`. |
+| API | Tokens por organización con alcances, guardados como hash, con prefijo visible; límite de tasa por token. |
+| Archivos | Validación de tipo real (magic bytes) y tamaño; nombres aleatorios; sin ejecución; URLs firmadas de corta duración. |
+| Secretos | Variables de entorno de Render; `.env` solo local e ignorado por git; gitleaks en CI. |
+| Datos | Cifrado en reposo por el proveedor (Postgres y R2); respaldos cifrados. |
+| Dependencias | Dependabot + `pip-audit` en CI. |
+| Postura | Documento `docs/07_postura_de_seguridad.md` para clientes (se redacta en MVP‑1). |
+
+## 6. Despliegue y operación
+
+| Ambiente | Infraestructura | Despliegue |
+|---|---|---|
+| Desarrollo | Local en Windows: Python con uv, PostgreSQL local (instalador oficial o Docker Desktop), almacenamiento en disco. | — |
+| Staging | Render: web + worker pequeños, Postgres básico, bucket R2 separado. Datos sintéticos. | Automático al hacer push a `main` con CI en verde. |
+| Producción | Render: web + worker, Postgres con respaldos gestionados, bucket R2 de producción. | Manual (promoción del mismo commit) tras validar staging. |
+
+Pipeline (GitHub Actions): ruff → verificación de migraciones faltantes →
+pytest (con Postgres de servicio) → `check --deploy` → pip-audit/gitleaks.
+
+Operación:
+
+- `/healthz` (proceso vivo) y `/readyz` (base de datos accesible y cola al día).
+- Migraciones en el *pre-deploy command* de Render; migraciones compatibles
+  hacia atrás (expand/contract) para no cortar el servicio.
+- Respaldos: los del proveedor (recuperación a un punto en el tiempo) más un
+  `pg_dump` diario a R2 con retención de 30 días; prueba de restauración en
+  staging cada trimestre, registrada en `docs/operacion/`.
+- Tareas periódicas (Procrastinate): generación de preventivos cada hora,
+  avisos de vencimiento diarios, recálculo de uso de almacenamiento diario,
+  respaldo lógico diario.
+
+### Costo estimado de infraestructura
+
+Precios de lista aproximados; verificarlos al contratar.
+
+| Ítem | Staging | Producción |
+|---|---|---|
+| Render web | ~USD 7 | ~USD 7 → 25 al crecer |
+| Render worker | ~USD 7 | ~USD 7 |
+| Render Postgres | ~USD 6 | ~USD 19 (1 GB RAM) |
+| Cloudflare R2 | gratis (< 10 GB) | ~USD 0–5 |
+| Sentry, correo | plan gratuito | plan gratuito → ~USD 15 |
+| **Total** | **~USD 20** | **~USD 33–55** |
+
+Alternativas evaluadas: **Railway** (cobro por uso, similar en costo, menos
+predecible); **Fly.io** (más barato, pero más operación y Postgres menos
+gestionado); **DigitalOcean App Platform** (comparable; opción de respaldo);
+**VPS Hetzner + Coolify** (~USD 10, pero respaldos, actualizaciones y seguridad
+del servidor quedan a tu cargo: no vale la pena para una sola persona hasta
+tener ingresos).
+
+## 7. Zonas horarias e i18n
+
+- `USE_TZ = True`; todo se guarda en UTC.
+- Zona de visualización: la del sitio del activo si está definida; si no, la
+  de la organización. Un middleware activa la zona de la organización; las
+  plantillas que muestran datos de un sitio concreto usan un filtro
+  `|site_tz`.
+- Fechas "de calendario" (fecha límite de un preventivo por días) se calculan
+  en la zona del sitio y se guardan como `timestamptz` al final del día local.
+- `LANGUAGE_CODE = "es-cl"`; todo texto con `gettext`/`{% translate %}`;
+  `LOCALE_PATHS` en el repo; formato numérico y de fecha por locale.
+
+## 8. Decisiones de arquitectura (ADR)
+
+### ADR-001 · Monolito modular con Django y PostgreSQL
+- **Contexto:** una sola persona con experiencia en Django; dominio con
+  muchas relaciones y reportes.
+- **Decisión:** un único proyecto Django organizado en apps por dominio,
+  un solo despliegue y una sola base PostgreSQL.
+- **Alternativas descartadas:** microservicios (costo operativo imposible
+  para una persona); FastAPI + SPA (más código propio para admin, auth,
+  formularios y migraciones).
+- **Consecuencias:** despliegue y depuración simples; hay que cuidar los
+  límites entre apps (reglas de dependencia de la §3) para no crear un
+  monolito acoplado.
 
 ### ADR-002 · Multi-tenancy con base compartida, columna de tenant y filtrado que falla cerrado; RLS antes de producción paga
 - **Contexto:** cientos de organizaciones pequeñas; hay que evitar fugas de

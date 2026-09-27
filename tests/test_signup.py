@@ -159,7 +159,7 @@ def test_bots_are_rejected(client, db, overrides):
 def test_forged_token_is_rejected_even_if_answer_matches_the_new_challenge(client, db, monkeypatch):
     # El desafío que se regenera para volver a mostrar el formulario no puede validar el envío.
     data = form_data(client, challenge="manipulado", answer=6)
-    monkeypatch.setattr("apps.accounts.forms.secrets.randbelow", lambda n: 2)  # nuevo desafío: 3 + 3
+    monkeypatch.setattr("apps.accounts.antibot.secrets.randbelow", lambda n: 2)  # nuevo desafío: 3 + 3
     response = client.post(reverse("signup"), data)
     assert response.status_code == 200
     assert not PendingSignup.objects.exists() and not mail.outbox

@@ -27,9 +27,9 @@
       <tr>
         <td data-label="{% translate 'Fecha' %}" class="num">{{ req.created_at|date:"d-m-Y H:i" }}</td>
         <td data-label="{% translate 'Activo o ubicación' %}">{% if req.asset_id %}<a href="{% url 'asset_detail' req.asset_id %}">{% include "work/_target.html" with asset=req.asset %}</a>{% else %}{% include "work/_target.html" with location=req.location %}{% endif %}</td>
-        <td data-label="{% translate 'Descripción' %}">{{ req.description|truncatechars:120 }}</td>
-        <td data-label="{% translate 'Detenido' %}">{% if req.asset_stopped %}{% icon 'stop' %} {% translate "Sí" %}{% else %}—{% endif %}</td>
-        <td data-label="{% translate 'Solicitada por' %}">{{ req.requested_by|default:_("Sistema") }}</td>
+        <td data-label="{% translate 'Descripción' %}">{{ req.description|truncatechars:120 }}{% if req.photo_id %} <a href="{% url 'request_photo' req.pk %}">{% icon 'camera' %}{% translate "Ver foto" %}</a>{% endif %}</td>
+        <td data-label="{% translate 'Detenido' %}">{% if req.is_anonymous and req.asset_stopped %}<span class="badge badge--error">{% icon 'stop' %}{% translate "Reporta equipo detenido" %}</span>{% elif req.asset_stopped %}{% icon 'stop' %} {% translate "Sí" %}{% else %}—{% endif %}</td>
+        <td data-label="{% translate 'Solicitada por' %}">{% if req.is_anonymous %}{{ req.anonymous_name }} <span class="badge badge--warning">{% icon 'alert' %}{% translate "Anónima — requiere revisión" %}</span>{% else %}{{ req.requested_by|default:_("Sistema") }}{% endif %}</td>
         <td data-label="{% translate 'Acciones' %}">
           <div class="row">
             <form method="post" action="{% url 'request_accept' req.pk %}">

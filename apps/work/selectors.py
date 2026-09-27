@@ -11,6 +11,7 @@ from django.db.models import (
     IntegerField,
     OuterRef,
     Q,
+    Subquery,
     Sum,
     Value,
     When,
@@ -20,7 +21,7 @@ from django.utils import timezone
 from apps.accounts.models import Membership, User
 from apps.accounts.permissions import ROLE_PERMISSIONS, Perm, require_perm
 from apps.accounts.scoping import allowed_location_ids, is_scoped
-from apps.attachments.models import TargetType
+from apps.attachments.models import Attachment, Purpose, TargetType
 from apps.attachments.selectors import attachments_by_target
 from apps.maintenance.models import PlanAssignment, PlanVersion
 from apps.organizations.models import Location
@@ -220,13 +221,27 @@ def visible_requests(*, membership):
     return qs
 
 
+def anonymous_request_photos(work_request):
+    """Fotos de un aviso anónimo que aún no tiene OT (ver `services.report_anonymous_failure`)."""
+    return Attachment.objects.filter(
+        target_type=TargetType.WORK_ORDER, target_id=work_request.pk, purpose=Purpose.PHOTO
+    ).order_by("created_at")
+
+
 def pending_requests(*, membership):
-    """Bandeja de solicitudes por decidir, del más antiguo al más nuevo."""
+    """Bandeja de solicitudes por decidir, del más antiguo al más nuevo.
+
+    `photo_id`: la primera foto de un aviso anónimo (REQ-02), que aún no tiene OT.
+    """
     require_perm(membership, Perm.WORK_ORDER_MANAGE)
+    photos = Attachment.objects.filter(
+        target_type=TargetType.WORK_ORDER, target_id=OuterRef("pk"), purpose=Purpose.PHOTO
+    ).order_by("created_at")
     return (
         visible_requests(membership=membership)
         .filter(status=WorkRequest.Status.PENDING)
         .select_related("asset", "location", "requested_by", "work_order")
+        .annotate(photo_id=Subquery(photos.values("pk")[:1]))
         .order_by("created_at")
     )
 

@@ -436,8 +436,8 @@ main { max-width: var(--content-max); margin: 0 auto; padding: var(--space-5) va
 .empty img { width: 40px; opacity: 0.5; margin-bottom: var(--space-2); }
 
 /* ---------- Login ---------- */
-.auth { max-width: none; min-height: 100vh; display: grid; place-items: center; padding: var(--space-4); background: var(--color-nav-bg); }
-.auth__card { width: 100%; max-width: 400px; }
+.auth { max-width: none; min-height: 100vh; display: grid; grid-template-columns: minmax(0, 1fr); place-items: center; padding: var(--space-4); background: var(--color-nav-bg); }
+.auth__card { width: 100%; max-width: 400px; min-width: 0; }
 .auth__logo { display: flex; flex-direction: column; align-items: center; gap: var(--space-2); margin-bottom: var(--space-5); padding: var(--space-4); }
 .auth__logo img { height: 96px; }
 .auth__product { font-family: var(--font-brand); font-weight: 500; color: var(--color-nav-text); letter-spacing: 0.08em; }
@@ -460,6 +460,10 @@ main { max-width: var(--content-max); margin: 0 auto; padding: var(--space-5) va
 
 /* Campo trampa del registro (ORG-02): fuera de la vista, no display:none (algunos bots lo detectan). */
 .hp-field { position: absolute; left: -10000px; width: 1px; height: 1px; overflow: hidden; }
+
+/* Aviso por QR sin cuenta (REQ-02): organización del activo sobre la tarjeta pública. */
+.public-report__org { display: flex; align-items: center; gap: var(--space-3); font-weight: 600; margin-bottom: var(--space-2); overflow-wrap: anywhere; }
+.public-report__logo { height: 40px; width: auto; max-width: 120px; object-fit: contain; flex: none; }
 
 /* ---------- Utilidades (al final: ganan a los márgenes de los componentes, p. ej. .dl.mb-4) ---------- */
 .mt-2 { margin-top: var(--space-2); }
