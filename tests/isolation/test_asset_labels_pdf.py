@@ -22,6 +22,13 @@ def test_ids_of_another_organization_print_nothing(client, tenant_a, tenant_b):
     assert response["Location"].startswith(reverse("asset_list"))
 
 
+def test_selection_ignores_ids_of_another_organization(client, tenant_a, tenant_b):
+    login(client, tenant_b.admin)
+    ids = [str(tenant_a.asset.pk), str(tenant_b.asset.pk)]
+    client.post(reverse("asset_labels_select"), {"page_ids": ids, "ids": ids})
+    assert client.session[f"label_selection:{tenant_b.org.pk}"] == [str(tenant_b.asset.pk)]
+
+
 def test_mixed_ids_print_only_the_own_assets(client, tenant_a, tenant_b):
     with tenant_context(tenant_a.org):
         tenant_a.asset.code = "SOLO-A"

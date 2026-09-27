@@ -30,6 +30,24 @@ def test_external_without_locations_has_nothing_to_print(client, tenant_a):
     assert "No hay activos para imprimir" in response.content.decode()
 
 
+def test_site_scoped_member_cannot_select_assets_out_of_scope(client, tenant_a):
+    with tenant_context(tenant_a.org):
+        north = Location.objects.create(code="N", name="Planta Norte")
+        MembershipLocation.objects.create(membership=tenant_a.tech, location=north)
+    tenant_a.tech.restricted_to_locations = True
+    tenant_a.tech.save()
+    login(client, tenant_a.tech)
+    ids = [str(tenant_a.asset.pk)]
+    client.post(reverse("asset_labels_select"), {"page_ids": ids, "ids": ids})
+    assert client.session[f"label_selection:{tenant_a.org.pk}"] == []
+
+
+def test_selection_requires_post_and_login(client, tenant_a):
+    assert "login" in client.post(reverse("asset_labels_select"))["Location"]
+    login(client, tenant_a.admin)
+    assert client.get(reverse("asset_labels_select")).status_code == 405
+
+
 def test_anonymous_is_sent_to_login(client, tenant_a):
     response = client.get(reverse("asset_labels_pdf"))
     assert response.status_code == 302

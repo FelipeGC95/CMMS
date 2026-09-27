@@ -20,7 +20,10 @@
 <section class="card mb-4" id="labels" aria-labelledby="labels-title">
   <h2 id="labels-title">{% translate "Imprimir etiquetas QR" %}</h2>
   <p class="muted">{% translate "Se genera un PDF A4 con varias etiquetas por hoja: QR, código, nombre y el logo de la organización. Imprime al 100 % y recorta por la línea punteada." %}</p>
-  <form id="labels-form" method="get" action="{% url 'asset_labels_pdf' %}">
+  <form id="labels-form" method="post" action="{% url 'asset_labels_select' %}">
+    {% csrf_token %}
+    <input type="hidden" name="next" value="{{ next_url }}">
+    {% for asset in page.object_list %}<input type="hidden" name="page_ids" value="{{ asset.pk }}" form="labels-form">{% endfor %}
     {% if search %}<input type="hidden" name="q" value="{{ search }}">{% endif %}
     {% if status %}<input type="hidden" name="status" value="{{ status }}">{% endif %}
     {% if parent %}<input type="hidden" name="parent" value="{{ parent.pk }}">{% endif %}
@@ -33,14 +36,17 @@
       <span class="help">{% translate "Pequeñas: 66 × 36 mm. Grandes: 99 × 57 mm, para equipos que se escanean a distancia." %}</span>
     </div>
     {% if labels_over_cap %}
-    <div class="alert alert--warning" role="status">{% icon 'alert' %}<span>{% blocktranslate with total=page.paginator.count max=max_labels %}La búsqueda tiene {{ total }} activos y un PDF admite hasta {{ max }} etiquetas. Filtra la lista o marca los activos de esta página.{% endblocktranslate %}</span></div>
+    <div class="alert alert--warning" role="status">{% icon 'alert' %}<span>{% blocktranslate with total=page.paginator.count max=max_labels %}La búsqueda tiene {{ total }} activos y un PDF admite hasta {{ max }} etiquetas. Filtra la lista o marca los activos que quieras imprimir.{% endblocktranslate %}</span></div>
     {% endif %}
+    <p class="row">{% icon 'check' %}{% include "assets/_label_selection_count.html" %}</p>
     <div class="row">
-      {% if not labels_over_cap and page.paginator.count %}<button class="btn btn--primary" type="submit" name="scope" value="filtered">{% icon 'print' %}{% blocktranslate count n=page.paginator.count %}PDF de {{ n }} activo{% plural %}PDF de los {{ n }} activos{% endblocktranslate %}</button>{% endif %}
-      <button class="btn btn--secondary" type="submit" name="scope" value="selected">{% icon 'check' %}{% translate "PDF de los marcados" %}</button>
+      {% if not labels_over_cap and page.paginator.count %}<button class="btn btn--primary" type="submit" name="action" value="print_filtered">{% icon 'print' %}{% blocktranslate count n=page.paginator.count %}PDF de {{ n }} activo{% plural %}PDF de los {{ n }} activos{% endblocktranslate %}</button>{% endif %}
+      <button class="btn btn--secondary" type="submit" name="action" value="print_selected">{% icon 'check' %}{% translate "PDF de los marcados" %}</button>
+      <button class="btn btn--ghost" type="submit" name="action" value="save">{% translate "Guardar marcas de esta página" %}</button>
+      <button class="btn btn--ghost" type="submit" name="action" value="clear">{% translate "Limpiar selección" %}</button>
       <a class="btn btn--ghost" href="?{% for k, v in request.GET.items %}{% if k != 'labels' and k != 'page' %}{{ k }}={{ v|urlencode }}&{% endif %}{% endfor %}">{% translate "Cancelar" %}</a>
     </div>
-    <p class="help muted mt-2">{% translate "Las marcas valen para la página que ves; para imprimir de varias páginas, usa la búsqueda o el filtro de estado." %}</p>
+    <p class="help muted mt-2">{% translate "Las marcas se guardan entre páginas y búsquedas. Si tu navegador no guarda cada casilla al marcarla, usa «Guardar marcas de esta página» antes de cambiar de página." %}</p>
   </form>
 </section>
 {% endif %}
@@ -71,7 +77,7 @@
     <tbody>
       {% for asset in page.object_list %}
       <tr>
-        {% if labels_mode %}<td data-label=""><label class="check-cell"><input type="checkbox" name="ids" value="{{ asset.pk }}" form="labels-form"><span class="visually-hidden">{% blocktranslate with code=asset.code %}Imprimir la etiqueta de {{ code }}{% endblocktranslate %}</span></label></td>{% endif %}
+        {% if labels_mode %}<td data-label=""><label class="check-cell"><input type="checkbox" name="ids" value="{{ asset.pk }}" form="labels-form"{% if asset.pk|stringformat:"s" in selected_ids %} checked{% endif %} hx-post="{% url 'asset_labels_select' %}" hx-trigger="change" hx-include="[form='labels-form']" hx-vals='{"action": "save"}' hx-target="#labels-count" hx-swap="outerHTML"><span class="visually-hidden">{% blocktranslate with code=asset.code %}Imprimir la etiqueta de {{ code }}{% endblocktranslate %}</span></label></td>{% endif %}
         <td class="mono" data-label="">{{ asset.code }}</td>
         <td data-label=""><a href="{% url 'asset_detail' asset.pk %}">{{ asset.name }}</a></td>
         <td data-label="{% translate 'Clase' %}">{{ asset.asset_class }}</td>

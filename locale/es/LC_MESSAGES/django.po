@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-26 20:29-0300\n"
+"POT-Creation-Date: 2026-09-26 23:27-0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -935,6 +935,15 @@ msgstr ""
 
 #, python-format
 msgid "Lectura registrada: %(kind)s."
+msgstr ""
+
+#, python-format
+msgid ""
+"Un PDF admite hasta %(max)s etiquetas; se guardaron las primeras %(max)s "
+"marcas."
+msgstr ""
+
+msgid "Selección de etiquetas vaciada."
 msgstr ""
 
 msgid "Marca al menos un activo para imprimir sus etiquetas."
@@ -2471,6 +2480,13 @@ msgstr ""
 msgid "Elige una clase para ver sus atributos."
 msgstr ""
 
+#, python-format
+msgid "%(n)s seleccionado"
+msgid_plural "%(n)s seleccionados"
+msgstr[0] ""
+msgstr[1] ""
+msgstr[2] ""
+
 msgid "Datos técnicos"
 msgstr ""
 
@@ -2918,7 +2934,7 @@ msgstr ""
 #, python-format
 msgid ""
 "La búsqueda tiene %(total)s activos y un PDF admite hasta %(max)s etiquetas. "
-"Filtra la lista o marca los activos de esta página."
+"Filtra la lista o marca los activos que quieras imprimir."
 msgstr ""
 
 #, python-format
@@ -2930,9 +2946,16 @@ msgstr[1] ""
 msgid "PDF de los marcados"
 msgstr ""
 
+msgid "Guardar marcas de esta página"
+msgstr ""
+
+msgid "Limpiar selección"
+msgstr ""
+
 msgid ""
-"Las marcas valen para la página que ves; para imprimir de varias páginas, "
-"usa la búsqueda o el filtro de estado."
+"Las marcas se guardan entre páginas y búsquedas. Si tu navegador no guarda "
+"cada casilla al marcarla, usa «Guardar marcas de esta página» antes de "
+"cambiar de página."
 msgstr ""
 
 msgid "Buscar"

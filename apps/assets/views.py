@@ -93,8 +93,17 @@ def asset_list_view(request):
         membership=request.membership, search=search, status=status, parent=parent, incomplete=incomplete
     )
     page = Paginator(assets, 25).get_page(request.GET.get("page"))
-    # Modo etiquetas (AST-05 CA2): casillas por fila y el formulario del PDF.
+    # Modo etiquetas (AST-05 CA2): casillas por fila y el formulario del PDF. Las marcas
+    # se guardan en la sesión, así que valen entre páginas y búsquedas.
     labels_mode = request.GET.get("labels") == "1" and not request.GET.get("report")
+    selected = set()
+    if labels_mode:
+        selected = {
+            str(pk)
+            for pk in label_assets(membership=request.membership, ids=_label_selection(request)).values_list(
+                "pk", flat=True
+            )
+        }
     return render(
         request,
         "assets/list.html",
@@ -111,6 +120,9 @@ def asset_list_view(request):
             "default_layout": DEFAULT_LAYOUT,
             "max_labels": MAX_LABELS,
             "labels_over_cap": labels_mode and page.paginator.count > MAX_LABELS,
+            "selected_ids": selected,
+            "selected_count": len(selected),
+            "next_url": request.get_full_path(),
         },
     )
 
@@ -399,12 +411,77 @@ def _selected_ids(values):
     return ids
 
 
+def _selection_key(request):
+    return f"label_selection:{request.organization.pk}"
+
+
+def _label_selection(request):
+    """Ids marcados para etiquetas, guardados en la sesión por organización."""
+    return _selected_ids(request.session.get(_selection_key(request), []))
+
+
+def _safe_next(request):
+    next_url = request.POST.get("next", "")
+    if next_url.startswith(reverse("asset_list")):
+        return next_url
+    return f"{reverse('asset_list')}?labels=1"
+
+
+@require_POST
+@membership_required
+def asset_labels_select_view(request):
+    """Guarda las marcas de la página en la selección de etiquetas (AST-05 CA2).
+
+    `page_ids` son los activos que se veían y `ids` los marcados entre ellos: se
+    reemplaza esa parte de la selección y se conserva la de otras páginas. Con htmx
+    se llama en cada casilla y devuelve el contador; sin JS, los botones del
+    formulario guardan y luego imprimen o vuelven a la lista.
+    """
+    action = request.POST.get("action", "save")
+    selection = [] if action == "clear" else _label_selection(request)
+    if action != "clear":
+        page_ids = set(_selected_ids(request.POST.getlist("page_ids")))
+        marked = [
+            pk
+            for pk in label_assets(
+                membership=request.membership, ids=_selected_ids(request.POST.getlist("ids"))
+            ).values_list("pk", flat=True)
+            if pk in page_ids
+        ]
+        selection = [pk for pk in selection if pk not in page_ids]
+        selection += [pk for pk in marked if pk not in selection]
+        if len(selection) > MAX_LABELS:
+            selection = selection[:MAX_LABELS]
+            messages.warning(
+                request,
+                _("Un PDF admite hasta %(max)s etiquetas; se guardaron las primeras %(max)s marcas.")
+                % {"max": MAX_LABELS},
+            )
+    request.session[_selection_key(request)] = [str(pk) for pk in selection]
+    if request.headers.get("HX-Request"):
+        return render(request, "assets/_label_selection_count.html", {"selected_count": len(selection)})
+    if action in ("print_selected", "print_filtered"):
+        params = {"size": request.POST.get("size", DEFAULT_LAYOUT)}
+        if action == "print_selected":
+            params["scope"] = "selected"
+        else:
+            params["scope"] = "filtered"
+            params.update(
+                {k: request.POST[k] for k in ("q", "status", "parent", "incomplete") if request.POST.get(k)}
+            )
+        return redirect(f"{reverse('asset_labels_pdf')}?{urlencode(params)}")
+    if action == "clear":
+        messages.info(request, _("Selección de etiquetas vaciada."))
+    return redirect(_safe_next(request))
+
+
 @membership_required
 def asset_labels_pdf_view(request):
     """PDF de etiquetas QR, varias por hoja A4 (AST-05 CA2).
 
-    `scope=selected` imprime los activos marcados (`ids`); si no, todos los del filtro
-    actual. Siempre dentro del alcance de la membresía y con un tope de `MAX_LABELS`.
+    `scope=selected` imprime los activos marcados (`ids` o, sin ellos, la selección
+    guardada en la sesión); si no, todos los del filtro actual. Siempre dentro del
+    alcance de la membresía y con un tope de `MAX_LABELS`.
     """
     search, status, parent, incomplete = _list_filters(request)
     filters = {
@@ -416,7 +493,7 @@ def asset_labels_pdf_view(request):
     back = f"{reverse('asset_list')}?{urlencode({**{k: v for k, v in filters.items() if v}, 'labels': 1})}"
     ids = None
     if request.GET.get("scope") == "selected":
-        ids = _selected_ids(request.GET.getlist("ids"))
+        ids = _selected_ids(request.GET.getlist("ids")) or _label_selection(request)
         if not ids:
             messages.warning(request, _("Marca al menos un activo para imprimir sus etiquetas."))
             return redirect(back)
