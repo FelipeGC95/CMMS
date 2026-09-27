@@ -1,0 +1,56 @@
+{% extends "base.html" %}{% load i18n ui %}
+{% block title %}{% translate "Planes preventivos" %}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>{% translate "Planes preventivos" %}</h1>
+    <p class="muted">{% blocktranslate count n=page.paginator.count %}{{ n }} plan{% plural %}{{ n }} planes{% endblocktranslate %}</p>
+  </div>
+  <a class="btn btn--primary" href="{% url 'plan_create' %}">{% icon 'calendar' %}{% translate "Nuevo plan" %}</a>
+</div>
+
+{# Filtros plegables en el teléfono (se abren solos si hay alguno activo); en tablet y escritorio siempre visibles. #}
+<details class="card mb-4 filters"{% if active_filters %} open{% endif %}>
+  <summary class="filters__summary">
+    <h2 id="filters-title">{% translate "Filtros" %}</h2>
+    {% if active_filters %}<span class="badge badge--info">{% icon 'info' %}{% blocktranslate count n=active_filters %}{{ n }} activo{% plural %}{{ n }} activos{% endblocktranslate %}</span>{% endif %}
+  </summary>
+  <form method="get" class="form-grid" aria-labelledby="filters-title">
+    {% include "_form_fields.html" with form=filter_form %}
+    <div class="row form-grid__actions">
+      <button class="btn btn--primary" type="submit">{% translate "Filtrar" %}</button>
+      <a class="btn btn--ghost" href="{% url 'plan_list' %}">{% translate "Limpiar filtros" %}</a>
+    </div>
+  </form>
+</details>
+
+<div class="card card--flush">
+  {% if page.object_list %}
+  <table class="table">
+    <thead><tr><th>{% translate "Plan" %}</th><th>{% translate "Clase" %}</th><th>{% translate "Frecuencia" %}</th><th>{% translate "Versión" %}</th><th>{% translate "Activos" %}</th><th>{% translate "Estado" %}</th></tr></thead>
+    <tbody>
+      {% for plan in page.object_list %}
+      <tr>
+        <td data-label=""><a href="{% url 'plan_detail' plan.pk %}">{{ plan.name }}</a> <span class="muted mono">{{ plan.code }}</span></td>
+        <td data-label="{% translate 'Clase' %}">{{ plan.asset_class|default:"—" }}</td>
+        <td data-label="{% translate 'Frecuencia' %}">{% if plan.current_version %}{{ plan.frequency_label }}{% else %}—{% endif %}</td>
+        <td data-label="{% translate 'Versión' %}" class="num">{% if plan.current_version %}v{{ plan.current_version.number }}{% else %}—{% endif %}</td>
+        <td data-label="{% translate 'Activos' %}" class="num">{{ plan.assignment_count }}</td>
+        <td data-label="">
+          <span class="row">
+          {% if not plan.is_active %}<span class="badge badge--neutral">{% icon 'dot' %}{% translate "Inactivo" %}</span>
+          {% elif plan.current_version %}<span class="badge badge--success">{% icon 'check' %}{% translate "Publicado" %}</span>
+          {% else %}<span class="badge badge--warning">{% icon 'wrench' %}{% translate "Sin publicar" %}</span>{% endif %}
+          {% if plan.draft_count %}<span class="badge badge--info">{% icon 'info' %}{% translate "Borrador" %}</span>{% endif %}
+          </span>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="empty">{% icon 'calendar' %} {% translate "No hay planes que coincidan." %}</p>
+  {% endif %}
+</div>
+{% include "_pagination.html" %}
+{% endblock %}

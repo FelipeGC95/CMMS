@@ -11,6 +11,7 @@ from django.urls import reverse
 from django.utils.http import urlencode
 from django.utils.safestring import mark_safe
 from django.utils.translation import gettext as _
+from django.utils.translation import ngettext
 from django.views.decorators.http import require_POST
 
 from apps.accounts.permissions import Perm, PermissionDeniedError, has_perm
@@ -157,6 +158,7 @@ def asset_detail_view(request, pk):
             ],
             "can_read_meters": has_perm(membership, Perm.METER_READING_CREATE),
             "can_manage": has_perm(membership, Perm.ASSET_MANAGE),
+            "can_manage_plans": has_perm(membership, Perm.PLAN_MANAGE),
             "attribute_rows": attribute_rows(asset, attributes),
             "missing_required_count": len(missing_required(asset, attributes)),
             "include_components": include_components,
@@ -297,6 +299,17 @@ def asset_create_view(request):
             form.add_error(None, error)
         else:
             messages.success(request, _("Activo %(code)s creado.") % {"code": asset.code})
+            plans = asset.plan_assignments.filter(is_active=True).count()
+            if plans:
+                messages.info(
+                    request,
+                    ngettext(
+                        "Se asignó %(n)s plan preventivo de su clase.",
+                        "Se asignaron %(n)s planes preventivos de su clase.",
+                        plans,
+                    )
+                    % {"n": plans},
+                )
             return redirect("asset_detail", pk=asset.pk)
     return render(request, "assets/asset_form.html", {"form": form, "asset": None})
 

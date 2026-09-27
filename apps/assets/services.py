@@ -562,6 +562,10 @@ def create_asset(
         membership=membership,
         changes={**audit.snapshot(asset, ASSET_FIELDS), "attributes": stored},
     )
+    # Planes por defecto de la clase (PM-04 CA1), igual que en la importación Excel.
+    from apps.maintenance.services import assign_class_plans
+
+    assign_class_plans(assets=[asset], by=membership.user)
     return asset
 
 

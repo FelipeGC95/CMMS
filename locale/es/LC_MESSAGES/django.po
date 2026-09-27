@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-26 23:32-0300\n"
+"POT-Creation-Date: 2026-09-27 00:19-0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -552,10 +552,6 @@ msgstr ""
 msgid "Fila %(row)s: se omitió el padre para evitar un ciclo."
 msgstr ""
 
-#, python-format
-msgid "%(code)s: no se asignó «%(plan)s» (falta el medidor que usa el plan)."
-msgstr ""
-
 msgid "Grúa horquilla eléctrica 2,5 t"
 msgstr ""
 
@@ -924,6 +920,13 @@ msgstr ""
 msgid "Activo %(code)s creado."
 msgstr ""
 
+#, python-format
+msgid "Se asignó %(n)s plan preventivo de su clase."
+msgid_plural "Se asignaron %(n)s planes preventivos de su clase."
+msgstr[0] ""
+msgstr[1] ""
+msgstr[2] ""
+
 msgid "Adjunto guardado."
 msgstr ""
 
@@ -1149,6 +1152,117 @@ msgstr ""
 msgid "%(version)s publicada."
 msgstr ""
 
+msgid "Buscar"
+msgstr ""
+
+msgid "Código o nombre."
+msgstr ""
+
+msgid "Estado"
+msgstr ""
+
+msgid "Inactivos"
+msgstr ""
+
+msgid "Clase de activo"
+msgstr ""
+
+msgid "Todas las clases"
+msgstr ""
+
+msgid "Disparador"
+msgstr ""
+
+msgid "Por calendario"
+msgstr ""
+
+msgid "Por medidor"
+msgstr ""
+
+msgid "Mixto (lo que ocurra primero)"
+msgstr ""
+
+msgid "Sin clase"
+msgstr ""
+
+msgid "Los activos nuevos de esta clase reciben el plan automáticamente."
+msgstr ""
+
+msgid "Plan activo"
+msgstr ""
+
+msgid "Cada cuántos días"
+msgstr ""
+
+msgid "Vacío si solo es por medidor."
+msgstr ""
+
+msgid "Sin medidor"
+msgstr ""
+
+msgid "Cada cuántas unidades del medidor"
+msgstr ""
+
+msgid "Reprogramación"
+msgstr ""
+
+msgid "Tolerancia de cumplimiento (%)"
+msgstr ""
+
+msgid "Duración estimada (min)"
+msgstr ""
+
+msgid "Se muestran en la OT preventiva."
+msgstr ""
+
+msgid "Para disparar por medidor indica el tipo y la frecuencia."
+msgstr ""
+
+msgid "Define una frecuencia en días, por medidor o ambas."
+msgstr ""
+
+msgid "Tarea"
+msgstr ""
+
+msgid "Mínimo"
+msgstr ""
+
+msgid "Máximo"
+msgstr ""
+
+msgid "Obligatorio para completar la OT"
+msgstr ""
+
+msgid "El máximo no puede ser menor que el mínimo."
+msgstr ""
+
+msgid "Descripción"
+msgstr ""
+
+msgid "Cantidad"
+msgstr ""
+
+msgid "Qué cambió"
+msgstr ""
+
+msgid "Queda en el historial de versiones."
+msgstr ""
+
+msgid "Buscar activo"
+msgstr ""
+
+msgid "Todas las ubicaciones"
+msgstr ""
+
+msgid "Plan"
+msgstr ""
+
+msgid "El primero del tipo del plan"
+msgstr ""
+
+msgid "Solo para planes por medidor, si el activo tiene varios del mismo tipo."
+msgstr ""
+
 msgid "Verificación (OK / No OK / N.A.)"
 msgstr ""
 
@@ -1228,12 +1342,6 @@ msgstr ""
 msgid "%(n)s días"
 msgstr ""
 
-msgid "Define una frecuencia en días, por medidor o ambas."
-msgstr ""
-
-msgid "Para disparar por medidor indica el tipo y la frecuencia."
-msgstr ""
-
 #, python-format
 msgid ""
 "La versión %(number)s de «%(plan)s» está publicada: crea un borrador para "
@@ -1311,6 +1419,103 @@ msgstr ""
 
 #, python-format
 msgid "%(asset)s no tiene un medidor de tipo «%(kind)s»."
+msgstr ""
+
+#, python-format
+msgid "La versión %(number)s está publicada: crea un borrador para cambiarla."
+msgstr ""
+
+msgid "Tipo de ítem no válido."
+msgstr ""
+
+msgid "Ya existe un plan con ese código."
+msgstr ""
+
+msgid "Tipo no válido."
+msgstr ""
+
+msgid "La cantidad debe ser mayor que cero."
+msgstr ""
+
+msgid "El plan está inactivo."
+msgstr ""
+
+#, python-format
+msgid "%(asset)s no está en tu alcance."
+msgstr ""
+
+#, python-format
+msgid "El medidor elegido no corresponde a %(asset)s."
+msgstr ""
+
+msgid "El plan no tiene una clase de activo."
+msgstr ""
+
+#, python-format
+msgid "%(code)s: no se asignó «%(plan)s» (falta el medidor que usa el plan)."
+msgstr ""
+
+msgid "El activo no está en tu alcance."
+msgstr ""
+
+#, python-format
+msgid "Plan asignado a %(n)s activo."
+msgid_plural "Plan asignado a %(n)s activos."
+msgstr[0] ""
+msgstr[1] ""
+msgstr[2] ""
+
+msgid "No había activos nuevos para asignar."
+msgstr ""
+
+msgid "Plan creado. Agrega su checklist y publícalo."
+msgstr ""
+
+msgid "Este plan no tiene un borrador. Crea uno para cambiarlo."
+msgstr ""
+
+msgid "Cambios guardados en el borrador."
+msgstr ""
+
+msgid "Ítem agregado."
+msgstr ""
+
+msgid "Repuesto o herramienta agregado."
+msgstr ""
+
+msgid "Ítem actualizado."
+msgstr ""
+
+msgid "Editar ítem del checklist"
+msgstr ""
+
+msgid "Repuesto o herramienta actualizado."
+msgstr ""
+
+msgid "Editar repuesto o herramienta"
+msgstr ""
+
+msgid "Ítem quitado del borrador."
+msgstr ""
+
+msgid "Repuesto o herramienta quitado del borrador."
+msgstr ""
+
+#, python-format
+msgid "Versión %(n)s publicada."
+msgstr ""
+
+msgid "Borrador descartado."
+msgstr ""
+
+msgid "Solo se asignan planes activos con una versión publicada."
+msgstr ""
+
+msgid "Marca al menos un activo."
+msgstr ""
+
+#, python-format
+msgid "Plan quitado de %(code)s."
 msgstr ""
 
 msgid "correo del administrador"
@@ -1608,13 +1813,7 @@ msgstr ""
 msgid "Repuesto o material"
 msgstr ""
 
-msgid "Cantidad"
-msgstr ""
-
 msgid "Costo unitario"
-msgstr ""
-
-msgid "Descripción"
 msgstr ""
 
 msgid "Proveedor"
@@ -1629,13 +1828,7 @@ msgstr ""
 msgid "Fecha de creación"
 msgstr ""
 
-msgid "Estado"
-msgstr ""
-
 msgid "Activo o ubicación"
-msgstr ""
-
-msgid "Código o nombre."
 msgstr ""
 
 msgid "Todos los sitios"
@@ -1687,9 +1880,6 @@ msgstr ""
 msgid "Elige el activo o, si no aplica, la ubicación."
 msgstr ""
 
-msgid "Plan"
-msgstr ""
-
 #, python-format
 msgid "%(plan)s · v%(number)s (%(count)s ítems)"
 msgstr ""
@@ -1704,21 +1894,6 @@ msgid "Otros planes"
 msgstr ""
 
 msgid "Planes"
-msgstr ""
-
-msgid "Tarea"
-msgstr ""
-
-msgid "Mínimo"
-msgstr ""
-
-msgid "Máximo"
-msgstr ""
-
-msgid "Obligatorio para completar la OT"
-msgstr ""
-
-msgid "El máximo no puede ser menor que el mínimo."
 msgstr ""
 
 msgid "último número"
@@ -2270,9 +2445,6 @@ msgstr ""
 msgid "Se agregaron %(count)s ítems del plan."
 msgstr ""
 
-msgid "Ítem agregado."
-msgstr ""
-
 msgid "Elige una foto."
 msgstr ""
 
@@ -2718,6 +2890,9 @@ msgstr ""
 msgid "Sin planes asignados."
 msgstr ""
 
+msgid "Asignar plan"
+msgstr ""
+
 msgid "Componentes"
 msgstr ""
 
@@ -2967,9 +3142,6 @@ msgid ""
 "cambiar de página."
 msgstr ""
 
-msgid "Buscar"
-msgstr ""
-
 msgid "Buscar por código o nombre"
 msgstr ""
 
@@ -3115,6 +3287,266 @@ msgid "Pide a tu administrador que te invite."
 msgstr ""
 
 msgid "Ir a la administración de plataforma"
+msgstr ""
+
+msgid "Solo para mediciones (opcional)"
+msgstr ""
+
+msgid "Usa días, medidor o ambos: vence lo que ocurra primero."
+msgstr ""
+
+msgid "Checklist"
+msgstr ""
+
+msgid "Verificación"
+msgstr ""
+
+msgid "Opcional"
+msgstr ""
+
+msgid "Todavía no hay ítems."
+msgstr ""
+
+msgid "Repuestos y herramientas"
+msgstr ""
+
+msgid "Sin repuestos ni herramientas previstos."
+msgstr ""
+
+#, python-format
+msgid "Asignar un plan a %(name)s"
+msgstr ""
+
+msgid "No hay planes publicados que este activo aún no tenga."
+msgstr ""
+
+msgid "Ver planes"
+msgstr ""
+
+#, python-format
+msgid "Asignar «%(name)s»"
+msgstr ""
+
+msgid ""
+"Marca los activos que recibirán el plan. Su primer vencimiento se calcula "
+"desde hoy (o desde la lectura actual del medidor)."
+msgstr ""
+
+msgid "Volver al plan"
+msgstr ""
+
+msgid "Filtrar activos"
+msgstr ""
+
+msgid "Ver todos"
+msgstr ""
+
+msgid "Asignar"
+msgstr ""
+
+#, python-format
+msgid "Asignar a %(code)s"
+msgstr ""
+
+msgid "Sin medidor del tipo del plan"
+msgstr ""
+
+#, python-format
+msgid "Medidor de %(code)s"
+msgstr ""
+
+msgid "No hay activos sin este plan que coincidan con el filtro."
+msgstr ""
+
+msgid "Asignar a los marcados"
+msgstr ""
+
+msgid "Nuevo plan"
+msgstr ""
+
+msgid "Nuevo plan preventivo"
+msgstr ""
+
+msgid ""
+"Se crea como borrador: después agregas el checklist, los repuestos y lo "
+"publicas."
+msgstr ""
+
+msgid "Volver a planes"
+msgstr ""
+
+msgid "Cuándo vence"
+msgstr ""
+
+msgid "Crear borrador"
+msgstr ""
+
+msgid "Inactivo"
+msgstr ""
+
+#, python-format
+msgid "Versión %(n)s vigente"
+msgstr ""
+
+msgid "Sin versión publicada"
+msgstr ""
+
+#, python-format
+msgid "Borrador v%(n)s"
+msgstr ""
+
+msgid "Seguir editando el borrador"
+msgstr ""
+
+msgid "Editar (crear borrador)"
+msgstr ""
+
+#, python-format
+msgid "Versión vigente (v%(n)s)"
+msgstr ""
+
+msgid "Tolerancia"
+msgstr ""
+
+msgid "Duración estimada"
+msgstr ""
+
+msgid "min"
+msgstr ""
+
+msgid "Versión vigente"
+msgstr ""
+
+msgid ""
+"Este plan aún no se publica. Completa el borrador y publícalo para asignarlo "
+"a activos."
+msgstr ""
+
+#, python-format
+msgid "Asignado a %(n)s activo"
+msgid_plural "Asignado a %(n)s activos"
+msgstr[0] ""
+msgstr[1] ""
+msgstr[2] ""
+
+msgid "Asignar a activos"
+msgstr ""
+
+#, python-format
+msgid "Asignar a todos los activos de la clase %(cls)s"
+msgstr ""
+
+msgid "Próximo vencimiento"
+msgstr ""
+
+msgid "Última ejecución"
+msgstr ""
+
+msgid "Quitar"
+msgstr ""
+
+msgid "Ningún activo de tu alcance tiene este plan."
+msgstr ""
+
+msgid "Historial de versiones"
+msgstr ""
+
+msgid "Versión"
+msgstr ""
+
+msgid "Descartar borrador"
+msgstr ""
+
+#, python-format
+msgid "¿Descartar el borrador v%(n)s?"
+msgstr ""
+
+msgid "Se pierden sus cambios. La versión vigente sigue igual."
+msgstr ""
+
+msgid ""
+"Se pierden sus cambios. El plan queda sin versión hasta que crees un nuevo "
+"borrador."
+msgstr ""
+
+msgid "Sí, descartar"
+msgstr ""
+
+msgid ""
+"Los cambios no afectan a nadie hasta que publiques. Las OT ya generadas "
+"nunca cambian."
+msgstr ""
+
+msgid "Publicar"
+msgstr ""
+
+msgid "Ordena con las flechas."
+msgstr ""
+
+#, python-format
+msgid "Subir «%(text)s»"
+msgstr ""
+
+#, python-format
+msgid "Bajar «%(text)s»"
+msgstr ""
+
+msgid "Todavía no hay ítems. Agrega al menos uno para publicar."
+msgstr ""
+
+msgid "Agregar ítem"
+msgstr ""
+
+msgid "Agregar repuesto o herramienta"
+msgstr ""
+
+#, python-format
+msgid "%(n)s plan"
+msgid_plural "%(n)s planes"
+msgstr[0] ""
+msgstr[1] ""
+msgstr[2] ""
+
+msgid "Filtros"
+msgstr ""
+
+msgid "Limpiar filtros"
+msgstr ""
+
+msgid "Publicado"
+msgstr ""
+
+msgid "Sin publicar"
+msgstr ""
+
+msgid "No hay planes que coincidan."
+msgstr ""
+
+#, python-format
+msgid "Publicar la versión %(n)s"
+msgstr ""
+
+#, python-format
+msgid "%(n)s ítem"
+msgid_plural "%(n)s ítems"
+msgstr[0] ""
+msgstr[1] ""
+msgstr[2] ""
+
+msgid "Activos con el plan"
+msgstr ""
+
+msgid ""
+"Una versión publicada no se puede modificar: para cambiarla después crearás "
+"un nuevo borrador. Las OT futuras usarán esta versión y, si cambió la "
+"frecuencia, se recalculan los próximos vencimientos de los activos sin OT "
+"abierta. Las OT ya generadas no cambian."
+msgstr ""
+
+msgid "Sí, publicar"
+msgstr ""
+
+msgid "Seguir editando"
 msgstr ""
 
 msgid "Avisar problema"
@@ -3385,9 +3817,6 @@ msgstr ""
 msgid "Foto de ejemplo"
 msgstr ""
 
-msgid "Quitar"
-msgstr ""
-
 msgid ""
 "«Quitar» solo aparece en las fotos propias (o para un gestor) mientras la OT "
 "está abierta."
@@ -3421,9 +3850,6 @@ msgid "Ejemplo de firma registrada"
 msgstr ""
 
 msgid "Grupo de campos"
-msgstr ""
-
-msgid "Solo para mediciones (opcional)"
 msgstr ""
 
 msgid "Grupo de casillas (selección múltiple)"
@@ -3463,9 +3889,6 @@ msgid ""
 "columnas en tablet y 4 en escritorio."
 msgstr ""
 
-msgid "Filtros"
-msgstr ""
-
 msgid "Formulario en línea (costos de la OT)"
 msgstr ""
 
@@ -3489,16 +3912,10 @@ msgstr ""
 msgid "Revisar tensión de la correa"
 msgstr ""
 
-msgid "Verificación"
-msgstr ""
-
 msgid "Con respuesta"
 msgstr ""
 
 msgid "Corriente del motor"
-msgstr ""
-
-msgid "Opcional"
 msgstr ""
 
 msgid "Mantención mensual compresor"
@@ -3581,17 +3998,6 @@ msgstr ""
 msgid "¿Quitar «%(text)s» del checklist?"
 msgstr ""
 
-#, python-format
-msgid "Subir «%(text)s»"
-msgstr ""
-
-#, python-format
-msgid "Bajar «%(text)s»"
-msgstr ""
-
-msgid "Todavía no hay ítems."
-msgstr ""
-
 msgid "En rango"
 msgstr ""
 
@@ -3630,9 +4036,6 @@ msgstr ""
 msgid "Reabrir"
 msgstr ""
 
-msgid "Checklist"
-msgstr ""
-
 msgid "Checklist de la OT"
 msgstr ""
 
@@ -3654,9 +4057,6 @@ msgid "No hay planes con versión publicada. Agrega ítems propios."
 msgstr ""
 
 msgid "Agregar un ítem propio"
-msgstr ""
-
-msgid "Agregar ítem"
 msgstr ""
 
 msgid "Quitar ítem"
@@ -3705,9 +4105,6 @@ msgstr ""
 msgid "Estimación"
 msgstr ""
 
-msgid "min"
-msgstr ""
-
 msgid "Avisado por"
 msgstr ""
 
@@ -3733,6 +4130,13 @@ msgid "Registro"
 msgstr ""
 
 msgid "Creada"
+msgstr ""
+
+#, python-format
+msgid "Plan: %(plan)s (v%(n)s)"
+msgstr ""
+
+msgid "Repuestos y herramientas previstos"
 msgstr ""
 
 msgid "Costos"
@@ -3822,9 +4226,6 @@ msgstr ""
 msgid "Acciones"
 msgstr ""
 
-msgid "Inactivo"
-msgstr ""
-
 msgid "Renombrar"
 msgstr ""
 
@@ -3844,9 +4245,6 @@ msgstr[0] ""
 msgstr[1] ""
 
 msgid "Filtro"
-msgstr ""
-
-msgid "Limpiar filtros"
 msgstr ""
 
 msgid ""

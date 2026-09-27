@@ -1,0 +1,65 @@
+{% extends "base.html" %}{% load i18n ui %}
+{% block title %}{% translate "Asignar plan" %} · {{ plan.name }}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <p class="muted mono">{{ plan.code }} · {% translate "Cada" %} {{ plan.frequency_label }}</p>
+    <h1>{% blocktranslate with name=plan.name %}Asignar «{{ name }}»{% endblocktranslate %}</h1>
+    <p class="muted">{% translate "Marca los activos que recibirán el plan. Su primer vencimiento se calcula desde hoy (o desde la lectura actual del medidor)." %}</p>
+  </div>
+  <a class="btn btn--ghost" href="{% url 'plan_detail' plan.pk %}">{% translate "Volver al plan" %}</a>
+</div>
+
+<details class="card mb-4 filters" open>
+  <summary class="filters__summary"><h2 id="filters-title">{% translate "Filtrar activos" %}</h2></summary>
+  <form method="get" class="form-grid" aria-labelledby="filters-title">
+    {% include "_form_fields.html" with form=filter_form %}
+    <div class="row form-grid__actions">
+      <button class="btn btn--primary" type="submit">{% translate "Filtrar" %}</button>
+      <a class="btn btn--ghost" href="?q=">{% translate "Ver todos" %}</a>
+    </div>
+  </form>
+</details>
+
+<form method="post" id="assign-form">
+  {% csrf_token %}
+  <div class="card card--flush">
+    {% if page.object_list %}
+    <table class="table">
+      <thead><tr><th><span class="visually-hidden">{% translate "Asignar" %}</span></th><th>{% translate "Código" %}</th><th>{% translate "Nombre" %}</th><th>{% translate "Clase" %}</th><th>{% translate "Ubicación" %}</th>{% if plan.uses_meter %}<th>{% translate "Medidor" %}</th>{% endif %}</tr></thead>
+      <tbody>
+        {% for asset in page.object_list %}
+        {% with meters=asset.plan_meters %}
+        <tr>
+          <td data-label=""><label class="check-cell"><input type="checkbox" name="assets" value="{{ asset.pk }}"{% if plan.uses_meter and not meters %} disabled{% endif %}><span class="visually-hidden">{% blocktranslate with code=asset.code %}Asignar a {{ code }}{% endblocktranslate %}</span></label></td>
+          <td class="mono" data-label="">{{ asset.code }}</td>
+          <td data-label="">{{ asset.name }}</td>
+          <td data-label="{% translate 'Clase' %}">{{ asset.asset_class }}</td>
+          <td data-label="{% translate 'Ubicación' %}">{{ asset.location.name|default:"—" }}</td>
+          {% if plan.uses_meter %}
+          <td data-label="{% translate 'Medidor' %}">
+            {% if not meters %}<span class="badge badge--warning">{% icon 'alert' %}{% translate "Sin medidor del tipo del plan" %}</span>
+            {% elif meters|length == 1 %}{{ meters.0.name|default:meters.0.get_kind_display }}
+            {% else %}
+            <label class="visually-hidden" for="meter-{{ asset.pk }}">{% blocktranslate with code=asset.code %}Medidor de {{ code }}{% endblocktranslate %}</label>
+            <select class="input" id="meter-{{ asset.pk }}" name="meter-{{ asset.pk }}">{% for m in meters %}<option value="{{ m.pk }}">{{ m.name|default:m.get_kind_display }}</option>{% endfor %}</select>
+            {% endif %}
+          </td>
+          {% endif %}
+        </tr>
+        {% endwith %}
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="empty">{% icon 'box' %} {% translate "No hay activos sin este plan que coincidan con el filtro." %}</p>
+    {% endif %}
+  </div>
+  {% include "_pagination.html" %}
+  {% if page.object_list %}
+  <div class="row mt-4">
+    <button class="btn btn--primary btn--lg" type="submit">{% icon 'check' %}{% translate "Asignar a los marcados" %}</button>
+  </div>
+  {% endif %}
+</form>
+{% endblock %}

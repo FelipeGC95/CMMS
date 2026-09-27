@@ -1,0 +1,13 @@
+{% load i18n ui %}{# Campos de un ítem de checklist del plan: tarea, tipo, rango de medición y obligatorio. #}
+{% for error in form.non_field_errors %}<div class="alert alert--error" role="alert">{% icon 'stop' %}<span>{{ error }}</span></div>{% endfor %}
+{% with f=form.text %}<div class="field"><label for="{{ f.id_for_label }}">{{ f.label }} *</label>{{ f }}{% for e in f.errors %}<span class="error">{% icon 'stop' %}{{ e }}</span>{% endfor %}</div>{% endwith %}
+{% with f=form.item_type %}<div class="field"><label for="{{ f.id_for_label }}">{{ f.label }}</label>{{ f }}</div>{% endwith %}
+<fieldset class="fieldset">
+  <legend>{% translate "Solo para mediciones (opcional)" %}</legend>
+  <div class="field-pair field-pair--3">
+    {% for f in form %}{% if f.name == "unit" or f.name == "min_value" or f.name == "max_value" %}
+    <div class="field"><label for="{{ f.id_for_label }}">{{ f.label }}</label>{{ f }}{% for e in f.errors %}<span class="error">{% icon 'stop' %}{{ e }}</span>{% endfor %}</div>
+    {% endif %}{% endfor %}
+  </div>
+</fieldset>
+{% with f=form.required %}<div class="field field--check">{{ f }}<label for="{{ f.id_for_label }}">{{ f.label }}</label></div>{% endwith %}

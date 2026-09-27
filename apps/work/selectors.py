@@ -124,9 +124,18 @@ def work_order_detail(pk, *, membership):
             "assigned_to",
             "plan_assignment__plan",
             "plan_assignment__meter",
+            "plan_version",
             "failure",
         )
-        .prefetch_related("checklist", "transitions__by", "labor__user", "parts", "other_costs", "helpers")
+        .prefetch_related(
+            "checklist",
+            "transitions__by",
+            "labor__user",
+            "parts",
+            "other_costs",
+            "helpers",
+            "plan_version__resources",
+        )
         .get(pk=pk)
     )
 

@@ -396,3 +396,57 @@ def test_checklist_reorder_response_does_not_grow_with_items(client, tenant_a, s
     many = move_last_up()
     # bulk_update escribe los ítems que cambian de lugar en una sola consulta.
     assert many == few, f"{few} → {many} consultas"
+
+
+def _add_plan_rows(tenant, usage_plan, n):
+    """Planes con recursos y activos asignados (con medidores) o libres, para lista, ficha y selector."""
+    from apps.assets.models import Meter
+    from apps.maintenance.services import assign_plan, create_plan
+
+    with tenant_context(tenant.org):
+        for _i in range(n):
+            k = Asset.objects.count()
+            create_plan(
+                code=f"P-{k}",
+                name=f"Plan {k}",
+                asset_class=tenant.asset.asset_class,
+                interval_days=30,
+                items=[{"text": "x"}],
+                resources=[{"description": "Filtro"}],
+            )
+            location = Location.objects.create(code=f"L-{k}", name=f"Sitio {k}")
+            for prefix in ("Q", "R"):  # Q: con el plan; R: libre para el selector
+                asset = Asset.objects.create(
+                    code=f"{prefix}-{k:03d}",
+                    name=f"Equipo {k}",
+                    asset_class=tenant.asset.asset_class,
+                    location=location,
+                )
+                meter = Meter.objects.create(asset=asset, kind="hours", name="Motor", current_value=10)
+                Meter.objects.create(asset=asset, kind="hours", name="Bomba", current_value=5)
+                if prefix == "Q":
+                    assign_plan(plan=tenant.plan, asset=asset)
+                    assign_plan(plan=usage_plan, asset=asset, meter=meter)
+
+
+@pytest.mark.parametrize("which", ["plan_list", "plan_detail", "plan_assign", "plan_assign_usage"])
+def test_plan_screens_do_not_grow_with_rows(client, tenant_a, which):
+    from apps.maintenance.services import create_draft, create_plan
+
+    with tenant_context(tenant_a.org):
+        usage = create_plan(
+            code="USO", name="250 h", meter_kind="hours", meter_interval=250, items=[{"text": "x"}]
+        )
+        create_draft(membership=tenant_a.admin, plan=tenant_a.plan)
+    login(client, tenant_a.admin)
+    url = {
+        "plan_list": reverse("plan_list"),
+        "plan_detail": reverse("plan_detail", args=[tenant_a.plan.pk]),
+        "plan_assign": reverse("plan_assign", args=[tenant_a.plan.pk]),
+        "plan_assign_usage": f"{reverse('plan_assign', args=[usage.pk])}?q=",
+    }[which]
+    _add_plan_rows(tenant_a, usage, 2)
+    few = _count(client, url)
+    _add_plan_rows(tenant_a, usage, 10)
+    many = _count(client, url)
+    assert many == few, f"{which}: {few} → {many} consultas"

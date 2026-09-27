@@ -1,0 +1,21 @@
+{% load i18n ui %}{# Checklist y repuestos de una versión, solo lectura. Uso: include con items, resources y version. #}
+<section class="card" aria-labelledby="content-title">
+  <h2 id="content-title">{% translate "Checklist" %}</h2>
+  {% if items %}
+  <ol class="list">
+    {% for item in items %}
+    <li><div class="list__main">
+      <span class="list__title"><span class="mono muted">{{ item.order }}.</span> {{ item.text }}</span>
+      <span class="list__meta">{% if item.item_type == "measurement" %}{% translate "Medición" %}{% if item.unit %} · {{ item.unit }}{% endif %}{% if item.min_value is not None or item.max_value is not None %} · <span class="num">{{ item.min_value|measure }} – {{ item.max_value|measure }}</span>{% endif %}{% else %}{% translate "Verificación" %}{% endif %}</span>
+    </div>
+    {% if item.required %}<span class="badge badge--info">{% icon 'info' %}{% translate "Obligatorio" %}</span>{% else %}<span class="badge badge--neutral">{% icon 'dot' %}{% translate "Opcional" %}</span>{% endif %}
+    </li>
+    {% endfor %}
+  </ol>
+  {% else %}<p class="empty">{% icon 'list' %} {% translate "Todavía no hay ítems." %}</p>{% endif %}
+  <h3 class="mt-4">{% translate "Repuestos y herramientas" %}</h3>
+  {% if resources %}
+  {% include "maintenance/_resources_list.html" %}
+  {% else %}<p class="muted">{% translate "Sin repuestos ni herramientas previstos." %}</p>{% endif %}
+  {% if version.instructions %}<h3 class="mt-4">{% translate "Instrucciones" %}</h3><p>{{ version.instructions|linebreaksbr }}</p>{% endif %}
+</section>

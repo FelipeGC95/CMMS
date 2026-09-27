@@ -91,6 +91,16 @@
   </section>
 </div>
 
+{% if wo.plan_version %}{% with version=wo.plan_version resources=wo.plan_version.resources.all %}
+{% if resources or version.instructions %}
+<section class="card mt-4" id="plan" aria-labelledby="plan-title">
+  <h2 id="plan-title">{% blocktranslate with plan=wo.plan_assignment.plan.name n=version.number %}Plan: {{ plan }} (v{{ n }}){% endblocktranslate %}</h2>
+  {% if version.instructions %}<p>{{ version.instructions|linebreaksbr }}</p>{% endif %}
+  {% if resources %}<h3 class="mt-2">{% translate "Repuestos y herramientas previstos" %}</h3>{% include "maintenance/_resources_list.html" %}{% endif %}
+</section>
+{% endif %}
+{% endwith %}{% endif %}
+
 <section class="card mt-4" id="costs" aria-labelledby="costs-title">
   <div class="card__header">
     <h2 id="costs-title">{% translate "Costos" %}</h2>

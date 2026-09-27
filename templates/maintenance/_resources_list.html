@@ -1,0 +1,7 @@
+{% load i18n ui %}{# Repuestos y herramientas previstos por el plan (PM-01 CA2); lo usan la ficha del plan y la OT. #}
+<ul class="list">
+  {% for r in resources %}
+  <li><div class="list__main"><span class="list__title">{{ r.description }}</span><span class="list__meta">{{ r.get_kind_display }}</span></div>
+  <span class="num">{{ r.quantity|measure }}{% if r.unit %} {{ r.unit }}{% endif %}</span></li>
+  {% endfor %}
+</ul>

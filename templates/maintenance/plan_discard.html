@@ -1,0 +1,21 @@
+{% extends "base.html" %}{% load i18n ui %}
+{% block title %}{% translate "Descartar borrador" %} · {{ plan.name }}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <p class="muted mono">{{ plan.code }}</p>
+    <h1>{% translate "Descartar borrador" %}</h1>
+  </div>
+</div>
+<section class="card narrow" aria-labelledby="confirm-title">
+  <h2 id="confirm-title">{% blocktranslate with n=draft.number %}¿Descartar el borrador v{{ n }}?{% endblocktranslate %}</h2>
+  <p class="muted">{% if plan.current_version %}{% translate "Se pierden sus cambios. La versión vigente sigue igual." %}{% else %}{% translate "Se pierden sus cambios. El plan queda sin versión hasta que crees un nuevo borrador." %}{% endif %}</p>
+  <form method="post">
+    {% csrf_token %}
+    <div class="row">
+      <button class="btn btn--danger btn--lg" type="submit">{% icon 'x' %}{% translate "Sí, descartar" %}</button>
+      <a class="btn btn--ghost btn--lg" href="{% url 'plan_draft' plan.pk %}">{% translate "Cancelar" %}</a>
+    </div>
+  </form>
+</section>
+{% endblock %}

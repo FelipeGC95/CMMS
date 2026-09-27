@@ -1,0 +1,102 @@
+{% extends "base.html" %}{% load i18n ui %}
+{% block title %}{{ plan.name }}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <p class="muted mono">{{ plan.code }}{% if plan.asset_class %} · {{ plan.asset_class }}{% endif %}</p>
+    <h1>{{ plan.name }}</h1>
+    <div class="row">
+      {% if not plan.is_active %}<span class="badge badge--neutral">{% icon 'dot' %}{% translate "Inactivo" %}</span>{% endif %}
+      {% if version %}<span class="badge badge--success">{% icon 'check' %}{% blocktranslate with n=version.number %}Versión {{ n }} vigente{% endblocktranslate %}</span>
+      <span class="badge badge--neutral">{% icon 'calendar' %}{% translate "Cada" %} {{ version.frequency_label }}</span>
+      {% else %}<span class="badge badge--warning">{% icon 'wrench' %}{% translate "Sin versión publicada" %}</span>{% endif %}
+      {% if draft %}<span class="badge badge--info">{% icon 'info' %}{% blocktranslate with n=draft.number %}Borrador v{{ n }}{% endblocktranslate %}</span>{% endif %}
+    </div>
+  </div>
+  <div class="page-actions">
+    {% if draft %}
+    <a class="btn btn--primary" href="{% url 'plan_draft' plan.pk %}">{% icon 'wrench' %}{% translate "Seguir editando el borrador" %}</a>
+    {% else %}
+    <form method="post" action="{% url 'plan_draft_start' plan.pk %}">{% csrf_token %}
+      <button class="btn btn--primary" type="submit">{% icon 'wrench' %}{% translate "Editar (crear borrador)" %}</button>
+    </form>
+    {% endif %}
+    <a class="btn btn--ghost" href="{% url 'plan_list' %}">{% translate "Volver a planes" %}</a>
+  </div>
+</div>
+
+<div class="grid grid--2">
+  {% if version %}
+  <div class="stack">
+    <section class="card" aria-labelledby="rules-title">
+      <h2 id="rules-title">{% blocktranslate with n=version.number %}Versión vigente (v{{ n }}){% endblocktranslate %}</h2>
+      <dl class="dl">
+        <dt>{% translate "Frecuencia" %}</dt><dd>{{ version.frequency_label }}</dd>
+        <dt>{% translate "Reprogramación" %}</dt><dd>{{ version.get_schedule_mode_display }}</dd>
+        <dt>{% translate "Tolerancia" %}</dt><dd class="num">{{ version.tolerance_pct }} %</dd>
+        <dt>{% translate "Duración estimada" %}</dt><dd class="num">{{ version.estimated_minutes }} {% translate "min" %}</dd>
+      </dl>
+    </section>
+    {% include "maintenance/_version_content.html" %}
+  </div>
+  {% else %}
+  <section class="card">
+    <h2>{% translate "Versión vigente" %}</h2>
+    <p class="empty">{% icon 'wrench' %} {% translate "Este plan aún no se publica. Completa el borrador y publícalo para asignarlo a activos." %}</p>
+  </section>
+  {% endif %}
+
+  <div class="stack">
+    <section class="card" id="assignments" aria-labelledby="assign-title">
+      <h2 id="assign-title">{% blocktranslate count n=page.paginator.count %}Asignado a {{ n }} activo{% plural %}Asignado a {{ n }} activos{% endblocktranslate %}</h2>
+      {% if version and plan.is_active %}
+      <div class="row mb-4">
+        <a class="btn btn--primary" href="{% url 'plan_assign' plan.pk %}">{% icon 'box' %}{% translate "Asignar a activos" %}</a>
+        {% if plan.asset_class %}
+        <form method="post" action="{% url 'plan_assign_class' plan.pk %}">{% csrf_token %}
+          <button class="btn btn--secondary" type="submit">{% icon 'box' %}{% blocktranslate with cls=plan.asset_class %}Asignar a todos los activos de la clase {{ cls }}{% endblocktranslate %}</button>
+        </form>
+        {% endif %}
+      </div>
+      {% endif %}
+      {% if page.object_list %}
+      <table class="table">
+        <thead><tr><th>{% translate "Activo" %}</th><th>{% translate "Próximo vencimiento" %}</th><th>{% translate "Última ejecución" %}</th><th><span class="visually-hidden">{% translate "Acción" %}</span></th></tr></thead>
+        <tbody>
+          {% for a in page.object_list %}
+          <tr>
+            <td data-label=""><a href="{% url 'asset_detail' a.asset.pk %}"><span class="mono">{{ a.asset.code }}</span> {{ a.asset.name }}</a>{% if a.asset.location %}<br><span class="muted">{{ a.asset.location.name }}</span>{% endif %}</td>
+            <td data-label="{% translate 'Próximo vencimiento' %}">{% if a.next_due_on %}{{ a.next_due_on|date:"d M Y" }}{% endif %}{% if a.next_due_on and a.next_due_meter_value is not None %} · {% endif %}{% if a.next_due_meter_value is not None %}<span class="num">{{ a.next_due_meter_value|num }} {{ a.meter.unit }}</span>{% endif %}{% if not a.next_due_on and a.next_due_meter_value is None %}—{% endif %}</td>
+            <td data-label="{% translate 'Última ejecución' %}">{{ a.last_done_on|date:"d M Y"|default:"—" }}</td>
+            <td data-label="">
+              <form method="post" action="{% url 'plan_assignment_deactivate' plan.pk a.pk %}">{% csrf_token %}
+                <button class="btn btn--ghost" type="submit">{% icon 'x' %}{% translate "Quitar" %}<span class="visually-hidden"> {{ a.asset.code }}</span></button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% include "_pagination.html" %}
+      {% else %}<p class="muted">{% translate "Ningún activo de tu alcance tiene este plan." %}</p>{% endif %}
+    </section>
+
+    <section class="card" aria-labelledby="history-title">
+      <h2 id="history-title">{% translate "Historial de versiones" %}</h2>
+      <table class="table">
+        <thead><tr><th>{% translate "Versión" %}</th><th>{% translate "Estado" %}</th><th>{% translate "Publicada" %}</th><th>{% translate "Qué cambió" %}</th></tr></thead>
+        <tbody>
+          {% for v in versions %}
+          <tr>
+            <td data-label="{% translate 'Versión' %}" class="num">v{{ v.number }}</td>
+            <td data-label="">{% if v.status == "published" %}<span class="badge badge--success">{% icon 'check' %}{{ v.get_status_display }}</span>{% elif v.status == "draft" %}<span class="badge badge--info">{% icon 'info' %}{{ v.get_status_display }}</span>{% else %}<span class="badge badge--neutral">{% icon 'dot' %}{{ v.get_status_display }}</span>{% endif %}</td>
+            <td data-label="{% translate 'Publicada' %}">{% if v.published_at %}{{ v.published_at|date:"d M Y" }}{% if v.published_by %} · {{ v.published_by }}{% endif %}{% else %}—{% endif %}</td>
+            <td data-label="{% translate 'Qué cambió' %}">{{ v.change_note|default:"—" }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </section>
+  </div>
+</div>
+{% endblock %}

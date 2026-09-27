@@ -393,8 +393,7 @@ def _unique_code(base: str, taken: set[str], max_length: int = 30) -> str:
 @transaction.atomic
 def apply_import(session_data: dict, *, assign_class_plans: bool = True) -> ImportResult:
     """Guarda las filas válidas de la vista previa. Todo o nada."""
-    from apps.maintenance.models import MaintenancePlan
-    from apps.maintenance.services import assign_plan
+    from apps.maintenance.services import assign_class_plans as assign_plans_by_class
 
     result = ImportResult()
     classes = _index(AssetClass.objects.all())
@@ -467,20 +466,9 @@ def apply_import(session_data: dict, *, assign_class_plans: bool = True) -> Impo
                 result.readings += 1
 
     if assign_class_plans and new_assets:
-        plans_by_class = {}
-        for plan in MaintenancePlan.objects.filter(is_active=True, asset_class__isnull=False):
-            plans_by_class.setdefault(plan.asset_class_id, []).append(plan)
-        for asset in new_assets:
-            for plan in plans_by_class.get(asset.asset_class_id, []):
-                try:
-                    assign_plan(plan=plan, asset=asset)
-                except ValidationError:
-                    result.warnings.append(
-                        gettext("%(code)s: no se asignó «%(plan)s» (falta el medidor que usa el plan).")
-                        % {"code": asset.code, "plan": plan.name}
-                    )
-                else:
-                    result.plans_assigned += 1
+        assigned, warnings = assign_plans_by_class(assets=new_assets)
+        result.plans_assigned += assigned
+        result.warnings.extend(warnings)
     return result
 
 

@@ -10,10 +10,11 @@ from django.db.models import F, Max, Q
 from django.utils import timezone
 from django.utils.translation import gettext as _
 
+from apps.accounts.permissions import Perm, require_perm
 from apps.audit import services as audit
 from apps.audit.models import AuditEvent
 
-from .models import MaintenancePlan, PlanAssignment, PlanResource, PlanTaskItem, PlanVersion
+from .models import ItemType, MaintenancePlan, PlanAssignment, PlanResource, PlanTaskItem, PlanVersion
 
 DEFAULT_HORIZON_DAYS = 14
 # Aviso mínimo para planes por uso: generar la OT al 90 % del intervalo.
@@ -428,3 +429,386 @@ def shift_meter_targets(*, meter, delta: Decimal) -> None:
     PlanAssignment.objects.filter(meter=meter, last_done_meter_value__isnull=False).update(
         last_done_meter_value=F("last_done_meter_value") + delta
     )
+
+
+# --- Edición desde la web (planificador) -------------------------------------
+# Toda escritura de las pantallas pasa por aquí: exige `plan.manage`, respeta el
+# alcance por sitio al asignar y deja auditoría. La semántica del programador
+# (vencimientos, publicación) sigue siendo la de las funciones de arriba.
+
+PLAN_FIELDS = ("code", "name", "asset_class", "is_active")
+DRAFT_FIELDS = (
+    "estimated_minutes", "instructions", "interval_days", "meter_kind",
+    "meter_interval", "schedule_mode", "tolerance_pct",
+)  # fmt: skip
+
+
+def _require_plan_manager(membership):
+    require_perm(membership, Perm.PLAN_MANAGE)
+
+
+def _check_draft_version(version: PlanVersion) -> None:
+    if not version.is_draft:
+        raise PlanVersionError(
+            _("La versión %(number)s está publicada: crea un borrador para cambiarla.")
+            % {"number": version.number}
+        )
+
+
+def _clean_measurement(item_type, unit, min_value, max_value):
+    if item_type not in ItemType.values:
+        raise ValidationError(_("Tipo de ítem no válido."))
+    if item_type != ItemType.MEASUREMENT:
+        return "", None, None
+    if min_value is not None and max_value is not None and min_value > max_value:
+        raise ValidationError(_("El máximo no puede ser menor que el mínimo."))
+    return unit.strip(), min_value, max_value
+
+
+@transaction.atomic
+def create_plan_with_draft(*, membership, code: str, name: str, asset_class=None, **version_fields):
+    """Crea un plan nuevo con su versión 1 en borrador (se publica al tener checklist)."""
+    _require_plan_manager(membership)
+    code, name = code.strip(), name.strip()
+    if MaintenancePlan.objects.filter(code__iexact=code).exists():
+        raise ValidationError({"code": _("Ya existe un plan con ese código.")})
+    plan = MaintenancePlan.objects.create(code=code, name=name, asset_class=asset_class)
+    audit.record(
+        action=AuditEvent.Action.CREATE, target=plan, membership=membership, changes=audit.snapshot(plan)
+    )
+    version = PlanVersion.objects.create(plan=plan, number=1, **version_fields)
+    audit.record(
+        action=AuditEvent.Action.CREATE,
+        target=version,
+        membership=membership,
+        changes=audit.snapshot(version, DRAFT_FIELDS),
+    )
+    return plan
+
+
+@transaction.atomic
+def update_plan(*, membership, plan: MaintenancePlan, code: str, name: str, asset_class, is_active: bool):
+    """Datos del plan que no se versionan: código, nombre, clase y si está activo."""
+    _require_plan_manager(membership)
+    code = code.strip()
+    if MaintenancePlan.objects.filter(code__iexact=code).exclude(pk=plan.pk).exists():
+        raise ValidationError({"code": _("Ya existe un plan con ese código.")})
+    before = audit.snapshot(plan, PLAN_FIELDS)
+    plan.code, plan.name, plan.asset_class, plan.is_active = code, name.strip(), asset_class, is_active
+    plan.save(update_fields=["code", "name", "asset_class", "is_active", "updated_at"])
+    changes = audit.diff(before, audit.snapshot(plan, PLAN_FIELDS))
+    if changes:
+        audit.record(action=AuditEvent.Action.UPDATE, target=plan, membership=membership, changes=changes)
+    return plan
+
+
+@transaction.atomic
+def create_draft(*, membership, plan: MaintenancePlan) -> PlanVersion:
+    """Borrador copiado de la versión vigente; si ya existe, devuelve el mismo (idempotente)."""
+    _require_plan_manager(membership)
+    locked_plans().get(pk=plan.pk)
+    existed = plan.versions.filter(status=PlanVersion.Status.DRAFT).exists()
+    draft = start_draft(plan=plan)
+    if not existed:
+        source = plan.current_version
+        audit.record(
+            action=AuditEvent.Action.CREATE,
+            target=draft,
+            membership=membership,
+            changes={"number": draft.number, "copied_from": source.number if source else None},
+        )
+    return draft
+
+
+@transaction.atomic
+def update_draft(*, membership, version: PlanVersion, **fields) -> PlanVersion:
+    """Frecuencia, reprogramación, tolerancia, duración e instrucciones del borrador."""
+    _require_plan_manager(membership)
+    _check_draft_version(version)
+    unknown = set(fields) - set(DRAFT_FIELDS)
+    if unknown:
+        raise ValueError(f"Campos no editables: {sorted(unknown)}")
+    before = audit.snapshot(version, DRAFT_FIELDS)
+    for key, value in fields.items():
+        setattr(version, key, value)
+    if not version.meter_kind:
+        version.meter_interval = None
+    version.clean()
+    version.save()
+    changes = audit.diff(before, audit.snapshot(version, DRAFT_FIELDS))
+    if changes:
+        audit.record(action=AuditEvent.Action.UPDATE, target=version, membership=membership, changes=changes)
+    return version
+
+
+@transaction.atomic
+def add_draft_item(
+    *, membership, version, text, item_type, unit="", min_value=None, max_value=None, required=True
+) -> PlanTaskItem:
+    _require_plan_manager(membership)
+    _check_draft_version(version)
+    unit, min_value, max_value = _clean_measurement(item_type, unit, min_value, max_value)
+    last = version.items.aggregate(n=Max("order"))["n"] or 0
+    item = PlanTaskItem.objects.create(
+        version=version,
+        order=last + 1,
+        text=text.strip(),
+        item_type=item_type,
+        unit=unit,
+        min_value=min_value,
+        max_value=max_value,
+        required=required,
+    )
+    audit.record(
+        action=AuditEvent.Action.CREATE,
+        target=item,
+        membership=membership,
+        changes=audit.snapshot(item, ITEM_FIELDS),
+    )
+    return item
+
+
+@transaction.atomic
+def update_draft_item(
+    *, membership, item, text, item_type, unit="", min_value=None, max_value=None, required=True
+) -> PlanTaskItem:
+    _require_plan_manager(membership)
+    _check_draft_version(item.version)
+    unit, min_value, max_value = _clean_measurement(item_type, unit, min_value, max_value)
+    before = audit.snapshot(item, ITEM_FIELDS)
+    item.text, item.item_type, item.unit = text.strip(), item_type, unit
+    item.min_value, item.max_value, item.required = min_value, max_value, required
+    item.save(update_fields=[f for f in ITEM_FIELDS if f != "order"] + ["updated_at"])
+    changes = audit.diff(before, audit.snapshot(item, ITEM_FIELDS))
+    if changes:
+        audit.record(action=AuditEvent.Action.UPDATE, target=item, membership=membership, changes=changes)
+    return item
+
+
+def _renumber(version) -> list[PlanTaskItem]:
+    items = list(version.items.order_by("order", "created_at"))
+    for number, item in enumerate(items, start=1):
+        if item.order != number:
+            item.order = number
+            item.save(update_fields=["order", "updated_at"])
+    return items
+
+
+@transaction.atomic
+def remove_draft_item(*, membership, item) -> None:
+    _require_plan_manager(membership)
+    version = item.version
+    _check_draft_version(version)
+    audit.record(
+        action=AuditEvent.Action.DELETE,
+        target=item,
+        membership=membership,
+        changes=audit.snapshot(item, ITEM_FIELDS),
+    )
+    item.delete()
+    _renumber(version)
+
+
+@transaction.atomic
+def move_draft_item(*, membership, item, direction: str) -> None:
+    """Sube o baja un ítem un lugar (intercambia el orden con el vecino)."""
+    _require_plan_manager(membership)
+    _check_draft_version(item.version)
+    items = _renumber(item.version)
+    index = next(i for i, other in enumerate(items) if other.pk == item.pk)
+    target = index - 1 if direction == "up" else index + 1
+    if direction not in ("up", "down") or not 0 <= target < len(items):
+        return
+    current, neighbour = items[index], items[target]
+    current.order, neighbour.order = neighbour.order, current.order
+    current.save(update_fields=["order", "updated_at"])
+    neighbour.save(update_fields=["order", "updated_at"])
+
+
+def _clean_resource(kind, description, quantity):
+    if kind not in PlanResource.Kind.values:
+        raise ValidationError(_("Tipo no válido."))
+    if quantity is None or quantity <= 0:
+        raise ValidationError({"quantity": _("La cantidad debe ser mayor que cero.")})
+    return description.strip()
+
+
+@transaction.atomic
+def add_draft_resource(*, membership, version, kind, description, quantity, unit="") -> PlanResource:
+    _require_plan_manager(membership)
+    _check_draft_version(version)
+    description = _clean_resource(kind, description, quantity)
+    resource = PlanResource.objects.create(
+        version=version, kind=kind, description=description, quantity=quantity, unit=unit.strip()
+    )
+    audit.record(
+        action=AuditEvent.Action.CREATE,
+        target=resource,
+        membership=membership,
+        changes=audit.snapshot(resource, RESOURCE_FIELDS),
+    )
+    return resource
+
+
+@transaction.atomic
+def update_draft_resource(*, membership, resource, kind, description, quantity, unit="") -> PlanResource:
+    _require_plan_manager(membership)
+    _check_draft_version(resource.version)
+    before = audit.snapshot(resource, RESOURCE_FIELDS)
+    resource.kind, resource.description = kind, _clean_resource(kind, description, quantity)
+    resource.quantity, resource.unit = quantity, unit.strip()
+    resource.save(update_fields=[*RESOURCE_FIELDS, "updated_at"])
+    changes = audit.diff(before, audit.snapshot(resource, RESOURCE_FIELDS))
+    if changes:
+        audit.record(action=AuditEvent.Action.UPDATE, target=resource, membership=membership, changes=changes)
+    return resource
+
+
+@transaction.atomic
+def remove_draft_resource(*, membership, resource) -> None:
+    _require_plan_manager(membership)
+    _check_draft_version(resource.version)
+    audit.record(
+        action=AuditEvent.Action.DELETE,
+        target=resource,
+        membership=membership,
+        changes=audit.snapshot(resource, RESOURCE_FIELDS),
+    )
+    resource.delete()
+
+
+@transaction.atomic
+def publish_draft(*, membership, version: PlanVersion, change_note: str = "") -> PlanVersion:
+    """Publica el borrador con `publish_version` (queda inmutable y recalcula vencimientos)."""
+    _require_plan_manager(membership)
+    return publish_version(version=version, by=membership.user, change_note=change_note.strip())
+
+
+@transaction.atomic
+def discard_draft(*, membership, version: PlanVersion) -> None:
+    """Descarta el borrador con su contenido. Las versiones publicadas no se tocan."""
+    _require_plan_manager(membership)
+    version = PlanVersion.objects.select_for_update().get(pk=version.pk)
+    _check_draft_version(version)
+    audit.record(
+        action=AuditEvent.Action.DELETE,
+        target=version,
+        membership=membership,
+        changes={"number": version.number, "status": version.status},
+    )
+    version.resources.all().delete()
+    version.items.all().delete()
+    version.delete()
+
+
+# --- Asignaciones desde la web -------------------------------------------------
+
+
+def _visible_assets(membership):
+    from apps.assets.selectors import visible_assets
+
+    return visible_assets(membership=membership)
+
+
+@transaction.atomic
+def assign_plan_to_assets(*, membership, plan: MaintenancePlan, targets) -> tuple[int, list[str]]:
+    """Asigna un plan a varios activos (PM-04 CA1: individual o en lote).
+
+    `targets`: pares (activo, medidor o None). Solo activos dentro del alcance
+    de la membresía. Idempotente: un activo que ya tiene el plan activo se
+    salta (no se reinicia su vencimiento). Devuelve (asignados, avisos).
+    """
+    _require_plan_manager(membership)
+    if not plan.is_active:
+        raise ValidationError(_("El plan está inactivo."))
+    if plan.current_version is None:
+        raise PlanVersionError(_("«%(plan)s» no tiene una versión publicada.") % {"plan": plan})
+    targets = list(targets)
+    ids = [asset.pk for asset, _meter in targets]
+    visible = set(_visible_assets(membership).filter(pk__in=ids).values_list("pk", flat=True))
+    already = set(
+        plan.assignments.filter(is_active=True, asset_id__in=visible).values_list("asset_id", flat=True)
+    )
+    assigned, warnings = 0, []
+    for asset, meter in targets:
+        if asset.pk not in visible:
+            raise ValidationError(_("%(asset)s no está en tu alcance.") % {"asset": asset.code})
+        if asset.pk in already:
+            continue
+        if meter is not None and (meter.asset_id != asset.pk or meter.kind != plan.meter_kind):
+            raise ValidationError(_("El medidor elegido no corresponde a %(asset)s.") % {"asset": asset.code})
+        try:
+            with transaction.atomic():
+                assign_plan(plan=plan, asset=asset, meter=meter, by=membership.user)
+        except ValidationError as error:
+            warnings.extend(f"{asset.code}: {message}" for message in error.messages)
+        else:
+            assigned += 1
+            already.add(asset.pk)
+    return assigned, warnings
+
+
+@transaction.atomic
+def assign_plan_to_class(*, membership, plan: MaintenancePlan) -> tuple[int, list[str]]:
+    """«Asignar a todos los activos de la clase» (PM-04 CA1), dentro del alcance por sitio."""
+    _require_plan_manager(membership)
+    if plan.asset_class_id is None:
+        raise ValidationError(_("El plan no tiene una clase de activo."))
+    assets = (
+        _visible_assets(membership)
+        .filter(asset_class_id=plan.asset_class_id, is_active=True)
+        .exclude(status="retired")
+        .exclude(pk__in=plan.assignments.filter(is_active=True).values("asset_id"))
+    )
+    return assign_plan_to_assets(membership=membership, plan=plan, targets=[(a, None) for a in assets])
+
+
+def assign_class_plans(*, assets, by=None) -> tuple[int, list[str]]:
+    """Aplica a activos nuevos los planes activos de su clase (PM-04 CA1, automática por clase).
+
+    La usan la importación Excel y el alta de un activo. Un plan por uso sin el
+    medidor que necesita no bloquea: queda como aviso.
+    """
+    assets = [a for a in assets if a.asset_class_id]
+    if not assets:
+        return 0, []
+    plans_by_class = {}
+    for plan in MaintenancePlan.objects.filter(
+        is_active=True,
+        current_version__isnull=False,
+        asset_class_id__in={a.asset_class_id for a in assets},
+    ):
+        plans_by_class.setdefault(plan.asset_class_id, []).append(plan)
+    assigned, warnings = 0, []
+    for asset in assets:
+        for plan in plans_by_class.get(asset.asset_class_id, []):
+            try:
+                with transaction.atomic():
+                    assign_plan(plan=plan, asset=asset, by=by)
+            except ValidationError:
+                warnings.append(
+                    _("%(code)s: no se asignó «%(plan)s» (falta el medidor que usa el plan).")
+                    % {"code": asset.code, "plan": plan.name}
+                )
+            else:
+                assigned += 1
+    return assigned, warnings
+
+
+@transaction.atomic
+def deactivate_assignment(*, membership, assignment: PlanAssignment) -> PlanAssignment:
+    """Quita el plan de un activo sin borrar su historial. Idempotente."""
+    _require_plan_manager(membership)
+    if not _visible_assets(membership).filter(pk=assignment.asset_id).exists():
+        raise ValidationError(_("El activo no está en tu alcance."))
+    assignment = PlanAssignment.objects.select_for_update().get(pk=assignment.pk)
+    if assignment.is_active:
+        assignment.is_active = False
+        assignment.save(update_fields=["is_active", "updated_at"])
+        audit.record(
+            action=AuditEvent.Action.UPDATE,
+            target=assignment,
+            membership=membership,
+            changes={"is_active": [True, False]},
+        )
+    return assignment

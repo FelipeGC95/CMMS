@@ -1,0 +1,28 @@
+{% extends "base.html" %}{% load i18n ui %}
+{% block title %}{% translate "Publicar" %} · {{ plan.name }}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <p class="muted mono">{{ plan.code }}</p>
+    <h1>{% blocktranslate with n=draft.number %}Publicar la versión {{ n }}{% endblocktranslate %}</h1>
+  </div>
+</div>
+<section class="card narrow" aria-labelledby="confirm-title">
+  <h2 id="confirm-title">{{ plan.name }}</h2>
+  <dl class="dl">
+    <dt>{% translate "Frecuencia" %}</dt><dd>{{ draft.frequency_label|default:"—" }}</dd>
+    <dt>{% translate "Checklist" %}</dt><dd>{% blocktranslate count n=item_count %}{{ n }} ítem{% plural %}{{ n }} ítems{% endblocktranslate %}</dd>
+    <dt>{% translate "Repuestos y herramientas" %}</dt><dd class="num">{{ resource_count }}</dd>
+    <dt>{% translate "Activos con el plan" %}</dt><dd class="num">{{ assignment_count }}</dd>
+  </dl>
+  <div class="alert alert--warning mt-4" role="status">{% icon 'alert' %}<span>{% translate "Una versión publicada no se puede modificar: para cambiarla después crearás un nuevo borrador. Las OT futuras usarán esta versión y, si cambió la frecuencia, se recalculan los próximos vencimientos de los activos sin OT abierta. Las OT ya generadas no cambian." %}</span></div>
+  <form method="post" class="mt-4">
+    {% csrf_token %}
+    {% include "_form_fields.html" with form=form %}
+    <div class="row">
+      <button class="btn btn--primary btn--lg" type="submit">{% icon 'check' %}{% translate "Sí, publicar" %}</button>
+      <a class="btn btn--ghost btn--lg" href="{% url 'plan_draft' plan.pk %}">{% translate "Seguir editando" %}</a>
+    </div>
+  </form>
+</section>
+{% endblock %}

@@ -97,7 +97,7 @@
     {% if plans %}
     <ul class="list">
       {% for a in plans %}
-      <li><div class="list__main"><span class="list__title">{{ a.plan.name }}</span><span class="list__meta">{% translate "Cada" %} {{ a.plan.frequency_label }}{% if a.last_done_on %} · {% translate "última" %} {{ a.last_done_on|date:"d M Y" }}{% endif %}</span></div>
+      <li><div class="list__main"><span class="list__title">{% if can_manage_plans %}<a href="{% url 'plan_detail' a.plan.pk %}">{{ a.plan.name }}</a>{% else %}{{ a.plan.name }}{% endif %}</span><span class="list__meta">{% translate "Cada" %} {{ a.plan.frequency_label }}{% if a.last_done_on %} · {% translate "última" %} {{ a.last_done_on|date:"d M Y" }}{% endif %}</span></div>
       <div class="row">
         {% if a.next_due_meter_value is not None %}<span class="badge badge--info">{% icon 'clock' %}{{ a.next_due_meter_value|num }} {{ a.meter.unit }}</span>{% endif %}
         {% if a.next_due_on %}<span class="badge badge--info">{% icon 'calendar' %}{{ a.next_due_on|date:"d M" }}</span>{% endif %}
@@ -105,6 +105,7 @@
       {% endfor %}
     </ul>
     {% else %}<p class="muted">{% translate "Sin planes asignados." %}</p>{% endif %}
+    {% if can_manage_plans and not is_retired %}<div class="row mt-2"><a class="btn btn--ghost" href="{% url 'asset_plan_assign' asset.pk %}">{% icon 'calendar' %}{% translate "Asignar plan" %}</a></div>{% endif %}
   </section>
 </div>
 

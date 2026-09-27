@@ -1,0 +1,23 @@
+{% extends "base.html" %}{% load i18n ui %}
+{% block title %}{% translate "Nuevo plan" %}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>{% translate "Nuevo plan preventivo" %}</h1>
+    <p class="muted">{% translate "Se crea como borrador: después agregas el checklist, los repuestos y lo publicas." %}</p>
+  </div>
+  <a class="btn btn--ghost" href="{% url 'plan_list' %}">{% translate "Volver a planes" %}</a>
+</div>
+<form method="post" class="grid grid--2">
+  {% csrf_token %}
+  <section class="card" aria-labelledby="plan-title">
+    <h2 id="plan-title">{% translate "Plan" %}</h2>
+    {% include "_form_fields.html" with form=plan_form %}
+  </section>
+  <section class="card" aria-labelledby="trigger-title">
+    <h2 id="trigger-title">{% translate "Cuándo vence" %}</h2>
+    {% include "maintenance/_trigger_fields.html" with form=trigger_form %}
+    <button class="btn btn--primary btn--lg btn--block" type="submit">{% icon 'check' %}{% translate "Crear borrador" %}</button>
+  </section>
+</form>
+{% endblock %}
