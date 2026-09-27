@@ -69,6 +69,8 @@ class Organization(TimeStampedModel):
     work_order_status_labels = models.JSONField(_("nombres de los estados de OT"), default=dict, blank=True)
     # Logo para etiquetas QR y reportes (ORG-09, parte mínima). PNG normalizado por el servicio.
     logo = models.ImageField(_("logo"), upload_to=organization_logo_upload_to, blank=True)
+    # Tamaño del logo guardado: cuenta para el cupo de almacenamiento (ORG-10).
+    logo_size_bytes = models.PositiveIntegerField(_("tamaño del logo (bytes)"), default=0)
 
     class Meta:
         verbose_name = _("organización")

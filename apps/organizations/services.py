@@ -6,11 +6,13 @@ import zoneinfo
 from django.core.exceptions import ValidationError
 from django.core.files.base import ContentFile
 from django.db import transaction
+from django.template.defaultfilters import filesizeformat
 from django.utils.translation import gettext as _
 from PIL import Image, ImageOps, UnidentifiedImageError
 
 from apps.accounts.permissions import Perm, require_perm
 from apps.accounts.scoping import allowed_location_ids
+from apps.attachments.selectors import storage_usage
 from apps.audit import services as audit
 from apps.audit.models import AuditEvent
 
@@ -210,9 +212,11 @@ def _replace_logo(organization, *, data: bytes | None):
     old_name = organization.logo.name
     if data is None:
         organization.logo = ""
+        organization.logo_size_bytes = 0
     else:
         organization.logo.save("logo.png", ContentFile(data), save=False)
-    organization.save(update_fields=["logo", "updated_at"])
+        organization.logo_size_bytes = len(data)
+    organization.save(update_fields=["logo", "logo_size_bytes", "updated_at"])
     if old_name:
         storage = organization.logo.storage
         transaction.on_commit(lambda: storage.delete(old_name))
@@ -222,12 +226,26 @@ def _replace_logo(organization, *, data: bytes | None):
 def set_organization_logo(*, membership, uploaded_file):
     """Sube o reemplaza el logo. Solo el administrador de la organización.
 
-    No cuenta para el cupo de almacenamiento: es un único PNG pequeño (≤600 px) que se
-    reemplaza en cada cambio, no un adjunto que se acumula.
+    Cuenta para el cupo de almacenamiento (ORG-10): se mide el PNG ya normalizado y, al
+    reemplazarlo, se descuenta el logo anterior. La fila bloqueada evita que una subida
+    simultánea de adjuntos supere el cupo entre ambas.
     """
     require_perm(membership, Perm.ORGANIZATION_MANAGE)
     data = _normalize_logo(uploaded_file)
     organization = Organization.objects.select_for_update().get(pk=membership.organization_id)
+    usage = storage_usage(organization=organization)
+    if not usage.allows(len(data) - organization.logo_size_bytes):
+        raise ValidationError(
+            _(
+                "No hay espacio para este logo (%(size)s): la organización usa %(used)s de "
+                "%(quota)s de su plan. Pide al administrador ampliar el plan."
+            )
+            % {
+                "size": filesizeformat(len(data)),
+                "used": filesizeformat(usage.used_bytes),
+                "quota": filesizeformat(usage.quota_bytes),
+            }
+        )
     before = organization.logo.name
     _replace_logo(organization, data=data)
     audit.record(

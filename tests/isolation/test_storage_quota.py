@@ -58,3 +58,15 @@ def test_asset_page_of_a_shows_only_the_usage_of_a(client, tenant_a, tenant_b):
     page = client.get(reverse("asset_detail", args=[tenant_a.asset.pk])).content.decode()
     assert "1,0 MB de 10 MB usados" in page
     assert "badge--warning" not in page
+
+
+def test_logo_of_b_does_not_count_toward_the_storage_of_a(tenant_a, tenant_b):
+    from apps.organizations.services import set_organization_logo
+    from tests.test_org_logo import image_upload
+
+    with tenant_context(tenant_b.org):
+        set_organization_logo(membership=tenant_b.admin, uploaded_file=image_upload())
+    tenant_b.org.refresh_from_db()
+    assert tenant_b.org.logo_size_bytes > 0
+    assert storage_usage(organization=tenant_a.org).used_bytes == 0
+    assert storage_usage(organization=tenant_b.org).used_bytes == tenant_b.org.logo_size_bytes

@@ -3,15 +3,18 @@
 import io
 
 import pytest
+from django.core.exceptions import ValidationError
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.urls import reverse
 from PIL import Image
 
 from apps.attachments.models import Attachment, TargetType
-from apps.attachments.selectors import BYTES_PER_MB, storage_usage
+from apps.attachments.selectors import BYTES_PER_MB, storage_bytes_used, storage_usage
 from apps.attachments.services import AttachmentError, _compress_image, add_attachment
 from apps.organizations.models import Plan
+from apps.organizations.services import remove_organization_logo, set_organization_logo
 from tests.conftest import login
+from tests.test_org_logo import image_upload
 
 
 @pytest.fixture(autouse=True)
@@ -167,3 +170,46 @@ def test_upload_over_quota_via_the_view_shows_an_error(client, tenant_a):
     assert "No hay espacio" in response.content.decode()
     with tenant_context(tenant_a.org):
         assert Attachment.objects.count() == 1
+
+
+# --- El logo de la organización cuenta para el cupo (ORG-10) ---
+
+
+def _logo_size(org):
+    org.refresh_from_db()
+    return org.logo_size_bytes
+
+
+def test_logo_counts_toward_storage_usage(in_a):
+
+    _fill(in_a, 1000)
+    set_organization_logo(membership=in_a.admin, uploaded_file=image_upload())
+    size = _logo_size(in_a.org)
+    assert size == in_a.org.logo.size > 0
+    assert storage_usage(organization=in_a.org).used_bytes == 1000 + size
+    assert storage_bytes_used(organization=in_a.org) == 1000 + size
+    remove_organization_logo(membership=in_a.admin)
+    assert _logo_size(in_a.org) == 0
+    assert storage_usage(organization=in_a.org).used_bytes == 1000
+
+
+def test_logo_over_quota_is_rejected_with_a_clear_message(in_a):
+
+    _set_quota(in_a.org, 1)
+    _fill(in_a, BYTES_PER_MB - 10)
+    with pytest.raises(ValidationError, match="No hay espacio para este logo"):
+        set_organization_logo(membership=in_a.admin, uploaded_file=image_upload())
+    in_a.org.refresh_from_db()
+    assert not in_a.org.logo and in_a.org.logo_size_bytes == 0
+
+
+def test_replacing_the_logo_only_counts_the_difference(in_a):
+
+    set_organization_logo(membership=in_a.admin, uploaded_file=image_upload())
+    size = _logo_size(in_a.org)
+    _set_quota(in_a.org, 1)
+    _fill(in_a, BYTES_PER_MB - size)  # cupo lleno, logo incluido
+    set_organization_logo(membership=in_a.admin, uploaded_file=image_upload())  # mismo tamaño: cabe
+    assert _logo_size(in_a.org) == size
+    with pytest.raises(AttachmentError, match="No hay espacio"):
+        _upload(in_a, _pdf(1000))

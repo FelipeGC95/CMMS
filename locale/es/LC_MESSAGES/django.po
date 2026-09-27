@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-26 23:27-0300\n"
+"POT-Creation-Date: 2026-09-26 23:29-0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1412,6 +1412,9 @@ msgstr ""
 msgid "logo"
 msgstr ""
 
+msgid "tamaño del logo (bytes)"
+msgstr ""
+
 msgid "organización"
 msgstr ""
 
@@ -1484,6 +1487,12 @@ msgid "El logo debe ser una imagen PNG, JPEG o WebP."
 msgstr ""
 
 msgid "El logo tiene demasiados píxeles; redúcelo e inténtalo de nuevo."
+msgstr ""
+
+#, python-format
+msgid ""
+"No hay espacio para este logo (%(size)s): la organización usa %(used)s de "
+"%(quota)s de su plan. Pide al administrador ampliar el plan."
 msgstr ""
 
 #, python-format

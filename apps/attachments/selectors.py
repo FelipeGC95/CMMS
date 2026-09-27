@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from django.db.models import OuterRef, Subquery, Sum
+from django.db.models import F, OuterRef, Subquery, Sum
 from django.db.models.functions import Coalesce
 
 from apps.organizations.models import Organization
@@ -26,12 +26,13 @@ def attachments_by_target(*, target_type: str, target_ids) -> dict:
 
 
 def storage_bytes_used(*, organization) -> int:
-    """Bytes usados por la organización (AST-06 CA2), medidos después de comprimir las imágenes."""
+    """Bytes usados por la organización (AST-06 CA2): adjuntos ya comprimidos más el logo."""
     # all_tenants: se filtra explícitamente por la organización recibida.
     total = Attachment.all_tenants.filter(organization=organization).aggregate(total=Sum("size_bytes"))[
         "total"
     ]
-    return total or 0
+    logo = Organization.objects.filter(pk=organization.pk).values_list("logo_size_bytes", flat=True).get()
+    return (total or 0) + logo
 
 
 @dataclass(frozen=True)
@@ -66,7 +67,7 @@ class StorageUsage:
 
 
 def storage_usage(*, organization) -> StorageUsage:
-    """Uso y cupo de almacenamiento del plan en una sola consulta (AST-06 CA2, ORG-10)."""
+    """Uso (adjuntos + logo) y cupo del plan en una sola consulta (AST-06 CA2, ORG-10)."""
     # all_tenants: el filtro por organización es explícito (OuterRef) y no depende del contexto.
     used = (
         Attachment.all_tenants.filter(organization=OuterRef("pk"))
@@ -76,7 +77,7 @@ def storage_usage(*, organization) -> StorageUsage:
     )
     quota_mb, used_bytes = (
         Organization.objects.filter(pk=organization.pk)
-        .annotate(used=Coalesce(Subquery(used), 0))
+        .annotate(used=Coalesce(Subquery(used), 0) + F("logo_size_bytes"))
         .values_list("plan__max_storage_mb", "used")
         .get()
     )
