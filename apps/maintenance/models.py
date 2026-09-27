@@ -3,6 +3,7 @@ import datetime
 from decimal import Decimal
 
 from django.core.exceptions import ValidationError
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 from django.utils.translation import ngettext
@@ -59,6 +60,35 @@ def format_number(value) -> str:
     integer, _sep, fraction = f"{abs(value):f}".partition(".")
     integer = f"{int(integer):,}".replace(",", ".")
     return f"{sign}{integer},{fraction}" if fraction else f"{sign}{integer}"
+
+
+DEFAULT_HORIZON_DAYS = 14
+MAX_HORIZON_DAYS = 90
+
+
+class MaintenanceSettings(TenantModel):
+    """Ajustes del programador de preventivos de la organización (PM-05 CA1).
+
+    Uno por organización, creado al guardarlo por primera vez; mientras no
+    exista rigen los valores por defecto (`maintenance_settings()`).
+    """
+
+    horizon_days = models.PositiveSmallIntegerField(
+        _("horizonte de generación (días)"),
+        default=DEFAULT_HORIZON_DAYS,
+        validators=[MinValueValidator(1), MaxValueValidator(MAX_HORIZON_DAYS)],
+        help_text=_("Las OT preventivas se generan cuando vencen dentro de estos días."),
+    )
+
+    class Meta:
+        verbose_name = _("ajustes de preventivos")
+        verbose_name_plural = _("ajustes de preventivos")
+        constraints = [
+            models.UniqueConstraint(fields=["organization"], name="uniq_maintenance_settings"),
+        ]
+
+    def __str__(self):
+        return str(self._meta.verbose_name)
 
 
 class MaintenancePlanManager(TenantManager):

@@ -7,7 +7,7 @@ from apps.assets.models import AssetClass, MeterKind
 from apps.organizations.models import Location
 from apps.organizations.selectors import visible_locations
 
-from .models import CalendarUnit, ItemType, PlanResource, PlanVersion
+from .models import MAX_HORIZON_DAYS, CalendarUnit, ItemType, PlanResource, PlanVersion
 
 
 def _class_field(**kwargs):
@@ -201,3 +201,12 @@ class AssetPlanForm(forms.Form):
         self.fields["meter"].label_from_instance = lambda m: m.name or m.get_kind_display()
         if not meters.exists():
             del self.fields["meter"]
+
+
+class MaintenanceSettingsForm(forms.Form):
+    horizon_days = forms.IntegerField(
+        label=_("Horizonte de generación (días)"),
+        min_value=1,
+        max_value=MAX_HORIZON_DAYS,
+        help_text=_("Por defecto, 14 días: la OT aparece dos semanas antes de vencer."),
+    )

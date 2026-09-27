@@ -5,6 +5,7 @@ from . import views
 urlpatterns = [
     path("plans/", views.plan_list_view, name="plan_list"),
     path("plans/new/", views.plan_create_view, name="plan_create"),
+    path("plans/settings/", views.maintenance_settings_view, name="maintenance_settings"),
     path("plans/<uuid:pk>/", views.plan_detail_view, name="plan_detail"),
     path("plans/<uuid:pk>/draft/", views.plan_draft_view, name="plan_draft"),
     path("plans/<uuid:pk>/draft/start/", views.plan_draft_start_view, name="plan_draft_start"),

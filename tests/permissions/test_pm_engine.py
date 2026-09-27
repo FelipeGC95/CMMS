@@ -38,3 +38,17 @@ def test_viewer_gets_403_on_text_answer_view(client, tenant_a):
     login(client, tenant_a.viewer)
     url = reverse("checklist_answer", args=[wo.pk, item.pk])
     assert client.post(url, {"value_text": "x"}).status_code == 403
+
+
+@pytest.mark.parametrize("role", ["planner", "supervisor", "technician", "viewer"])
+def test_only_admins_edit_maintenance_settings(client, tenant_a, role):
+    from apps.accounts.models import Membership, User
+    from apps.maintenance.services import update_maintenance_settings
+
+    user = User.objects.create_user(f"{role}-x@a.cl", "x")
+    membership = Membership.objects.create(user=user, organization=tenant_a.org, role=role)
+    with tenant_context(tenant_a.org), pytest.raises(PermissionDeniedError):
+        update_maintenance_settings(membership=membership, horizon_days=30)
+    login(client, membership)
+    assert client.get(reverse("maintenance_settings")).status_code == 403
+    assert client.post(reverse("maintenance_settings"), {"horizon_days": "30"}).status_code == 403

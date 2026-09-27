@@ -6,7 +6,7 @@ from apps.accounts.permissions import Perm, require_perm
 from apps.assets.models import Meter
 from apps.assets.selectors import visible_assets
 
-from .models import MaintenancePlan, PlanAssignment, PlanVersion
+from .models import MaintenancePlan, MaintenanceSettings, PlanAssignment, PlanVersion
 
 TRIGGERS = ("calendar", "meter", "mixed")
 
@@ -123,3 +123,8 @@ def reactivatable_assignments_for_asset(*, asset):
         .select_related("plan__current_version", "meter")
         .order_by("plan__name")
     )
+
+
+def maintenance_settings() -> MaintenanceSettings:
+    """Ajustes de la organización del contexto; sin fila guardada, los valores por defecto."""
+    return MaintenanceSettings.objects.first() or MaintenanceSettings()

@@ -38,3 +38,29 @@ def test_b_cannot_answer_text_or_signature_items_of_a(client, tenant_a, tenant_b
     with tenant_context(tenant_a.org):
         item.refresh_from_db()
         assert item.value_text == "" and item.result == ""
+
+
+def test_horizon_of_b_does_not_affect_a(tenant_a, tenant_b):
+    import datetime as dt
+
+    from apps.maintenance.selectors import maintenance_settings
+    from apps.maintenance.services import assign_plan, generate_due_work_orders, update_maintenance_settings
+
+    today = dt.date(2026, 9, 24)
+    with tenant_context(tenant_b.org):
+        update_maintenance_settings(membership=tenant_b.admin, horizon_days=60)
+    with tenant_context(tenant_a.org):
+        assert maintenance_settings().horizon_days == 14
+        assign_plan(plan=tenant_a.plan, asset=tenant_a.asset, starts_on=today + dt.timedelta(days=30))
+        assert generate_due_work_orders(today=today) == []
+
+
+def test_settings_screen_edits_only_the_active_organization(client, tenant_a, tenant_b):
+    from apps.maintenance.selectors import maintenance_settings
+
+    login(client, tenant_b.admin)
+    client.post(reverse("maintenance_settings"), {"horizon_days": "45"})
+    with tenant_context(tenant_a.org):
+        assert maintenance_settings().horizon_days == 14
+    with tenant_context(tenant_b.org):
+        assert maintenance_settings().horizon_days == 45

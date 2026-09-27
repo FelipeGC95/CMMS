@@ -24,6 +24,7 @@ from . import services
 from .forms import (
     AssetPlanForm,
     AssignFilterForm,
+    MaintenanceSettingsForm,
     PlanFilterForm,
     PlanForm,
     PlanItemForm,
@@ -35,6 +36,7 @@ from .models import MaintenancePlan, PlanAssignment, PlanResource, PlanTaskItem,
 from .selectors import (
     assignable_assets,
     assignable_plans,
+    maintenance_settings,
     plan_assignments,
     plan_list,
     plan_versions,
@@ -465,3 +467,24 @@ def asset_plan_assign_view(request, pk):
     return render(
         request, "maintenance/asset_plan_assign.html", {"asset": asset, "form": form, "plans": plans}
     )
+
+
+# --- Ajustes del programador (PM-05 CA1) -----------------------------------------
+
+
+@membership_required(perm=Perm.ORGANIZATION_MANAGE)
+def maintenance_settings_view(request):
+    """Horizonte de generación de OT preventivas de la organización (solo administradores)."""
+    current = maintenance_settings()
+    form = MaintenanceSettingsForm(request.POST or None, initial={"horizon_days": current.horizon_days})
+    if request.method == "POST" and form.is_valid():
+        try:
+            services.update_maintenance_settings(
+                membership=request.membership, horizon_days=form.cleaned_data["horizon_days"]
+            )
+        except ValidationError as error:
+            form.add_error(None, error)
+        else:
+            messages.success(request, _("Ajustes guardados."))
+            return redirect("maintenance_settings")
+    return render(request, "maintenance/settings.html", {"form": form})

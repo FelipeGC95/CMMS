@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-27 01:22-0300\n"
+"POT-Creation-Date: 2026-09-27 01:25-0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1266,6 +1266,12 @@ msgstr ""
 msgid "Solo para planes por medidor, si el activo tiene varios del mismo tipo."
 msgstr ""
 
+msgid "Horizonte de generación (días)"
+msgstr ""
+
+msgid "Por defecto, 14 días: la OT aparece dos semanas antes de vencer."
+msgstr ""
+
 msgid "Verificación (OK / No OK / N.A.)"
 msgstr ""
 
@@ -1282,6 +1288,15 @@ msgid "semanas"
 msgstr ""
 
 msgid "meses"
+msgstr ""
+
+msgid "horizonte de generación (días)"
+msgstr ""
+
+msgid "Las OT preventivas se generan cuando vencen dentro de estos días."
+msgstr ""
+
+msgid "ajustes de preventivos"
 msgstr ""
 
 msgid "versión vigente"
@@ -1495,6 +1510,10 @@ msgid "El activo no está en tu alcance."
 msgstr ""
 
 #, python-format
+msgid "Usa entre 1 y %(max)s días."
+msgstr ""
+
+#, python-format
 msgid "Plan asignado a %(n)s activo."
 msgid_plural "Plan asignado a %(n)s activos."
 msgstr[0] ""
@@ -1552,6 +1571,9 @@ msgstr ""
 
 #, python-format
 msgid "Plan quitado de %(code)s."
+msgstr ""
+
+msgid "Ajustes guardados."
 msgstr ""
 
 msgid "correo del administrador"
@@ -3563,6 +3585,9 @@ msgstr[0] ""
 msgstr[1] ""
 msgstr[2] ""
 
+msgid "Ajustes de preventivos"
+msgstr ""
+
 msgid "Filtros"
 msgstr ""
 
@@ -3603,6 +3628,24 @@ msgid "Sí, publicar"
 msgstr ""
 
 msgid "Seguir editando"
+msgstr ""
+
+msgid "Rigen para todos los planes de la organización."
+msgstr ""
+
+msgid "Volver a los planes"
+msgstr ""
+
+msgid "Generación automática de OT"
+msgstr ""
+
+msgid ""
+"Cada hora se crean las OT preventivas que vencen dentro del horizonte. Las "
+"que vencen por medidor se crean cuando el uso promedio indica que llegarán "
+"en ese plazo."
+msgstr ""
+
+msgid "Guardar ajustes"
 msgstr ""
 
 msgid "Avisar problema"

@@ -15,16 +15,18 @@ from apps.audit import services as audit
 from apps.audit.models import AuditEvent
 
 from .models import (
+    DEFAULT_HORIZON_DAYS,
+    MAX_HORIZON_DAYS,
     CalendarUnit,
     ItemType,
     MaintenancePlan,
+    MaintenanceSettings,
     PlanAssignment,
     PlanResource,
     PlanTaskItem,
     PlanVersion,
 )
 
-DEFAULT_HORIZON_DAYS = 14
 # Aviso mínimo para planes por uso: generar la OT al 90 % del intervalo.
 METER_MIN_LEAD = Decimal("0.10")
 # Campos de la versión que cambian cuándo vence un plan.
@@ -315,9 +317,7 @@ def _estimated_meter_date(assignment: PlanAssignment, today: datetime.date) -> d
     return today + datetime.timedelta(days=math.ceil(remaining / meter.avg_daily_usage))
 
 
-def generate_due_work_orders(
-    *, today: datetime.date | None = None, horizon_days=DEFAULT_HORIZON_DAYS, meter=None
-):
+def generate_due_work_orders(*, today: datetime.date | None = None, horizon_days=None, meter=None):
     """Genera OT preventivas que vencen por fecha o por uso, lo que ocurra primero (PM-02, PM-05).
 
     Usa la versión vigente del plan: la OT guarda esa versión y copia su
@@ -328,7 +328,11 @@ def generate_due_work_orders(
     from apps.work.models import WorkOrder
     from apps.work.services import create_work_order
 
+    from .selectors import maintenance_settings
+
     today = today or timezone.localdate()
+    if horizon_days is None:  # el de la organización (PM-05 CA1: configurable, 14 días por defecto)
+        horizon_days = maintenance_settings().horizon_days
     limit = today + datetime.timedelta(days=horizon_days)
     candidates = (
         PlanAssignment.objects.filter(
@@ -840,3 +844,26 @@ def deactivate_assignment(*, membership, assignment: PlanAssignment) -> PlanAssi
             changes={"is_active": [True, False]},
         )
     return assignment
+
+
+# --- Ajustes del programador ---------------------------------------------------
+
+
+@transaction.atomic
+def update_maintenance_settings(*, membership, horizon_days: int) -> MaintenanceSettings:
+    """Horizonte de generación de la organización (PM-05 CA1). Solo administradores."""
+    require_perm(membership, Perm.ORGANIZATION_MANAGE)
+    if not 1 <= horizon_days <= MAX_HORIZON_DAYS:
+        raise ValidationError({"horizon_days": _("Usa entre 1 y %(max)s días.") % {"max": MAX_HORIZON_DAYS}})
+    settings_row, _created = MaintenanceSettings.objects.select_for_update().get_or_create()
+    before = settings_row.horizon_days if not _created else DEFAULT_HORIZON_DAYS
+    if before != horizon_days or _created:
+        settings_row.horizon_days = horizon_days
+        settings_row.save(update_fields=["horizon_days", "updated_at"])
+        audit.record(
+            action=AuditEvent.Action.UPDATE,
+            target=settings_row,
+            membership=membership,
+            changes={"horizon_days": [before, horizon_days]},
+        )
+    return settings_row

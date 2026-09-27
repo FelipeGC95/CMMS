@@ -1,0 +1,20 @@
+{% extends "base.html" %}{% load i18n ui %}
+{% block title %}{% translate "Ajustes de preventivos" %}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>{% translate "Ajustes de preventivos" %}</h1>
+    <p class="muted">{% translate "Rigen para todos los planes de la organización." %}</p>
+  </div>
+  <a class="btn btn--ghost" href="{% url 'plan_list' %}">{% translate "Volver a los planes" %}</a>
+</div>
+<section class="card narrow" aria-labelledby="horizon-title">
+  <h2 id="horizon-title">{% translate "Generación automática de OT" %}</h2>
+  <p class="muted">{% blocktranslate %}Cada hora se crean las OT preventivas que vencen dentro del horizonte. Las que vencen por medidor se crean cuando el uso promedio indica que llegarán en ese plazo.{% endblocktranslate %}</p>
+  <form method="post" class="mt-4">
+    {% csrf_token %}
+    {% include "_form_fields.html" with form=form %}
+    <button class="btn btn--primary btn--lg" type="submit">{% icon 'check' %}{% translate "Guardar ajustes" %}</button>
+  </form>
+</section>
+{% endblock %}
