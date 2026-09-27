@@ -8,6 +8,7 @@
   </div>
   <div class="row">
     {% if membership|can:"request.create" %}<a class="btn btn--secondary" href="{% url 'location_report' %}">{% icon 'megaphone' %}{% translate "Avisar problema" %}</a>{% endif %}
+    <a class="btn btn--ghost" href="{% url 'work_order_export_xlsx' %}?{{ request.GET.urlencode }}">{% icon 'list' %}{% translate "Exportar Excel" %}</a>
     {% if membership|can:"work_order.manage" %}<a class="btn btn--primary" href="{% url 'work_order_create' %}">{% translate "Nueva OT" %}</a>{% endif %}
   </div>
 </div>

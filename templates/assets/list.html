@@ -10,6 +10,7 @@
   {% if not request.GET.report %}<div class="row">
     {% if can_manage %}<a class="btn btn--primary" href="{% url 'asset_create' %}{% if parent %}?parent={{ parent.pk }}{% endif %}">{% icon 'box' %}{% if parent %}{% translate "Agregar componente" %}{% else %}{% translate "Nuevo activo" %}{% endif %}</a>{% endif %}
     {% if membership|can_import_assets %}<a class="btn btn--secondary" href="{% url 'asset_import' %}">{% icon 'box' %}{% translate "Importar desde Excel" %}</a><a class="btn btn--secondary" href="{% url 'reading_import' %}">{% icon 'clock' %}{% translate "Importar lecturas" %}</a>{% endif %}
+    <a class="btn btn--ghost" href="{% url 'asset_export_xlsx' %}?{{ request.GET.urlencode }}">{% icon 'list' %}{% translate "Exportar Excel" %}</a>
     {% if not labels_mode %}<a class="btn btn--ghost" href="?{% for k, v in request.GET.items %}{% if k != 'page' %}{{ k }}={{ v|urlencode }}&{% endif %}{% endfor %}labels=1">{% icon 'print' %}{% translate "Imprimir etiquetas QR" %}</a>{% endif %}
     {% if membership|can:"asset.manage" %}<a class="btn btn--ghost" href="{% url 'location_list' %}">{% translate "Ubicaciones" %}</a>
     <a class="btn btn--ghost" href="{% url 'asset_class_list' %}">{% translate "Clases de activo" %}</a>{% endif %}
