@@ -72,6 +72,7 @@
   --shadow-md: 0 4px 12px rgb(11 46 79 / 0.12);
   --duration-fast: 120ms;
   --logo-height: 28px;
+  --navbar-height: 60px;
   --content-max: 1200px;
   /* El QR y las etiquetas impresas van siempre sobre blanco para escanear bien. */
   --color-qr-bg: #FFFFFF;
