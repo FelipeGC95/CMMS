@@ -125,96 +125,12 @@ revés; los modelos no llaman servicios; las vistas HTML y la API llaman a
    ver, editar ni referenciar datos de B (incluido pasar IDs de B en
    formularios y en la API). Un test genérico recorre todos los modelos que
    heredan de `TenantModel` para que ningún modelo nuevo quede fuera.
-8. **RLS (segunda defensa)**: antes del primer cliente pagado se activa
-   Row‑Level Security en todas las tablas con `organization_id`, con la
-   variable de sesión `app.current_organization` fijada con `SET LOCAL` al
-   inicio de cada transacción (ver ADR-002).
-
-## 5. Seguridad
-
-| Tema | Medida |
-|---|---|
-| Autenticación | allauth, Argon2, verificación de correo, MFA TOTP con códigos de recuperación, exigible por organización. |
-| Fuerza bruta | Límite de intentos por usuario e IP (django-axes o el rate limit de allauth), bloqueo temporal; límite de tasa en formularios públicos (QR). |
-| Sesión | Cookies `Secure`, `HttpOnly`, `SameSite=Lax`; rotación al iniciar sesión y al cambiar de organización; expiración por inactividad configurable. |
-| Autorización | Permisos por rol verificados en servicios y selectors (no solo en la UI); objetos siempre obtenidos por selectors con alcance. |
-| Transporte | HTTPS obligatorio, HSTS (1 año, preload cuando el dominio sea estable). |
-| Cabeceras | CSP estricta en toda respuesta (ADR-023: sin scripts ni estilos en línea; htmx y Alpine servidos localmente; Alpine en su build compatible con CSP), `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`. |
-| API | Tokens por organización con alcances, guardados como hash, con prefijo visible; límite de tasa por token. |
-| Archivos | Validación de tipo real (magic bytes) y tamaño; nombres aleatorios; sin ejecución; URLs firmadas de corta duración. |
-| Secretos | Variables de entorno de Render; `.env` solo local e ignorado por git; gitleaks en CI. |
-| Datos | Cifrado en reposo por el proveedor (Postgres y R2); respaldos cifrados. |
-| Dependencias | Dependabot + `pip-audit` en CI. |
-| Postura | Documento `docs/07_postura_de_seguridad.md` para clientes (se redacta en MVP‑1). |
-
-## 6. Despliegue y operación
-
-| Ambiente | Infraestructura | Despliegue |
-|---|---|---|
-| Desarrollo | Local en Windows: Python con uv, PostgreSQL local (instalador oficial o Docker Desktop), almacenamiento en disco. | — |
-| Staging | Render: web + worker pequeños, Postgres básico, bucket R2 separado. Datos sintéticos. | Automático al hacer push a `main` con CI en verde. |
-| Producción | Render: web + worker, Postgres con respaldos gestionados, bucket R2 de producción. | Manual (promoción del mismo commit) tras validar staging. |
-
-Pipeline (GitHub Actions): ruff → verificación de migraciones faltantes →
-pytest (con Postgres de servicio) → `check --deploy` → pip-audit/gitleaks.
-
-Operación:
-
-- `/healthz` (proceso vivo) y `/readyz` (base de datos accesible y cola al día).
-- Migraciones en el *pre-deploy command* de Render; migraciones compatibles
-  hacia atrás (expand/contract) para no cortar el servicio.
-- Respaldos: los del proveedor (recuperación a un punto en el tiempo) más un
-  `pg_dump` diario a R2 con retención de 30 días; prueba de restauración en
-  staging cada trimestre, registrada en `docs/operacion/`.
-- Tareas periódicas (Procrastinate): generación de preventivos cada hora,
-  avisos de vencimiento diarios, recálculo de uso de almacenamiento diario,
-  respaldo lógico diario.
-
-### Costo estimado de infraestructura
-
-Precios de lista aproximados; verificarlos al contratar.
-
-| Ítem | Staging | Producción |
-|---|---|---|
-| Render web | ~USD 7 | ~USD 7 → 25 al crecer |
-| Render worker | ~USD 7 | ~USD 7 |
-| Render Postgres | ~USD 6 | ~USD 19 (1 GB RAM) |
-| Cloudflare R2 | gratis (< 10 GB) | ~USD 0–5 |
-| Sentry, correo | plan gratuito | plan gratuito → ~USD 15 |
-| **Total** | **~USD 20** | **~USD 33–55** |
-
-Alternativas evaluadas: **Railway** (cobro por uso, similar en costo, menos
-predecible); **Fly.io** (más barato, pero más operación y Postgres menos
-gestionado); **DigitalOcean App Platform** (comparable; opción de respaldo);
-**VPS Hetzner + Coolify** (~USD 10, pero respaldos, actualizaciones y seguridad
-del servidor quedan a tu cargo: no vale la pena para una sola persona hasta
-tener ingresos).
-
-## 7. Zonas horarias e i18n
-
-- `USE_TZ = True`; todo se guarda en UTC.
-- Zona de visualización: la del sitio del activo si está definida; si no, la
-  de la organización. Un middleware activa la zona de la organización; las
-  plantillas que muestran datos de un sitio concreto usan un filtro
-  `|site_tz`.
-- Fechas "de calendario" (fecha límite de un preventivo por días) se calculan
-  en la zona del sitio y se guardan como `timestamptz` al final del día local.
-- `LANGUAGE_CODE = "es-cl"`; todo texto con `gettext`/`{% translate %}`;
-  `LOCALE_PATHS` en el repo; formato numérico y de fecha por locale.
-
-## 8. Decisiones de arquitectura (ADR)
-
-### ADR-001 · Monolito modular con Django y PostgreSQL
-- **Contexto:** una sola persona con experiencia en Django; dominio con
-  muchas relaciones y reportes.
-- **Decisión:** un único proyecto Django organizado en apps por dominio,
-  un solo despliegue y una sola base PostgreSQL.
-- **Alternativas descartadas:** microservicios (costo operativo imposible
-  para una persona); FastAPI + SPA (más código propio para admin, auth,
-  formularios y migraciones).
-- **Consecuencias:** despliegue y depuración simples; hay que cuidar los
-  límites entre apps (reglas de dependencia de la §3) para no crear un
-  monolito acoplado.
+8. **RLS (segunda defensa, ADR-026)**: en PostgreSQL toda tabla de un
+   `TenantModel` tiene `FORCE ROW LEVEL SECURITY` y la política
+   `tenant_isolation`, que compara `organization_id` con la variable de sesión
+   `app.current_organization`. `tenant_context()` la fija al entrar y la
+   restaura al salir; `request_finished` la limpia. Activa antes del piloto
+   con datos reales.
 
 ### ADR-002 · Multi-tenancy con base compartida, columna de tenant y filtrado que falla cerrado; RLS antes de producción paga
 - **Contexto:** cientos de organizaciones pequeñas; hay que evitar fugas de
@@ -224,6 +140,8 @@ tener ingresos).
   filtra por el contexto y lanza una excepción si no hay contexto; tests de
   aislamiento obligatorios. RLS de PostgreSQL se activa como segunda defensa
   **antes del primer cliente pagado** (fase MVP‑1), no en el MVP‑0.
+  *Actualización:* se adelantó a antes del piloto con datos reales; el
+  diseño está en ADR-026.
 - **Por qué RLS no desde el día 1:** requiere un rol de base de datos sin
   `BYPASSRLS`, fijar la variable en cada transacción (interacción con pools
   de conexiones y con las tareas) y ajustar migraciones y tests. Como toda
@@ -744,3 +662,60 @@ tener ingresos).
   Equipo); no se crea un modelo de turnos hasta que un cliente lo pida.
 - **Puntaje del backlog:** expresión `CASE` en SQL (criticidad × prioridad) para
   ordenar y paginar en la base, sin columnas guardadas que haya que mantener.
+
+### ADR-026 · Row-Level Security en PostgreSQL como segunda defensa del aislamiento
+- **Contexto:** NF-07 y ADR-002. El manager que falla cerrado protege el ORM,
+  pero no el SQL crudo, `all_tenants` mal usado, el `_base_manager` de Django
+  (FK hacia adelante, `refresh_from_db`) ni un filtro olvidado. Decisión del
+  dueño: RLS activo **antes del piloto con datos reales**.
+- **Decisión:**
+  - Toda tabla de un `TenantModel` concreto (descubierta en tiempo de
+    ejecución, no listada) queda con `ENABLE` + `FORCE ROW LEVEL SECURITY` y
+    la política `tenant_isolation`: `USING` y `WITH CHECK`
+    `current_setting('app.bypass_rls', true) = 'on' OR organization_id =
+    NULLIF(current_setting('app.current_organization', true), '')::uuid`.
+    Sin variable no se ve ni escribe ninguna fila (falla cerrado).
+  - **Instalación:** un receptor de `post_migrate` (`apps/core/rls.py`) las
+    (re)aplica de forma idempotente tras cada `migrate`, así que una tabla
+    nueva queda cubierta en el mismo despliegue sin migración a mano.
+    `pre_migrate` activa el bypass para que las migraciones de datos vean
+    todas las filas; al terminar vuelve al contexto. `tests/isolation/test_rls.py`
+    y `manage.py rls_status` fallan si una tabla de TenantModel no tiene la
+    política.
+  - **Variables de sesión:** `tenant_context()` (que usan el middleware, el
+    token de la API, las tareas y el reporte anónimo por QR) ejecuta
+    `set_config(..., false)` en la conexión al entrar y restaura el valor
+    anterior al salir; `platform_context()` hace lo mismo con
+    `app.bypass_rls`. Se ejecuta en el cursor nativo de psycopg (no cuenta en
+    los tests de cantidad de consultas). `request_finished` vuelve a
+    sincronizar la conexión con el contexto (vacío tras la petición), así que
+    nada se filtra entre peticiones con `CONN_MAX_AGE` ni entre tareas de
+    Procrastinate. `connection_created` aplica el contexto a una conexión
+    nueva o reconectada. Dentro de una transacción abortada no se ejecuta: el
+    `ROLLBACK` devuelve la variable al valor previo a la transacción.
+  - **`all_tenants`** usa `PlatformQuerySet`, que evalúa cada consulta
+    (iteración, `count`, `exists`, `aggregate`, `update`, `delete`,
+    `bulk_*`, `iterator`) dentro de `platform_context()`. Usado como
+    subconsulta dentro de otra consulta rige el contexto externo: ahí se
+    envuelve la consulta externa en `platform_context()` (ej.
+    `attachments.selectors.storage_usage`). Código de plataforma explícito
+    (`seed_demo`, comandos) usa `platform_context()`.
+  - **Cobertura:** solo tablas de `TenantModel`. `organizations_organization`,
+    planes, `accounts_user`, `Membership`, invitaciones, tablas de allauth,
+    sesiones y Procrastinate no tienen RLS: se consultan antes de conocer la
+    organización (login, selección de organización) y siguen protegidas por
+    los selectores y los tests de aislamiento.
+- **Modelo de amenaza:** RLS protege contra **errores de la aplicación** que
+  olvidan el filtro por organización (SQL crudo, managers sin filtro, FK
+  cruzadas). **No** protege contra un rol de aplicación comprometido: el mismo
+  rol puede fijar `app.bypass_rls` o cualquier organización. El rol de la
+  aplicación no debe ser superusuario ni tener `BYPASSRLS` (lo ignorarían);
+  el dueño de las tablas sí queda sujeto gracias a `FORCE`.
+- **Rendimiento:** `current_setting` es estable y se evalúa una vez por
+  consulta; la condición sobre `organization_id` usa los índices compuestos
+  que ya empiezan por esa columna. Costo extra: un `SELECT set_config` al
+  entrar y salir de cada contexto (dos por petición autenticada) y por cada
+  evaluación de `all_tenants`.
+- **Alternativas descartadas:** `SET LOCAL` por transacción (Django corre en
+  autocommit y habría que abrir transacción en cada consulta); roles de base
+  por organización (inmanejable con cientos de organizaciones).

@@ -45,6 +45,9 @@ def _pg_env(db: dict) -> dict:
             env[var] = str(db[key])
     if sslmode := (db.get("OPTIONS") or {}).get("sslmode"):
         env["PGSSLMODE"] = sslmode
+    # Row-Level Security (ADR-026): el dueño de las tablas también queda sujeto
+    # (FORCE). El respaldo es de plataforma: bypass de la política para ver todo.
+    env["PGOPTIONS"] = (env.get("PGOPTIONS", "") + " -c app.bypass_rls=on").strip()
     return env
 
 
@@ -56,7 +59,15 @@ def dump_database(target: Path, *, alias: str = "default") -> None:
     db = connections[alias].settings_dict
     if connections[alias].vendor != "postgresql":
         raise BackupError("backup_database requiere PostgreSQL (pg_dump).")
-    command = ["pg_dump", "--format=custom", "--no-owner", "--no-acl", f"--file={target}", db["NAME"]]
+    command = [
+        "pg_dump",
+        "--format=custom",
+        "--no-owner",
+        "--no-acl",
+        "--enable-row-security",  # sin esto pg_dump falla en tablas con RLS forzado
+        f"--file={target}",
+        db["NAME"],
+    ]
     try:
         result = subprocess.run(command, env=_pg_env(db), capture_output=True, text=True, check=False)
     except FileNotFoundError as exc:

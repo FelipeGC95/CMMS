@@ -414,7 +414,7 @@ historial y los manuales de ese equipo.
 | NF-04 | Seguridad | Límite de intentos de acceso por usuario e IP; bloqueo temporal. | Tests. |
 | NF-05 | Seguridad | Secretos solo en variables de entorno; `.env` fuera del repo. | Revisión de secretos en CI (gitleaks). |
 | NF-06 | Seguridad | Almacenamiento de objetos cifrado en reposo; URLs de descarga firmadas y de corta duración. | Configuración del proveedor. |
-| NF-07 | Aislamiento | Ningún dato de una organización es accesible desde otra, por UI, API, archivos, exportaciones ni tareas. | Suite `tests/isolation/` obligatoria; RLS antes del primer cliente pagado. |
+| NF-07 | Aislamiento | Ningún dato de una organización es accesible desde otra, por UI, API, archivos, exportaciones ni tareas. | Suite `tests/isolation/` obligatoria; RLS de PostgreSQL activo antes del piloto con datos reales (ADR-026, `tests/isolation/test_rls.py`, `manage.py rls_status`). |
 | NF-08 | Privacidad | Exportación completa y borrado a pedido (X-03, X-04). | Tests + prueba manual por release. |
 | NF-09 | Respaldo | Respaldo diario de la base, retención ≥ 7 días (idealmente 30), restauración probada trimestralmente en staging. | Registro de la prueba. |
 | NF-10 | Rendimiento | Listas paginadas siempre; sin N+1 (tests con `django_assert_max_num_queries`); p95 < 500 ms en páginas principales con 5.000 activos por organización. | Tests y datos sintéticos. |

@@ -39,6 +39,8 @@ def test_backup_runs_pg_dump_custom_format_and_stores_under_backups(tmp_path, fa
     command, _ = fake_pg_dump[0]
     assert command[0] == "pg_dump"
     assert "--format=custom" in command
+    assert "--enable-row-security" in command
+    assert "app.bypass_rls=on" in fake_pg_dump[0][1]["PGOPTIONS"]
     assert not name.startswith("org/")
 
 

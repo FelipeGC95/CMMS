@@ -68,11 +68,36 @@ Proveedor de correo (SMTP, ambos con plan gratuito para empezar):
    una base nueva, nunca sobre la actual).
 3. Restaurar:
    `pg_restore --no-owner --no-acl --clean --if-exists -d "<DATABASE_URL destino>" <archivo>.dump`
+   (las políticas RLS se crean después de cargar los datos; si se restaura
+   sobre tablas que ya tienen RLS, anteponer `PGOPTIONS="-c app.bypass_rls=on"`).
 4. Apuntar `DATABASE_URL` del servicio a la base restaurada (o copiar los
    datos), correr `python manage.py migrate` y verificar `/readyz`, el login y
    una OT.
 5. Registrar la prueba (fecha, respaldo usado, tiempo, resultado) en
    `docs/operacion/`.
+
+## 3b. Row-Level Security (NF-07, ADR-026)
+
+- **Rol de base:** la aplicación (web y worker) se conecta con un rol **sin
+  `SUPERUSER` ni `BYPASSRLS`**; si no, PostgreSQL ignora las políticas. El rol
+  dueño de las tablas sirve (las políticas usan `FORCE`). En Render el usuario
+  de la base no es superusuario. En local o en otro proveedor:
+  `CREATE ROLE cmms_app LOGIN PASSWORD '…' NOSUPERUSER NOBYPASSRLS;` y
+  `ALTER DATABASE cmms OWNER TO cmms_app;` (el CI hace lo mismo).
+- **Instalación:** automática en cada `migrate` (receptor `post_migrate`); no
+  hay que escribir migraciones para tablas nuevas de `TenantModel`.
+- **Verificar:** `python manage.py rls_status` (sale con error si falta una
+  política y advierte si el rol ignora RLS; `--apply` las reaplica). En SQL:
+  `SELECT relname, relrowsecurity, relforcerowsecurity FROM pg_class WHERE
+  relname = 'assets_asset';` y `SELECT tablename, policyname FROM pg_policies;`.
+  Prueba rápida en `psql` con el rol de la app: `SELECT count(*) FROM
+  assets_asset;` debe dar 0 sin fijar `app.current_organization`.
+- **Consultas de plataforma a mano** (soporte, métricas): `SET app.bypass_rls =
+  'on';` en la sesión de `psql`, o `SET app.current_organization = '<uuid>';`
+  para ver una sola organización. En código: `platform_context()`.
+- **Respaldos:** `backup_database` ya corre `pg_dump --enable-row-security`
+  con el bypass; un `pg_dump` manual necesita lo mismo
+  (`PGOPTIONS="-c app.bypass_rls=on" pg_dump --enable-row-security …`).
 
 ## 4. Checklist para activar producción
 
