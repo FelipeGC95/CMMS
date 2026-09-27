@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-27 01:08-0300\n"
+"POT-Creation-Date: 2026-09-27 01:12-0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1719,6 +1719,39 @@ msgstr ""
 msgid "Nombres de los estados guardados."
 msgstr ""
 
+msgid "Puesta en servicio"
+msgstr ""
+
+msgid "Prioridad"
+msgstr ""
+
+msgid "Título"
+msgstr ""
+
+msgid "Activo o ubicación"
+msgstr ""
+
+msgid "Responsable"
+msgstr ""
+
+msgid "Fecha límite"
+msgstr ""
+
+msgid "Creada"
+msgstr ""
+
+msgid "Completada"
+msgstr ""
+
+msgid "Cerrada"
+msgstr ""
+
+msgid "Costo total"
+msgstr ""
+
+msgid "Órdenes de trabajo"
+msgstr ""
+
 msgid "Período"
 msgstr ""
 
@@ -1753,6 +1786,12 @@ msgid "La fecha de inicio no puede ser futura."
 msgstr ""
 
 msgid "La fecha de término debe ser igual o posterior a la de inicio."
+msgstr ""
+
+#, python-format
+msgid ""
+"Son %(total)s filas y un Excel admite hasta %(max)s. Filtra la lista y "
+"exporta por partes."
 msgstr ""
 
 msgid "¿Qué pasó?"
@@ -1858,19 +1897,10 @@ msgstr ""
 msgid "Monto"
 msgstr ""
 
-msgid "Fecha límite"
-msgstr ""
-
 msgid "Fecha de creación"
 msgstr ""
 
-msgid "Activo o ubicación"
-msgstr ""
-
 msgid "Todos los sitios"
-msgstr ""
-
-msgid "Responsable"
 msgstr ""
 
 msgid "Buscar fecha en"
@@ -1896,12 +1926,6 @@ msgstr ""
 
 msgid ""
 "Solo si el trabajo no es sobre un activo: un área, una línea o un edificio."
-msgstr ""
-
-msgid "Título"
-msgstr ""
-
-msgid "Prioridad"
 msgstr ""
 
 msgid "Estimación (minutos)"
@@ -1969,12 +1993,6 @@ msgid "En ejecución"
 msgstr ""
 
 msgid "En espera"
-msgstr ""
-
-msgid "Completada"
-msgstr ""
-
-msgid "Cerrada"
 msgstr ""
 
 msgid "Cancelada"
@@ -2876,9 +2894,6 @@ msgstr ""
 msgid "Parte de"
 msgstr ""
 
-msgid "Puesta en servicio"
-msgstr ""
-
 #, python-format
 msgid "La clase %(cls)s aún no tiene atributos."
 msgstr ""
@@ -3134,6 +3149,9 @@ msgstr[1] ""
 msgid "Importar desde Excel"
 msgstr ""
 
+msgid "Exportar Excel"
+msgstr ""
+
 msgid "Imprimir etiquetas QR"
 msgstr ""
 
@@ -3284,9 +3302,6 @@ msgid "Principal"
 msgstr ""
 
 msgid "Inicio"
-msgstr ""
-
-msgid "Órdenes de trabajo"
 msgstr ""
 
 msgid "Solicitudes"
@@ -4221,9 +4236,6 @@ msgid "Foto adjunta"
 msgstr ""
 
 msgid "Registro"
-msgstr ""
-
-msgid "Creada"
 msgstr ""
 
 #, python-format
