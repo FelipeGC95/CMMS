@@ -331,3 +331,82 @@ def test_my_week_lists_own_scheduled_work_orders(client, tenant_a):
     body = client.get(reverse("work_order_my_week") + f"?week={next_monday().isoformat()}").content.decode()
     assert "Mía" in body and "De otro" not in body
     assert reverse("work_order_schedule", args=[mine.pk]) not in body  # solo lectura
+
+
+# --- Tablero «Por técnico» (REQ-05 CA1) ---------------------------------------------
+
+
+def test_board_lanes_group_by_technician_with_load_others_and_unassigned(in_a):
+    from apps.work.selectors import board_lanes, scheduled_in_week
+
+    t = in_a
+    monday = next_monday()
+    days = [monday + datetime.timedelta(days=i) for i in range(7)]
+    mine = _wo("Del técnico", asset=t.asset, assigned_to=t.tech.user, estimated_minutes=540)
+    boss = _wo("Del admin", asset=t.asset, assigned_to=t.admin.user, estimated_minutes=60)
+    nobody = _wo("Sin nadie", asset=t.asset, estimated_minutes=30)
+    for wo, day in ((mine, days[0]), (boss, days[1]), (nobody, days[2])):
+        schedule_work_order(work_order=wo, membership=t.admin, scheduled_for=day)
+    work_orders = list(scheduled_in_week(membership=t.admin, monday=monday))
+    loads = technician_load(work_orders=work_orders, technicians=[t.tech], days=days)
+    lanes = board_lanes(work_orders=work_orders, loads=loads, days=days, visible_days=days[:5])
+
+    assert [lane.user for lane in lanes] == [t.tech.user, t.admin.user, None]
+    tech, other, unassigned = lanes
+    assert [c.day for c in tech.cells] == days[:5]
+    assert tech.cells[0].work_orders == [mine]
+    assert (tech.cells[0].load.minutes, tech.cells[0].load.over) == (540, True)
+    assert (tech.week.minutes, tech.week.capacity_minutes) == (540, 2400)
+    assert other.cells[1].work_orders == [boss] and other.week is None and other.cells[1].load is None
+    assert unassigned.cells[2].work_orders == [nobody]
+
+
+def test_board_with_lanes_renders_rows_and_drop_targets(client, tenant_a):
+    with tenant_context(tenant_a.org):
+        wo = _wo("Revisar bomba", asset=tenant_a.asset, assigned_to=tenant_a.tech.user, estimated_minutes=120)
+        schedule_work_order(work_order=wo, membership=tenant_a.admin, scheduled_for=next_monday())
+    login(client, tenant_a.admin)
+    url = reverse("work_order_board") + f"?week={next_monday().isoformat()}&lanes=1"
+    body = client.get(url).content.decode()
+    assert "Revisar bomba" in body
+    assert f'data-drop-assignee="{tenant_a.tech.user.pk}"' in body
+    assert "data-drop-unassigned" in body
+    assert "2 / 8 h" in body  # carga del lunes frente a la capacidad diaria
+    assert "Carga vs. capacidad" not in body  # la tabla se reemplaza por las filas
+    plain = client.get(reverse("work_order_board") + f"?week={next_monday().isoformat()}").content.decode()
+    assert "data-drop-assignee" not in plain and "Carga vs. capacidad" in plain
+
+
+def test_drop_on_technician_cell_sets_day_and_assignee(client, tenant_a, django_capture_on_commit_callbacks):
+    with tenant_context(tenant_a.org):
+        wo = _wo("x", asset=tenant_a.asset)
+    login(client, tenant_a.admin)
+    day = next_monday() + datetime.timedelta(days=2)
+    with django_capture_on_commit_callbacks(execute=True):
+        response = client.post(
+            reverse("work_order_schedule", args=[wo.pk]),
+            {"scheduled_for": day.isoformat(), "assigned_to": tenant_a.tech.user.pk},
+            HTTP_X_BOARD_DROP="1",
+        )
+    assert response.status_code == 204
+    with tenant_context(tenant_a.org):
+        wo.refresh_from_db()
+        assert (wo.status, wo.scheduled_for, wo.assigned_to) == (S.SCHEDULED, day, tenant_a.tech.user)
+        assert Notification.objects.filter(recipient=tenant_a.tech.user).exists()
+
+
+def test_lanes_no_js_form_returns_to_lanes(client, tenant_a):
+    with tenant_context(tenant_a.org):
+        wo = _wo("x", asset=tenant_a.asset)
+    login(client, tenant_a.admin)
+    day = next_monday()
+    board = reverse("work_order_board") + f"?week={day.isoformat()}&lanes=1"
+    assert f'name="next" value="{board.replace("&", "&amp;")}"' in client.get(board).content.decode()
+    response = client.post(
+        reverse("work_order_schedule", args=[wo.pk]),
+        {"scheduled_for": day.isoformat(), "assigned_to": tenant_a.tech.user.pk, "next": board},
+    )
+    assert response.status_code == 302 and response.url == board
+    with tenant_context(tenant_a.org):
+        wo.refresh_from_db()
+    assert (wo.scheduled_for, wo.assigned_to) == (day, tenant_a.tech.user)

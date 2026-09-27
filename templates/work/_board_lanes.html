@@ -1,0 +1,22 @@
+{% load i18n ui %}<div class="lanes{% if weekend %} lanes--7{% endif %}">
+  <div class="lanes__head" aria-hidden="true"><span></span>{% for day in visible_days %}<span class="lanes__head-day">{{ day|date:"D j"|capfirst }}</span>{% endfor %}</div>
+  {% for lane in lanes %}
+  <section class="card lanes__lane" aria-labelledby="lane-{{ forloop.counter }}">
+    <div class="lanes__who">
+      <h3 id="lane-{{ forloop.counter }}">{% icon 'user' %}{% if lane.user %}{{ lane.user }}{% else %}{% translate "Sin asignar" %}{% endif %}</h3>
+      {% if lane.week %}<span class="lanes__week">{% translate "Semana" %}: {% include "work/_load_cell.html" with cell=lane.week %}</span>{% elif lane.user %}<span class="muted lanes__week">{% translate "Sin capacidad en este alcance" %}</span>{% else %}<span class="muted lanes__week">{% translate "OT sin responsable" %}</span>{% endif %}
+    </div>
+    {% for cell in lane.cells %}
+    <div class="lanes__cell{% if cell.day == today %} lanes__cell--today{% endif %}"{% if cell.day >= today %} data-drop-date="{{ cell.day|date:'Y-m-d' }}"{% if lane.user %} data-drop-assignee="{{ lane.user.pk }}"{% else %} data-drop-unassigned{% endif %}{% endif %}>
+      <h4 class="lanes__cell-day">{{ cell.day|date:"l j"|capfirst }}</h4>
+      {% if cell.load %}<p class="lanes__load">{% include "work/_load_cell.html" with cell=cell.load %}</p>{% endif %}
+      {% if cell.work_orders %}
+      <ul class="board__cards">{% for wo in cell.work_orders %}{% include "work/_board_card.html" %}{% endfor %}</ul>
+      {% elif cell.day >= today %}
+      <p class="muted board__empty">{% translate "Suelta una OT aquí." %}</p>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </section>
+  {% endfor %}
+</div>

@@ -759,6 +759,11 @@ tener ingresos).
   con `fetch` y el encabezado `X-CSRFToken`. La vista responde 204/400 con el mensaje
   cuando llega `X-Board-Drop` y redirige en el resto de los casos. Sin librerías ni JS
   en línea (ADR-023).
+- **Por técnico:** `?lanes=1` muestra una fila por técnico en alcance (más otros
+  responsables y «Sin asignar») × días, con su carga vs. capacidad; soltar en la
+  celda de un técnico envía el mismo formulario con `assigned_to`. Se arma con las
+  OT y técnicos ya consultados (sin consultas por técnico); en el teléfono cada
+  técnico es una lista por día.
 - **Capacidad:** `membership.weekly_capacity_hours` (la edita el administrador en
   Equipo); no se crea un modelo de turnos hasta que un cliente lo pida.
 - **Puntaje del backlog:** expresión `CASE` en SQL (criticidad × prioridad) para

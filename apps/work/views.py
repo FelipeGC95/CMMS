@@ -42,6 +42,7 @@ from .selectors import (
     anonymous_request_photos,
     assignable_members,
     backlog_summary,
+    board_lanes,
     checklist_photos,
     checklist_plan_versions,
     failure_code_list,
@@ -973,9 +974,20 @@ def board_view(request):
         wo.movable = wo.status in SCHEDULABLE
     for row in loads:
         row.visible = list(zip(context["visible_days"], row.days, strict=False))
+    lanes_on = request.GET.get("lanes") == "1"
     context.update(
         {
             "columns": _by_day(work_orders, context["visible_days"]),
+            "lanes_on": lanes_on,
+            "lanes_query": _query_with(request, lanes="" if lanes_on else "1"),
+            "lanes": board_lanes(
+                work_orders=work_orders,
+                loads=loads,
+                days=context["days"],
+                visible_days=context["visible_days"],
+            )
+            if lanes_on
+            else [],
             "backlog_page": backlog_page,
             "loads": loads,
             "overloaded": sum(1 for row in loads for cell in row.days if cell.over),

@@ -97,3 +97,21 @@ def test_plan_without_work_orders_module_blocks_the_screens(client, tenant_a):
     login(client, tenant_a.admin)
     for name in [*MANAGE_ONLY, "work_order_my_week"]:
         assert client.get(reverse(name)).status_code == 403, name
+
+
+@pytest.mark.parametrize("role", ["technician", "viewer"])
+def test_lanes_view_and_drop_need_manage(client, tenant_a, role):
+    member = tenant_a.tech if role == "technician" else tenant_a.viewer
+    with tenant_context(tenant_a.org):
+        wo = create_work_order(work_type="corrective", title="x", asset=tenant_a.asset)
+    login(client, member)
+    assert client.get(reverse("work_order_board") + "?lanes=1").status_code == 403
+    response = client.post(
+        reverse("work_order_schedule", args=[wo.pk]),
+        {"scheduled_for": next_monday().isoformat(), "assigned_to": tenant_a.tech.user.pk},
+        HTTP_X_BOARD_DROP="1",
+    )
+    assert response.status_code == 403
+    with tenant_context(tenant_a.org):
+        wo.refresh_from_db()
+    assert wo.assigned_to is None

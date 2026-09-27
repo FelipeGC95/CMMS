@@ -441,5 +441,18 @@
       </tbody>
     </table>
   </div>
+  <h3 class="mt-4">{% translate "Por técnico" %}</h3>
+  <p class="muted">{% translate "Una fila por técnico con su carga del día y de la semana; en el teléfono cada técnico es una lista por día." %}</p>
+  <div class="lanes">
+    <div class="lanes__head" aria-hidden="true"><span></span><span>{% translate "Lun 5" %}</span><span>{% translate "Mar 6" %}</span><span>{% translate "Mié 7" %}</span><span>{% translate "Jue 8" %}</span><span>{% translate "Vie 9" %}</span></div>
+    <section class="card lanes__lane" aria-labelledby="ds-lane">
+      <div class="lanes__who"><h3 id="ds-lane">{% icon 'user' %}{% translate "Técnico" %}</h3><span class="lanes__week">{% translate "Semana" %}: <span class="load">9,0 / 40,0 h</span></span></div>
+      <div class="lanes__cell lanes__cell--today is-drop-target"><h4 class="lanes__cell-day">{% translate "Lunes 5" %}</h4><p class="lanes__load"><span class="load load--over">9,0 / 8,0 h <span class="badge badge--warning">{% icon 'alert' %}{% translate "Sobre capacidad" %}</span></span></p></div>
+      <div class="lanes__cell"><h4 class="lanes__cell-day">{% translate "Martes 6" %}</h4><p class="lanes__load"><span class="load">0 / 8,0 h</span></p><p class="muted board__empty">{% translate "Suelta una OT aquí." %}</p></div>
+      <div class="lanes__cell"><h4 class="lanes__cell-day">{% translate "Miércoles 7" %}</h4><p class="lanes__load"><span class="load">0 / 8,0 h</span></p></div>
+      <div class="lanes__cell"><h4 class="lanes__cell-day">{% translate "Jueves 8" %}</h4><p class="lanes__load"><span class="load">0 / 8,0 h</span></p></div>
+      <div class="lanes__cell"><h4 class="lanes__cell-day">{% translate "Viernes 9" %}</h4><p class="lanes__load"><span class="load">0 / 8,0 h</span></p></div>
+    </section>
+  </div>
 </section>
 {% endblock %}

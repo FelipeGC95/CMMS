@@ -563,6 +563,34 @@ main { max-width: var(--content-max); margin: 0 auto; padding: var(--space-5) va
 .board-card__schedule > summary { display: flex; align-items: center; gap: var(--space-1); min-height: var(--touch-target); cursor: pointer; color: var(--color-link); font-weight: 500; }
 .board-card__schedule form { margin-top: var(--space-2); }
 .board-card__schedule .btn { margin-top: var(--space-2); }
+/* Tablero «Por técnico» (REQ-05 CA1): una fila por técnico × días. Teléfono: cada técnico
+   es una tarjeta con su lista por día; 720 px (1100 px con fin de semana): grilla. */
+.lanes { display: grid; gap: var(--space-3); min-width: 0; }
+.lanes__head { display: none; }
+.lanes__lane { display: grid; min-width: 0; padding: var(--space-3); gap: var(--space-2); }
+.lanes__who { display: flex; flex-direction: column; gap: var(--space-1); min-width: 0; overflow-wrap: anywhere; }
+.lanes__who h3 { display: flex; gap: var(--space-1); align-items: center; margin: 0; font-size: var(--text-md); }
+.lanes__week { font-size: var(--text-sm); }
+.lanes__cell { min-width: 0; padding: var(--space-2); border-top: 1px solid var(--color-border); }
+.lanes__cell--today { background: var(--color-info-bg); }
+.lanes__cell-day { margin: 0 0 var(--space-1); font-size: var(--text-md); }
+.lanes__load { margin: 0 0 var(--space-2); font-size: var(--text-sm); }
+.lanes__load .load { justify-content: flex-start; }
+.lanes .board__empty { margin: 0; }
+@media (min-width: 720px) {
+  .lanes:not(.lanes--7) .lanes__head,
+  .lanes:not(.lanes--7) .lanes__lane { grid-template-columns: 9rem repeat(5, minmax(0, 1fr)); }
+  .lanes:not(.lanes--7) .lanes__head { display: grid; gap: var(--space-2); padding: 0 var(--space-3); font-weight: 600; font-size: var(--text-sm); }
+  .lanes:not(.lanes--7) .lanes__cell { border-top: 0; border-left: 1px solid var(--color-border); }
+  .lanes:not(.lanes--7) .lanes__cell-day { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+}
+@media (min-width: 1100px) {
+  .lanes--7 .lanes__head,
+  .lanes--7 .lanes__lane { grid-template-columns: 8rem repeat(7, minmax(0, 1fr)); }
+  .lanes--7 .lanes__head { display: grid; gap: var(--space-2); padding: 0 var(--space-3); font-weight: 600; font-size: var(--text-sm); }
+  .lanes--7 .lanes__cell { border-top: 0; border-left: 1px solid var(--color-border); }
+  .lanes--7 .lanes__cell-day { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+}
 /* Carga vs. capacidad: horas / capacidad; sobre capacidad con ícono + texto. */
 .load { display: inline-flex; flex-wrap: wrap; gap: var(--space-1); align-items: center; justify-content: flex-end; }
 .load--over { font-weight: 600; }

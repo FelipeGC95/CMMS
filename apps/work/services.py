@@ -452,7 +452,7 @@ def report_anonymous_failure(
     if photo is not None:
         try:
             attachments_services.add_attachment(
-                target_type=AttachmentTargetType.WORK_ORDER,
+                target_type=AttachmentTargetType.WORK_REQUEST,
                 target_id=request.pk,  # pasa a la OT al aceptar la solicitud
                 uploaded_file=photo,
                 by=None,
@@ -485,7 +485,9 @@ def _create_work_order_for_anonymous(*, work_request: WorkRequest, membership) -
     )
     from .selectors import anonymous_request_photos  # import local, como el resto del módulo
 
-    anonymous_request_photos(work_request).update(target_id=work_order.pk)
+    anonymous_request_photos(work_request).update(
+        target_type=AttachmentTargetType.WORK_ORDER, target_id=work_order.pk
+    )
     work_request.work_order = work_order
     return work_order
 

@@ -81,3 +81,19 @@ def test_inbox_photo_of_b_is_not_reachable_from_a(client, tenant_a, tenant_b):
     login(client, tenant_a.admin)
     assert client.get(reverse("request_photo", args=[request.pk])).status_code == 404
     assert "Juan" not in client.get(reverse("request_list")).content.decode()
+
+
+def test_request_photo_of_a_is_not_served_to_b(client, tenant_a, tenant_b, settings, tmp_path):
+    from django.core.files.uploadedfile import SimpleUploadedFile
+
+    from apps.attachments.models import Attachment
+    from tests.conftest import tiny_jpeg_bytes
+
+    settings.MEDIA_ROOT = tmp_path
+    enable(tenant_a)
+    photo = SimpleUploadedFile("f.jpg", tiny_jpeg_bytes(), content_type="image/jpeg")
+    with tenant_context(tenant_a.org):
+        report_anonymous_failure(asset=tenant_a.asset, name="Juan", description="x", photo=photo)
+        attachment = Attachment.objects.get()
+    login(client, tenant_b.admin)
+    assert client.get(reverse("attachment", args=[attachment.pk])).status_code == 404
