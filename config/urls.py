@@ -1,12 +1,12 @@
 from django.contrib import admin
 from django.contrib.auth.decorators import login_required
-from django.http import HttpResponse
 from django.urls import include, path
 
 from apps.accounts.views import switch_organization
 from apps.assets import import_views as asset_import_views
 from apps.assets import views as asset_views
 from apps.attachments.views import attachment_view
+from apps.core.views import healthz, readyz
 from apps.reporting.views import dashboard
 from apps.ui.views import design_system_css_view, design_system_view, menu_view
 from apps.work import views as work_views
@@ -17,19 +17,17 @@ admin.site.site_title = "GALBUST CMMS"
 admin.site.login = login_required(admin.site.login)
 
 
-def healthz(request):
-    return HttpResponse("ok", content_type="text/plain")
-
-
 urlpatterns = [
     path("", dashboard, name="dashboard"),
     path("healthz", healthz, name="healthz"),
+    path("readyz", readyz, name="readyz"),
     path("accounts/", include("allauth.urls")),
     path("org/switch/", switch_organization, name="switch_organization"),
     path("", include("apps.accounts.urls")),
     path("", include("apps.organizations.urls")),
     path("", include("apps.assets.urls")),
     path("", include("apps.maintenance.urls")),
+    path("", include("apps.reporting.urls")),
     path("audit/", include("apps.audit.urls")),
     path("assets/", asset_views.asset_list_view, name="asset_list"),
     path("assets/labels/", asset_views.asset_labels_view, name="asset_labels"),

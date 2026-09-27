@@ -8,6 +8,8 @@ from pathlib import Path
 
 import dj_database_url
 
+from config import infra
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
@@ -88,6 +90,13 @@ DATABASES = {
     )
 }
 
+# Cola de tareas Procrastinate (ADR-007): solo sobre PostgreSQL (no soporta SQLite).
+# El esquema se crea con `migrate`; nada corre hasta levantar el worker
+# (`manage.py procrastinate worker`), así que en la demo queda inactiva.
+TASK_QUEUE_ENABLED = DATABASES["default"]["ENGINE"] == "django.db.backends.postgresql"
+if TASK_QUEUE_ENABLED:
+    INSTALLED_APPS.insert(INSTALLED_APPS.index("apps.core"), "procrastinate.contrib.django")
+
 AUTH_USER_MODEL = "accounts.User"
 AUTHENTICATION_BACKENDS = [
     "django.contrib.auth.backends.ModelBackend",
@@ -136,14 +145,27 @@ CACHES = {
 # la IP del cliente es X-Forwarded-For[-N]; con 0 se usa REMOTE_ADDR.
 AUDIT_TRUSTED_PROXIES = int(os.environ.get("AUDIT_TRUSTED_PROXIES", "0"))
 
-# Correo: consola en local; en producción SMTP del proveedor (Postmark o Brevo, docs/04).
-EMAIL_BACKEND = os.environ.get("EMAIL_BACKEND", "django.core.mail.backends.console.EmailBackend")
+# Correo: consola en local; en producción SMTP del proveedor (Postmark o Brevo,
+# docs/07_operacion.md). Con EMAIL_HOST definido se usa SMTP salvo que EMAIL_BACKEND diga otra cosa.
 EMAIL_HOST = os.environ.get("EMAIL_HOST", "localhost")
+EMAIL_BACKEND = os.environ.get(
+    "EMAIL_BACKEND",
+    "django.core.mail.backends.smtp.EmailBackend"
+    if os.environ.get("EMAIL_HOST")
+    else "django.core.mail.backends.console.EmailBackend",
+)
 EMAIL_PORT = int(os.environ.get("EMAIL_PORT", "587"))
 EMAIL_HOST_USER = os.environ.get("EMAIL_HOST_USER", "")
 EMAIL_HOST_PASSWORD = os.environ.get("EMAIL_HOST_PASSWORD", "")
 EMAIL_USE_TLS = env_bool("EMAIL_USE_TLS", True)
+EMAIL_TIMEOUT = int(os.environ.get("EMAIL_TIMEOUT", "10"))
 DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL", "GALBUST CMMS <no-reply@galbust.cl>")
+SERVER_EMAIL = os.environ.get("SERVER_EMAIL", DEFAULT_FROM_EMAIL)
+# EMAIL_USE_QUEUE=1: los correos se envían desde el worker (reintentos, sin bloquear la
+# petición). Apagado por defecto: envío sincrónico como siempre.
+if env_bool("EMAIL_USE_QUEUE", False) and TASK_QUEUE_ENABLED:
+    EMAIL_DELIVERY_BACKEND = EMAIL_BACKEND
+    EMAIL_BACKEND = "apps.core.mail.QueuedEmailBackend"
 
 # Idioma fuente de la interfaz: español de Chile.
 LANGUAGE_CODE = "es-cl"
@@ -158,8 +180,11 @@ USE_TZ = True
 STATIC_URL = "static/"
 STATICFILES_DIRS = [BASE_DIR / "static"]
 STATIC_ROOT = BASE_DIR / "staticfiles"
+# Archivos subidos: disco local, o Cloudflare R2 con R2_BUCKET, R2_ENDPOINT_URL,
+# R2_ACCESS_KEY_ID y R2_SECRET_ACCESS_KEY (ADR-014). En R2 las descargas redirigen a
+# una URL firmada de 5 minutos tras verificar permisos (apps.core.files).
 STORAGES = {
-    "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+    "default": infra.default_storage_config(os.environ),
     "staticfiles": {
         "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"
         if DEBUG
@@ -167,10 +192,17 @@ STORAGES = {
     },
 }
 
-# En Render apunta a un disco persistente; pasará a R2 (ADR-014).
+# Solo con almacenamiento local (sin R2).
 MEDIA_ROOT = Path(os.environ.get("MEDIA_ROOT", BASE_DIR / "media"))
 MEDIA_URL = "media/"  # No se sirve públicamente: los archivos pasan por files.views.
 MAX_UPLOAD_BYTES = 20 * 1024 * 1024  # AST-06 CA1
+
+# Respaldo lógico diario (NF-09, docs/07_operacion.md): `backup_database` sube a
+# `backups/` del bucket R2 o, sin R2, escribe en BACKUP_DIR. La tarea diaria del worker
+# solo respalda con BACKUPS_ENABLED=1.
+BACKUPS_ENABLED = env_bool("BACKUPS_ENABLED", False)
+BACKUP_DIR = Path(os.environ.get("BACKUP_DIR", BASE_DIR / "backups"))
+BACKUP_RETENTION_DAYS = int(os.environ.get("BACKUP_RETENTION_DAYS", "30"))
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
@@ -179,7 +211,7 @@ SESSION_COOKIE_SAMESITE = "Lax"
 if not DEBUG:
     SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
     SECURE_SSL_REDIRECT = True
-    SECURE_REDIRECT_EXEMPT = [r"^healthz$"]  # el health check de Render llega por HTTP interno
+    SECURE_REDIRECT_EXEMPT = [r"^healthz$", r"^readyz$"]  # el health check de Render llega por HTTP interno
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
     SECURE_HSTS_SECONDS = 31536000
@@ -189,9 +221,13 @@ if not DEBUG:
     # HSTS preload se activa cuando el dominio definitivo esté estable (docs/04 §5).
     SILENCED_SYSTEM_CHECKS = ["security.W021"]
 
-LOGGING = {
-    "version": 1,
-    "disable_existing_loggers": False,
-    "handlers": {"console": {"class": "logging.StreamHandler"}},
-    "root": {"handlers": ["console"], "level": os.environ.get("LOG_LEVEL", "INFO")},
-}
+# Logs a stdout; LOG_FORMAT=json los emite estructurados con el id de la petición (NF-15).
+LOGGING = infra.logging_config(os.environ)
+if os.environ.get("LOG_FORMAT", "").lower() == "json":
+    MIDDLEWARE.insert(0, "apps.core.logs.RequestIdMiddleware")
+
+# Sentry solo si hay SENTRY_DSN; sin datos personales (send_default_pii=False).
+if sentry := infra.sentry_options(os.environ):
+    import sentry_sdk
+
+    sentry_sdk.init(**sentry)

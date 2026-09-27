@@ -11,6 +11,7 @@
       {% if wo.due_on %}<span class="badge badge--neutral">{% icon 'calendar' %}{% translate "Límite" %} {{ wo.due_on|date:"d M Y" }}</span>{% endif %}
       {% if wo.due_meter_value is not None %}<span class="badge badge--neutral">{% icon 'clock' %}{% translate "Vence a" %} {{ wo.due_meter_value|num }} {{ wo.plan_assignment.meter.unit }}</span>{% endif %}
     </div>
+    <div class="row mt-2"><a class="btn btn--ghost" href="{% url 'work_order_pdf' wo.pk %}">{% icon 'print' %}{% translate "PDF" %}</a></div>
   </div>
   {% if complete_action or primary_transition or transitions %}
   {# Acción principal del estado actual arriba (también en el teléfono); transiciones secundarias al lado. #}

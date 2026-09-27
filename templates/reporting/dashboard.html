@@ -4,7 +4,7 @@
 <div class="page-header">
   <div>
     <h1>{% blocktranslate with name=user.short_name %}Hola, {{ name }}{% endblocktranslate %}</h1>
-    <p class="muted">{{ organization.name }} · {% translate "últimos 30 días" %}</p>
+    <p class="muted">{{ organization.name }} · {{ kpis.period_start|date:"d M Y" }} – {{ kpis.period_end|date:"d M Y" }}</p>
   </div>
   <a class="btn btn--primary btn--lg" href="{% url 'asset_list' %}?report=1">{% icon 'megaphone' %}{% translate "Avisar falla" %}</a>
 </div>
@@ -16,26 +16,65 @@
 </section>
 {% endif %}
 
+{# Filtros del tablero (KPI-01): mismo panel plegable que la lista de OT. #}
+<details class="card mb-4 filters"{% if filters_open %} open{% endif %}>
+  <summary class="filters__summary">
+    <h2 id="filters-title">{% translate "Filtros de indicadores" %}</h2>
+    {% if active_filters %}<span class="badge badge--info">{% icon 'info' %}{% blocktranslate count n=active_filters %}{{ n }} activo{% plural %}{{ n }} activos{% endblocktranslate %}</span>{% endif %}
+  </summary>
+  <form method="get" class="form-grid" aria-labelledby="filters-title">
+    {% include "_form_fields.html" with form=filter_form %}
+    <div class="row form-grid__actions">
+      <button class="btn btn--primary" type="submit">{% translate "Aplicar" %}</button>
+      <a class="btn btn--ghost" href="{% url 'dashboard' %}">{% translate "Limpiar filtros" %}</a>
+    </div>
+  </form>
+</details>
+
 <section class="grid grid--kpi" aria-label="{% translate 'Indicadores' %}">
   <div class="card kpi">
     <span class="kpi__label">{% translate "Disponibilidad" %}</span>
     <span class="kpi__value">{{ kpis.availability_pct|pct }}<span class="kpi__unit">%</span></span>
     <span class="kpi__hint">{% if kpis.no_service_time %}{% translate "Sin tiempo en servicio en el período: todos los activos estuvieron de baja." %}{% else %}{% translate "Tiempo operativo / tiempo calendario" %}{% endif %}</span>
+    <details class="kpi__formula">
+      <summary>{% translate "Fórmula" %}</summary>
+      <p><code>{% translate "(tiempo calendario − detención) / tiempo calendario × 100" %}</code></p>
+      <p>{% translate "Tiempo calendario: horas del período de cada activo, sin los períodos de baja. Detención: tiempo detenido o en mantención." %}</p>
+      <p>{% translate "Referencia: EN 15341 (disponibilidad) · SMRP Best Practices (Availability)." %}</p>
+    </details>
   </div>
   <div class="card kpi">
     <span class="kpi__label">MTBF</span>
     <span class="kpi__value">{{ kpis.mtbf_hours|hours:0 }}<span class="kpi__unit">h</span></span>
     <span class="kpi__hint">{% blocktranslate count n=kpis.failures %}Tiempo medio entre fallas · {{ n }} falla{% plural %}Tiempo medio entre fallas · {{ n }} fallas{% endblocktranslate %}</span>
+    <details class="kpi__formula">
+      <summary>{% translate "Fórmula" %}</summary>
+      <p><code>{% translate "tiempo operativo / número de fallas con detención" %}</code></p>
+      <p>{% translate "Solo cuentan las fallas con detención total iniciadas en el período." %}</p>
+      <p>{% translate "Referencia: EN 15341 · SMRP Best Practices (Mean Time Between Failures)." %}</p>
+    </details>
   </div>
   <div class="card kpi">
     <span class="kpi__label">MTTR</span>
     <span class="kpi__value">{{ kpis.mttr_hours|hours }}<span class="kpi__unit">h</span></span>
     <span class="kpi__hint">{% translate "Tiempo medio de reparación" %}</span>
+    <details class="kpi__formula">
+      <summary>{% translate "Fórmula" %}</summary>
+      <p><code>{% translate "tiempo total de reparación / número de reparaciones" %}</code></p>
+      <p>{% translate "Reparación: desde el inicio hasta el término de cada falla con detención total ya resuelta." %}</p>
+      <p>{% translate "Referencia: EN 15341 · SMRP Best Practices (Mean Time To Repair)." %}</p>
+    </details>
   </div>
   <div class="card kpi">
     <span class="kpi__label">{% translate "Cumplimiento preventivo" %}</span>
     <span class="kpi__value">{{ kpis.preventive_compliance_pct|pct }}<span class="kpi__unit">%</span></span>
     <span class="kpi__hint">{% translate "OT preventivas cerradas a tiempo" %}</span>
+    <details class="kpi__formula">
+      <summary>{% translate "Fórmula" %}</summary>
+      <p><code>{% translate "OT preventivas cerradas a tiempo / OT preventivas vencidas en el período × 100" %}</code></p>
+      <p>{% translate "A tiempo: completada a más tardar en su fecha límite. Las canceladas no cuentan." %}</p>
+      <p>{% translate "Referencia: SMRP Best Practices (PM Compliance) · EN 15341." %}</p>
+    </details>
   </div>
   <a class="card kpi kpi--link {% if kpis.stopped_assets %}kpi--alert{% endif %}" href="{% url 'asset_list' %}?status=stopped">
     <span class="kpi__label">{% translate "Equipos detenidos" %}</span>

@@ -75,6 +75,8 @@ def _count(client, url):
         "asset_list",
         "asset_create",
         "work_order_list",
+        "asset_export_xlsx",
+        "work_order_export_xlsx",
         "asset_labels_pdf",
         "design_system",
         "team",
@@ -93,6 +95,18 @@ def test_list_queries_do_not_grow_with_rows(client, tenant_a, url_name):
     _add_rows(tenant_a, 10)
     many = _count(client, url)
     assert many == few, f"{url_name}: {few} → {many} consultas"
+
+
+def test_filtered_dashboard_does_not_grow_with_rows(client, tenant_a):
+    """Tablero con filtros (KPI-01): el cálculo no hace consultas por activo, falla u OT."""
+    login(client, tenant_a.admin)
+    params = {"period": "90", "criticality": "B", "asset_class": tenant_a.asset.asset_class_id}
+    url = f"{reverse('dashboard')}?{urlencode(params)}"
+    _add_rows(tenant_a, 2)
+    few = _count(client, url)
+    _add_rows(tenant_a, 10)
+    many = _count(client, url)
+    assert many == few
 
 
 def test_work_order_list_with_filters_does_not_grow_with_rows(client, tenant_a):

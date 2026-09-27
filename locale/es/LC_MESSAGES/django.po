@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-27 04:52-0300\n"
+"POT-Creation-Date: 2026-09-27 04:58-0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1810,6 +1810,204 @@ msgstr ""
 msgid "Nombres de los estados guardados."
 msgstr ""
 
+msgid "Puesta en servicio"
+msgstr ""
+
+msgid "Prioridad"
+msgstr ""
+
+msgid "Título"
+msgstr ""
+
+msgid "Activo o ubicación"
+msgstr ""
+
+msgid "Responsable"
+msgstr ""
+
+msgid "Fecha límite"
+msgstr ""
+
+msgid "Creada"
+msgstr ""
+
+msgid "Completada"
+msgstr ""
+
+msgid "Cerrada"
+msgstr ""
+
+msgid "Costo total"
+msgstr ""
+
+msgid "Órdenes de trabajo"
+msgstr ""
+
+msgid "Período"
+msgstr ""
+
+msgid "Últimos 30 días"
+msgstr ""
+
+msgid "Últimos 90 días"
+msgstr ""
+
+msgid "Último año"
+msgstr ""
+
+msgid "Personalizado"
+msgstr ""
+
+msgid "Con fechas se mide ese rango."
+msgstr ""
+
+msgid "Sitio o ubicación"
+msgstr ""
+
+msgid "Incluye las ubicaciones que contiene."
+msgstr ""
+
+msgid "Código exacto de un activo."
+msgstr ""
+
+msgid "No hay un activo visible con ese código."
+msgstr ""
+
+msgid "Indica desde qué día medir."
+msgstr ""
+
+msgid "La fecha de inicio no puede ser futura."
+msgstr ""
+
+msgid "La fecha de término debe ser igual o posterior a la de inicio."
+msgstr ""
+
+#, python-format
+msgid "%(org)s · generado el %(date)s · página %(page)s"
+msgstr ""
+
+msgid "Datos técnicos"
+msgstr ""
+
+msgid "Medidores"
+msgstr ""
+
+msgid "Valor actual"
+msgstr ""
+
+msgid "Última lectura"
+msgstr ""
+
+msgid "Sin medidores."
+msgstr ""
+
+msgid "Planes preventivos"
+msgstr ""
+
+msgid "Próximo vencimiento"
+msgstr ""
+
+msgid "Última ejecución"
+msgstr ""
+
+msgid "Sin planes asignados."
+msgstr ""
+
+msgid "OT recientes"
+msgstr ""
+
+msgid "Sin OT."
+msgstr ""
+
+msgid "Fallas recientes"
+msgstr ""
+
+msgid "Inicio"
+msgstr ""
+
+msgid "Término"
+msgstr ""
+
+msgid "Impacto"
+msgstr ""
+
+msgid "Modo de falla"
+msgstr ""
+
+msgid "Sin fallas registradas."
+msgstr ""
+
+#, python-format
+msgid "Ficha de activo %(code)s"
+msgstr ""
+
+msgid "Apoyo"
+msgstr ""
+
+msgid "Cierre"
+msgstr ""
+
+msgid "Checklist"
+msgstr ""
+
+msgid "N.º"
+msgstr ""
+
+msgid "Ítem"
+msgstr ""
+
+msgid "Resultado"
+msgstr ""
+
+msgid "Valor"
+msgstr ""
+
+msgid "Nota"
+msgstr ""
+
+msgid "Sin checklist."
+msgstr ""
+
+msgid "Costos"
+msgstr ""
+
+msgid "Mano de obra"
+msgstr ""
+
+msgid "Otro costo"
+msgstr ""
+
+msgid "Detalle"
+msgstr ""
+
+msgid "Costo"
+msgstr ""
+
+msgid "Sin costos."
+msgstr ""
+
+msgid "Repuestos"
+msgstr ""
+
+msgid "Otros costos"
+msgstr ""
+
+msgid "Comentario de cierre"
+msgstr ""
+
+msgid "Firma de conformidad"
+msgstr ""
+
+#, python-format
+msgid "Orden de trabajo %(code)s"
+msgstr ""
+
+#, python-format
+msgid ""
+"Son %(total)s filas y un Excel admite hasta %(max)s. Filtra la lista y "
+"exporta por partes."
+msgstr ""
+
 msgid "¿Qué pasó?"
 msgstr ""
 
@@ -1840,13 +2038,7 @@ msgstr ""
 msgid "¿Qué viste? Puedes dictarlo con el micrófono del teclado."
 msgstr ""
 
-msgid "Comentario de cierre"
-msgstr ""
-
 msgid "Tiempo trabajado (minutos)"
-msgstr ""
-
-msgid "Impacto"
 msgstr ""
 
 msgid "Inicio de la detención"
@@ -1859,9 +2051,6 @@ msgid "Fin de la detención"
 msgstr ""
 
 msgid "Si lo dejas vacío, se usa la hora actual."
-msgstr ""
-
-msgid "Modo de falla"
 msgstr ""
 
 msgid "Causa"
@@ -1913,19 +2102,10 @@ msgstr ""
 msgid "Monto"
 msgstr ""
 
-msgid "Fecha límite"
-msgstr ""
-
 msgid "Fecha de creación"
 msgstr ""
 
-msgid "Activo o ubicación"
-msgstr ""
-
 msgid "Todos los sitios"
-msgstr ""
-
-msgid "Responsable"
 msgstr ""
 
 msgid "Buscar fecha en"
@@ -1935,9 +2115,6 @@ msgid "Todos los estados"
 msgstr ""
 
 msgid "La fecha «desde» no puede ser posterior a «hasta»."
-msgstr ""
-
-msgid "Apoyo"
 msgstr ""
 
 msgid "Otras personas que trabajan en la OT; también la ven en «Mis OT»."
@@ -1951,12 +2128,6 @@ msgstr ""
 
 msgid ""
 "Solo si el trabajo no es sobre un activo: un área, una línea o un edificio."
-msgstr ""
-
-msgid "Título"
-msgstr ""
-
-msgid "Prioridad"
 msgstr ""
 
 msgid "Estimación (minutos)"
@@ -2024,12 +2195,6 @@ msgid "En ejecución"
 msgstr ""
 
 msgid "En espera"
-msgstr ""
-
-msgid "Completada"
-msgstr ""
-
-msgid "Cerrada"
 msgstr ""
 
 msgid "Cancelada"
@@ -2803,9 +2968,6 @@ msgstr[0] ""
 msgstr[1] ""
 msgstr[2] ""
 
-msgid "Datos técnicos"
-msgstr ""
-
 msgid "Volver al activo"
 msgstr ""
 
@@ -2951,6 +3113,9 @@ msgstr ""
 msgid "Cambiar estado"
 msgstr ""
 
+msgid "PDF"
+msgstr ""
+
 msgid "Avisar falla"
 msgstr ""
 
@@ -2975,9 +3140,6 @@ msgstr ""
 msgid "Parte de"
 msgstr ""
 
-msgid "Puesta en servicio"
-msgstr ""
-
 #, python-format
 msgid "La clase %(cls)s aún no tiene atributos."
 msgstr ""
@@ -2994,9 +3156,6 @@ msgstr ""
 msgid ""
 "Pega esta etiqueta en el equipo. Al escanearla con la cámara del celular se "
 "abre directamente el aviso de falla."
-msgstr ""
-
-msgid "Medidores"
 msgstr ""
 
 #, python-format
@@ -3016,13 +3175,7 @@ msgstr ""
 msgid "Registrar"
 msgstr ""
 
-msgid "Planes preventivos"
-msgstr ""
-
 msgid "última"
-msgstr ""
-
-msgid "Sin planes asignados."
 msgstr ""
 
 msgid "Asignar plan"
@@ -3087,9 +3240,6 @@ msgid "Falla sin describir"
 msgstr ""
 
 msgid "en"
-msgstr ""
-
-msgid "Sin fallas registradas."
 msgstr ""
 
 msgid "Cambios de estado"
@@ -3184,12 +3334,6 @@ msgstr ""
 msgid "Fila"
 msgstr ""
 
-msgid "Resultado"
-msgstr ""
-
-msgid "Detalle"
-msgstr ""
-
 msgid "Nuevo"
 msgstr ""
 
@@ -3231,6 +3375,9 @@ msgstr[0] ""
 msgstr[1] ""
 
 msgid "Importar desde Excel"
+msgstr ""
+
+msgid "Exportar Excel"
 msgstr ""
 
 msgid "Imprimir etiquetas QR"
@@ -3382,12 +3529,6 @@ msgstr ""
 msgid "Principal"
 msgstr ""
 
-msgid "Inicio"
-msgstr ""
-
-msgid "Órdenes de trabajo"
-msgstr ""
-
 msgid "Solicitudes"
 msgstr ""
 
@@ -3458,9 +3599,6 @@ msgstr ""
 msgid ""
 "Usa calendario (días, semanas o meses), medidor o ambos: vence lo que ocurra "
 "primero."
-msgstr ""
-
-msgid "Checklist"
 msgstr ""
 
 msgid "Opcional"
@@ -3596,12 +3734,6 @@ msgstr ""
 
 #, python-format
 msgid "Asignar a todos los activos de la clase %(cls)s"
-msgstr ""
-
-msgid "Próximo vencimiento"
-msgstr ""
-
-msgid "Última ejecución"
 msgstr ""
 
 msgid "Ningún activo de tu alcance tiene este plan."
@@ -3827,6 +3959,12 @@ msgstr ""
 msgid "Ver todas"
 msgstr ""
 
+msgid "Filtros de indicadores"
+msgstr ""
+
+msgid "Aplicar"
+msgstr ""
+
 msgid "Indicadores"
 msgstr ""
 
@@ -3834,10 +3972,59 @@ msgid ""
 "Sin tiempo en servicio en el período: todos los activos estuvieron de baja."
 msgstr ""
 
+msgid "Fórmula"
+msgstr ""
+
+msgid "(tiempo calendario − detención) / tiempo calendario × 100"
+msgstr ""
+
+msgid ""
+"Tiempo calendario: horas del período de cada activo, sin los períodos de "
+"baja. Detención: tiempo detenido o en mantención."
+msgstr ""
+
+msgid ""
+"Referencia: EN 15341 (disponibilidad) · SMRP Best Practices (Availability)."
+msgstr ""
+
+msgid "tiempo operativo / número de fallas con detención"
+msgstr ""
+
+msgid "Solo cuentan las fallas con detención total iniciadas en el período."
+msgstr ""
+
+msgid ""
+"Referencia: EN 15341 · SMRP Best Practices (Mean Time Between Failures)."
+msgstr ""
+
+msgid "tiempo total de reparación / número de reparaciones"
+msgstr ""
+
+msgid ""
+"Reparación: desde el inicio hasta el término de cada falla con detención "
+"total ya resuelta."
+msgstr ""
+
+msgid "Referencia: EN 15341 · SMRP Best Practices (Mean Time To Repair)."
+msgstr ""
+
 msgid "Cumplimiento preventivo"
 msgstr ""
 
 msgid "OT preventivas cerradas a tiempo"
+msgstr ""
+
+msgid ""
+"OT preventivas cerradas a tiempo / OT preventivas vencidas en el período × "
+"100"
+msgstr ""
+
+msgid ""
+"A tiempo: completada a más tardar en su fecha límite. Las canceladas no "
+"cuentan."
+msgstr ""
+
+msgid "Referencia: SMRP Best Practices (PM Compliance) · EN 15341."
 msgstr ""
 
 msgid "Equipos detenidos"
@@ -4371,9 +4558,6 @@ msgstr ""
 msgid "Lectura al cerrar"
 msgstr ""
 
-msgid "Cierre"
-msgstr ""
-
 msgid "Firma de cierre"
 msgstr ""
 
@@ -4389,9 +4573,6 @@ msgstr ""
 msgid "Registro"
 msgstr ""
 
-msgid "Creada"
-msgstr ""
-
 #, python-format
 msgid "Plan: %(plan)s (v%(n)s)"
 msgstr ""
@@ -4399,22 +4580,10 @@ msgstr ""
 msgid "Repuestos y herramientas previstos"
 msgstr ""
 
-msgid "Costos"
-msgstr ""
-
-msgid "Mano de obra"
-msgstr ""
-
 msgid "Repuestos y materiales"
 msgstr ""
 
-msgid "Otros costos"
-msgstr ""
-
 msgid "Concepto"
-msgstr ""
-
-msgid "Costo"
 msgstr ""
 
 msgid "h"

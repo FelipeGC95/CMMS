@@ -7,7 +7,8 @@ prefiere lo aburrido y gestionado.
 
 Documentación de diseño en `docs/` (leer antes de cambios grandes):
 01 visión · 02 requisitos (IDs `MOD-NN`) · 03 modelo de datos · 04 arquitectura
-y ADR · 05 roadmap · 06 sistema de diseño. Si una decisión contradice un ADR,
+y ADR · 05 roadmap · 06 sistema de diseño · 07 operación (variables de entorno,
+respaldos, checklist de producción). Si una decisión contradice un ADR,
 se actualiza el ADR en el mismo cambio.
 
 ## Stack
@@ -21,8 +22,10 @@ generan desde el lock para Render, no se editan a mano), pre-commit, htmx
 (sin Alpine aún), django-allauth (login por correo con verificación; registro
 cerrado; usuarios nuevos con `accounts.services.create_user`). Base de datos
 por `DATABASE_URL` (SQLite local si no está definida; el CI corre sobre
-PostgreSQL 16, así que el código no debe depender de SQLite). MFA, DRF,
-Procrastinate y R2 entran en MVP (docs/05_roadmap.md).
+PostgreSQL 16, así que el código no debe depender de SQLite). Procrastinate
+(solo con PostgreSQL), R2, Sentry, correo SMTP y respaldos están en el código
+pero se activan por variables de entorno (ADR-020, docs/07_operacion.md).
+MFA y DRF entran en MVP (docs/05_roadmap.md).
 
 ## Comandos
 
@@ -32,6 +35,8 @@ uv run python manage.py migrate
 uv run python manage.py seed_demo --reset             # datos de demostración
 uv run python manage.py runserver 0.0.0.0:8000
 uv run python manage.py generate_preventive_work_orders
+uv run python manage.py procrastinate worker          # cola de tareas (solo PostgreSQL)
+uv run python manage.py backup_database               # pg_dump a R2 backups/ o BACKUP_DIR
 uv run pytest
 uv run ruff check . ; uv run ruff format .
 uv run python manage.py makemigrations --check --dry-run

@@ -8,47 +8,93 @@ asgiref==3.12.1
     # via
     #   django
     #   django-allauth
+    #   procrastinate
+attrs==26.1.0
+    # via procrastinate
+boto3==1.43.103
+    # via django-storages
+botocore==1.43.103
+    # via
+    #   boto3
+    #   s3transfer
+certifi==2026.7.22
+    # via sentry-sdk
 cffi==2.1.1
     # via argon2-cffi-bindings
 charset-normalizer==3.5.1
     # via reportlab
+croniter==6.2.4
+    # via procrastinate
 dj-database-url==3.1.2
     # via galbust-cmms
 django==5.2.17
     # via
     #   dj-database-url
     #   django-allauth
+    #   django-storages
     #   galbust-cmms
 django-allauth==65.19.4
+    # via galbust-cmms
+django-storages==1.14.6
     # via galbust-cmms
 et-xmlfile==2.0.0
     # via openpyxl
 gunicorn==26.2.0
     # via galbust-cmms
+jmespath==1.1.0
+    # via
+    #   boto3
+    #   botocore
 openpyxl==3.1.5
     # via galbust-cmms
+packaging==26.3
+    # via procrastinate
 pillow==12.3.0
     # via
     #   galbust-cmms
     #   reportlab
-psycopg==3.3.6
+procrastinate==3.10.0
     # via galbust-cmms
+psycopg==3.3.6
+    # via
+    #   galbust-cmms
+    #   procrastinate
 psycopg-binary==3.3.6 ; implementation_name != 'pypy'
+    # via psycopg
+psycopg-pool==3.3.3
     # via psycopg
 pycparser==3.0 ; implementation_name != 'PyPy'
     # via cffi
+python-dateutil==2.9.0.post0
+    # via
+    #   botocore
+    #   croniter
+    #   procrastinate
 reportlab==5.0.1
     # via galbust-cmms
+s3transfer==0.19.2
+    # via boto3
 segno==1.6.6
     # via galbust-cmms
+sentry-sdk==2.70.0
+    # via galbust-cmms
+six==1.17.0
+    # via python-dateutil
 sqlparse==0.6.0
     # via django
-typing-extensions==4.16.0 ; python_full_version < '3.13'
-    # via psycopg
+typing-extensions==4.16.0
+    # via
+    #   procrastinate
+    #   psycopg
+    #   psycopg-pool
 tzdata==2026.4 ; sys_platform == 'win32'
     # via
     #   django
     #   psycopg
+urllib3==2.8.0
+    # via
+    #   botocore
+    #   sentry-sdk
 uuid-utils==1.0.0
     # via galbust-cmms
 whitenoise==6.12.0

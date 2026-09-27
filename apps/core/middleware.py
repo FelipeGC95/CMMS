@@ -61,11 +61,11 @@ class PrivateCacheMiddleware:
     """Las páginas con sesión no se guardan en el caché del navegador (ORG-07 CA2).
 
     Tras cambiar de organización o cerrar sesión, "Atrás" no debe mostrar datos
-    de la organización anterior. Se excluyen estáticos, media, /healthz y las
+    de la organización anterior. Se excluyen estáticos, media, /healthz, /readyz y las
     respuestas a visitantes sin sesión.
     """
 
-    SKIPPED_PATHS = ("/healthz",)
+    SKIPPED_PATHS = ("/healthz", "/readyz")
 
     def __init__(self, get_response):
         self.get_response = get_response
