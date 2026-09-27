@@ -1,0 +1,33 @@
+{% extends "allauth/layouts/base.html" %}{% load i18n ui %}
+{% block head_title %}{% translate "Avisar falla" %}{% endblock %}
+{% block content %}
+{% include "assets/_public_header.html" %}
+<h1>{% blocktranslate with name=asset.name %}Avisar falla en {{ name }}{% endblocktranslate %}</h1>
+<form method="post" enctype="multipart/form-data" novalidate>
+  {% csrf_token %}
+  {{ form.challenge }}
+  {% for error in form.non_field_errors %}<div class="alert alert--error" role="alert">{% icon 'stop' %}<span>{{ error }}</span></div>{% endfor %}
+  {% for field in form.visible_fields %}
+  {% if field.name == "website" %}
+  <div class="hp-field" aria-hidden="true">
+    <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+    {{ field }}
+  </div>
+  {% elif field.name == "asset_stopped" %}
+  <div class="field field--check">
+    {{ field }}
+    <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+  </div>
+  {% else %}
+  <div class="field">
+    <label for="{{ field.id_for_label }}">{% if field.name == "photo" %}{% icon 'camera' %} {% endif %}{{ field.label }}</label>
+    {{ field }}
+    {% for error in field.errors %}<span class="error">{% icon 'stop' %}{{ error }}</span>{% endfor %}
+  </div>
+  {% endif %}
+  {% endfor %}
+  <button class="btn btn--primary btn--lg btn--block" type="submit">{% icon 'megaphone' %}{% translate "Enviar aviso" %}</button>
+  <p class="help muted mt-2">{% translate "Mantención revisará tu aviso antes de crear una orden de trabajo." %}</p>
+</form>
+<p class="mt-4">{% translate "¿Trabajas aquí y tienes cuenta?" %} <a href="{% url 'account_login' %}?next={{ request.path|urlencode }}">{% translate "Ingresar" %}</a></p>
+{% endblock %}

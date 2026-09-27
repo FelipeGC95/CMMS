@@ -345,6 +345,13 @@
   </div>
 </section>
 
+<section class="card mb-4" aria-labelledby="ds-public-report">
+  <h2 id="ds-public-report">{% translate "Aviso por QR sin cuenta" %}</h2>
+  <div class="public-report__org"><img class="public-report__logo" src="{% static 'brand/galbust-isotipo-color.svg' %}" alt=""><span>{% translate "Planta Sur SpA" %}</span></div>
+  <p class="muted mono">CMP-01</p>
+  <p><span class="badge badge--warning">{% icon 'alert' %}{% translate "Anónima — requiere revisión" %}</span> <span class="badge badge--error">{% icon 'stop' %}{% translate "Reporta equipo detenido" %}</span></p>
+</section>
+
 <section class="card mb-4" aria-labelledby="ds-mfa">
   <h2 id="ds-mfa">{% translate "Verificación en dos pasos" %}</h2>
   <ol class="mfa-setup__steps">

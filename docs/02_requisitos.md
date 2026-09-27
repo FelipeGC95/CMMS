@@ -281,6 +281,18 @@ desde el celular.
   formulario mínimo (nombre, descripción, foto).
 - CA2: Protección anti‑abuso: límite por IP y por activo, captcha liviano.
 - CA3: La solicitud queda marcada como "anónima" y requiere revisión.
+- Implementación: el administrador lo activa en Configuración ("Avisos por QR
+  sin cuenta"); el plan debe incluir Solicitudes. La página pública solo
+  muestra la organización (nombre y logo) y el código y nombre del activo, sin
+  navegación ni caché (`no-store`), con CSRF. Anti-abuso: campo trampa, tiempo
+  mínimo y suma firmada (`apps/accounts/antibot.py`, el mismo del registro) y
+  límites en el caché compartido: 5 envíos por hora por IP (cuenta también los
+  fallidos) y 10 avisos al día por activo (ajustes `QR_REPORT_LIMIT_PER_IP`,
+  `QR_REPORT_LIMIT_PER_ASSET`, `QR_REPORT_MIN_SECONDS`). El aviso no crea OT ni
+  cambia el estado del activo aunque marque "detenido": llega a Solicitudes
+  como "Anónima — requiere revisión" y avisa a planificadores y supervisores
+  con el sitio a la vista; aceptarlo crea la OT correctiva (sin detener el
+  activo) y le pasa la foto.
 
 **REQ-03 · Registro de falla (M0)**
 - CA1: Campos: modo, causa, mecanismo de falla, método de detección (catálogos

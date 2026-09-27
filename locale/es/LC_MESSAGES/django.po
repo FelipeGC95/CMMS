@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-27 12:24-0300\n"
+"POT-Creation-Date: 2026-09-27 15:46-0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -20,6 +20,21 @@ msgstr ""
 "1 : 2;\n"
 
 msgid "Permisos"
+msgstr ""
+
+msgid "Deja este campo vacío"
+msgstr ""
+
+#, python-format
+msgid "Para comprobar que eres una persona: ¿cuánto es %(a)s + %(b)s?"
+msgstr ""
+
+msgid ""
+"No pudimos comprobar que eres una persona. Revisa la suma e inténtalo de "
+"nuevo."
+msgstr ""
+
+msgid "La suma no es correcta."
 msgstr ""
 
 msgid "Correo"
@@ -66,21 +81,6 @@ msgid "Contraseña"
 msgstr ""
 
 msgid "Al menos 10 caracteres."
-msgstr ""
-
-msgid "Deja este campo vacío"
-msgstr ""
-
-#, python-format
-msgid "Para comprobar que eres una persona: ¿cuánto es %(a)s + %(b)s?"
-msgstr ""
-
-msgid ""
-"No pudimos comprobar que eres una persona. Revisa la suma e inténtalo de "
-"nuevo."
-msgstr ""
-
-msgid "La suma no es correcta."
 msgstr ""
 
 msgid "Nombre completo"
@@ -2456,6 +2456,15 @@ msgid ""
 "obligatorios."
 msgstr ""
 
+msgid "Permitir avisos por QR sin cuenta"
+msgstr ""
+
+msgid ""
+"Quien escanee el QR de un activo sin haber ingresado verá un formulario "
+"corto para avisar una falla. El aviso llega a Solicitudes marcado como "
+"anónimo y no crea una OT hasta que alguien lo acepte."
+msgstr ""
+
 msgid "Verificación en dos pasos"
 msgstr ""
 
@@ -2536,6 +2545,9 @@ msgid "requiere aprobación para cerrar OT"
 msgstr ""
 
 msgid "exige modo y causa de falla para cerrar una OT correctiva"
+msgstr ""
+
+msgid "permite avisos por QR sin cuenta"
 msgstr ""
 
 msgid "nombres de los estados de OT"
@@ -2918,6 +2930,9 @@ msgid "El equipo está detenido"
 msgstr ""
 
 msgid "Foto (opcional)"
+msgstr ""
+
+msgid "La foto debe ser una imagen."
 msgstr ""
 
 msgid "Elige dónde es el problema"
@@ -3373,6 +3388,12 @@ msgstr ""
 msgid "fusionada en"
 msgstr ""
 
+msgid "anónima"
+msgstr ""
+
+msgid "nombre de quien avisa"
+msgstr ""
+
 msgid "solicitudes"
 msgstr ""
 
@@ -3409,6 +3430,19 @@ msgstr ""
 
 #, python-format
 msgid "El aviso se envió sin la foto. %(reason)s"
+msgstr ""
+
+msgid "Este activo no recibe avisos."
+msgstr ""
+
+msgid "La organización no recibe avisos sin cuenta."
+msgstr ""
+
+msgid "El aviso se envió sin la foto."
+msgstr ""
+
+#, python-format
+msgid "Aviso por QR sin cuenta de %(name)s"
 msgstr ""
 
 #, python-format
@@ -4518,6 +4552,37 @@ msgid "No hay activos que coincidan."
 msgstr ""
 
 #, python-format
+msgid "Avisar falla en %(name)s"
+msgstr ""
+
+msgid "Enviar aviso"
+msgstr ""
+
+msgid "Mantención revisará tu aviso antes de crear una orden de trabajo."
+msgstr ""
+
+msgid "¿Trabajas aquí y tienes cuenta?"
+msgstr ""
+
+msgid "Demasiados avisos"
+msgstr ""
+
+msgid ""
+"Recibimos muchos avisos seguidos. Espera un rato e inténtalo de nuevo, o "
+"avisa directamente a mantención."
+msgstr ""
+
+msgid "Aviso enviado"
+msgstr ""
+
+#, python-format
+msgid "Gracias. Mantención recibió tu aviso sobre %(name)s y lo revisará."
+msgstr ""
+
+msgid "Enviar otro aviso"
+msgstr ""
+
+#, python-format
 msgid ""
 "%(name)s volverá a «Operativo». Los planes preventivos desactivados en la "
 "baja no se reactivan solos: marca los que correspondan."
@@ -4579,13 +4644,6 @@ msgstr[2] ""
 
 msgid ""
 "No hay lecturas nuevas para registrar. Corrige el archivo y vuelve a subirlo."
-msgstr ""
-
-#, python-format
-msgid "Avisar falla en %(name)s"
-msgstr ""
-
-msgid "Enviar aviso"
 msgstr ""
 
 msgid "Se creará una orden de trabajo correctiva y se avisará a mantención."
@@ -5675,6 +5733,9 @@ msgstr ""
 msgid "Cierre de órdenes de trabajo"
 msgstr ""
 
+msgid "Avisos por QR sin cuenta"
+msgstr ""
+
 msgid "Nombres de los estados de OT"
 msgstr ""
 
@@ -6190,6 +6251,18 @@ msgid "Otra tarjeta"
 msgstr ""
 
 msgid "Bajo 720 px queda una sola columna."
+msgstr ""
+
+msgid "Aviso por QR sin cuenta"
+msgstr ""
+
+msgid "Planta Sur SpA"
+msgstr ""
+
+msgid "Anónima — requiere revisión"
+msgstr ""
+
+msgid "Reporta equipo detenido"
 msgstr ""
 
 msgid "Calendario del mes"
@@ -6737,6 +6810,9 @@ msgid "Solicitudes pendientes"
 msgstr ""
 
 msgid "Solicitada por"
+msgstr ""
+
+msgid "Ver foto"
 msgstr ""
 
 msgid "Aceptar"

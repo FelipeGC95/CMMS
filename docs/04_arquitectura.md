@@ -113,7 +113,10 @@ revés; los modelos no llaman servicios; las vistas HTML y la API llaman a
    filtra por la organización del contexto y **lanza `TenantNotSet`** si no
    hay contexto. Para operaciones de plataforma existe un manager explícito
    `all_tenants` que solo se usa en código revisado (comandos de admin,
-   migraciones de datos) y se busca con grep en revisiones.
+   migraciones de datos) y se busca con grep en revisiones. Excepción
+   acotada: el QR sin sesión (REQ-02) busca el activo por su token no
+   adivinable y fija `tenant_context` con la organización de ese activo
+   (`assets.selectors.asset_for_anonymous_report`).
 4. **Escritura**: `TenantModel.save()` asigna `organization_id` desde el
    contexto y rechaza guardar si no coincide.
 5. **Alcance por sitio**: los selectors aplican además el filtro de
@@ -135,7 +138,7 @@ revés; los modelos no llaman servicios; las vistas HTML y la API llaman a
 | Tema | Medida |
 |---|---|
 | Autenticación | allauth, Argon2, verificación de correo, MFA TOTP con códigos de recuperación, exigible por organización. |
-| Fuerza bruta | Límite de intentos por usuario e IP (django-axes o el rate limit de allauth), bloqueo temporal; límite de tasa en formularios públicos (QR). |
+| Fuerza bruta | Límite de intentos por usuario e IP (django-axes o el rate limit de allauth), bloqueo temporal; límite de tasa en formularios públicos: registro (rate limit de allauth) y aviso por QR sin cuenta (por IP y por activo, `apps.accounts.antibot.consume_rate`), ambos con campo trampa, tiempo mínimo y suma firmada. |
 | Sesión | Cookies `Secure`, `HttpOnly`, `SameSite=Lax`; rotación al iniciar sesión y al cambiar de organización; expiración por inactividad configurable. |
 | Autorización | Permisos por rol verificados en servicios y selectors (no solo en la UI); objetos siempre obtenidos por selectors con alcance. |
 | Transporte | HTTPS obligatorio, HSTS (1 año, preload cuando el dominio sea estable). |

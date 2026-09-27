@@ -6,6 +6,7 @@ from django import forms
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.utils.translation import gettext_lazy as _
 
+from apps.accounts.antibot import HumanCheckMixin
 from apps.accounts.models import User
 from apps.assets.models import Asset
 from apps.assets.selectors import visible_assets
@@ -32,6 +33,32 @@ class FailureReportForm(forms.Form):
     )
     # Generado al mostrar el formulario: un doble envío no crea dos avisos.
     client_uuid = forms.UUIDField(widget=forms.HiddenInput, required=False, initial=uuid.uuid4)
+
+
+class AnonymousReportForm(HumanCheckMixin, forms.Form):
+    """Aviso por QR sin cuenta (REQ-02 CA1), con anti-bots (CA2): ver `apps.accounts.antibot`."""
+
+    challenge_salt = "work.anonymous_report.challenge"
+    min_seconds_setting = "QR_REPORT_MIN_SECONDS"
+
+    name = forms.CharField(label=_("Tu nombre"), max_length=100)
+    description = forms.CharField(
+        label=_("¿Qué pasó?"),
+        widget=forms.Textarea(attrs={"rows": 4, "placeholder": _("Ej: pierde aceite por el costado")}),
+        max_length=2000,
+    )
+    asset_stopped = forms.BooleanField(label=_("El equipo está detenido"), required=False)
+    photo = forms.FileField(
+        label=_("Foto (opcional)"),
+        required=False,
+        widget=forms.ClearableFileInput(attrs={"accept": "image/*", "capture": "environment"}),
+    )
+
+    def clean_photo(self):
+        photo = self.cleaned_data.get("photo")
+        if photo and not (photo.content_type or "").startswith("image/"):
+            raise forms.ValidationError(_("La foto debe ser una imagen."))
+        return photo
 
 
 def _location_label(location):

@@ -890,3 +890,36 @@ def test_planning_screens_do_not_grow_with_rows(client, tenant_a, url_name, who)
     _add_planning_rows(tenant_a, 6, monday)
     many = _count(client, url)
     assert many == few, f"{url_name}: {few} → {many} consultas"
+
+
+def _add_anonymous_requests(tenant, n, tmp_path):
+    from django.core.files.uploadedfile import SimpleUploadedFile
+
+    from apps.work.services import report_anonymous_failure
+    from tests.conftest import tiny_jpeg_bytes
+
+    with tenant_context(tenant.org):
+        for i in range(n):
+            photo = SimpleUploadedFile("f.jpg", tiny_jpeg_bytes(), content_type="image/jpeg")
+            report_anonymous_failure(
+                asset=tenant.asset, name=f"Persona {i}", description="x", asset_stopped=True, photo=photo
+            )
+
+
+def test_request_inbox_with_anonymous_photos_does_not_grow(client, tenant_a, settings, tmp_path):
+    settings.MEDIA_ROOT = tmp_path
+    tenant_a.org.allow_anonymous_reports = True
+    tenant_a.org.save()
+    login(client, tenant_a.admin)
+    _add_anonymous_requests(tenant_a, 2, tmp_path)
+    few = _count(client, reverse("request_list"))
+    _add_anonymous_requests(tenant_a, 10, tmp_path)
+    assert _count(client, reverse("request_list")) == few
+
+
+def test_public_qr_page_query_budget(client, tenant_a, django_assert_max_num_queries):
+    tenant_a.org.allow_anonymous_reports = True
+    tenant_a.org.save()
+    url = reverse("asset_qr", args=[tenant_a.asset.qr_token])
+    with django_assert_max_num_queries(3):  # sesión + activo con su organización y plan
+        assert client.get(url).status_code == 200

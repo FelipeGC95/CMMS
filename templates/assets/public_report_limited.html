@@ -1,0 +1,7 @@
+{% extends "allauth/layouts/base.html" %}{% load i18n ui %}
+{% block head_title %}{% translate "Demasiados avisos" %}{% endblock %}
+{% block content %}
+{% include "assets/_public_header.html" %}
+<h1>{% translate "Demasiados avisos" %}</h1>
+<div class="alert alert--warning" role="alert">{% icon 'alert' %}<span>{% translate "Recibimos muchos avisos seguidos. Espera un rato e inténtalo de nuevo, o avisa directamente a mantención." %}</span></div>
+{% endblock %}

@@ -17,6 +17,7 @@ from apps.accounts.permissions import Perm, PermissionDeniedError, has_perm
 from apps.attachments.models import Attachment, Purpose, TargetType
 from apps.attachments.selectors import attachments_for
 from apps.core.decorators import membership_required
+from apps.core.files import private_file_response
 from apps.ui.templatetags.ui import work_order_status_label
 
 from .forms import (
@@ -38,6 +39,7 @@ from .forms import (
 )
 from .models import FailureCode, FailureEvent, OtherCost, PartUsage, WorkOrder, WorkOrderChecklistItem
 from .selectors import (
+    anonymous_request_photos,
     assignable_members,
     backlog_summary,
     checklist_photos,
@@ -724,6 +726,16 @@ def request_list_view(request):
 
 def _get_request_or_404(request, pk):
     return get_object_or_404(visible_requests(membership=request.membership), pk=pk)
+
+
+@membership_required(perm=Perm.WORK_ORDER_MANAGE)
+def request_photo_view(request, pk):
+    """Foto de un aviso anónimo (REQ-02) antes de aceptarlo: aún no tiene OT donde verla."""
+    work_request = _get_request_or_404(request, pk)
+    photo = anonymous_request_photos(work_request).first()
+    if photo is None:
+        raise Http404
+    return private_file_response(photo.file, content_type=photo.content_type, filename=photo.filename)
 
 
 @require_POST

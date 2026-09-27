@@ -1,8 +1,10 @@
 import uuid
 
 import segno
+from allauth.account.adapter import get_adapter
+from django.conf import settings
 from django.contrib import messages
-from django.contrib.auth.decorators import login_required
+from django.contrib.auth.views import redirect_to_login
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.paginator import Paginator
 from django.http import Http404, HttpResponse
@@ -12,21 +14,25 @@ from django.utils.http import urlencode
 from django.utils.safestring import mark_safe
 from django.utils.translation import gettext as _
 from django.utils.translation import ngettext
+from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_POST
 
+from apps.accounts.antibot import consume_rate
 from apps.accounts.permissions import Perm, PermissionDeniedError, has_perm
 from apps.attachments.models import TargetType
 from apps.attachments.selectors import attachments_for
 from apps.attachments.services import AttachmentError
 from apps.attachments.services import add_attachment as add_generic_attachment
 from apps.core.decorators import membership_required
+from apps.core.files import private_file_response
 from apps.core.middleware import SESSION_KEY
+from apps.core.tenancy import tenant_context
 from apps.maintenance.selectors import active_assignments_for_asset, reactivatable_assignments_for_asset
 from apps.organizations.services import quota_warning
 from apps.reporting.selectors import asset_kpis
-from apps.work.forms import FailureReportForm
+from apps.work.forms import AnonymousReportForm, FailureReportForm
 from apps.work.selectors import work_order_list
-from apps.work.services import WorkOrderError, report_failure
+from apps.work.services import WorkOrderError, report_anonymous_failure, report_failure
 
 from .attributes import attribute_rows, missing_required
 from .forms import (
@@ -44,6 +50,7 @@ from .selectors import (
     asset_by_qr_token,
     asset_children,
     asset_failure_history,
+    asset_for_anonymous_report,
     asset_list,
     asset_scope_ids,
     asset_status_history,
@@ -548,13 +555,25 @@ def asset_labels_pdf_view(request):
     return response
 
 
-@login_required
+# Aviso por QR sin cuenta (REQ-02 CA2): límites por IP y por activo, configurables.
+QR_REPORT_LIMIT_PER_IP = (5, 60 * 60)  # 5 envíos por hora desde una IP
+QR_REPORT_LIMIT_PER_ASSET = (10, 24 * 60 * 60)  # 10 avisos al día por activo
+
+
+def _qr_limit(name, default):
+    return getattr(settings, name, default)
+
+
 def asset_qr_view(request, token):
-    """Destino del QR: con sesión va directo a avisar falla (AST-05).
+    """Destino del QR: con sesión va directo a avisar falla (AST-05 CA3).
 
     Si el activo es de otra organización del mismo usuario, cambia a esa
     organización; si el usuario no pertenece a ella, 404 (no se revela nada).
+    Sin sesión, muestra el aviso sin cuenta si la organización lo permite
+    (REQ-02); si no, pide ingresar.
     """
+    if not request.user.is_authenticated:
+        return _anonymous_report(request, token)
     asset = asset_by_qr_token(token, membership=request.membership) if request.membership else None
     if asset is None:
         # Búsqueda entre organizaciones justificada: solo se usa el organization_id
@@ -572,6 +591,77 @@ def asset_qr_view(request, token):
         request.session[SESSION_KEY] = str(org_id)
         return redirect("asset_qr", token=token)
     return redirect("asset_report", pk=asset.pk)
+
+
+@never_cache
+def _anonymous_report(request, token):
+    """Formulario público mínimo (REQ-02 CA1): solo muestra el activo y la organización del QR.
+
+    El contexto de organización sale únicamente del activo del token. Si la
+    organización no lo permite (o el token no existe), el mismo resultado que antes:
+    pedir ingresar, sin revelar si el activo existe.
+    """
+    asset = asset_for_anonymous_report(token)
+    if asset is None:
+        return redirect_to_login(request.get_full_path())
+    form = AnonymousReportForm(request.POST or None, request.FILES or None)
+    if request.method == "POST":
+        ip = get_adapter().get_client_ip(request)
+        limit, period = _qr_limit("QR_REPORT_LIMIT_PER_IP", QR_REPORT_LIMIT_PER_IP)
+        if not consume_rate(f"qr-ip:{ip}", limit=limit, period=period):
+            return _anonymous_limited(request, asset)
+        if form.is_valid():
+            limit, period = _qr_limit("QR_REPORT_LIMIT_PER_ASSET", QR_REPORT_LIMIT_PER_ASSET)
+            if not consume_rate(f"qr-asset:{asset.pk}", limit=limit, period=period):
+                return _anonymous_limited(request, asset)
+            data = form.cleaned_data
+            with tenant_context(asset.organization):
+                try:
+                    report_anonymous_failure(
+                        asset=asset,
+                        name=data["name"],
+                        description=data["description"],
+                        asset_stopped=data["asset_stopped"],
+                        photo=data.get("photo"),
+                    )
+                except WorkOrderError as exc:
+                    form.add_error("photo", exc.message)
+                else:
+                    return redirect("asset_qr_sent", token=token)
+    return render(
+        request,
+        "assets/public_report.html",
+        {"asset": asset, "organization": asset.organization, "form": form},
+    )
+
+
+def _anonymous_limited(request, asset):
+    return render(
+        request,
+        "assets/public_report_limited.html",
+        {"asset": asset, "organization": asset.organization},
+        status=429,
+    )
+
+
+@never_cache
+def asset_qr_sent_view(request, token):
+    """Confirmación del aviso sin cuenta: no muestra el número ni datos de la solicitud."""
+    asset = asset_for_anonymous_report(token)
+    if asset is None:
+        raise Http404
+    return render(
+        request, "assets/public_report_sent.html", {"asset": asset, "organization": asset.organization}
+    )
+
+
+@never_cache
+def asset_qr_logo_view(request, token):
+    """Logo de la organización para el aviso sin cuenta; solo con un QR válido y el aviso activo."""
+    asset = asset_for_anonymous_report(token)
+    if asset is None or not asset.organization.logo:
+        raise Http404
+    return private_file_response(asset.organization.logo, content_type="image/png")
 
 
 @membership_required(perm=Perm.REQUEST_CREATE)

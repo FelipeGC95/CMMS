@@ -1,0 +1,6 @@
+{# Aviso sin cuenta (REQ-02): solo la organización y el activo del QR. #}
+<div class="public-report__org">
+  {% if organization.logo %}<img class="public-report__logo" src="{% url 'asset_qr_logo' asset.qr_token %}" alt="{{ organization.name }}">{% endif %}
+  <span>{{ organization.name }}</span>
+</div>
+<p class="muted mono">{{ asset.code }}</p>

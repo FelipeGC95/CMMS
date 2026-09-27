@@ -565,6 +565,12 @@ class WorkRequest(TenantModel):
     la solicitud en sí (CA3) — aceptarla es solo formalizar lo ya creado;
     rechazarla o fusionarla cancela esa OT (ver `services.reject_request` y
     `services.merge_request`).
+
+    Excepción, el aviso por QR sin cuenta (REQ-02): queda `is_anonymous`, sin
+    `requested_by` ni OT, y no cambia el estado del activo aunque diga que está
+    detenido. La OT se crea recién al aceptarlo (`services.accept_request`). Su
+    foto es un `Attachment` con `target_type=work_order` y `target_id` igual al
+    id de la solicitud, hasta que al aceptar pasa a la OT nueva.
     """
 
     class Status(models.TextChoices):
@@ -628,6 +634,9 @@ class WorkRequest(TenantModel):
         related_name="merged_requests",
     )
     client_uuid = models.UUIDField(null=True, blank=True, verbose_name=_("UUID del cliente"))
+    # Aviso por QR sin cuenta (REQ-02 CA3): requiere revisión antes de crear la OT.
+    is_anonymous = models.BooleanField(_("anónima"), default=False)
+    anonymous_name = models.CharField(_("nombre de quien avisa"), max_length=100, blank=True)
 
     class Meta:
         verbose_name = _("solicitud")

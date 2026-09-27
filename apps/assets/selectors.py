@@ -94,6 +94,27 @@ def asset_by_qr_token(token: str, *, membership) -> Asset | None:
     return visible_assets(membership=membership).filter(qr_token=token, is_active=True).first()
 
 
+def asset_for_anonymous_report(token: str) -> Asset | None:
+    """Activo del QR para el aviso sin cuenta (REQ-02), o None si no corresponde.
+
+    Búsqueda entre organizaciones justificada: sin sesión, el token no adivinable del
+    QR (AST-05) es lo único que fija la organización. Solo vale si la organización
+    está activa, permite avisos sin cuenta y su plan incluye Solicitudes.
+    """
+    from apps.organizations.modules import has_module
+
+    asset = (
+        Asset.all_tenants.select_related("organization__plan")
+        .filter(qr_token=token, is_active=True, organization__is_active=True)
+        .first()
+    )
+    if asset is None or not asset.organization.allow_anonymous_reports:
+        return None
+    if not has_module(asset.organization, "requests"):
+        return None
+    return asset
+
+
 def asset_class_list():
     """Clases de la organización con sus cantidades de activos y atributos visibles."""
     return AssetClass.objects.annotate(
