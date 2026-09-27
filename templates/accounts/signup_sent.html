@@ -1,0 +1,8 @@
+{% extends "allauth/layouts/base.html" %}{% load i18n ui %}
+{% block head_title %}{% translate "Revisa tu correo" %}{% endblock %}
+{% block content %}
+<h1>{% translate "Revisa tu correo" %}</h1>
+<p>{% blocktranslate %}Enviamos un enlace a <strong>{{ email }}</strong>. Ábrelo para verificar tu correo y crear tu organización.{% endblocktranslate %}</p>
+<p class="muted">{% translate "El enlace vence en 2 días. Si no llega en unos minutos, revisa la carpeta de spam o regístrate de nuevo." %}</p>
+<a class="btn btn--secondary btn--block" href="{% url 'account_login' %}">{% translate "Ir a ingresar" %}</a>
+{% endblock %}

@@ -31,6 +31,12 @@ para probar sin hablar con un vendedor.
   de administrador en una sola transacción.
 - CA2: Requiere verificación de correo antes de crear datos.
 - CA3: Tiene límite de intentos y protección anti‑bots.
+- Nota: `/signup/` guarda un `PendingSignup` (contraseña ya con hash) y envía
+  el enlace; al confirmar (botón POST, para que los antivirus del correo no lo
+  consuman) se crean usuario, organización y membresía en una transacción. Si
+  el correo ya existe se avisa por correo, no en pantalla. Anti‑bots sin JS de
+  terceros: campo trampa, tiempo mínimo y una suma firmada; límite por IP con
+  el rate limit de allauth. El registro propio de allauth sigue cerrado.
 
 **ORG-03 · Asistente de puesta en marcha (M1)**
 Como administrador nuevo quiero un asistente que me guíe, para tener el sistema

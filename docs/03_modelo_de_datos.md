@@ -28,7 +28,7 @@ Los nombres de tablas y campos están en inglés (convención de código, ver
 `code` (basic, pro, enterprise, trial) · `name` · `max_assets` · `max_users` (null = ilimitado) · `max_storage_mb` · `features JSONB` (lista de códigos de módulo) · `is_active`.
 
 **`organization`** (tenant raíz)
-`name` · `slug` (único) · `plan_id` · `status` (trial, active, suspended, pending_deletion) · `trial_ends_at` · `timezone` (IANA, ej. `America/Santiago`) · `locale` (`es-CL`) · `currency` · `primary_color` · `logo` (clave de objeto) · `limits_override JSONB` · `settings JSONB` (ej. `require_close_approval`, `anonymous_qr_requests`, `require_mfa`, `planning_horizon_days`, `status_labels`) · `storage_used_bytes BIGINT` · `deletion_requested_at`.
+`name` · `slug` (único) · `plan_id` · `status` (trial, active, suspended, pending_deletion) · `trial_ends_at` · `timezone` (IANA, ej. `America/Santiago`) · `locale` (`es-CL`) · `currency` · `primary_color` · `mfa_policy` (admins_only, everyone, optional; ORG-08) · `logo` (clave de objeto) · `limits_override JSONB` · `settings JSONB` (ej. `require_close_approval`, `anonymous_qr_requests`, `planning_horizon_days`, `status_labels`) · `storage_used_bytes BIGINT` · `deletion_requested_at`.
 
 **`organization_feature`** — sobrescribe módulos del plan por organización.
 `organization_id` · `feature_code` · `enabled`. `UNIQUE (organization_id, feature_code)`.
@@ -46,6 +46,9 @@ Tablas de django‑allauth para verificación de correo, MFA y (F3) cuentas SSO.
 
 **`invitation`**
 `organization_id` · `email` · `role` · `token_hash` · `invited_by_id` · `expires_at` · `accepted_at` · `revoked_at`.
+
+**`pending_signup`** (plataforma, sin tenant; ORG-02) — autoregistro esperando la verificación del correo.
+`email` · `full_name` · `organization_name` · `password_hash` · `token_hash` · `expires_at` (2 días) · `completed_at`. Al confirmar se crean usuario, organización y membresía y se borra el hash de la contraseña.
 
 **`api_token`**
 `organization_id` · `name` · `prefix` (visible) · `token_hash` · `scope` (read, write) · `service_user_id` · `created_by_id` · `last_used_at` · `expires_at` · `revoked_at`.

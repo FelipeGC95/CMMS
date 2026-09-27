@@ -1,0 +1,10 @@
+{% extends "allauth/layouts/base.html" %}{% load i18n ui %}
+{% block head_title %}{% translate "Enlace no válido" %}{% endblock %}
+{% block content %}
+<h1>{% translate "Enlace no válido" %}</h1>
+<div class="alert alert--error" role="alert">{% icon 'stop' %}<span>{% if error %}{{ error }}{% else %}{% translate "El enlace no es válido, ya se usó o venció. Regístrate de nuevo." %}{% endif %}</span></div>
+<div class="stack">
+  <a class="btn btn--primary btn--block" href="{% url 'signup' %}">{% translate "Registrarme de nuevo" %}</a>
+  <a class="btn btn--secondary btn--block" href="{% url 'account_login' %}">{% translate "Ingresar" %}</a>
+</div>
+{% endblock %}

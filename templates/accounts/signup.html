@@ -1,0 +1,28 @@
+{% extends "allauth/layouts/base.html" %}{% load i18n ui %}
+{% block head_title %}{% translate "Crear cuenta" %}{% endblock %}
+{% block content %}
+<h1>{% translate "Prueba GALBUST CMMS gratis" %}</h1>
+<p class="muted">{% translate "30 días de prueba, sin tarjeta. Te enviaremos un enlace para verificar tu correo y ahí creamos tu organización." %}</p>
+<form method="post" action="{% url 'signup' %}" novalidate>
+  {% csrf_token %}
+  {% for error in form.non_field_errors %}<div class="alert alert--error" role="alert">{% icon 'stop' %}<span>{{ error }}</span></div>{% endfor %}
+  {{ form.challenge }}
+  {% for field in form.visible_fields %}
+  {% if field.name == "website" %}
+  <div class="hp-field" aria-hidden="true">
+    <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+    {{ field }}
+  </div>
+  {% else %}
+  <div class="field">
+    <label for="{{ field.id_for_label }}">{{ field.label }} *</label>
+    {{ field }}
+    {% if field.help_text %}<span class="help">{{ field.help_text }}</span>{% endif %}
+    {% for error in field.errors %}<span class="error">{% icon 'stop' %}{{ error }}</span>{% endfor %}
+  </div>
+  {% endif %}
+  {% endfor %}
+  <button class="btn btn--primary btn--lg btn--block" type="submit">{% translate "Crear mi cuenta" %}</button>
+</form>
+<p class="mt-4">{% translate "¿Ya tienes cuenta?" %} <a href="{% url 'account_login' %}">{% translate "Ingresar" %}</a></p>
+{% endblock %}

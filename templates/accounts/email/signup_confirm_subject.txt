@@ -1,0 +1,1 @@
+{% load i18n %}{% autoescape off %}{% translate "[GALBUST CMMS] Verifica tu correo para crear tu organización" %}{% endautoescape %}

@@ -3,17 +3,23 @@ import secrets
 
 from allauth.account.models import EmailAddress
 from django.conf import settings
+from django.contrib.auth.hashers import make_password
 from django.core.mail import send_mail
 from django.db import transaction
 from django.template.loader import render_to_string
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.text import slugify
 from django.utils.translation import gettext as _
 
+from apps.audit import services as audit
+from apps.audit.models import AuditEvent
 from apps.core.middleware import SESSION_KEY
-from apps.organizations.models import Location, Organization
+from apps.core.tenancy import tenant_context
+from apps.organizations.models import Location, Organization, Plan
+from apps.organizations.plans import ensure_default_plans
 
-from .models import Invitation, Membership, MembershipLocation, User
+from .models import Invitation, Membership, MembershipLocation, PendingSignup, User
 from .permissions import Perm, PermissionDeniedError, require_perm
 from .selectors import hash_token, pending_invitations_qs
 
@@ -243,3 +249,103 @@ def set_member_active(*, membership, target, active):
     target.is_active = active
     target.save(update_fields=["is_active", "updated_at"])
     return target
+
+
+# ---------- Autoregistro con prueba gratuita (ORG-02) ----------
+
+SIGNUP_TTL = datetime.timedelta(days=2)
+TRIAL_DAYS = 30
+
+
+class SignupError(ValueError):
+    """El enlace de registro no sirve (vencido, usado o correo ya registrado)."""
+
+
+def _unique_slug(name: str) -> str:
+    base = (slugify(name) or "organizacion")[:40].strip("-") or "organizacion"
+    slug, n = base, 2
+    while Organization.objects.filter(slug=slug).exists():
+        slug = f"{base}-{n}"
+        n += 1
+    return slug
+
+
+def _send_signup_email(template: str, email: str, context: dict):
+    subject = render_to_string(f"accounts/email/{template}_subject.txt", context).strip()
+    body = render_to_string(f"accounts/email/{template}_message.txt", context)
+    send_mail(subject, body, settings.DEFAULT_FROM_EMAIL, [email])
+
+
+@transaction.atomic
+def request_signup(*, email, full_name, organization_name, password, confirm_url, login_url):
+    """Guarda la solicitud y envía el enlace de verificación. No crea datos todavía (CA2).
+
+    Si el correo ya tiene cuenta se le avisa por correo, no en pantalla (no se revela
+    qué correos están registrados). `confirm_url(token)` arma el enlace de verificación.
+    """
+    email = email.strip().lower()
+    if User.objects.filter(email__iexact=email).exists():
+        _send_signup_email("signup_existing", email, {"login_url": login_url})
+        return None
+    # Una solicitud nueva reemplaza a las anteriores sin completar del mismo correo.
+    PendingSignup.objects.filter(email=email, completed_at__isnull=True).delete()
+    token = secrets.token_urlsafe(32)
+    pending = PendingSignup.objects.create(
+        email=email,
+        full_name=full_name.strip(),
+        organization_name=organization_name.strip(),
+        password_hash=make_password(password),
+        token_hash=hash_token(token),
+        expires_at=timezone.now() + SIGNUP_TTL,
+    )
+    _send_signup_email(
+        "signup_confirm",
+        email,
+        {"pending": pending, "confirm_url": confirm_url(token), "expires_days": SIGNUP_TTL.days},
+    )
+    return pending
+
+
+def pending_signup_by_token(token):
+    return PendingSignup.objects.filter(
+        token_hash=hash_token(token), completed_at__isnull=True, expires_at__gt=timezone.now()
+    ).first()
+
+
+@transaction.atomic
+def complete_signup(*, token):
+    """Con el correo verificado crea usuario + organización (plan Prueba, 30 días) +
+    membresía de administrador en una sola transacción (ORG-02 CA1). El enlace sirve una vez."""
+    pending = (
+        PendingSignup.objects.select_for_update()
+        .filter(token_hash=hash_token(token), completed_at__isnull=True, expires_at__gt=timezone.now())
+        .first()
+    )
+    if pending is None:
+        raise SignupError(_("El enlace no es válido, ya se usó o venció. Regístrate de nuevo."))
+    if User.objects.filter(email__iexact=pending.email).exists():
+        raise SignupError(_("Ya existe una cuenta con este correo: ingresa con tu contraseña."))
+    trial = Plan.objects.filter(code="trial").first()
+    if trial is None:
+        ensure_default_plans(Plan)
+        trial = Plan.objects.get(code="trial")
+    now = timezone.now()
+    organization = Organization.objects.create(
+        name=pending.organization_name,
+        slug=_unique_slug(pending.organization_name),
+        plan=trial,
+        status=Organization.Status.TRIAL,
+        trial_ends_at=now + datetime.timedelta(days=TRIAL_DAYS),
+    )
+    user = create_user(
+        email=pending.email, full_name=pending.full_name, email_verified=True, last_organization=organization
+    )
+    user.password = pending.password_hash
+    user.save(update_fields=["password"])
+    membership = Membership.objects.create(user=user, organization=organization, role=Membership.Role.ADMIN)
+    pending.completed_at = now
+    pending.password_hash = ""
+    pending.save(update_fields=["completed_at", "password_hash", "updated_at"])
+    with tenant_context(organization):
+        audit.record(action=AuditEvent.Action.CREATE, target=organization, membership=membership)
+    return user, organization

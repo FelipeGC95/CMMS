@@ -144,6 +144,11 @@ ACCOUNT_DEFAULT_HTTP_PROTOCOL = "http" if DEBUG else "https"
 MFA_ADAPTER = "apps.accounts.adapter.MFAAdapter"
 MFA_SUPPORTED_TYPES = ["totp", "recovery_codes"]
 MFA_ENFORCE = env_bool("MFA_ENFORCE", True)
+# Autoregistro con prueba gratuita (ORG-02): límite por IP con el rate limit de allauth
+# (sobre el caché en base de datos) y segundos mínimos entre mostrar y enviar el formulario.
+ACCOUNT_RATE_LIMITS = {"signup": "5/m/ip,20/d/ip"}
+ALLAUTH_TRUSTED_PROXY_COUNT = int(os.environ.get("AUDIT_TRUSTED_PROXIES", "0"))
+SIGNUP_MIN_SECONDS = int(os.environ.get("SIGNUP_MIN_SECONDS", "3"))
 # Límites de intentos por defecto de allauth (login, reinicio de clave) sobre el caché.
 # Caché en la base de datos: compartido entre workers de gunicorn (LocMem es por proceso).
 CACHES = {

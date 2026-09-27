@@ -14,4 +14,5 @@
       {% element button type="submit" tags="prominent,login" %}{% translate "Ingresar" %}{% endelement %}
     {% endslot %}
   {% endelement %}
+  <p class="mt-4">{% translate "¿Aún no tienes cuenta?" %} <a href="{% url 'signup' %}">{% translate "Prueba gratis 30 días" %}</a></p>
 {% endblock %}

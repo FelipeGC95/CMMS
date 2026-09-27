@@ -1,0 +1,8 @@
+{% load i18n %}{% autoescape off %}{% blocktranslate with name=pending.full_name org=pending.organization_name %}Hola, {{ name }}:
+
+Para crear {{ org }} en GALBUST CMMS con 30 días de prueba gratuita, verifica tu correo abriendo este enlace:{% endblocktranslate %}
+{{ confirm_url }}
+
+{% blocktranslate count days=expires_days %}El enlace vence en {{ days }} día y sirve una sola vez.{% plural %}El enlace vence en {{ days }} días y sirve una sola vez.{% endblocktranslate %}
+{% blocktranslate %}Si no te registraste, ignora este correo: no se creará nada.{% endblocktranslate %}
+{% endautoescape %}

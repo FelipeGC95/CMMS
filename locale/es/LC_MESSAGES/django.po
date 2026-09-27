@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-27 05:35-0300\n"
+"POT-Creation-Date: 2026-09-27 05:46-0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -42,10 +42,40 @@ msgstr ""
 msgid "Elige al menos una ubicación para limitar el acceso."
 msgstr ""
 
-msgid "Nombre completo"
+msgid "Tu nombre"
+msgstr ""
+
+msgid "Correo de trabajo"
+msgstr ""
+
+msgid "Nombre de tu empresa"
+msgstr ""
+
+msgid "Así se verá tu organización. Podrás cambiarlo después."
 msgstr ""
 
 msgid "Contraseña"
+msgstr ""
+
+msgid "Al menos 10 caracteres."
+msgstr ""
+
+msgid "Deja este campo vacío"
+msgstr ""
+
+#, python-format
+msgid "Para comprobar que eres una persona: ¿cuánto es %(a)s + %(b)s?"
+msgstr ""
+
+msgid ""
+"No pudimos comprobar que eres una persona. Revisa la suma e inténtalo de "
+"nuevo."
+msgstr ""
+
+msgid "La suma no es correcta."
+msgstr ""
+
+msgid "Nombre completo"
 msgstr ""
 
 msgid "Repite la contraseña"
@@ -141,6 +171,21 @@ msgstr ""
 msgid "invitaciones"
 msgstr ""
 
+msgid "nombre de la organización"
+msgstr ""
+
+msgid "hash de la contraseña"
+msgstr ""
+
+msgid "completado"
+msgstr ""
+
+msgid "registro pendiente"
+msgstr ""
+
+msgid "registros pendientes"
+msgstr ""
+
 #, python-format
 msgid ""
 "Tu plan %(plan)s permite hasta %(max)s usuarios, contando las invitaciones "
@@ -177,6 +222,12 @@ msgstr ""
 msgid "No puedes desactivar tu propia cuenta."
 msgstr ""
 
+msgid "El enlace no es válido, ya se usó o venció. Regístrate de nuevo."
+msgstr ""
+
+msgid "Ya existe una cuenta con este correo: ingresa con tu contraseña."
+msgstr ""
+
 #, python-format
 msgid "Invitación enviada a %(email)s."
 msgstr ""
@@ -200,6 +251,10 @@ msgstr ""
 
 #, python-format
 msgid "Ingresa con %(email)s para aceptar la invitación."
+msgstr ""
+
+#, python-format
+msgid "¡Bienvenido! %(org)s está lista, con %(days)s días de prueba gratuita."
 msgstr ""
 
 msgid "No encontrado."
@@ -2967,6 +3022,12 @@ msgstr ""
 msgid "Ingresar"
 msgstr ""
 
+msgid "¿Aún no tienes cuenta?"
+msgstr ""
+
+msgid "Prueba gratis 30 días"
+msgstr ""
+
 #, python-format
 msgid ""
 "Hola:\n"
@@ -2992,6 +3053,34 @@ msgstr ""
 
 #, python-format
 msgid "[GALBUST CMMS] Te invitaron a %(org)s"
+msgstr ""
+
+#, python-format
+msgid ""
+"Hola, %(name)s:\n"
+"\n"
+"Para crear %(org)s en GALBUST CMMS con 30 días de prueba gratuita, verifica "
+"tu correo abriendo este enlace:"
+msgstr ""
+
+msgid "Si no te registraste, ignora este correo: no se creará nada."
+msgstr ""
+
+msgid "[GALBUST CMMS] Verifica tu correo para crear tu organización"
+msgstr ""
+
+msgid ""
+"Hola:\n"
+"\n"
+"Alguien intentó registrarse en GALBUST CMMS con este correo, pero ya tienes "
+"una cuenta. Ingresa aquí (si olvidaste la contraseña, puedes recuperarla "
+"desde la misma página):"
+msgstr ""
+
+msgid "Si no fuiste tú, ignora este correo."
+msgstr ""
+
+msgid "[GALBUST CMMS] Ya tienes una cuenta"
 msgstr ""
 
 msgid "Invitación"
@@ -3058,6 +3147,66 @@ msgid "Desactivar"
 msgstr ""
 
 msgid "Reactivar"
+msgstr ""
+
+msgid "Crear cuenta"
+msgstr ""
+
+msgid "Prueba GALBUST CMMS gratis"
+msgstr ""
+
+msgid ""
+"30 días de prueba, sin tarjeta. Te enviaremos un enlace para verificar tu "
+"correo y ahí creamos tu organización."
+msgstr ""
+
+msgid "Crear mi cuenta"
+msgstr ""
+
+msgid "¿Ya tienes cuenta?"
+msgstr ""
+
+msgid "Confirmar registro"
+msgstr ""
+
+msgid "Tu correo está verificado"
+msgstr ""
+
+#, python-format
+msgid ""
+"Crearemos <strong>%(org)s</strong> con %(email)s como administrador y 30 "
+"días de prueba gratuita."
+msgstr ""
+
+msgid "Crear mi organización"
+msgstr ""
+
+msgid "Enlace no válido"
+msgstr ""
+
+msgid "Registrarme de nuevo"
+msgstr ""
+
+msgid "Demasiados intentos"
+msgstr ""
+
+msgid ""
+"Recibimos muchos registros desde tu conexión. Espera unos minutos e "
+"inténtalo de nuevo."
+msgstr ""
+
+msgid "Revisa tu correo"
+msgstr ""
+
+#, python-format
+msgid ""
+"Enviamos un enlace a <strong>%(email)s</strong>. Ábrelo para verificar tu "
+"correo y crear tu organización."
+msgstr ""
+
+msgid ""
+"El enlace vence en 2 días. Si no llega en unos minutos, revisa la carpeta de "
+"spam o regístrate de nuevo."
 msgstr ""
 
 #, python-format
