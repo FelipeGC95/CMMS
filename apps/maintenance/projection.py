@@ -39,6 +39,11 @@ class Occurrence:
         return self.work_order is not None
 
     @property
+    def is_started(self):
+        """OT ya iniciada (en ejecución o en espera): el calendario la muestra distinta."""
+        return self.work_order is not None and self.work_order.status in ("in_progress", "on_hold")
+
+    @property
     def estimated_minutes(self):
         """Minutos de la OT que resultaría (con los planes absorbidos); 0 si está absorbida."""
         if self.work_order is not None:
@@ -102,6 +107,7 @@ def _complete(state, date, today):
         next_due_meter_value=state.meter_target,
         completed_on=date,
         meter_value=_reading(meter, date, today) if state.version.uses_meter else None,
+        anchor_day=state.assignment.anchor_day,
     )
 
 

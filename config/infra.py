@@ -23,7 +23,7 @@ def r2_enabled(env: Mapping[str, str]) -> bool:
 
 
 def content_security_policy(env: Mapping[str, str]) -> str:
-    """CSP estricta (ADR-022): todo desde el propio dominio, sin scripts ni estilos en línea.
+    """CSP estricta (ADR-023): todo desde el propio dominio, sin scripts ni estilos en línea.
 
     Las imágenes admiten `data:` (QR de la verificación en dos pasos) y `blob:` (vista
     previa de fotos). Con R2, las URL firmadas de descarga llegan por redirección desde

@@ -19,6 +19,7 @@
       {% if membership|can:"work_order.manage" and organization|has_module:"work_orders" %}<li><a href="{% url 'failure_code_list' %}">{% icon 'alert' %}{% translate "Catálogo de falla" %}</a></li>{% endif %}
       {% if membership|can:"work_order.execute" and organization|has_module:"preventive" %}<li><a href="{% url 'plan_calendar' %}">{% icon 'calendar' %}{% translate "Calendario de preventivos" %}</a></li>{% endif %}
       {% if membership|can:"plan.manage" and organization|has_module:"preventive" %}<li><a href="{% url 'plan_list' %}">{% icon 'calendar' %}{% translate "Planes preventivos" %}</a></li>{% endif %}
+      {% if membership|can:"plan.manage" and organization|has_module:"preventive" %}<li><a href="{% url 'industry_templates' %}">{% icon 'list' %}{% translate "Cargar plantilla de rubro" %}</a></li><li><a href="{% url 'plan_import' %}">{% icon 'list' %}{% translate "Importar o exportar planes (Excel)" %}</a></li>{% endif %}
       {% if membership|can:"organization.manage" and organization|has_module:"preventive" %}<li><a href="{% url 'maintenance_settings' %}">{% icon 'wrench' %}{% translate "Ajustes de preventivos" %}</a></li>{% endif %}
       {% if membership|can:"asset.manage" %}
       {% if organization|has_module:"assets" %}<li><a href="{% url 'asset_create' %}">{% icon 'box' %}{% translate "Nuevo activo" %}</a></li>{% endif %}

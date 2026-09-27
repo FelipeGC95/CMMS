@@ -1,0 +1,321 @@
+{
+  "industry": "food",
+  "name": "Alimentos y agroindustria",
+  "description": "Líneas de proceso, cámaras y equipos de frío, envasadoras, pasteurizadores, balanzas y detectores de metales, con inspecciones sanitarias.",
+  "version": 1,
+  "review_status": "draft",
+  "review_note": "Borrador — revisar antes del piloto",
+  "asset_classes": [
+    {
+      "code": "LINEA-PROC",
+      "name": "Línea de proceso",
+      "iso_category": "mechanical",
+      "level": "system",
+      "attributes": [
+        {"label": "Producto", "type": "text"},
+        {"label": "Capacidad", "type": "number", "unit": "kg/h"},
+        {"label": "Área higiénica", "type": "choice", "choices": ["Alto riesgo", "Bajo riesgo", "Seca"]}
+      ],
+      "plans": [
+        {
+          "code": "LPR-SANIT",
+          "name": "Línea de proceso · inspección sanitaria semanal",
+          "calendar_interval": 1, "calendar_unit": "weeks",
+          "schedule_mode": "fixed", "tolerance_pct": 15, "estimated_minutes": 30,
+          "instructions": "Inspección de condiciones de mantenimiento que afectan la inocuidad (BPM/HACCP). Usar solo lubricantes grado alimentario (NSF H1).",
+          "items": [
+            {"text": "Sin pintura suelta, óxido ni piezas sueltas sobre zonas de producto", "type": "check"},
+            {"text": "Sin fugas de lubricante hacia zonas de producto", "type": "check"},
+            {"text": "Sellos, empaquetaduras y superficies de contacto en buen estado", "type": "check"},
+            {"text": "Sin reparaciones provisorias (cinta, alambre, amarras plásticas)", "type": "check"},
+            {"text": "Herramientas y repuestos retirados al terminar (control de cuerpos extraños)", "type": "check"},
+            {"text": "Protecciones de luminarias y vidrios sin roturas", "type": "check"},
+            {"text": "Hallazgo sanitario (foto si corresponde)", "type": "photo", "required": false}
+          ],
+          "resources": []
+        },
+        {
+          "code": "LPR-MENS",
+          "name": "Línea de proceso · mantención mensual",
+          "calendar_interval": 1, "calendar_unit": "months",
+          "schedule_mode": "fixed", "tolerance_pct": 10, "estimated_minutes": 120,
+          "instructions": "Coordinar con producción y dejar la línea liberada por calidad antes de reanudar.",
+          "items": [
+            {"text": "Lubricar cadenas y rodamientos con lubricante grado alimentario", "type": "check"},
+            {"text": "Tensión y desgaste de correas y cadenas", "type": "check"},
+            {"text": "Probar paradas de emergencia y enclavamientos de guardas", "type": "check"},
+            {"text": "Ruidos, vibraciones o temperaturas anormales en motores", "type": "check"},
+            {"text": "Sensores y fotoceldas limpios y funcionando", "type": "check"},
+            {"text": "Liberación de la línea por calidad tras la intervención", "type": "signature"}
+          ],
+          "resources": [
+            {"kind": "part", "description": "Lubricante grado alimentario NSF H1", "quantity": 1, "unit": "cartucho"}
+          ]
+        }
+      ]
+    },
+    {
+      "code": "CAMARA-FRIO",
+      "name": "Cámara de frío",
+      "iso_category": "mechanical",
+      "level": "system",
+      "attributes": [
+        {"label": "Tipo", "type": "choice", "choices": ["Refrigerada", "Congelada", "Túnel de congelado"]},
+        {"label": "Temperatura de operación", "type": "number", "unit": "°C"},
+        {"label": "Volumen", "type": "number", "unit": "m³"}
+      ],
+      "plans": [
+        {
+          "code": "CFR-MENS",
+          "name": "Cámara de frío · inspección mensual",
+          "calendar_interval": 1, "calendar_unit": "months",
+          "schedule_mode": "fixed", "tolerance_pct": 10, "estimated_minutes": 45,
+          "instructions": "Registrar la temperatura con un termómetro calibrado independiente del control.",
+          "items": [
+            {"text": "Temperatura interior medida", "type": "measurement", "unit": "°C"},
+            {"text": "Diferencia entre termómetro patrón y registrador", "type": "measurement", "unit": "°C", "min": -1, "max": 1},
+            {"text": "Burletes y cierre de puertas", "type": "check"},
+            {"text": "Resistencias de marco de puerta (cámaras de congelado)", "type": "check", "required": false},
+            {"text": "Evaporadores sin exceso de hielo; drenaje libre", "type": "check"},
+            {"text": "Probar alarma de temperatura y de persona encerrada", "type": "check"},
+            {"text": "Paneles, piso y cortinas sin daño", "type": "check"}
+          ],
+          "resources": [
+            {"kind": "tool", "description": "Termómetro calibrado", "quantity": 1, "unit": "un"}
+          ]
+        }
+      ]
+    },
+    {
+      "code": "EQUIPO-FRIO",
+      "name": "Equipo de frío (unidad condensadora)",
+      "iso_category": "rotating",
+      "level": "equipment",
+      "attributes": [
+        {"label": "Potencia", "type": "number", "unit": "kW"},
+        {"label": "Refrigerante", "type": "choice", "choices": ["R404A", "R507A", "R448A", "R449A", "R134a", "R290", "CO₂ (R744)", "Amoníaco (R717)"]},
+        {"label": "Carga de refrigerante", "type": "number", "unit": "kg"}
+      ],
+      "plans": [
+        {
+          "code": "EFR-TRIM",
+          "name": "Equipo de frío · mantención trimestral",
+          "calendar_interval": 3, "calendar_unit": "months",
+          "schedule_mode": "fixed", "tolerance_pct": 10, "estimated_minutes": 90,
+          "instructions": "La manipulación de refrigerante la hace personal certificado.",
+          "items": [
+            {"text": "Limpiar condensador", "type": "check"},
+            {"text": "Presión de succión", "type": "measurement", "unit": "bar"},
+            {"text": "Presión de descarga", "type": "measurement", "unit": "bar"},
+            {"text": "Recalentamiento", "type": "measurement", "unit": "K", "min": 4, "max": 10},
+            {"text": "Corriente del compresor", "type": "measurement", "unit": "A"},
+            {"text": "Detección de fugas de refrigerante", "type": "check"},
+            {"text": "Nivel de aceite del compresor (si tiene visor)", "type": "check", "required": false},
+            {"text": "Reapretar conexiones eléctricas", "type": "check"}
+          ],
+          "resources": [
+            {"kind": "tool", "description": "Manifold digital", "quantity": 1, "unit": "un"},
+            {"kind": "tool", "description": "Detector electrónico de fugas", "quantity": 1, "unit": "un"}
+          ]
+        },
+        {
+          "code": "EFR-ANUAL",
+          "name": "Equipo de frío · mantención anual",
+          "calendar_interval": 12, "calendar_unit": "months",
+          "schedule_mode": "fixed", "tolerance_pct": 10, "estimated_minutes": 180,
+          "instructions": "Incluye la mantención trimestral.",
+          "items": [
+            {"text": "Cambiar filtro deshidratador (según caída de presión)", "type": "check"},
+            {"text": "Probar presostatos de alta y baja", "type": "check"},
+            {"text": "Rodamientos y aspas de ventiladores", "type": "check"},
+            {"text": "Aislación de cañerías de succión", "type": "check"},
+            {"text": "Aislación del motor del compresor", "type": "measurement", "unit": "MΩ", "min": 2}
+          ],
+          "resources": [
+            {"kind": "part", "description": "Filtro deshidratador", "quantity": 1, "unit": "un"}
+          ]
+        }
+      ]
+    },
+    {
+      "code": "ENVASADORA",
+      "name": "Envasadora",
+      "iso_category": "mechanical",
+      "level": "equipment",
+      "attributes": [
+        {"label": "Tipo", "type": "choice", "choices": ["Flow pack horizontal", "Vertical (VFFS)", "Termoformadora", "Llenadora", "Selladora de bandejas"]},
+        {"label": "Velocidad nominal", "type": "number", "unit": "envases/min"},
+        {"label": "Formatos", "type": "text"}
+      ],
+      "plans": [
+        {
+          "code": "ENV-SEM",
+          "name": "Envasadora · revisión semanal",
+          "calendar_interval": 1, "calendar_unit": "weeks",
+          "schedule_mode": "fixed", "tolerance_pct": 15, "estimated_minutes": 30,
+          "instructions": "Coordinar con el cambio de formato o la limpieza de fin de semana.",
+          "items": [
+            {"text": "Mordazas o resistencias de sellado limpias y sin daño", "type": "check"},
+            {"text": "Temperatura de sellado según ficha del film", "type": "measurement", "unit": "°C"},
+            {"text": "Prueba de hermeticidad de envases", "type": "check"},
+            {"text": "Cuchilla de corte afilada", "type": "check"},
+            {"text": "Probar enclavamientos de guardas y parada de emergencia", "type": "check"}
+          ],
+          "resources": []
+        },
+        {
+          "code": "ENV-500K",
+          "name": "Envasadora · mantención 500.000 ciclos",
+          "meter_kind": "cycles", "meter_interval": 500000,
+          "calendar_interval": 3, "calendar_unit": "months",
+          "schedule_mode": "floating", "tolerance_pct": 10, "estimated_minutes": 180,
+          "instructions": "Registrar el contador de ciclos al cerrar. Usar solo lubricante grado alimentario.",
+          "items": [
+            {"text": "Cambiar teflón de mordazas y elementos de sellado gastados", "type": "check"},
+            {"text": "Lubricar guías, cadenas y levas", "type": "check"},
+            {"text": "Correas dentadas: tensión y desgaste", "type": "check"},
+            {"text": "Presión de aire de la unidad de mantenimiento", "type": "measurement", "unit": "bar", "min": 5, "max": 7},
+            {"text": "Purgar filtro de aire comprimido", "type": "check"},
+            {"text": "Sensores de fotomarca y de producto", "type": "check"},
+            {"text": "Ventosas y cilindros neumáticos", "type": "check"},
+            {"text": "Liberación del equipo por calidad", "type": "signature"}
+          ],
+          "resources": [
+            {"kind": "part", "description": "Cinta de teflón para mordazas", "quantity": 1, "unit": "rollo"},
+            {"kind": "part", "description": "Lubricante grado alimentario NSF H1", "quantity": 1, "unit": "cartucho"}
+          ]
+        }
+      ]
+    },
+    {
+      "code": "PASTEURIZ",
+      "name": "Pasteurizador o intercambiador de placas",
+      "iso_category": "mechanical",
+      "level": "equipment",
+      "attributes": [
+        {"label": "Capacidad", "type": "number", "unit": "L/h"},
+        {"label": "Temperatura de pasteurización", "type": "number", "unit": "°C"},
+        {"label": "Tipo", "type": "choice", "choices": ["Placas", "Tubular"]}
+      ],
+      "plans": [
+        {
+          "code": "PAS-TRIM",
+          "name": "Pasteurizador · verificación trimestral",
+          "calendar_interval": 3, "calendar_unit": "months",
+          "schedule_mode": "fixed", "tolerance_pct": 10, "estimated_minutes": 90,
+          "instructions": "Punto crítico de control: coordinar con calidad y registrar evidencias.",
+          "items": [
+            {"text": "Diferencia entre termómetro patrón y sensor de pasteurización", "type": "measurement", "unit": "°C", "min": -0.5, "max": 0.5},
+            {"text": "Probar válvula de desvío de flujo", "type": "check"},
+            {"text": "Tiempo de retención", "type": "measurement", "unit": "s"},
+            {"text": "Registrador de temperatura funcionando", "type": "check"},
+            {"text": "Fugas en empaquetaduras de placas", "type": "check"},
+            {"text": "Firma de calidad", "type": "signature"}
+          ],
+          "resources": [
+            {"kind": "tool", "description": "Termómetro patrón calibrado", "quantity": 1, "unit": "un"}
+          ]
+        },
+        {
+          "code": "PAS-ANUAL",
+          "name": "Pasteurizador · mantención anual",
+          "calendar_interval": 12, "calendar_unit": "months",
+          "schedule_mode": "fixed", "tolerance_pct": 10, "estimated_minutes": 480,
+          "instructions": "Desarme del paquete de placas; verificar la cota de apriete del fabricante al cerrar.",
+          "items": [
+            {"text": "Prueba de integridad de placas (tintas penetrantes o prueba de presión)", "type": "check"},
+            {"text": "Cambiar empaquetaduras dañadas", "type": "check"},
+            {"text": "Cota de apriete del paquete de placas", "type": "measurement", "unit": "mm"},
+            {"text": "Calibrar sensores de temperatura", "type": "check"},
+            {"text": "Revisar bomba de alimentación y bomba de agua caliente", "type": "check"}
+          ],
+          "resources": [
+            {"kind": "part", "description": "Empaquetaduras de placas", "quantity": 1, "unit": "juego"}
+          ]
+        }
+      ]
+    },
+    {
+      "code": "BALANZA",
+      "name": "Balanza o báscula",
+      "iso_category": "instrumentation",
+      "level": "equipment",
+      "attributes": [
+        {"label": "Capacidad máxima", "type": "number", "unit": "kg"},
+        {"label": "División mínima", "type": "number", "unit": "g"},
+        {"label": "Última calibración externa", "type": "date"}
+      ],
+      "plans": [
+        {
+          "code": "BAL-MENS",
+          "name": "Balanza · verificación mensual",
+          "calendar_interval": 1, "calendar_unit": "months",
+          "schedule_mode": "fixed", "tolerance_pct": 10, "estimated_minutes": 20,
+          "instructions": "Verificar con masas patrón certificadas; si el error supera la tolerancia, sacar de uso y calibrar.",
+          "items": [
+            {"text": "Nivelación de la balanza", "type": "check"},
+            {"text": "Error con masa patrón cercana a la carga habitual", "type": "measurement", "unit": "g"},
+            {"text": "Prueba de excentricidad (esquinas)", "type": "check"},
+            {"text": "Retorno a cero sin carga", "type": "check"},
+            {"text": "Sello o etiqueta de calibración vigente", "type": "check"}
+          ],
+          "resources": [
+            {"kind": "tool", "description": "Juego de masas patrón", "quantity": 1, "unit": "juego"}
+          ]
+        }
+      ]
+    },
+    {
+      "code": "DETECT-MET",
+      "name": "Detector de metales",
+      "iso_category": "instrumentation",
+      "level": "equipment",
+      "attributes": [
+        {"label": "Sensibilidad ferroso", "type": "number", "unit": "mm"},
+        {"label": "Sensibilidad no ferroso", "type": "number", "unit": "mm"},
+        {"label": "Sensibilidad acero inoxidable", "type": "number", "unit": "mm"}
+      ],
+      "plans": [
+        {
+          "code": "DMT-MENS",
+          "name": "Detector de metales · verificación mensual",
+          "calendar_interval": 1, "calendar_unit": "months",
+          "schedule_mode": "fixed", "tolerance_pct": 10, "estimated_minutes": 30,
+          "instructions": "Complementa la verificación por turno que hace producción. Punto crítico de control.",
+          "items": [
+            {"text": "Detecta probeta ferrosa en el centro de la apertura", "type": "check"},
+            {"text": "Detecta probeta no ferrosa", "type": "check"},
+            {"text": "Detecta probeta de acero inoxidable", "type": "check"},
+            {"text": "Probar sistema de rechazo y confirmación de rechazo", "type": "check"},
+            {"text": "Contenedor de rechazo con llave", "type": "check"},
+            {"text": "Firma de calidad", "type": "signature"}
+          ],
+          "resources": [
+            {"kind": "tool", "description": "Juego de probetas certificadas", "quantity": 1, "unit": "juego"}
+          ]
+        }
+      ]
+    }
+  ],
+  "failure_codes": [
+    {"kind": "mode", "code": "FTS", "name": "No arranca"},
+    {"kind": "mode", "code": "PDE", "name": "Parámetro fuera de rango (temperatura, peso)"},
+    {"kind": "mode", "code": "ELU", "name": "Fuga de fluido de servicio o refrigerante"},
+    {"kind": "mode", "code": "SEA", "name": "Sellado deficiente del envase"},
+    {"kind": "mode", "code": "HYG", "name": "Condición no higiénica del equipo"},
+    {"kind": "mode", "code": "FTF", "name": "No funciona cuando se requiere (alarma, rechazo)"},
+    {"kind": "mode", "code": "UST", "name": "Detención espuria (se detiene sola)"},
+    {"kind": "cause", "code": "OFD", "name": "Operación fuera de diseño"},
+    {"kind": "cause", "code": "MNE", "name": "Error de mantenimiento"},
+    {"kind": "cause", "code": "WTE", "name": "Desgaste esperado por uso"},
+    {"kind": "cause", "code": "CLN", "name": "Daño por limpieza o sanitización"},
+    {"kind": "cause", "code": "CAL", "name": "Descalibración"},
+    {"kind": "mechanism", "code": "LEA", "name": "Fuga"},
+    {"kind": "mechanism", "code": "ICE", "name": "Congelamiento o exceso de hielo"},
+    {"kind": "mechanism", "code": "OVH", "name": "Sobretemperatura"},
+    {"kind": "mechanism", "code": "DRF", "name": "Deriva del instrumento"},
+    {"kind": "detection_method", "code": "FUT", "name": "Prueba funcional"},
+    {"kind": "detection_method", "code": "QAI", "name": "Inspección de calidad o auditoría"},
+    {"kind": "detection_method", "code": "ALR", "name": "Alarma del sistema"}
+  ]
+}

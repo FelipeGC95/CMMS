@@ -1,9 +1,18 @@
 from django.urls import path
 
-from . import calendar_views, views
+from . import calendar_views, plan_import_views, template_views, views
 
 urlpatterns = [
     path("plans/", views.plan_list_view, name="plan_list"),
+    path("plans/export.xlsx", plan_import_views.plan_export_view, name="plan_export"),
+    path("plans/import/", plan_import_views.plan_import_view, name="plan_import"),
+    path(
+        "plans/import/<str:token>/confirm/",
+        plan_import_views.plan_import_confirm_view,
+        name="plan_import_confirm",
+    ),
+    path("plans/templates/", template_views.industry_template_list_view, name="industry_templates"),
+    path("plans/templates/<slug:industry>/", template_views.industry_template_view, name="industry_template"),
     path("plans/calendar/", calendar_views.plan_calendar_view, name="plan_calendar"),
     path(
         "plans/calendar/export.xlsx", calendar_views.plan_calendar_xlsx_view, name="plan_calendar_export_xlsx"

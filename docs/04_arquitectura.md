@@ -139,7 +139,7 @@ revés; los modelos no llaman servicios; las vistas HTML y la API llaman a
 | Sesión | Cookies `Secure`, `HttpOnly`, `SameSite=Lax`; rotación al iniciar sesión y al cambiar de organización; expiración por inactividad configurable. |
 | Autorización | Permisos por rol verificados en servicios y selectors (no solo en la UI); objetos siempre obtenidos por selectors con alcance. |
 | Transporte | HTTPS obligatorio, HSTS (1 año, preload cuando el dominio sea estable). |
-| Cabeceras | CSP estricta en toda respuesta (ADR-022: sin scripts ni estilos en línea; htmx y Alpine servidos localmente; Alpine en su build compatible con CSP), `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`. |
+| Cabeceras | CSP estricta en toda respuesta (ADR-023: sin scripts ni estilos en línea; htmx y Alpine servidos localmente; Alpine en su build compatible con CSP), `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`. |
 | API | Tokens por organización con alcances, guardados como hash, con prefijo visible; límite de tasa por token. |
 | Archivos | Validación de tipo real (magic bytes) y tamaño; nombres aleatorios; sin ejecución; URLs firmadas de corta duración. |
 | Secretos | Variables de entorno de Render; `.env` solo local e ignorado por git; gitleaks en CI. |
@@ -634,7 +634,30 @@ tener ingresos).
   pagados, pero Render solo lee `render.yaml`. Mientras la demo no tenga
   worker, los preventivos siguen generándose al arrancar el servidor.
 
-### ADR-021 · MFA de allauth con política por organización
+### ADR-021 · Plantillas de rubro como archivos versionados que se copian
+- **Contexto:** la puesta en marcha (ORG-03) y la biblioteca de planes (PM-07)
+  necesitan clases de activo, atributos, catálogo de fallas y planes típicos
+  por rubro. Una sola persona los mantiene y el dueño debe poder revisarlos.
+- **Decisión:** cada rubro es un JSON en
+  `apps/maintenance/templates_library/<rubro>.json` (flota, planta
+  industrial, alimentos, edificios), revisado como código y validado por un
+  test (tipos, unidades, medidores, rangos, códigos únicos). JSON y no YAML:
+  sin dependencias nuevas. El contenido es un dato en español, no pasa por
+  gettext. `industry_templates.apply_industry_template(*, organization,
+  industry, by, parts, plan_codes)` copia a la organización lo que aún no
+  tiene (por código), sin sobrescribir nada, por lotes (consultas acotadas);
+  `preview_industry_template` muestra lo mismo sin escribir. Los planes se
+  crean con su v1 publicada (`services.bulk_create_published_plans`). La
+  web ofrece «Cargar plantilla de rubro» (vista previa y confirmación) y
+  `manage.py apply_industry_template` sirve a la plataforma. El asistente
+  ORG-03 reutiliza el servicio con `parts` y `plan_codes`.
+- **Consecuencias:** las organizaciones reciben copias editables; cambiar la
+  plantilla no toca a quien ya la aplicó (la auditoría registra rubro y
+  versión). Cada archivo lleva `review_status` y `review_note`; mientras sea
+  `draft` («Borrador — revisar antes del piloto») los administradores de la
+  plataforma lo ven marcado en la interfaz.
+
+### ADR-022 · MFA de allauth con política por organización
 - **Decisión:** `allauth.mfa` con app de autenticación (TOTP) y códigos de
   recuperación (sin llaves WebAuthn por ahora: exigen JS propio). Cada
   organización elige `mfa_policy`: `admins_only` (por defecto: obligatoria para
@@ -650,7 +673,7 @@ tener ingresos).
   usa `optional` porque sus usuarios son compartidos. El ingreso con código de
   recuperación usa la misma pantalla que el código TOTP.
 
-### ADR-022 · Content-Security-Policy propia, estricta y sin excepciones en línea
+### ADR-023 · Content-Security-Policy propia, estricta y sin excepciones en línea
 - **Decisión:** un middleware pequeño (`apps.core.middleware.ContentSecurityPolicyMiddleware`,
   sin django-csp) agrega a toda respuesta la política armada en
   `config.infra.content_security_policy`: `default-src 'self'; script-src 'self';

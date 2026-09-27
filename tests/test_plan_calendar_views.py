@@ -105,3 +105,17 @@ def test_plan_list_and_menu_link_to_the_calendar(client, tenant_a):
     assert url in client.get(reverse("menu")).content.decode()
     login(client, tenant_a.viewer)
     assert url not in client.get(reverse("menu")).content.decode()
+
+
+def test_month_view_marks_started_work_orders(client, tenant_a):
+    from apps.maintenance.services import generate_due_work_orders
+
+    starts, _big, _small = _setup(tenant_a)
+    with tenant_context(tenant_a.org):
+        [wo] = generate_due_work_orders(today=starts, horizon_days=1)
+        wo.status = "in_progress"
+        wo.save(update_fields=["status"])
+    login(client, tenant_a.admin)
+    html = client.get(reverse("plan_calendar"), {"month": f"{starts:%Y-%m}"}).content.decode()
+    assert "month-grid__item--started" in html
+    assert "En ejecución" in html and wo.code in html

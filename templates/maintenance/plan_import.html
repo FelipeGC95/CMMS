@@ -1,0 +1,34 @@
+{% extends "base.html" %}{% load i18n ui %}
+{% block title %}{% translate "Importar planes" %}{% endblock %}
+{% block content %}
+<div class="narrow">
+  <p class="muted"><a href="{% url 'plan_list' %}">{% translate "Planes preventivos" %}</a></p>
+  <h1>{% translate "Importar planes desde Excel" %}</h1>
+
+  <ol class="stack mb-4">
+    <li>
+      <strong>{% translate "Descarga tus planes" %}</strong>
+      <p class="muted">{% translate "El archivo trae tus planes con su versión vigente en tres hojas (Planes, Checklist y Recursos) e instrucciones. Úsalo también como plantilla." %}</p>
+      <a class="btn btn--secondary" href="{% url 'plan_export' %}">{% icon 'list' %}{% translate "Descargar planes (Excel)" %}</a>
+    </li>
+    <li>
+      <strong>{% translate "Edítalo o agrega planes" %}</strong>
+      <p class="muted">{% blocktranslate %}Un código nuevo crea el plan ya publicado. Si el código existe y cambiaste algo, se crea una versión borrador para revisar y publicar: la versión publicada no se modifica. Máximo {{ max_plans }} planes.{% endblocktranslate %}</p>
+    </li>
+    <li>
+      <strong>{% translate "Súbelo y revisa la vista previa" %}</strong>
+      <p class="muted">{% translate "Nada se guarda hasta que confirmes." %}</p>
+    </li>
+  </ol>
+
+  <form class="card" method="post" enctype="multipart/form-data" novalidate>
+    {% csrf_token %}
+    <div class="field">
+      <label for="{{ form.file.id_for_label }}">{{ form.file.label }}</label>
+      {{ form.file }}
+      {% for error in form.file.errors %}<span class="error">{% icon 'stop' %}{{ error }}</span>{% endfor %}
+    </div>
+    <button class="btn btn--primary btn--lg btn--block" type="submit">{% translate "Revisar archivo" %}</button>
+  </form>
+</div>
+{% endblock %}

@@ -58,7 +58,7 @@ class TenantMiddleware:
 
 
 class ContentSecurityPolicyMiddleware:
-    """Agrega la cabecera Content-Security-Policy (ADR-022) a toda respuesta que no la traiga."""
+    """Agrega la cabecera Content-Security-Policy (ADR-023) a toda respuesta que no la traiga."""
 
     def __init__(self, get_response):
         self.get_response = get_response

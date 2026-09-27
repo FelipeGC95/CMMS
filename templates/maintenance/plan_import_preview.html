@@ -1,0 +1,61 @@
+{% extends "base.html" %}{% load i18n ui %}
+{% block title %}{% translate "Vista previa de importación de planes" %}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <p class="muted"><a href="{% url 'plan_import' %}">{% translate "Importar planes" %}</a></p>
+    <h1>{% translate "Revisa antes de guardar" %}</h1>
+    <p class="muted">{% translate "Todavía no se ha guardado nada." %}</p>
+  </div>
+</div>
+
+<section class="grid grid--kpi mb-4" aria-label="{% translate 'Resumen' %}">
+  <div class="card kpi"><span class="kpi__label">{% translate "Planes nuevos" %}</span><span class="kpi__value">{{ counts.create }}</span></div>
+  <div class="card kpi"><span class="kpi__label">{% translate "Borradores nuevos" %}</span><span class="kpi__value">{{ counts.draft }}</span></div>
+  <div class="card kpi"><span class="kpi__label">{% translate "Sin cambios" %}</span><span class="kpi__value">{{ counts.unchanged }}</span></div>
+  <div class="card kpi {% if counts.error %}kpi--alert{% endif %}"><span class="kpi__label">{% translate "Con errores (se omiten)" %}</span><span class="kpi__value">{{ counts.error }}</span></div>
+</section>
+
+{% if preview.orphans %}
+<div class="alert alert--warning mb-4" role="status">{% icon 'alert' %}<span>{% for o in preview.orphans %}{{ o }}{% if not forloop.last %} {% endif %}{% endfor %}</span></div>
+{% endif %}
+
+<div class="card card--flush mb-4">
+  <table class="table">
+    <thead><tr><th>{% translate "Fila" %}</th><th>{% translate "Plan" %}</th><th>{% translate "Frecuencia" %}</th><th>{% translate "Checklist" %}</th><th>{% translate "Resultado" %}</th><th>{% translate "Detalle" %}</th></tr></thead>
+    <tbody>
+      {% for row in preview.rows %}
+      <tr>
+        <td class="num" data-label="{% translate 'Fila' %}">{{ row.row }}</td>
+        <td data-label="">{{ row.name|default:"—" }} <span class="muted mono">{{ row.code }}</span></td>
+        <td data-label="{% translate 'Frecuencia' %}">{{ row.frequency_label|default:"—" }}</td>
+        <td data-label="{% translate 'Checklist' %}">{% blocktranslate count n=row.item_count %}{{ n }} ítem{% plural %}{{ n }} ítems{% endblocktranslate %}</td>
+        <td data-label="">
+          {% if row.action == "create" %}<span class="badge badge--success">{% icon 'check' %}{% translate "Nuevo" %}</span>
+          {% elif row.action == "draft" %}<span class="badge badge--info">{% icon 'info' %}{% translate "Borrador nuevo" %}</span>
+          {% elif row.action == "unchanged" %}<span class="badge badge--neutral">{% icon 'dot' %}{% translate "Sin cambios" %}</span>
+          {% else %}<span class="badge badge--error">{% icon 'stop' %}{% translate "Error" %}</span>{% endif %}
+        </td>
+        <td data-label="">
+          {% for e in row.errors %}<div><span class="badge badge--error">{% icon 'stop' %}{{ e }}</span></div>{% endfor %}
+          {% for n in row.notes %}<div class="muted">{{ n }}</div>{% endfor %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% if preview.valid_rows %}
+<form class="card" method="post" action="{% url 'plan_import_confirm' token %}">
+  {% csrf_token %}
+  <div class="row">
+    <button class="btn btn--primary btn--lg" type="submit">{% icon 'check' %}{% blocktranslate count n=preview.valid_rows|length %}Importar {{ n }} plan{% plural %}Importar {{ n }} planes{% endblocktranslate %}</button>
+    <a class="btn btn--ghost" href="{% url 'plan_import' %}">{% translate "Subir otro archivo" %}</a>
+  </div>
+</form>
+{% else %}
+<div class="alert alert--info" role="status">{% icon 'info' %}<span>{% translate "No hay planes nuevos ni cambios para importar." %}</span></div>
+<a class="btn btn--secondary" href="{% url 'plan_import' %}">{% translate "Subir otro archivo" %}</a>
+{% endif %}
+{% endblock %}

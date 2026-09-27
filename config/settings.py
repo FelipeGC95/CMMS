@@ -140,7 +140,7 @@ ACCOUNT_LOGIN_ON_EMAIL_CONFIRMATION = True
 ACCOUNT_LOGIN_ON_PASSWORD_RESET = True
 ACCOUNT_EMAIL_SUBJECT_PREFIX = "[GALBUST CMMS] "
 ACCOUNT_DEFAULT_HTTP_PROTOCOL = "http" if DEBUG else "https"
-# Verificación en dos pasos (ORG-08, ADR-021): app de autenticación (TOTP) y códigos de
+# Verificación en dos pasos (ORG-08, ADR-022): app de autenticación (TOTP) y códigos de
 # recuperación. Quién debe usarla lo decide cada organización (`mfa_policy`);
 # MFA_ENFORCE=0 apaga la obligación (solo para tests que no tratan de MFA).
 MFA_ADAPTER = "apps.accounts.adapter.MFAAdapter"
@@ -260,7 +260,7 @@ BACKUP_RETENTION_DAYS = int(os.environ.get("BACKUP_RETENTION_DAYS", "30"))
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
-# CSP estricta (ADR-022, docs/04 §5): sin scripts ni estilos en línea, sin marcos.
+# CSP estricta (ADR-023, docs/04 §5): sin scripts ni estilos en línea, sin marcos.
 CONTENT_SECURITY_POLICY = infra.content_security_policy(os.environ)
 
 SESSION_COOKIE_HTTPONLY = True

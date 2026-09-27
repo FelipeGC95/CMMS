@@ -1,4 +1,4 @@
-"""Verificación en dos pasos obligatoria según la organización activa (ORG-08, ADR-021).
+"""Verificación en dos pasos obligatoria según la organización activa (ORG-08, ADR-022).
 
 La política vive en `Organization.mfa_policy`. Un usuario con varias organizaciones
 cumple la de la organización que tiene abierta: al cambiar a otra, se evalúa la nueva.

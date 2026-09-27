@@ -9,7 +9,7 @@ import datetime
 import math
 from decimal import Decimal
 
-from .models import CalendarUnit, PlanVersion
+from .models import CalendarUnit, PlanVersion, with_anchor_day
 
 
 def estimated_meter_date(*, current, target, avg_daily_usage, today: datetime.date) -> datetime.date | None:
@@ -74,23 +74,29 @@ def next_fixed_target(previous, interval, after):
     return target
 
 
-def next_fixed_date(previous: datetime.date, version: PlanVersion, after: datetime.date) -> datetime.date:
+def next_fixed_date(
+    previous: datetime.date, version: PlanVersion, after: datetime.date, anchor_day: int | None = None
+) -> datetime.date:
     """Modo fijo por calendario: anterior + k·frecuencia, el primero posterior a `after`.
 
-    En meses se cuenta desde la fecha anterior (k meses de una vez, no mes a mes),
-    así el día del mes se conserva: 31-ene → 28-feb → 31-mar.
+    En meses, cada vencimiento vuelve al día ancla de la asignación (el del
+    primer vencimiento): 31-ene → 28-feb → 31-mar, aunque la fecha anterior se
+    haya ajustado a fin de mes. Sin ancla se usa el día de `previous`.
     """
     if version.calendar_unit != CalendarUnit.MONTHS:
         days = version.calendar_interval * (7 if version.calendar_unit == CalendarUnit.WEEKS else 1)
         return next_fixed_target(previous, datetime.timedelta(days=days), after)
+    anchor_day = anchor_day or previous.day
     months = (after.year - previous.year) * 12 + after.month - previous.month
     k = max(1, months // version.calendar_interval - 1)
-    while version.shift(previous, k) <= after:
+    while with_anchor_day(version.shift(previous, k), anchor_day) <= after:
         k += 1
-    return version.shift(previous, k)
+    return with_anchor_day(version.shift(previous, k), anchor_day)
 
 
-def next_schedule(*, version: PlanVersion, next_due_on, next_due_meter_value, completed_on, meter_value):
+def next_schedule(
+    *, version: PlanVersion, next_due_on, next_due_meter_value, completed_on, meter_value, anchor_day=None
+):
     """Próximo vencimiento (fecha, lectura) tras ejecutar el plan el `completed_on` con `meter_value`.
 
     Flotante: desde la ejecución real (fecha y lectura). Fijo: desde lo
@@ -100,7 +106,7 @@ def next_schedule(*, version: PlanVersion, next_due_on, next_due_meter_value, co
     fixed = version.schedule_mode == PlanVersion.ScheduleMode.FIXED
     if version.calendar_interval:
         if fixed and next_due_on is not None:
-            next_due_on = next_fixed_date(next_due_on, version, completed_on)
+            next_due_on = next_fixed_date(next_due_on, version, completed_on, anchor_day)
         else:
             next_due_on = version.shift(completed_on)
     else:

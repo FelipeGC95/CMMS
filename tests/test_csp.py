@@ -1,4 +1,4 @@
-"""ADR-022: CSP estricta en todas las respuestas y plantillas sin JS ni estilos en línea."""
+"""ADR-023: CSP estricta en todas las respuestas y plantillas sin JS ni estilos en línea."""
 
 import re
 from pathlib import Path

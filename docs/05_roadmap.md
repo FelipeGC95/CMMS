@@ -127,6 +127,10 @@ celular → cerrarla con costos y falla registrada.
 | 9 | MFA, marca por organización, cupos y módulos por plan, aviso por QR sin cuenta | ORG-08/09/10, REQ-02 | 1 |
 | 10 | Endurecimiento: RLS, exportación y borrado de organización, respaldos probados, postura de seguridad, producción | NF-*, X-03/04 | 1 |
 
+Avance: PM-07 (biblioteca de plantillas de 4 rubros, en borrador hasta que
+el dueño las revise; ADR-021) y PM-08 (importación/exportación de planes por
+Excel) listos; el asistente ORG-03 reutilizará `apply_industry_template`.
+
 **Hecho cuando:** una empresa piloto usa el sistema con sus datos reales en
 producción: la carga inicial toma menos de un día y las OT preventivas se
 generan solas.

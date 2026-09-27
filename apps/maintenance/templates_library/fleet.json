@@ -1,0 +1,384 @@
+{
+  "industry": "fleet",
+  "name": "Flota y equipo móvil",
+  "description": "Grúas horquilla, camionetas, camiones, cargadores y plataformas elevadoras, con planes por kilómetros u horas de motor.",
+  "version": 1,
+  "review_status": "draft",
+  "review_note": "Borrador — revisar antes del piloto",
+  "asset_classes": [
+    {
+      "code": "GRH-COMB",
+      "name": "Grúa horquilla a combustión",
+      "iso_category": "vehicle",
+      "level": "equipment",
+      "attributes": [
+        {"label": "Capacidad nominal", "type": "number", "unit": "kg"},
+        {"label": "Combustible", "type": "choice", "choices": ["Gas licuado", "Diésel", "Gasolina"]},
+        {"label": "Altura de elevación", "type": "number", "unit": "mm"},
+        {"label": "Tipo de neumático", "type": "choice", "choices": ["Macizo", "Superelástico", "Neumático"]}
+      ],
+      "plans": [
+        {
+          "code": "GRH-C-250H",
+          "name": "Grúa horquilla combustión · servicio 250 h",
+          "meter_kind": "hours", "meter_interval": 250,
+          "calendar_interval": 3, "calendar_unit": "months",
+          "schedule_mode": "floating", "tolerance_pct": 10, "estimated_minutes": 90,
+          "instructions": "Equipo detenido, horquillas abajo y freno de estacionamiento aplicado. Registrar el horómetro al cerrar.",
+          "items": [
+            {"text": "Cambiar aceite de motor y filtro de aceite", "type": "check"},
+            {"text": "Revisar y limpiar filtro de aire", "type": "check"},
+            {"text": "Nivel de refrigerante y estado de mangueras", "type": "check"},
+            {"text": "Nivel de aceite hidráulico", "type": "check"},
+            {"text": "Tensión y estado de correas", "type": "check"},
+            {"text": "Cadenas del mástil: lubricación y elongación", "type": "check"},
+            {"text": "Desgaste de horquillas en el talón", "type": "measurement", "unit": "%", "min": 0, "max": 10},
+            {"text": "Freno de servicio y de estacionamiento", "type": "check"},
+            {"text": "Bocina, luces, alarma de retroceso y baliza", "type": "check"},
+            {"text": "Fugas en cilindros, mangueras y válvulas", "type": "check"},
+            {"text": "Observaciones", "type": "text", "required": false}
+          ],
+          "resources": [
+            {"kind": "part", "description": "Filtro de aceite de motor", "quantity": 1, "unit": "un"},
+            {"kind": "part", "description": "Aceite de motor 15W-40", "quantity": 5, "unit": "L"},
+            {"kind": "tool", "description": "Pistola de grasa", "quantity": 1, "unit": "un"}
+          ]
+        },
+        {
+          "code": "GRH-C-1000H",
+          "name": "Grúa horquilla combustión · servicio 1.000 h",
+          "meter_kind": "hours", "meter_interval": 1000,
+          "calendar_interval": 12, "calendar_unit": "months",
+          "schedule_mode": "floating", "tolerance_pct": 10, "estimated_minutes": 240,
+          "instructions": "Incluye las tareas del servicio de 250 h. Usar repuestos según el manual del fabricante.",
+          "items": [
+            {"text": "Cambiar aceite hidráulico y filtro de retorno", "type": "check"},
+            {"text": "Cambiar aceite de transmisión y filtro", "type": "check"},
+            {"text": "Cambiar filtro de combustible", "type": "check"},
+            {"text": "Cambiar filtro de aire", "type": "check"},
+            {"text": "Regular válvulas de motor según fabricante", "type": "check"},
+            {"text": "Presión del sistema hidráulico", "type": "measurement", "unit": "bar"},
+            {"text": "Pernos del mástil, carro portahorquillas y contrapeso", "type": "check"},
+            {"text": "Dirección, pivotes y rodamientos de ruedas", "type": "check"},
+            {"text": "Prueba con carga nominal y deriva del mástil", "type": "check"},
+            {"text": "Placa de capacidad legible", "type": "photo"}
+          ],
+          "resources": [
+            {"kind": "part", "description": "Aceite hidráulico ISO VG 46", "quantity": 20, "unit": "L"},
+            {"kind": "part", "description": "Filtro hidráulico de retorno", "quantity": 1, "unit": "un"},
+            {"kind": "part", "description": "Filtro de combustible", "quantity": 1, "unit": "un"},
+            {"kind": "part", "description": "Filtro de aire", "quantity": 1, "unit": "un"}
+          ]
+        }
+      ]
+    },
+    {
+      "code": "GRH-ELEC",
+      "name": "Grúa horquilla eléctrica",
+      "iso_category": "vehicle",
+      "level": "equipment",
+      "attributes": [
+        {"label": "Capacidad nominal", "type": "number", "unit": "kg"},
+        {"label": "Voltaje de batería", "type": "number", "unit": "V"},
+        {"label": "Capacidad de batería", "type": "number", "unit": "Ah"},
+        {"label": "Altura de elevación", "type": "number", "unit": "mm"}
+      ],
+      "plans": [
+        {
+          "code": "GRH-E-500H",
+          "name": "Grúa horquilla eléctrica · servicio 500 h",
+          "meter_kind": "hours", "meter_interval": 500,
+          "calendar_interval": 3, "calendar_unit": "months",
+          "schedule_mode": "floating", "tolerance_pct": 10, "estimated_minutes": 90,
+          "instructions": "Desconectar la batería antes de intervenir el sistema eléctrico.",
+          "items": [
+            {"text": "Limpiar compartimiento de motores y controlador con aire seco", "type": "check"},
+            {"text": "Cables, conectores y contactores", "type": "check"},
+            {"text": "Nivel de aceite hidráulico y fugas", "type": "check"},
+            {"text": "Cadenas del mástil: lubricación y elongación", "type": "check"},
+            {"text": "Desgaste de horquillas en el talón", "type": "measurement", "unit": "%", "min": 0, "max": 10},
+            {"text": "Freno de servicio y de estacionamiento", "type": "check"},
+            {"text": "Desgaste de ruedas de tracción y de carga", "type": "check"},
+            {"text": "Bocina, luces, alarma de retroceso y parada de emergencia", "type": "check"},
+            {"text": "Códigos de error del controlador", "type": "text", "required": false}
+          ],
+          "resources": [
+            {"kind": "tool", "description": "Multímetro", "quantity": 1, "unit": "un"},
+            {"kind": "tool", "description": "Pistola de grasa", "quantity": 1, "unit": "un"}
+          ]
+        },
+        {
+          "code": "GRH-E-BAT",
+          "name": "Batería de tracción · revisión mensual",
+          "calendar_interval": 1, "calendar_unit": "months",
+          "schedule_mode": "fixed", "tolerance_pct": 10, "estimated_minutes": 30,
+          "instructions": "Usar guantes, lentes y delantal antiácido. Medir con la batería cargada y en reposo.",
+          "items": [
+            {"text": "Nivel de electrolito en todas las celdas (rellenar con agua desmineralizada)", "type": "check"},
+            {"text": "Densidad del electrolito en la celda piloto", "type": "measurement", "unit": "g/cm³", "min": 1.27, "max": 1.3},
+            {"text": "Voltaje de la batería en reposo", "type": "measurement", "unit": "V"},
+            {"text": "Bornes y puentes limpios, sin sulfato y apretados", "type": "check"},
+            {"text": "Conector y cable del cargador", "type": "check"},
+            {"text": "Limpieza de la cubierta de la batería", "type": "check"}
+          ],
+          "resources": [
+            {"kind": "part", "description": "Agua desmineralizada", "quantity": 5, "unit": "L"},
+            {"kind": "tool", "description": "Densímetro", "quantity": 1, "unit": "un"}
+          ]
+        }
+      ]
+    },
+    {
+      "code": "CAMIONETA",
+      "name": "Camioneta",
+      "iso_category": "vehicle",
+      "level": "equipment",
+      "attributes": [
+        {"label": "Patente", "type": "text", "required": true},
+        {"label": "Tracción", "type": "choice", "choices": ["4x2", "4x4"]},
+        {"label": "Combustible", "type": "choice", "choices": ["Diésel", "Gasolina", "Híbrido", "Eléctrico"]},
+        {"label": "Vencimiento revisión técnica", "type": "date"},
+        {"label": "Vencimiento permiso de circulación", "type": "date"}
+      ],
+      "plans": [
+        {
+          "code": "CTA-10000KM",
+          "name": "Camioneta · servicio 10.000 km",
+          "meter_kind": "km", "meter_interval": 10000,
+          "calendar_interval": 6, "calendar_unit": "months",
+          "schedule_mode": "floating", "tolerance_pct": 10, "estimated_minutes": 120,
+          "instructions": "Registrar el odómetro al cerrar. Mientras el vehículo esté en garantía, manda la pauta del fabricante.",
+          "items": [
+            {"text": "Cambiar aceite de motor y filtro de aceite", "type": "check"},
+            {"text": "Filtro de aire (cambiar si corresponde)", "type": "check"},
+            {"text": "Niveles de refrigerante, frenos, dirección y limpiaparabrisas", "type": "check"},
+            {"text": "Espesor de pastillas de freno delanteras", "type": "measurement", "unit": "mm", "min": 3},
+            {"text": "Profundidad de dibujo del neumático más gastado", "type": "measurement", "unit": "mm", "min": 1.6},
+            {"text": "Presión de neumáticos ajustada según la placa", "type": "check"},
+            {"text": "Luces, bocina y plumillas", "type": "check"},
+            {"text": "Suspensión, rótulas y terminales de dirección", "type": "check"},
+            {"text": "Kit de emergencia: extintor, triángulos, botiquín y chaleco", "type": "check"},
+            {"text": "Vigencia de revisión técnica, permiso de circulación y SOAP", "type": "check"}
+          ],
+          "resources": [
+            {"kind": "part", "description": "Filtro de aceite", "quantity": 1, "unit": "un"},
+            {"kind": "part", "description": "Aceite de motor según manual", "quantity": 7, "unit": "L"}
+          ]
+        },
+        {
+          "code": "CTA-40000KM",
+          "name": "Camioneta · servicio mayor 40.000 km",
+          "meter_kind": "km", "meter_interval": 40000,
+          "calendar_interval": 24, "calendar_unit": "months",
+          "schedule_mode": "floating", "tolerance_pct": 10, "estimated_minutes": 240,
+          "instructions": "Incluye el servicio de 10.000 km.",
+          "items": [
+            {"text": "Cambiar filtros de combustible y de aire", "type": "check"},
+            {"text": "Cambiar líquido de frenos", "type": "check"},
+            {"text": "Cambiar aceite de caja y diferenciales (y transfer en 4x4)", "type": "check"},
+            {"text": "Correa de distribución y de accesorios según pauta", "type": "check"},
+            {"text": "Discos y tambores de freno", "type": "check"},
+            {"text": "Alineación y balanceo", "type": "check"},
+            {"text": "Voltaje de batería con motor detenido", "type": "measurement", "unit": "V", "min": 12.4, "max": 12.8}
+          ],
+          "resources": [
+            {"kind": "part", "description": "Filtro de combustible", "quantity": 1, "unit": "un"},
+            {"kind": "part", "description": "Filtro de aire", "quantity": 1, "unit": "un"},
+            {"kind": "part", "description": "Líquido de frenos DOT 4", "quantity": 1, "unit": "L"}
+          ]
+        }
+      ]
+    },
+    {
+      "code": "CAMION",
+      "name": "Camión",
+      "iso_category": "vehicle",
+      "level": "equipment",
+      "attributes": [
+        {"label": "Patente", "type": "text", "required": true},
+        {"label": "Peso bruto vehicular", "type": "number", "unit": "kg"},
+        {"label": "Configuración de ejes", "type": "choice", "choices": ["4x2", "6x2", "6x4", "8x4"]},
+        {"label": "Tipo de carrocería", "type": "text"},
+        {"label": "Vencimiento revisión técnica", "type": "date"}
+      ],
+      "plans": [
+        {
+          "code": "CAM-15000KM",
+          "name": "Camión · servicio A 15.000 km",
+          "meter_kind": "km", "meter_interval": 15000,
+          "calendar_interval": 6, "calendar_unit": "months",
+          "schedule_mode": "floating", "tolerance_pct": 10, "estimated_minutes": 180,
+          "instructions": "Intervalo típico para uso mixto; ajustar a la pauta del fabricante y a la severidad de uso.",
+          "items": [
+            {"text": "Cambiar aceite de motor y filtros de aceite", "type": "check"},
+            {"text": "Drenar agua del separador de combustible", "type": "check"},
+            {"text": "Indicador de restricción del filtro de aire", "type": "check"},
+            {"text": "Engrasar crucetas, pasadores y quinta rueda", "type": "check"},
+            {"text": "Presión del sistema de aire de frenos", "type": "measurement", "unit": "bar", "min": 8, "max": 12.5},
+            {"text": "Espesor de balatas", "type": "measurement", "unit": "mm", "min": 5},
+            {"text": "Profundidad de dibujo del neumático más gastado", "type": "measurement", "unit": "mm", "min": 2},
+            {"text": "Fugas de aire, aceite y refrigerante", "type": "check"},
+            {"text": "Luces, GPS o tacógrafo y alarma de retroceso", "type": "check"},
+            {"text": "Chasis, amarras y carrocería", "type": "check"}
+          ],
+          "resources": [
+            {"kind": "part", "description": "Filtro de aceite de motor", "quantity": 2, "unit": "un"},
+            {"kind": "part", "description": "Aceite de motor 15W-40", "quantity": 30, "unit": "L"},
+            {"kind": "part", "description": "Grasa multipropósito", "quantity": 1, "unit": "kg"}
+          ]
+        },
+        {
+          "code": "CAM-60000KM",
+          "name": "Camión · servicio B 60.000 km",
+          "meter_kind": "km", "meter_interval": 60000,
+          "calendar_interval": 12, "calendar_unit": "months",
+          "schedule_mode": "floating", "tolerance_pct": 10, "estimated_minutes": 360,
+          "instructions": "Incluye el servicio A.",
+          "items": [
+            {"text": "Cambiar filtros de combustible primario y secundario", "type": "check"},
+            {"text": "Cambiar filtro de aire primario", "type": "check"},
+            {"text": "Cambiar cartucho del secador de aire", "type": "check"},
+            {"text": "Aceite de caja y diferenciales (cambiar según pauta)", "type": "check"},
+            {"text": "Embrague y su regulación", "type": "check"},
+            {"text": "Suspensión, bujes y amortiguadores", "type": "check"},
+            {"text": "Juego de dirección y terminales", "type": "check"},
+            {"text": "Punto de congelación del refrigerante", "type": "measurement", "unit": "°C", "max": -20}
+          ],
+          "resources": [
+            {"kind": "part", "description": "Filtro de combustible primario", "quantity": 1, "unit": "un"},
+            {"kind": "part", "description": "Filtro de combustible secundario", "quantity": 1, "unit": "un"},
+            {"kind": "part", "description": "Cartucho secador de aire", "quantity": 1, "unit": "un"}
+          ]
+        }
+      ]
+    },
+    {
+      "code": "CARGADOR",
+      "name": "Cargador frontal",
+      "iso_category": "vehicle",
+      "level": "equipment",
+      "attributes": [
+        {"label": "Capacidad del balde", "type": "number", "unit": "m³"},
+        {"label": "Potencia", "type": "number", "unit": "kW"},
+        {"label": "Peso operativo", "type": "number", "unit": "kg"}
+      ],
+      "plans": [
+        {
+          "code": "CFR-250H",
+          "name": "Cargador frontal · servicio 250 h",
+          "meter_kind": "hours", "meter_interval": 250,
+          "calendar_interval": 3, "calendar_unit": "months",
+          "schedule_mode": "floating", "tolerance_pct": 10, "estimated_minutes": 120,
+          "instructions": "Balde apoyado en el suelo y bloqueo de articulación puesto.",
+          "items": [
+            {"text": "Cambiar aceite de motor y filtro", "type": "check"},
+            {"text": "Engrasar articulación central, pasadores del balde y brazos", "type": "check"},
+            {"text": "Filtro de aire e indicador de restricción", "type": "check"},
+            {"text": "Nivel de aceite hidráulico y de transmisión", "type": "check"},
+            {"text": "Limpiar radiador y enfriadores", "type": "check"},
+            {"text": "Desgaste de cuchilla y dientes del balde", "type": "check"},
+            {"text": "Presión de neumáticos", "type": "measurement", "unit": "psi"},
+            {"text": "Frenos, dirección y alarma de retroceso", "type": "check"},
+            {"text": "Fugas en cilindros y mangueras", "type": "check"}
+          ],
+          "resources": [
+            {"kind": "part", "description": "Filtro de aceite de motor", "quantity": 1, "unit": "un"},
+            {"kind": "part", "description": "Grasa EP2", "quantity": 2, "unit": "kg"}
+          ]
+        },
+        {
+          "code": "CFR-1000H",
+          "name": "Cargador frontal · servicio 1.000 h",
+          "meter_kind": "hours", "meter_interval": 1000,
+          "calendar_interval": 12, "calendar_unit": "months",
+          "schedule_mode": "floating", "tolerance_pct": 10, "estimated_minutes": 300,
+          "instructions": "Incluye el servicio de 250 h. Tomar muestra de aceite para análisis antes de drenar.",
+          "items": [
+            {"text": "Cambiar aceite de transmisión y filtro", "type": "check"},
+            {"text": "Cambiar filtros hidráulicos", "type": "check"},
+            {"text": "Cambiar filtros de combustible", "type": "check"},
+            {"text": "Aceite de ejes y mandos finales (cambiar según pauta)", "type": "check"},
+            {"text": "Presión de alivio del sistema hidráulico", "type": "measurement", "unit": "bar"},
+            {"text": "Muestra de aceite enviada a análisis", "type": "check"},
+            {"text": "Fisuras en brazos y chasis", "type": "check"}
+          ],
+          "resources": [
+            {"kind": "part", "description": "Filtro de transmisión", "quantity": 1, "unit": "un"},
+            {"kind": "part", "description": "Filtro hidráulico", "quantity": 1, "unit": "un"},
+            {"kind": "part", "description": "Filtro de combustible", "quantity": 2, "unit": "un"}
+          ]
+        }
+      ]
+    },
+    {
+      "code": "PLAT-ELEV",
+      "name": "Plataforma elevadora de personal",
+      "iso_category": "vehicle",
+      "level": "equipment",
+      "attributes": [
+        {"label": "Tipo", "type": "choice", "choices": ["Tijera", "Articulada", "Telescópica"]},
+        {"label": "Altura de trabajo", "type": "number", "unit": "m"},
+        {"label": "Carga máxima en canastillo", "type": "number", "unit": "kg"},
+        {"label": "Energía", "type": "choice", "choices": ["Eléctrica", "Diésel", "Híbrida"]}
+      ],
+      "plans": [
+        {
+          "code": "PEP-150H",
+          "name": "Plataforma elevadora · inspección 150 h",
+          "meter_kind": "hours", "meter_interval": 150,
+          "calendar_interval": 3, "calendar_unit": "months",
+          "schedule_mode": "floating", "tolerance_pct": 10, "estimated_minutes": 90,
+          "instructions": "Inspección frecuente según el manual del fabricante.",
+          "items": [
+            {"text": "Controles de plataforma y de suelo, incluida la bajada de emergencia", "type": "check"},
+            {"text": "Paradas de emergencia y alarma de inclinación", "type": "check"},
+            {"text": "Barandas, puerta y puntos de anclaje de arnés", "type": "check"},
+            {"text": "Nivel de aceite hidráulico y fugas", "type": "check"},
+            {"text": "Pasadores, pernos y estructura sin fisuras", "type": "check"},
+            {"text": "Batería o motor según la energía del equipo", "type": "check"},
+            {"text": "Etiquetas de capacidad y advertencia legibles", "type": "photo"}
+          ],
+          "resources": []
+        },
+        {
+          "code": "PEP-ANUAL",
+          "name": "Plataforma elevadora · inspección anual de seguridad",
+          "calendar_interval": 12, "calendar_unit": "months",
+          "schedule_mode": "fixed", "tolerance_pct": 5, "estimated_minutes": 180,
+          "instructions": "La realiza personal calificado; adjuntar el informe a la OT.",
+          "items": [
+            {"text": "Prueba del sistema de detección de sobrecarga del canastillo", "type": "check"},
+            {"text": "Prueba de deriva de cilindros con carga nominal", "type": "check"},
+            {"text": "Soldaduras y estructura", "type": "check"},
+            {"text": "Mangueras y cableado del brazo", "type": "check"},
+            {"text": "Cambio de aceite y filtro hidráulico (según pauta)", "type": "check"},
+            {"text": "Firma del inspector", "type": "signature"}
+          ],
+          "resources": [
+            {"kind": "part", "description": "Filtro hidráulico", "quantity": 1, "unit": "un"}
+          ]
+        }
+      ]
+    }
+  ],
+  "failure_codes": [
+    {"kind": "mode", "code": "FTS", "name": "No arranca"},
+    {"kind": "mode", "code": "LOO", "name": "Baja potencia o rendimiento"},
+    {"kind": "mode", "code": "ELU", "name": "Fuga de aceite, combustible o refrigerante"},
+    {"kind": "mode", "code": "STD", "name": "Daño estructural"},
+    {"kind": "mode", "code": "AIR", "name": "Alarma o lectura anormal en el tablero"},
+    {"kind": "mode", "code": "BRK", "name": "Falla de frenos"},
+    {"kind": "mode", "code": "TIR", "name": "Neumático dañado o pinchado"},
+    {"kind": "cause", "code": "OFD", "name": "Uso fuera de diseño (sobrecarga, terreno)"},
+    {"kind": "cause", "code": "MNE", "name": "Error de mantenimiento"},
+    {"kind": "cause", "code": "WTE", "name": "Desgaste esperado por uso"},
+    {"kind": "cause", "code": "FUE", "name": "Combustible contaminado o inadecuado"},
+    {"kind": "cause", "code": "COL", "name": "Golpe o colisión"},
+    {"kind": "mechanism", "code": "LEA", "name": "Fuga"},
+    {"kind": "mechanism", "code": "BRE", "name": "Rotura"},
+    {"kind": "mechanism", "code": "OVH", "name": "Sobretemperatura"},
+    {"kind": "mechanism", "code": "NPW", "name": "Sin energía o batería descargada"},
+    {"kind": "detection_method", "code": "CHK", "name": "Chequeo del operador antes del uso"},
+    {"kind": "detection_method", "code": "TLM", "name": "Telemetría o tablero del equipo"}
+  ]
+}

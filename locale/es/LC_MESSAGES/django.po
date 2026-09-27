@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-27 06:27-0300\n"
+"POT-Creation-Date: 2026-09-27 10:35-0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1486,6 +1486,14 @@ msgstr ""
 msgid "Por defecto, 14 días: la OT aparece dos semanas antes de vencer."
 msgstr ""
 
+#, python-format
+msgid "Rubro desconocido: %(industry)s."
+msgstr ""
+
+#, python-format
+msgid "Partes desconocidas: %(parts)s."
+msgstr ""
+
 msgid "Verificación (OK / No OK / N.A.)"
 msgstr ""
 
@@ -1664,6 +1672,9 @@ msgstr ""
 msgid "próximo vencimiento (medidor)"
 msgstr ""
 
+msgid "día ancla"
+msgstr ""
+
 msgid "última ejecución"
 msgstr ""
 
@@ -1676,14 +1687,234 @@ msgstr ""
 msgid "asignaciones de planes"
 msgstr ""
 
+msgid "Planes"
+msgstr ""
+
+msgid "Checklist"
+msgstr ""
+
+msgid "Recursos"
+msgstr ""
+
+msgid "Único por plan. Si ya existe, se crea un borrador."
+msgstr ""
+
+msgid "Código o nombre de una clase existente."
+msgstr ""
+
+msgid "Cada (calendario)"
+msgstr ""
+
+msgid "Número entero, ej: 3."
+msgstr ""
+
+msgid "Unidad de calendario"
+msgstr ""
+
+msgid "días, semanas o meses."
+msgstr ""
+
+msgid "Horómetro, Odómetro o Ciclos."
+msgstr ""
+
+msgid "Cada (medidor)"
+msgstr ""
+
+msgid "Ej: 250 (horas) o 10000 (km)."
+msgstr ""
+
+msgid "Flotante (por defecto) o Fijo."
+msgstr ""
+
+msgid "Tolerancia (%)"
+msgstr ""
+
+msgid "Por defecto 10."
+msgstr ""
+
+msgid "Por defecto 60."
+msgstr ""
+
+msgid "Versión vigente"
+msgstr ""
+
+msgid "Informativa: se ignora al importar."
+msgstr ""
+
+msgid "Código del plan"
+msgstr ""
+
+msgid "Por defecto, el orden de las filas."
+msgstr ""
+
+msgid "Verificación (por defecto), Medición, Texto, Foto o Firma."
+msgstr ""
+
+msgid "Solo mediciones, ej: bar."
+msgstr ""
+
+msgid "Solo mediciones."
+msgstr ""
+
+msgid "Sí (por defecto) o No."
+msgstr ""
+
+msgid "Repuesto (por defecto) o Herramienta."
+msgstr ""
+
+msgid "Por defecto 1."
+msgstr ""
+
+msgid "Un código nuevo crea el plan con su versión 1 publicada."
+msgstr ""
+
+msgid ""
+"Un código existente con cambios crea una versión borrador para revisar y "
+"publicar; la versión publicada no se modifica."
+msgstr ""
+
+msgid "Antes de guardar verás una vista previa con los errores de cada fila."
+msgstr ""
+
+#, python-format
+msgid "Falta la hoja «%(sheet)s»."
+msgstr ""
+
+#, python-format
+msgid "Faltan columnas en la hoja «%(sheet)s»: %(columns)s."
+msgstr ""
+
+msgid "No se pudo leer el archivo. Usa un Excel .xlsx."
+msgstr ""
+
+msgid "La hoja «Planes» no tiene filas con datos."
+msgstr ""
+
+#, python-format
+msgid "El archivo tiene más de %(max)s planes; divídelo en partes."
+msgstr ""
+
+#, python-format
+msgid "«%(value)s» no es un valor válido."
+msgstr ""
+
+msgid "«Cada (calendario)» debe ser un entero mayor que 0."
+msgstr ""
+
+msgid "«Cada (medidor)» debe ser un número mayor que 0."
+msgstr ""
+
+msgid "Para disparar por medidor indica el tipo de medidor."
+msgstr ""
+
+#, python-format
+msgid "«%(column)s» debe ser un entero entre %(low)s y %(high)s."
+msgstr ""
+
+#, python-format
+msgid "Checklist fila %(row)s"
+msgstr ""
+
+#, python-format
+msgid "%(where)s: la tarea supera 250 caracteres."
+msgstr ""
+
+#, python-format
+msgid "%(where)s: tipo «%(value)s» no válido."
+msgstr ""
+
+#, python-format
+msgid "%(where)s: «Obligatorio» debe ser Sí o No."
+msgstr ""
+
+#, python-format
+msgid "%(where)s: mínimo y máximo deben ser números."
+msgstr ""
+
+#, python-format
+msgid "%(where)s: el máximo no puede ser menor que el mínimo."
+msgstr ""
+
+#, python-format
+msgid "Recursos fila %(row)s"
+msgstr ""
+
+#, python-format
+msgid "%(where)s: la cantidad debe ser un número mayor que 0."
+msgstr ""
+
+#, python-format
+msgid ""
+"Hoja %(sheet)s, fila %(row)s: el plan «%(code)s» no está en la hoja Planes."
+msgstr ""
+
+msgid "El código supera 30 caracteres."
+msgstr ""
+
+#, python-format
+msgid "El código %(code)s se repite en el archivo."
+msgstr ""
+
+msgid "El nombre supera 150 caracteres."
+msgstr ""
+
+#, python-format
+msgid "La clase «%(value)s» no existe en tu organización."
+msgstr ""
+
+msgid "El plan no tiene ítems en la hoja Checklist."
+msgstr ""
+
+#, python-format
+msgid "Más de %(max)s ítems en el checklist."
+msgstr ""
+
+msgid "El plan ya tiene un borrador: publícalo o descártalo antes de importar."
+msgstr ""
+
+msgid "El nombre y la clase de un plan existente no cambian desde el archivo."
+msgstr ""
+
+msgid "Sin cambios respecto de la versión vigente."
+msgstr ""
+
+#, python-format
+msgid "Se crea la versión %(n)s en borrador para revisar y publicar."
+msgstr ""
+
+msgid "Importado desde Excel"
+msgstr ""
+
+#, python-format
+msgid "%(n)s plan creado"
+msgid_plural "%(n)s planes creados"
+msgstr[0] ""
+msgstr[1] ""
+msgstr[2] ""
+
+#, python-format
+msgid "%(n)s borrador nuevo"
+msgid_plural "%(n)s borradores nuevos"
+msgstr[0] ""
+msgstr[1] ""
+msgstr[2] ""
+
+#, python-format
+msgid "Se omitieron porque cambiaron mientras revisabas: %(codes)s."
+msgstr ""
+
 msgid "Versión inicial"
+msgstr ""
+
+msgid "Agrega al menos un ítem al checklist antes de publicar."
+msgstr ""
+
+#, python-format
+msgid "«%(plan)s» ya tiene un borrador."
 msgstr ""
 
 #, python-format
 msgid "La versión %(number)s ya está publicada."
-msgstr ""
-
-msgid "Agrega al menos un ítem al checklist antes de publicar."
 msgstr ""
 
 #, python-format
@@ -1751,6 +1982,35 @@ msgstr ""
 
 #, python-format
 msgid "«%(other)s» ya absorbe a «%(plan)s»: no pueden absorberse mutuamente."
+msgstr ""
+
+msgid "Tu organización ya tenía todo lo de esta plantilla: no se creó nada."
+msgstr ""
+
+#, python-format
+msgid "%(n)s clase de activo"
+msgid_plural "%(n)s clases de activo"
+msgstr[0] ""
+msgstr[1] ""
+msgstr[2] ""
+
+#, python-format
+msgid "%(n)s código de falla"
+msgid_plural "%(n)s códigos de falla"
+msgstr[0] ""
+msgstr[1] ""
+msgstr[2] ""
+
+#, python-format
+msgid "%(n)s plan preventivo"
+msgid_plural "%(n)s planes preventivos"
+msgstr[0] ""
+msgstr[1] ""
+msgstr[2] ""
+
+#, python-format
+msgid ""
+"Plantilla «%(name)s» cargada: %(summary)s. Revisa y ajusta lo que necesites."
 msgstr ""
 
 #, python-format
@@ -2257,9 +2517,6 @@ msgstr ""
 msgid "Cierre"
 msgstr ""
 
-msgid "Checklist"
-msgstr ""
-
 msgid "N.º"
 msgstr ""
 
@@ -2463,9 +2720,6 @@ msgid "Sugeridos para este activo"
 msgstr ""
 
 msgid "Otros planes"
-msgstr ""
-
-msgid "Planes"
 msgstr ""
 
 msgid "último número"
@@ -4136,6 +4390,87 @@ msgstr ""
 msgid "Ver planes"
 msgstr ""
 
+msgid "Plantilla de rubro"
+msgstr ""
+
+msgid "Cargar plantilla de rubro"
+msgstr ""
+
+msgid "Revisa lo que se va a crear. Todavía no se ha guardado nada."
+msgstr ""
+
+#, python-format
+msgid ""
+"%(note)s (versión %(version)s de la plantilla). Solo lo ven los "
+"administradores de la plataforma."
+msgstr ""
+
+msgid "Clases de activo nuevas"
+msgstr ""
+
+#, python-format
+msgid "%(n)s atributo"
+msgid_plural "%(n)s atributos"
+msgstr[0] ""
+msgstr[1] ""
+msgstr[2] ""
+
+msgid "Planes preventivos nuevos"
+msgstr ""
+
+msgid "Publicados, sin asignar a activos"
+msgstr ""
+
+msgid "Códigos de falla nuevos"
+msgstr ""
+
+msgid "Ya existen en tu organización y se mantienen sin cambios:"
+msgstr ""
+
+msgid "clases"
+msgstr ""
+
+msgid ""
+"Tu organización ya tiene todo lo de esta plantilla. No hay nada nuevo que "
+"crear."
+msgstr ""
+
+msgid "Volver a los planes"
+msgstr ""
+
+#, python-format
+msgid "%(n)s ítem"
+msgid_plural "%(n)s ítems"
+msgstr[0] ""
+msgstr[1] ""
+msgstr[2] ""
+
+msgid "Catálogo de falla"
+msgstr ""
+
+msgid ""
+"Se crean copias editables en tu organización. Después podrás asignar los "
+"planes a tus activos desde cada plan o por clase."
+msgstr ""
+
+msgid "Cargar plantilla"
+msgstr ""
+
+msgid "Elegir otro rubro"
+msgstr ""
+
+msgid ""
+"Copia a tu organización clases de activo con sus atributos, un catálogo de "
+"fallas y planes preventivos típicos de tu rubro. Son copias: puedes "
+"editarlas sin afectar la plantilla y nada de lo que ya tienes se sobrescribe."
+msgstr ""
+
+msgid "Códigos de falla"
+msgstr ""
+
+msgid "Ver qué se crea"
+msgstr ""
+
 #, python-format
 msgid "Asignar «%(name)s»"
 msgstr ""
@@ -4175,8 +4510,8 @@ msgid "Asignar a los marcados"
 msgstr ""
 
 msgid ""
-"OT planificadas y programadas, y la proyección de los planes asignados. La "
-"proyección no crea OT."
+"OT abiertas (por hacer, en ejecución o en espera) y la proyección de los "
+"planes asignados. La proyección no crea OT."
 msgstr ""
 
 msgid "Exportar Excel (12 meses)"
@@ -4303,9 +4638,6 @@ msgstr ""
 msgid "min"
 msgstr ""
 
-msgid "Versión vigente"
-msgstr ""
-
 msgid ""
 "Este plan aún no se publica. Completa el borrador y publícalo para asignarlo "
 "a activos."
@@ -4383,12 +4715,67 @@ msgstr ""
 msgid "Agregar repuesto o herramienta"
 msgstr ""
 
+msgid "Importar planes"
+msgstr ""
+
+msgid "Importar planes desde Excel"
+msgstr ""
+
+msgid "Descarga tus planes"
+msgstr ""
+
+msgid ""
+"El archivo trae tus planes con su versión vigente en tres hojas (Planes, "
+"Checklist y Recursos) e instrucciones. Úsalo también como plantilla."
+msgstr ""
+
+msgid "Descargar planes (Excel)"
+msgstr ""
+
+msgid "Edítalo o agrega planes"
+msgstr ""
+
+#, python-format
+msgid ""
+"Un código nuevo crea el plan ya publicado. Si el código existe y cambiaste "
+"algo, se crea una versión borrador para revisar y publicar: la versión "
+"publicada no se modifica. Máximo %(max_plans)s planes."
+msgstr ""
+
+msgid "Vista previa de importación de planes"
+msgstr ""
+
+msgid "Planes nuevos"
+msgstr ""
+
+msgid "Borradores nuevos"
+msgstr ""
+
+msgid "Sin cambios"
+msgstr ""
+
+msgid "Borrador nuevo"
+msgstr ""
+
+#, python-format
+msgid "Importar %(n)s plan"
+msgid_plural "Importar %(n)s planes"
+msgstr[0] ""
+msgstr[1] ""
+msgstr[2] ""
+
+msgid "No hay planes nuevos ni cambios para importar."
+msgstr ""
+
 #, python-format
 msgid "%(n)s plan"
 msgid_plural "%(n)s planes"
 msgstr[0] ""
 msgstr[1] ""
 msgstr[2] ""
+
+msgid "Importar o exportar (Excel)"
+msgstr ""
 
 msgid "Ajustes de preventivos"
 msgstr ""
@@ -4405,13 +4792,6 @@ msgstr ""
 #, python-format
 msgid "Publicar la versión %(n)s"
 msgstr ""
-
-#, python-format
-msgid "%(n)s ítem"
-msgid_plural "%(n)s ítems"
-msgstr[0] ""
-msgstr[1] ""
-msgstr[2] ""
 
 msgid "Activos con el plan"
 msgstr ""
@@ -4430,9 +4810,6 @@ msgid "Seguir editando"
 msgstr ""
 
 msgid "Rigen para todos los planes de la organización."
-msgstr ""
-
-msgid "Volver a los planes"
 msgstr ""
 
 msgid "Generación automática de OT"
@@ -5098,7 +5475,7 @@ msgstr ""
 msgid "Avisar problema en una ubicación"
 msgstr ""
 
-msgid "Catálogo de falla"
+msgid "Importar o exportar planes (Excel)"
 msgstr ""
 
 msgid "Importar lecturas (CSV)"
@@ -5368,9 +5745,6 @@ msgstr[1] ""
 msgid ""
 "Modo, causa, mecanismo y método de detección (ISO 14224). Editable; nunca se "
 "borra, se desactiva."
-msgstr ""
-
-msgid "Códigos de falla"
 msgstr ""
 
 msgid "Acciones"
