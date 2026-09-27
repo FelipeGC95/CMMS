@@ -67,6 +67,23 @@
   <div class="alert alert--info" role="status">{% icon 'info' %}<span>{% translate "La OT se generó automáticamente desde el plan." %}</span></div>
 </section>
 
+<section class="card mb-4" aria-labelledby="ds-wizard">
+  <h2 id="ds-wizard">{% translate "Pasos de un asistente" %}</h2>
+  <p class="muted">{% translate "Puesta en marcha: hecho, saltado o pendiente, con ícono + texto; el paso abierto lleva borde." %}</p>
+  <ol class="wizard-steps">
+    <li class="wizard-steps__item--done"><a href="#ds-wizard">{% icon 'check' %}<span class="wizard-steps__text">{% translate "Rubro" %}<span class="wizard-steps__state">{% translate "Hecho" %}</span></span></a></li>
+    <li class="wizard-steps__item--skipped"><a href="#ds-wizard">{% icon 'arrow-down' %}<span class="wizard-steps__text">{% translate "Sitios" %}<span class="wizard-steps__state">{% translate "Saltado" %}</span></span></a></li>
+    <li class="wizard-steps__item--pending"><a href="#ds-wizard" aria-current="step"><span class="wizard-steps__num">3</span><span class="wizard-steps__text">{% translate "Activos" %}<span class="wizard-steps__state">{% translate "Pendiente" %}</span></span></a></li>
+  </ol>
+  <fieldset class="check-group check-group--rich">
+    <legend>{% translate "Opciones con detalle" %}</legend>
+    <div class="check-group__options">
+      <label class="check-group__option" for="ds-rich-1"><input type="checkbox" id="ds-rich-1" checked><span><strong>{% translate "Servicio 250 h" %}</strong><br><span class="muted">{% translate "Grúa horquilla · 250 h o 3 meses · 2 activos" %}</span></span></label>
+      <label class="check-group__option" for="ds-rich-2"><input type="checkbox" id="ds-rich-2"><span><strong>{% translate "Servicio 1.000 h" %}</strong><br><span class="muted">{% translate "Grúa horquilla · 1.000 h o 12 meses · 2 activos" %}</span></span></label>
+    </div>
+  </fieldset>
+</section>
+
 <div class="grid grid--2 mb-4">
   <section class="card" aria-labelledby="ds-forms">
     <h2 id="ds-forms">{% translate "Formularios" %}</h2>

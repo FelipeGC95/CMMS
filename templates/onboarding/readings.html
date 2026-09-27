@@ -1,0 +1,15 @@
+{% extends "onboarding/_step.html" %}{% load i18n ui %}
+{% block step_title %}{% translate "Lecturas actuales de los medidores" %}{% endblock %}
+{% block step_intro %}{% translate "Los planes por uso vencen según el medidor. Anota cuánto marca hoy cada uno; en blanco, lo registras después." %}{% endblock %}
+{% block step_body %}
+<section class="card">
+  <form method="post">{% csrf_token %}
+    {% if form.meters %}
+    <div class="form-grid">{% include "_form_fields.html" with form=form %}</div>
+    {% else %}
+    <p class="empty">{% translate "Ningún plan asignado usa medidor: no hace falta anotar lecturas." %}</p>
+    {% endif %}
+    <div class="wizard-actions"><button class="btn btn--primary btn--lg" type="submit">{% if form.meters %}{% translate "Guardar y continuar" %}{% else %}{% translate "Continuar" %}{% endif %}</button></div>
+  </form>
+</section>
+{% endblock %}

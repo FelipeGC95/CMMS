@@ -1,0 +1,24 @@
+{% extends "onboarding/_step.html" %}{% load i18n ui %}
+{% block step_title %}{% translate "Planes preventivos sugeridos" %}{% endblock %}
+{% block step_intro %}{% translate "Según tu rubro y las clases de tus activos. Marca los que quieres: se crean publicados y se asignan solos a los activos de su clase." %}{% endblock %}
+{% block step_body %}
+<section class="card">
+  {% if not state.industry %}
+  <div class="alert alert--info" role="status">{% icon 'info' %}<span>{% translate "Elige un rubro en el paso 1 para ver planes sugeridos." %}</span></div>
+  {% elif not plans %}
+  <div class="alert alert--info" role="status">{% icon 'info' %}<span>{% translate "No hay planes sugeridos para las clases de tus activos. Agrega activos en el paso 3 o crea planes en Preventivos." %}</span></div>
+  {% else %}
+  <form method="post">{% csrf_token %}
+    <fieldset class="check-group check-group--rich">
+      <legend>{% translate "Planes a crear y asignar" %}</legend>
+      <div class="check-group__options">
+        {% for choice, plan in form.options %}
+        <label class="check-group__option" for="{{ choice.id_for_label }}">{{ choice.tag }}<span><strong>{{ plan.name }}</strong><br><span class="muted">{{ plan.class_name }} · {{ plan.frequency_label }} · {% blocktranslate count n=plan.asset_count %}{{ n }} activo{% plural %}{{ n }} activos{% endblocktranslate %}</span>{% if plan.exists %}<br><span class="badge badge--success">{% icon 'check' %}{% translate "Ya creado" %}</span>{% endif %}</span></label>
+        {% endfor %}
+      </div>
+    </fieldset>
+    <div class="wizard-actions"><button class="btn btn--primary btn--lg" type="submit">{% translate "Crear, asignar y continuar" %}</button></div>
+  </form>
+  {% endif %}
+</section>
+{% endblock %}

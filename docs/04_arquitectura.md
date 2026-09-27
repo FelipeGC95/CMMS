@@ -705,3 +705,21 @@ tener ingresos).
 - **Consecuencias:** nada de JS o CSS en línea, tampoco en plantillas de
   terceros que se sobrescriban. Alpine, cuando entre, debe ser su build
   compatible con CSP.
+
+### ADR-024 · Asistente de puesta en marcha como app propia que solo orquesta servicios
+- **Decisión:** ORG-03 vive en `apps/onboarding`: un modelo de avance por
+  organización (`OnboardingState`) y seis pantallas server-rendered, sin JS.
+  Cada paso llama al servicio que ya existe (`apply_industry_template` con
+  `parts`/`plan_codes`, `create_location`, `create_asset`, la importación Excel,
+  `assign_plan_to_class`, `record_meter_reading`, `plan_calendar`); el asistente
+  no escribe reglas propias salvo generar códigos (sitio, área, activo), crear
+  el medidor que exige un plan por uso y recalcular el vencimiento por uso tras
+  la primera lectura. Cada paso es idempotente (repetirlo no duplica) y se
+  puede saltar y retomar.
+- **Entrada:** la confirmación del autoregistro crea el avance y redirige a
+  `/onboarding/`; si la política exige segundo factor, `MFARequiredMiddleware`
+  lo pide antes y, al volver al inicio, el tablero lleva al asistente mientras
+  `started_at` esté vacío. Las organizaciones existentes no son forzadas: su
+  administrador lo abre desde Configuración y ve un aviso en el inicio hasta
+  terminar o descartarlo. Solo administradores (`organization.manage`).
+

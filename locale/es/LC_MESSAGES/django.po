@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-27 11:32-0300\n"
+"POT-Creation-Date: 2026-09-27 11:51-0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2212,6 +2212,114 @@ msgid "Todas las notificaciones quedaron leídas."
 msgstr ""
 
 msgid "Preferencias de notificación guardadas."
+msgstr ""
+
+msgid "Rubro"
+msgstr ""
+
+msgid "Nombre del sitio"
+msgstr ""
+
+msgid "Tu planta, faena o edificio principal."
+msgstr ""
+
+msgid "Áreas (una por línea, opcional)"
+msgstr ""
+
+#, python-format
+msgid "Ej.: Producción, Bodega, Taller. Hasta %(n)s."
+msgstr ""
+
+msgid "Elige la clase del activo."
+msgstr ""
+
+msgid "Planes a crear"
+msgstr ""
+
+msgid "Sitios"
+msgstr ""
+
+msgid "Planes sugeridos"
+msgstr ""
+
+msgid "Lecturas iniciales"
+msgstr ""
+
+msgid "paso actual"
+msgstr ""
+
+msgid "pasos completados"
+msgstr ""
+
+msgid "pasos saltados"
+msgstr ""
+
+msgid "rubro"
+msgstr ""
+
+msgid "abierto por primera vez"
+msgstr ""
+
+msgid "terminado"
+msgstr ""
+
+msgid "aviso descartado"
+msgstr ""
+
+msgid "puesta en marcha"
+msgstr ""
+
+msgid "puestas en marcha"
+msgstr ""
+
+msgid "Paso desconocido."
+msgstr ""
+
+msgid "Elige un rubro de la lista."
+msgstr ""
+
+msgid "Escribe el nombre del sitio."
+msgstr ""
+
+#, python-format
+msgid ""
+"Rubro «%(name)s»: %(classes)s clases de activo y %(codes)s códigos de falla "
+"copiados."
+msgstr ""
+
+#, python-format
+msgid "%(n)s ubicación lista."
+msgid_plural "%(n)s ubicaciones listas."
+msgstr[0] ""
+msgstr[1] ""
+msgstr[2] ""
+
+#, python-format
+msgid "%(n)s activo creado."
+msgid_plural "%(n)s activos creados."
+msgstr[0] ""
+msgstr[1] ""
+msgstr[2] ""
+
+#, python-format
+msgid "Ya existían y se omitieron: %(names)s."
+msgstr ""
+
+#, python-format
+msgid "%(plans)s planes creados y %(assigned)s asignaciones a activos."
+msgstr ""
+
+#, python-format
+msgid "%(n)s lectura registrada."
+msgid_plural "%(n)s lecturas registradas."
+msgstr[0] ""
+msgstr[1] ""
+msgstr[2] ""
+
+msgid "¡Listo! Tu mantenimiento preventivo ya está en marcha."
+msgstr ""
+
+msgid "Puedes retomar la puesta en marcha cuando quieras desde Configuración."
 msgstr ""
 
 msgid "correo del administrador"
@@ -5116,6 +5224,200 @@ msgstr ""
 msgid "Guardar preferencias"
 msgstr ""
 
+msgid "Puesta en marcha"
+msgstr ""
+
+#, python-format
+msgid "Puesta en marcha · paso %(n)s de %(total)s"
+msgstr ""
+
+msgid "Pasos de la puesta en marcha"
+msgstr ""
+
+msgid "Saltado"
+msgstr ""
+
+msgid "Saltar este paso"
+msgstr ""
+
+msgid "Seguir después"
+msgstr ""
+
+msgid "Tus activos"
+msgstr ""
+
+msgid ""
+"Agrega tus equipos aquí mismo o súbelos desde una planilla Excel. El código "
+"se genera solo."
+msgstr ""
+
+msgid "¿Ya tienes una lista en Excel?"
+msgstr ""
+
+msgid ""
+"Descarga la plantilla, completa una fila por activo y súbela. Verás una "
+"vista previa antes de guardar; al confirmar vuelves a este paso."
+msgstr ""
+
+msgid "Alta rápida"
+msgstr ""
+
+msgid ""
+"Primero elige un rubro (paso 1): trae las clases de activo para clasificar "
+"tus equipos."
+msgstr ""
+
+#, python-format
+msgid "Activo %(n)s"
+msgstr ""
+
+msgid ""
+"Con medidor (horómetro, odómetro) los planes por uso se calculan solos. Las "
+"filas vacías se ignoran."
+msgstr ""
+
+msgid "Guardar y continuar"
+msgstr ""
+
+msgid "Guardar y agregar más"
+msgstr ""
+
+#, python-format
+msgid "%(n)s activo en tu organización"
+msgid_plural "%(n)s activos en tu organización"
+msgstr[0] ""
+msgstr[1] ""
+msgstr[2] ""
+
+msgid "Ver todos los activos"
+msgstr ""
+
+msgid "Aún no hay activos."
+msgstr ""
+
+msgid "Tu calendario de preventivos"
+msgstr ""
+
+msgid ""
+"Esto es lo que viene según los planes asignados. Las OT se generan solas "
+"antes de cada vencimiento."
+msgstr ""
+
+msgid "Próximos 30 días"
+msgstr ""
+
+#, python-format
+msgid "%(h)s h estimadas"
+msgstr ""
+
+msgid "Próximos 90 días"
+msgstr ""
+
+msgid "Asignaciones activas"
+msgstr ""
+
+msgid "Plan × activo"
+msgstr ""
+
+#, python-format
+msgid ""
+"%(n)s plan por uso aún no tiene fecha estimada: se calcula con el uso diario "
+"a partir de la segunda lectura."
+msgid_plural ""
+"%(n)s planes por uso aún no tienen fecha estimada: se calculan con el uso "
+"diario a partir de la segunda lectura."
+msgstr[0] ""
+msgstr[1] ""
+msgstr[2] ""
+
+msgid "Próximos preventivos"
+msgstr ""
+
+#, python-format
+msgid "%(n)s previsto en los próximos 12 meses."
+msgid_plural "%(n)s previstos en los próximos 12 meses."
+msgstr[0] ""
+msgstr[1] ""
+msgstr[2] ""
+
+msgid ""
+"Aún no hay preventivos en los próximos 12 meses. Asigna planes a tus activos "
+"para verlos aquí."
+msgstr ""
+
+msgid "Ver el calendario completo"
+msgstr ""
+
+msgid "Terminar la puesta en marcha"
+msgstr ""
+
+msgid "¿A qué se dedica tu empresa?"
+msgstr ""
+
+msgid ""
+"Copiamos a tu organización las clases de activo, sus atributos y el catálogo "
+"de fallas del rubro. Son copias tuyas: las puedes editar."
+msgstr ""
+
+msgid "Copiar y continuar"
+msgstr ""
+
+msgid "Tu sitio y sus áreas"
+msgstr ""
+
+msgid ""
+"Escribe solo los nombres: los códigos se generan solos. Después puedes "
+"agregar más en Ubicaciones."
+msgstr ""
+
+msgid "Crear y continuar"
+msgstr ""
+
+msgid "Ubicaciones actuales"
+msgstr ""
+
+msgid "Aún no hay ubicaciones."
+msgstr ""
+
+msgid "Planes preventivos sugeridos"
+msgstr ""
+
+msgid ""
+"Según tu rubro y las clases de tus activos. Marca los que quieres: se crean "
+"publicados y se asignan solos a los activos de su clase."
+msgstr ""
+
+msgid "Elige un rubro en el paso 1 para ver planes sugeridos."
+msgstr ""
+
+msgid ""
+"No hay planes sugeridos para las clases de tus activos. Agrega activos en el "
+"paso 3 o crea planes en Preventivos."
+msgstr ""
+
+msgid "Planes a crear y asignar"
+msgstr ""
+
+msgid "Ya creado"
+msgstr ""
+
+msgid "Crear, asignar y continuar"
+msgstr ""
+
+msgid "Lecturas actuales de los medidores"
+msgstr ""
+
+msgid ""
+"Los planes por uso vencen según el medidor. Anota cuánto marca hoy cada uno; "
+"en blanco, lo registras después."
+msgstr ""
+
+msgid "Ningún plan asignado usa medidor: no hace falta anotar lecturas."
+msgstr ""
+
+msgid "Continuar"
+msgstr ""
+
 msgid "Avisar problema"
 msgstr ""
 
@@ -5149,6 +5451,14 @@ msgid "No incluido en tu plan"
 msgstr ""
 
 msgid "Configuración"
+msgstr ""
+
+msgid ""
+"Asistente paso a paso: rubro, sitios, activos, planes sugeridos, lecturas y "
+"calendario. Cada paso se puede saltar y retomar."
+msgstr ""
+
+msgid "Abrir el asistente"
 msgstr ""
 
 msgid "Cierre de órdenes de trabajo"
@@ -5221,6 +5531,13 @@ msgstr ""
 
 #, python-format
 msgid "Hola, %(name)s"
+msgstr ""
+
+#, python-format
+msgid "Continúa la puesta en marcha (paso %(n)s de 6)"
+msgstr ""
+
+msgid "No mostrar más"
 msgstr ""
 
 msgid "Mis OT abiertas"
@@ -5398,6 +5715,29 @@ msgid "Transición no permitida."
 msgstr ""
 
 msgid "La OT se generó automáticamente desde el plan."
+msgstr ""
+
+msgid "Pasos de un asistente"
+msgstr ""
+
+msgid ""
+"Puesta en marcha: hecho, saltado o pendiente, con ícono + texto; el paso "
+"abierto lleva borde."
+msgstr ""
+
+msgid "Opciones con detalle"
+msgstr ""
+
+msgid "Servicio 250 h"
+msgstr ""
+
+msgid "Grúa horquilla · 250 h o 3 meses · 2 activos"
+msgstr ""
+
+msgid "Servicio 1.000 h"
+msgstr ""
+
+msgid "Grúa horquilla · 1.000 h o 12 meses · 2 activos"
 msgstr ""
 
 msgid "Formularios"

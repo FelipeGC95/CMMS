@@ -1,0 +1,46 @@
+{% extends "onboarding/_step.html" %}{% load i18n ui %}
+{% block step_title %}{% translate "Tus activos" %}{% endblock %}
+{% block step_intro %}{% translate "Agrega tus equipos aquí mismo o súbelos desde una planilla Excel. El código se genera solo." %}{% endblock %}
+{% block step_body %}
+<section class="card mb-4" aria-labelledby="excel-title">
+  <h2 id="excel-title">{% translate "¿Ya tienes una lista en Excel?" %}</h2>
+  <p>{% translate "Descarga la plantilla, completa una fila por activo y súbela. Verás una vista previa antes de guardar; al confirmar vuelves a este paso." %}</p>
+  <div class="row">
+    <a class="btn btn--secondary" href="{% url 'asset_import' %}?from=onboarding">{% translate "Importar desde Excel" %}</a>
+    <a class="btn btn--ghost" href="{% url 'asset_import_template' %}">{% translate "Descargar plantilla" %}</a>
+  </div>
+</section>
+
+<section class="card mb-4" aria-labelledby="quick-title">
+  <h2 id="quick-title">{% translate "Alta rápida" %}</h2>
+  {% if not has_classes %}
+  <div class="alert alert--info" role="status">{% icon 'info' %}<span>{% translate "Primero elige un rubro (paso 1): trae las clases de activo para clasificar tus equipos." %}</span></div>
+  {% else %}
+  <form method="post">{% csrf_token %}
+    {{ formset.management_form }}
+    {% for error in formset.non_form_errors %}<div class="alert alert--error" role="alert">{% icon 'stop' %}<span>{{ error }}</span></div>{% endfor %}
+    {% for form in formset %}
+    <fieldset class="fieldset">
+      <legend>{% blocktranslate with n=forloop.counter %}Activo {{ n }}{% endblocktranslate %}</legend>
+      <div class="form-grid">{% include "_form_fields.html" with form=form %}</div>
+    </fieldset>
+    {% endfor %}
+    <p class="muted">{% translate "Con medidor (horómetro, odómetro) los planes por uso se calculan solos. Las filas vacías se ignoran." %}</p>
+    <div class="wizard-actions">
+      <button class="btn btn--primary btn--lg" type="submit" name="action" value="continue">{% translate "Guardar y continuar" %}</button>
+      <button class="btn btn--secondary" type="submit" name="action" value="more">{% translate "Guardar y agregar más" %}</button>
+    </div>
+  </form>
+  {% endif %}
+</section>
+
+<section class="card" aria-labelledby="current-title">
+  <h2 id="current-title">{% blocktranslate count n=asset_total %}{{ n }} activo en tu organización{% plural %}{{ n }} activos en tu organización{% endblocktranslate %}</h2>
+  {% if assets %}
+  <ul class="list">{% for asset in assets %}<li><span class="list__main"><span class="list__title">{{ asset.name }}</span><span class="list__meta"><span class="mono">{{ asset.code }}</span> · {{ asset.asset_class.name }}{% if asset.location %} · {{ asset.location.path }}{% endif %}</span></span></li>{% endfor %}</ul>
+  {% if asset_total > assets|length %}<p class="mt-2"><a href="{% url 'asset_list' %}">{% translate "Ver todos los activos" %}</a></p>{% endif %}
+  {% else %}
+  <p class="empty">{% translate "Aún no hay activos." %}</p>
+  {% endif %}
+</section>
+{% endblock %}

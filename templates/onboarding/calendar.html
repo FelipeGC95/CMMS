@@ -1,0 +1,36 @@
+{% extends "onboarding/_step.html" %}{% load i18n ui %}
+{% block step_title %}{% translate "Tu calendario de preventivos" %}{% endblock %}
+{% block step_intro %}{% translate "Esto es lo que viene según los planes asignados. Las OT se generan solas antes de cada vencimiento." %}{% endblock %}
+{% block step_body %}
+<section class="grid grid--kpi mb-4" aria-label="{% translate 'Resumen' %}">
+  <div class="card kpi"><span class="kpi__label">{% translate "Próximos 30 días" %}</span><span class="kpi__value">{{ summary.count_30 }}</span><span class="kpi__hint">{% blocktranslate with h=summary.hours_30|hours %}{{ h }} h estimadas{% endblocktranslate %}</span></div>
+  <div class="card kpi"><span class="kpi__label">{% translate "Próximos 90 días" %}</span><span class="kpi__value">{{ summary.count_90 }}</span><span class="kpi__hint">{% blocktranslate with h=summary.hours_90|hours %}{{ h }} h estimadas{% endblocktranslate %}</span></div>
+  <div class="card kpi"><span class="kpi__label">{% translate "Asignaciones activas" %}</span><span class="kpi__value">{{ summary.assignments }}</span><span class="kpi__hint">{% translate "Plan × activo" %}</span></div>
+</section>
+
+{% if summary.unestimated %}
+<div class="alert alert--info" role="status">{% icon 'info' %}<span>{% blocktranslate count n=summary.unestimated %}{{ n }} plan por uso aún no tiene fecha estimada: se calcula con el uso diario a partir de la segunda lectura.{% plural %}{{ n }} planes por uso aún no tienen fecha estimada: se calculan con el uso diario a partir de la segunda lectura.{% endblocktranslate %}</span></div>
+{% endif %}
+
+<section class="card mb-4" aria-labelledby="upcoming-title">
+  <h2 id="upcoming-title">{% translate "Próximos preventivos" %}</h2>
+  <p class="muted">{% blocktranslate count n=summary.count_365 %}{{ n }} previsto en los próximos 12 meses.{% plural %}{{ n }} previstos en los próximos 12 meses.{% endblocktranslate %}</p>
+  {% if summary.upcoming %}
+  <ul class="list">
+    {% for o in summary.upcoming %}
+    <li><span class="list__main"><span class="list__title">{{ o.plan.name }}</span><span class="list__meta"><span class="mono">{{ o.asset.code }}</span> · {{ o.asset.name }}</span></span><span class="list__meta">{% icon 'calendar' %}{{ o.date|date:"d M Y" }}</span></li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="empty">{% translate "Aún no hay preventivos en los próximos 12 meses. Asigna planes a tus activos para verlos aquí." %}</p>
+  {% endif %}
+  <div class="row mt-2">
+    <a class="btn btn--secondary" href="{% url 'plan_calendar' %}">{% icon 'calendar' %}{% translate "Ver el calendario completo" %}</a>
+    <a class="btn btn--ghost" href="{% url 'plan_list' %}">{% translate "Ver planes" %}</a>
+  </div>
+</section>
+
+<form method="post">{% csrf_token %}
+  <button class="btn btn--primary btn--lg" type="submit">{% translate "Terminar la puesta en marcha" %}</button>
+</form>
+{% endblock %}

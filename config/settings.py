@@ -50,6 +50,7 @@ INSTALLED_APPS = [
     "apps.notifications",
     "apps.api",
     "apps.ui",
+    "apps.onboarding",
 ]
 
 MIDDLEWARE = [

@@ -1,0 +1,21 @@
+{% extends "onboarding/_step.html" %}{% load i18n ui %}
+{% block step_title %}{% translate "Tu sitio y sus áreas" %}{% endblock %}
+{% block step_intro %}{% translate "Escribe solo los nombres: los códigos se generan solos. Después puedes agregar más en Ubicaciones." %}{% endblock %}
+{% block step_body %}
+<div class="grid grid--2">
+  <section class="card">
+    <form method="post">{% csrf_token %}
+      {% include "_form_fields.html" with form=form %}
+      <div class="wizard-actions"><button class="btn btn--primary btn--lg" type="submit">{% translate "Crear y continuar" %}</button></div>
+    </form>
+  </section>
+  <section class="card" aria-labelledby="existing-title">
+    <h2 id="existing-title">{% translate "Ubicaciones actuales" %}</h2>
+    {% if locations %}
+    <ul class="list">{% for location in locations %}<li><span class="list__main"><span class="list__title">{{ location.path }}</span><span class="list__meta mono">{{ location.code }}</span></span></li>{% endfor %}</ul>
+    {% else %}
+    <p class="empty">{% translate "Aún no hay ubicaciones." %}</p>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

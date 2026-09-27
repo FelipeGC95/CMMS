@@ -1,0 +1,39 @@
+{% extends "base.html" %}{% load i18n ui %}
+{% block title %}{% translate "Puesta en marcha" %}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <p class="muted">{% blocktranslate with n=step_number total=step_total %}Puesta en marcha · paso {{ n }} de {{ total }}{% endblocktranslate %}</p>
+    <h1>{% block step_title %}{% endblock %}</h1>
+    <p class="muted">{% block step_intro %}{% endblock %}</p>
+  </div>
+</div>
+
+<nav aria-label="{% translate 'Pasos de la puesta en marcha' %}">
+  <ol class="wizard-steps">
+    {% for s in steps %}
+    <li class="wizard-steps__item--{{ s.status }}">
+      <a href="{% url 'onboarding_step' s.value %}"{% if s.active %} aria-current="step"{% endif %}>
+        {% if s.status == "done" %}{% icon 'check' %}{% elif s.status == "skipped" %}{% icon 'arrow-down' %}{% else %}<span class="wizard-steps__num">{{ s.number }}</span>{% endif %}
+        <span class="wizard-steps__text">{{ s.label }}
+          <span class="wizard-steps__state">{% if s.status == "done" %}{% translate "Hecho" %}{% elif s.status == "skipped" %}{% translate "Saltado" %}{% else %}{% translate "Pendiente" %}{% endif %}</span>
+        </span>
+      </a>
+    </li>
+    {% endfor %}
+  </ol>
+</nav>
+
+{% if blocked_message %}
+<div class="alert alert--info" role="status">{% icon 'info' %}<span>{{ blocked_message }}</span></div>
+{% else %}
+{% block step_body %}{% endblock %}
+{% endif %}
+
+<div class="wizard-actions">
+  <form method="post" action="{% url 'onboarding_skip' step %}">{% csrf_token %}
+    <button class="btn btn--ghost" type="submit">{% translate "Saltar este paso" %}</button>
+  </form>
+  <a class="btn btn--ghost" href="{% url 'dashboard' %}">{% translate "Seguir después" %}</a>
+</div>
+{% endblock %}
