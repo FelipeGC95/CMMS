@@ -9,7 +9,7 @@ from django.views.decorators.http import require_POST
 from apps.core.decorators import membership_required
 
 from . import selectors, services
-from .models import Kind, Notification
+from .models import Notification
 
 
 @membership_required
@@ -53,7 +53,8 @@ def notification_preferences_view(request):
     if request.method == "POST":
         values = {
             kind: (request.POST.get(f"{kind}-in_app") == "on", request.POST.get(f"{kind}-email") == "on")
-            for kind in Kind.values
+            # Solo los tipos visibles: las preferencias de los ocultos no se tocan.
+            for kind in selectors.receivable_kinds(membership=request.membership)
         }
         services.save_preferences(membership=request.membership, values=values)
         messages.success(request, _("Preferencias de notificación guardadas."))

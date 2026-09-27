@@ -1,11 +1,33 @@
 import zoneinfo
 
 from django.conf import settings
+from django.http import HttpResponseRedirect
 from django.utils import timezone
 
 from .tenancy import tenant_context
 
 SESSION_KEY = "active_organization_id"
+ORG_PARAM = "org"
+
+
+def is_top_level_navigation(request) -> bool:
+    """GET de navegación de primer nivel (un clic en un enlace o la barra de direcciones).
+
+    Con Fetch Metadata se descartan imágenes, fetch, iframes y htmx: un sitio ajeno
+    no puede cambiar la organización activa en segundo plano mientras se trabaja en
+    otra pestaña. Navegadores sin esas cabeceras se aceptan (solo GET).
+    """
+    if request.method != "GET" or request.headers.get("HX-Request"):
+        return False
+    dest = request.headers.get("Sec-Fetch-Dest")
+    mode = request.headers.get("Sec-Fetch-Mode")
+    return dest in (None, "document") and mode in (None, "navigate")
+
+
+def url_without_org(request) -> str:
+    query = request.GET.copy()
+    query.pop(ORG_PARAM, None)
+    return request.path + (f"?{query.urlencode()}" if query else "")
 
 
 class TenantMiddleware:
@@ -32,6 +54,8 @@ class TenantMiddleware:
                 )
             )
             request.memberships = memberships
+            if ORG_PARAM in request.GET and is_top_level_navigation(request):
+                return self._open_link_in_organization(request)
             if memberships:
                 wanted = request.session.get(SESSION_KEY)
                 if wanted is None and request.user.last_organization_id:
@@ -55,6 +79,22 @@ class TenantMiddleware:
                 return self.get_response(request)
         finally:
             timezone.deactivate()
+
+    @staticmethod
+    def _open_link_in_organization(request):
+        """Enlaces de correo con `?org=<id>` (ADR-003): abren en esa organización.
+
+        Solo cambia si la persona tiene membresía activa ahí (el mismo servicio del
+        selector: rota la sesión y la recuerda). Sin membresía se ignora. En ambos
+        casos se redirige a la misma URL sin el parámetro, así la respuesta no revela
+        si la organización existe ni queda en marcadores o en el historial.
+        """
+        from apps.accounts.services import switch_organization
+
+        wanted = request.GET[ORG_PARAM]
+        if request.session.get(SESSION_KEY) != wanted:
+            switch_organization(request=request, organization_id=wanted)
+        return HttpResponseRedirect(url_without_org(request))
 
 
 class ContentSecurityPolicyMiddleware:

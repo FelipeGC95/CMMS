@@ -250,10 +250,22 @@ tener ingresos).
   certificados comodín, cookies por subdominio y fricción para usuarios con
   varias organizaciones); prefijo en la URL `/o/<slug>/` (es viable y se
   puede agregar después para enlaces compartibles).
-- **Consecuencias:** los enlaces de notificaciones deberían incluir la
-  organización (`?org=`) para cambiar de contexto al abrirlos. Pendiente: hoy
-  los correos enlazan a la OT sin `?org=`; quien tiene varias organizaciones
-  debe cambiar la activa antes (la bandeja muestra solo la organización activa).
+- **Consecuencias:** los enlaces de los correos incluyen la organización
+  (`?org=<organization_id>`, `notifications.services.email_link`). Al abrirlos,
+  `TenantMiddleware` cambia la organización activa con el mismo servicio del
+  selector (rota la sesión y la recuerda) si la persona tiene membresía activa
+  ahí, y en todo caso redirige a la misma URL sin el parámetro: sin membresía se
+  ignora y la respuesta es idéntica, así no revela si la organización existe;
+  después aplica el 404/403 de siempre. Sin sesión, el parámetro viaja en
+  `next` por el login. Se eligió el ID en claro y no un token firmado: el ID
+  no es secreto ni da acceso (la membresía se verifica siempre) y el token no
+  frenaría a un sitio ajeno, que igual podría usar un enlace legítimo. El
+  riesgo real es de tipo CSRF: cambiar en segundo plano la organización activa
+  mientras se trabaja en otra pestaña. Por eso solo se acepta en un GET de
+  navegación de primer nivel (con Fetch Metadata: `Sec-Fetch-Dest: document` y
+  `Sec-Fetch-Mode: navigate`; nunca imágenes, iframes, fetch ni htmx) y nunca
+  en POST. Los avisos en la app no lo necesitan: la bandeja solo muestra los de
+  la organización activa.
 
 ### ADR-004 · Renderizado en servidor con htmx + Alpine; offline acotado en F2
 - **Contexto:** perfil Django/HTML/JS; hay que entregar muchas pantallas CRUD

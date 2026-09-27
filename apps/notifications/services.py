@@ -25,9 +25,11 @@ from django.utils.translation import gettext as _
 from apps.accounts.models import Membership
 from apps.accounts.permissions import Perm, has_perm
 from apps.accounts.scoping import allowed_location_ids
+from apps.core.middleware import ORG_PARAM
 from apps.core.tenancy import require_current_organization, tenant_context
 
 from .models import Kind, Notification, NotificationPreference
+from .selectors import receivable_kinds
 
 logger = logging.getLogger(__name__)
 
@@ -82,12 +84,24 @@ def absolute_url(path: str) -> str:
     return settings.SITE_URL.rstrip("/") + path
 
 
+def email_link(path: str) -> str:
+    """Enlace absoluto para un correo, con la organización del contexto (`?org=`, ADR-003).
+
+    Quien pertenece a varias organizaciones llega a la correcta: TenantMiddleware
+    cambia la activa si tiene membresía ahí y quita el parámetro.
+    """
+    path, hash_mark, fragment = path.partition("#")
+    separator = "&" if "?" in path else "?"
+    organization_id = require_current_organization().pk
+    return absolute_url(f"{path}{separator}{ORG_PARAM}={organization_id}{hash_mark}{fragment}")
+
+
 def _send_email(*, user, subject, template, context) -> None:
     context = {
         **context,
         "user": user,
         "organization": require_current_organization(),
-        "preferences_url": absolute_url(reverse("notification_preferences")),
+        "preferences_url": email_link(reverse("notification_preferences")),
     }
     try:
         send_mail(
@@ -151,7 +165,7 @@ def deliver(
                 user=membership.user,
                 subject=title,
                 template="notification",
-                context={"title": title, "body": body, "url": absolute_url(url) if url else ""},
+                context={"title": title, "body": body, "url": email_link(url) if url else ""},
             )
     return created
 
@@ -369,7 +383,7 @@ def send_due_notifications(*, today: datetime.date | None = None) -> int:
                         "code": work_order.code,
                         "title": work_order.title,
                         "due_on": work_order.due_on,
-                        "url": absolute_url(reverse("work_order_detail", args=[work_order.pk])),
+                        "url": email_link(reverse("work_order_detail", args=[work_order.pk])),
                     }
                     for kind, work_order in items
                 ],
@@ -411,9 +425,13 @@ def mark_all_read(*, membership) -> int:
 
 @transaction.atomic
 def save_preferences(*, membership, values: dict) -> None:
-    """Guarda las preferencias propias: {kind: (en la app, correo)}."""
+    """Guarda las preferencias propias: {kind: (en la app, correo)}.
+
+    Solo los tipos que el rol puede recibir; las de los demás tipos quedan como estaban.
+    """
+    allowed = set(receivable_kinds(membership=membership))
     for kind, (in_app, email) in values.items():
-        if kind not in Kind.values:
+        if kind not in allowed:
             continue
         NotificationPreference.objects.update_or_create(
             organization=membership.organization,

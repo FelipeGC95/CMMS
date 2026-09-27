@@ -68,3 +68,19 @@ def test_list_badge_and_open_show_only_own_notifications_of_the_active_org(clien
     with platform_context():
         foreign.refresh_from_db()
     assert foreign.read_at is None
+
+
+def test_org_link_of_b_never_shows_b_data_to_a_non_member(client, tenant_a, tenant_b):
+    """Un enlace con la organización B (`?org=`) no da acceso a B a quien no es miembro."""
+    with tenant_context(tenant_b.org):
+        wo_b = create_work_order(work_type="corrective", title="Secreto de B", asset=tenant_b.asset)
+    login(client, tenant_a.admin)
+    detail = reverse("work_order_detail", args=[wo_b.pk])
+    response = client.get(detail, {"org": str(tenant_b.org.pk)}, follow=True)
+    assert response.status_code == 404
+    assert "Secreto de B" not in response.content.decode()
+    assert client.session["active_organization_id"] == str(tenant_a.org.pk)
+    for garbage in ("", "no-es-uuid", tenant_b.org.slug):
+        response = client.get(reverse("work_order_list"), {"org": garbage}, follow=True)
+        assert response.status_code == 200 and "Secreto de B" not in response.content.decode()
+        assert client.session["active_organization_id"] == str(tenant_a.org.pk)
