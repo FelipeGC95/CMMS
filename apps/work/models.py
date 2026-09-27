@@ -110,6 +110,23 @@ class WorkOrder(TenantModel):
         related_name="work_orders",
         verbose_name=_("versión del plan"),
     )
+    # Correctiva nacida de un hallazgo (WO-06): la OT y el ítem No OK que la originaron.
+    parent_work_order = models.ForeignKey(
+        "self",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="child_work_orders",
+        verbose_name=_("OT de origen"),
+    )
+    source_checklist_item = models.ForeignKey(
+        "WorkOrderChecklistItem",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="corrective_work_orders",
+        verbose_name=_("ítem de origen"),
+    )
     assigned_to = models.ForeignKey(
         "accounts.User",
         on_delete=models.SET_NULL,

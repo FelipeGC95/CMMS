@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-27 01:38-0300\n"
+"POT-Creation-Date: 2026-09-27 04:52-0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2059,6 +2059,12 @@ msgstr ""
 msgid "versión del plan"
 msgstr ""
 
+msgid "OT de origen"
+msgstr ""
+
+msgid "ítem de origen"
+msgstr ""
+
 msgid "responsable"
 msgstr ""
 
@@ -2526,6 +2532,13 @@ msgstr ""
 msgid "El nombre es obligatorio."
 msgstr ""
 
+msgid "Solo un ítem marcado No OK origina una correctiva."
+msgstr ""
+
+#, python-format
+msgid "Hallazgo en %(code)s: %(item)s"
+msgstr ""
+
 msgid "Abiertas"
 msgstr ""
 
@@ -2606,6 +2619,10 @@ msgstr ""
 
 #, python-format
 msgid "%(code)s actualizado."
+msgstr ""
+
+#, python-format
+msgid "%(code)s creada desde el hallazgo."
 msgstr ""
 
 msgid "No hay opciones."
@@ -3977,6 +3994,9 @@ msgstr ""
 msgid "Crear correctiva"
 msgstr ""
 
+msgid "Correctiva creada desde este hallazgo:"
+msgstr ""
+
 msgid "Estado de la correa (fotos por ítem)"
 msgstr ""
 
@@ -4239,6 +4259,9 @@ msgstr ""
 msgid "foto %(n)s"
 msgstr ""
 
+msgid "Ítem No OK. Si requiere reparación, crea una OT correctiva."
+msgstr ""
+
 msgid "Activa JavaScript para firmar en pantalla."
 msgstr ""
 
@@ -4284,6 +4307,25 @@ msgstr ""
 msgid "Sí, quitar"
 msgstr ""
 
+msgid "Hallazgo No OK"
+msgstr ""
+
+msgid "Crear OT correctiva"
+msgstr ""
+
+msgid "Fotos del hallazgo (se verán en la correctiva)"
+msgstr ""
+
+#, python-format
+msgid "Foto %(n)s del hallazgo"
+msgstr ""
+
+msgid "Descripción (opcional)"
+msgstr ""
+
+msgid "Volver"
+msgstr ""
+
 msgid "Nueva OT"
 msgstr ""
 
@@ -4312,6 +4354,9 @@ msgid "Aprobar cierre"
 msgstr ""
 
 msgid "OT sobre una ubicación, sin activo"
+msgstr ""
+
+msgid "Hallazgo"
 msgstr ""
 
 msgid "Incluye (plan absorbido)"
@@ -4515,7 +4560,4 @@ msgid "Elige la solicitud que se mantiene"
 msgstr ""
 
 msgid "No hay otras solicitudes abiertas de este activo."
-msgstr ""
-
-msgid "Volver"
 msgstr ""

@@ -108,3 +108,23 @@ def test_generation_never_absorbs_assignments_of_another_organization(tenant_a, 
         assert not WorkOrderAbsorption.objects.filter(work_order=wo).exists()
     with tenant_context(tenant_b.org):
         assert len(generate_due_work_orders(today=today, horizon_days=14)) == 1
+
+
+def test_b_cannot_create_a_corrective_from_items_of_a(client, tenant_a, tenant_b):
+    from apps.work.models import WorkOrder
+    from apps.work.services import answer_checklist_item
+
+    with tenant_context(tenant_a.org):
+        wo = create_work_order(
+            work_type="preventive", title="x", asset=tenant_a.asset, checklist=list(tenant_a.plan.items.all())
+        )
+        item = wo.checklist.first()
+        answer_checklist_item(item=item, membership=tenant_a.tech, result="not_ok")
+    login(client, tenant_b.admin)
+    url = reverse("checklist_item_corrective", args=[wo.pk, item.pk])
+    assert client.get(url).status_code == 404
+    assert client.post(url, {}).status_code == 404
+    with tenant_context(tenant_b.org):
+        assert not WorkOrder.objects.filter(work_type="corrective").exists()
+    with tenant_context(tenant_a.org):
+        assert not WorkOrder.objects.filter(source_checklist_item=item).exists()

@@ -59,6 +59,7 @@ from .services import (
     checklist_editable,
     checklist_item_has_evidence,
     complete_work_order,
+    create_corrective_from_item,
     create_failure_code,
     create_work_order,
     failure_started_default,
@@ -197,12 +198,18 @@ def _complete_form(work_order, data=None):
 def _with_photos(items):
     """Adjunta a cada ítem sus fotos y su firma (una consulta) y un client_uuid para subir otra."""
     attachments = checklist_photos(items=items)
+    correctives = {}  # correctivas nacidas de cada ítem (WO-06), en una consulta
+    for child in WorkOrder.objects.filter(source_checklist_item__in=[i.pk for i in items]).order_by(
+        "created_at"
+    ):
+        correctives.setdefault(child.source_checklist_item_id, []).append(child)
     for item in items:
         files = attachments.get(item.pk, [])
         item.photos = [a for a in files if a.purpose != Purpose.SIGNATURE]
         signatures = [a for a in files if a.purpose == Purpose.SIGNATURE]
         item.signature = signatures[-1] if signatures else None
         item.photo_uuid = uuid.uuid4()
+        item.correctives = correctives.get(item.pk, [])
         if item.item_type == "signature":
             item.signature_form = ChecklistSignatureForm(auto_id=f"sig-{item.pk}-%s")
     return items
@@ -249,6 +256,9 @@ def _detail_context(request, work_order, complete_form=None, assignees_form=None
         "other_cost_form": OtherCostForm(),
         "attachments": [a for a in attachments if a.purpose != Purpose.SIGNATURE],
         "signature": signatures[-1] if signatures else None,
+        "source_item": _with_photos([work_order.source_checklist_item])[0]
+        if work_order.source_checklist_item_id
+        else None,
     }
 
 
@@ -829,3 +839,39 @@ def failure_code_toggle_view(request, pk):
         failure_code=failure_code, is_active=not failure_code.is_active, membership=request.membership
     )
     return redirect("failure_code_list")
+
+
+# --- Correctiva desde un hallazgo (WO-06) ---------------------------------------
+
+
+@membership_required(perm=Perm.REQUEST_CREATE)
+def checklist_item_corrective_view(request, pk, item_pk):
+    """Desde un ítem No OK: el gestor crea la correctiva; el técnico avisa la falla (prellenada)."""
+    item = _checklist_item_or_404(request, pk, item_pk)
+    parent = item.work_order
+    photos = _with_photos([item])[0].photos
+    if request.method == "POST":
+        try:
+            work_order = create_corrective_from_item(
+                item=item,
+                membership=request.membership,
+                description=request.POST.get("description", "")[:2000],
+                asset_stopped=bool(request.POST.get("asset_stopped")),
+            )
+        except WorkOrderError as exc:
+            messages.error(request, exc.message)
+        except PermissionDeniedError as exc:
+            raise PermissionDenied from exc
+        else:
+            messages.success(request, _("%(code)s creada desde el hallazgo.") % {"code": work_order.code})
+            return redirect("work_order_detail", pk=work_order.pk)
+    return render(
+        request,
+        "work/corrective_from_item.html",
+        {
+            "item": item,
+            "parent": parent,
+            "photos": photos,
+            "can_manage": has_perm(request.membership, Perm.WORK_ORDER_MANAGE),
+        },
+    )

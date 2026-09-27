@@ -79,3 +79,27 @@ def test_technician_cannot_add_absorption_through_the_service(in_a):
     )
     with pytest.raises(PermissionDeniedError):
         add_plan_absorption(membership=in_a.tech, plan=in_a.plan, absorbed_plan=minor)
+
+
+def test_technician_goes_through_the_failure_report_and_manager_creates_directly(client, tenant_a):
+    from apps.work.models import WorkOrder, WorkRequest
+    from apps.work.services import answer_checklist_item
+
+    with tenant_context(tenant_a.org):
+        wo = create_work_order(
+            work_type="preventive", title="x", asset=tenant_a.asset, checklist=list(tenant_a.plan.items.all())
+        )
+        first, second = wo.checklist.all()
+        answer_checklist_item(item=first, membership=tenant_a.tech, result="not_ok")
+        answer_checklist_item(item=second, membership=tenant_a.tech, value_number="1")
+    login(client, tenant_a.tech)
+    page = client.get(reverse("work_order_detail", args=[wo.pk])).content.decode()
+    assert "Avisar falla" in page and "Crear correctiva" not in page
+    client.post(reverse("checklist_item_corrective", args=[wo.pk, first.pk]), {})
+    login(client, tenant_a.admin)
+    client.post(reverse("checklist_item_corrective", args=[wo.pk, second.pk]), {})
+    with tenant_context(tenant_a.org):
+        by_tech = WorkOrder.objects.get(source_checklist_item=first)
+        by_admin = WorkOrder.objects.get(source_checklist_item=second)
+        assert WorkRequest.objects.filter(work_order=by_tech).exists() and by_tech.status == "requested"
+        assert not WorkRequest.objects.filter(work_order=by_admin).exists() and by_admin.status == "planned"

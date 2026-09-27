@@ -22,7 +22,7 @@ from apps.attachments.services import AttachmentError, QuotaExceededError
 from apps.audit import services as audit
 from apps.audit.models import AuditEvent
 from apps.core.tenancy import require_current_organization, tenant_context
-from apps.maintenance.models import ItemType, PlanVersion
+from apps.maintenance.models import ItemType, PlanVersion, format_number
 from apps.organizations.models import Location
 from apps.ui.templatetags.ui import work_order_status_label
 
@@ -1311,3 +1311,68 @@ def set_failure_code_active(*, failure_code: FailureCode, is_active: bool, membe
         changes={"is_active": [not is_active, is_active]},
     )
     return failure_code
+
+
+# --- Correctiva desde un hallazgo (WO-06) ---------------------------------------
+
+
+@transaction.atomic
+def create_corrective_from_item(
+    *, item: WorkOrderChecklistItem, membership, description: str = "", asset_stopped: bool = False
+) -> WorkOrder:
+    """Crea la OT correctiva de un ítem No OK (WO-06 CA1), vinculada a la OT y al ítem de origen.
+
+    Lleva el mismo activo (o ubicación) y el texto del ítem; las fotos del ítem
+    se muestran en la correctiva a través del vínculo (no se duplican ni
+    consumen cupo). Un gestor la crea directamente (planificada); quien solo
+    puede avisar fallas (técnico) pasa por el aviso de falla de siempre
+    (`report_failure`), que crea la solicitud y su correctiva. Idempotente: si
+    el ítem ya tiene una correctiva abierta, la devuelve.
+    """
+    from apps.maintenance.models import RESULT_ITEM_TYPES
+
+    parent = item.work_order
+    if item.item_type not in RESULT_ITEM_TYPES or item.result != WorkOrderChecklistItem.Result.NOT_OK:
+        raise WorkOrderError(_("Solo un ítem marcado No OK origina una correctiva."))
+    existing = (
+        WorkOrder.objects.filter(source_checklist_item=item)
+        .exclude(status__in=WorkOrder.CLOSED_STATUSES)
+        .first()
+    )
+    if existing is not None:
+        return existing
+    detail = description.strip() or item.note or ""
+    text = _("Hallazgo en %(code)s: %(item)s") % {"code": parent.code, "item": item.text}
+    if item.value_number is not None:
+        text += f" ({format_number(item.value_number)} {item.unit})".replace(" )", ")")
+    full = f"{text}\n{detail}".strip()
+    if has_perm(membership, Perm.WORK_ORDER_MANAGE):
+        work_order = create_work_order(
+            work_type=WorkOrder.Type.CORRECTIVE,
+            title=item.text,
+            description=full,
+            asset=parent.asset,
+            location=parent.location,
+            priority=_suggest_priority(parent.asset, asset_stopped),
+            status=S.PLANNED,
+            by=membership.user,
+        )
+    else:
+        work_order = report_failure(
+            membership=membership,
+            description=full,
+            asset=parent.asset,
+            location=parent.location,
+            asset_stopped=asset_stopped and parent.asset is not None,
+        ).work_order
+        work_order.title = item.text[:200]
+    work_order.parent_work_order = parent
+    work_order.source_checklist_item = item
+    work_order.save(update_fields=["title", "parent_work_order", "source_checklist_item", "updated_at"])
+    audit.record(
+        action=AuditEvent.Action.CREATE,
+        target=work_order,
+        actor=membership.user,
+        changes={"from_finding": [None, f"{parent.code} · {item.text}"]},
+    )
+    return work_order
