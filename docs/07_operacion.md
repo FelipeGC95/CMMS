@@ -23,6 +23,7 @@ lo único nuevo que expone es `/readyz`. Decisión en ADR-020
 | `DEFAULT_FROM_EMAIL`, `SERVER_EMAIL` | Remitente (dominio verificado en el proveedor). | `GALBUST CMMS <no-reply@galbust.cl>`. |
 | `EMAIL_USE_QUEUE=1` | Enviar correos desde el worker (reintentos). Requiere worker corriendo. | Envío sincrónico. |
 | `DOCUMENT_TEXT_USE_QUEUE=1` | Extraer el texto de los manuales PDF en el worker. Requiere worker corriendo. | Extracción al subir, en la misma petición. |
+| `DATA_EXPORT_USE_QUEUE=1` | Armar la exportación completa (X-03) en el worker. Requiere worker corriendo. | Se arma al pedirla, en la misma petición. |
 | `BACKUPS_ENABLED=1` | Respaldo diario (07:00 UTC) desde el worker. | La tarea diaria no hace nada. |
 | `BACKUP_DIR`, `BACKUP_RETENTION_DAYS` | Carpeta local de respaldos (sin R2) y retención. | `./backups`, `30`. |
 | `ACCOUNT_EMAIL_VERIFICATION` | Quitarla (queda `mandatory`) al tener proveedor de correo. | `mandatory`. |
@@ -44,7 +45,10 @@ Proveedor de correo (SMTP, ambos con plan gratuito para empezar):
     organización activa que genera sus OT preventivas (PM-05 CA1) con
     `tenant_context`;
   - 06:30 UTC, limpieza de trabajos terminados (> 7 días);
-  - 07:00 UTC, respaldo (solo con `BACKUPS_ENABLED=1`).
+  - 07:00 UTC, respaldo (solo con `BACKUPS_ENABLED=1`);
+  - 08:00 UTC, `organizations.purge_organizations`: borra los ZIP de
+    exportación vencidos y purga las organizaciones cuyo borrado venció
+    (X-04, sección 3c).
 - **Migraciones:** `python manage.py migrate` en el *pre-deploy command*.
 - Diagnóstico de la cola: `python manage.py procrastinate healthchecks`.
 
@@ -98,6 +102,34 @@ Proveedor de correo (SMTP, ambos con plan gratuito para empezar):
 - **Respaldos:** `backup_database` ya corre `pg_dump --enable-row-security`
   con el bypass; un `pg_dump` manual necesita lo mismo
   (`PGOPTIONS="-c app.bypass_rls=on" pg_dump --enable-row-security …`).
+
+## 3c. Exportación y borrado de organizaciones (X-03, X-04, ADR-027)
+
+- **Exportación:** el administrador la pide en Configuración → "Exportar
+  todos los datos". El ZIP queda en `org/<id>/exports/` y vence a los 7 días.
+  Sin worker se arma en la misma petición.
+- **Borrado:** el administrador lo pide en Configuración → "Eliminar la
+  organización" (contraseña + nombre). Queda `pending_deletion` 30 días; se
+  sigue usando con un aviso.
+- **Cancelar:** cualquier administrador de la organización, con el botón del
+  aviso. Soporte, sin administrador disponible: `manage.py shell` →
+  `services.cancel_organization_deletion(membership=<membresía admin>)` dentro
+  de `tenant_context(org)` (o en el admin de Django: estado `active` y vaciar
+  `deletion_requested_at`, `deletion_scheduled_for` y `deletion_requested_by`).
+- **Purga:** diaria a las 08:00 UTC en el worker. Sin worker, un cron diario:
+  `python manage.py purge_organizations` (`--dry-run` lista las vencidas sin
+  tocarlas). Es idempotente. Tras la purga queda la lápida (`status=deleted`,
+  `deleted_at`, `purge_summary`) y una línea de log "Organización … purgada".
+- **Respaldos:** la purga no toca los respaldos. Los datos borrados siguen en
+  los respaldos de Render y en `backups/` hasta que vencen
+  (`BACKUP_RETENTION_DAYS`, 30 días por defecto; los de Render según su plan).
+  Así se informa al cliente: borrado definitivo a los 30 días de gracia más
+  la retención de respaldos. Restaurar un respaldo anterior a la purga
+  revive la organización: tras restaurar, volver a correr
+  `purge_organizations`.
+- **Usuarios:** las cuentas no se borran; quien solo pertenecía a esa
+  organización entra y ve "sin organización". Borrar la cuenta es un pedido
+  aparte (admin de Django).
 
 ## 4. Checklist para activar producción
 

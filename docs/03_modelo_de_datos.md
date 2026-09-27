@@ -28,7 +28,10 @@ Los nombres de tablas y campos están en inglés (convención de código, ver
 `code` (basic, pro, enterprise, trial) · `name` · `max_assets` · `max_users` (null = ilimitado) · `max_storage_mb` · `features JSONB` (lista de códigos de módulo) · `is_active`.
 
 **`organization`** (tenant raíz)
-`name` · `slug` (único) · `plan_id` · `status` (trial, active, suspended, pending_deletion) · `trial_ends_at` · `timezone` (IANA, ej. `America/Santiago`) · `locale` (`es-CL`) · `currency` · `primary_color` (#RRGGBB o vacío, ORG-09) · `mfa_policy` (admins_only, everyone, optional; ORG-08) · `logo` (clave de objeto) · `allow_anonymous_reports` (aviso por QR sin cuenta, REQ-02; columna propia, apagado por defecto) · `limits_override JSONB` · `settings JSONB` (ej. `require_close_approval`, `planning_horizon_days`, `status_labels`) · `storage_used_bytes BIGINT` · `deletion_requested_at`.
+`name` · `slug` (único) · `plan_id` · `status` (trial, active, suspended, pending_deletion, deleted) · `trial_ends_at` · `timezone` (IANA, ej. `America/Santiago`) · `locale` (`es-CL`) · `currency` · `primary_color` (#RRGGBB o vacío, ORG-09) · `mfa_policy` (admins_only, everyone, optional; ORG-08) · `logo` (clave de objeto) · `allow_anonymous_reports` (aviso por QR sin cuenta, REQ-02; columna propia, apagado por defecto) · `limits_override JSONB` · `settings JSONB` (ej. `require_close_approval`, `planning_horizon_days`, `status_labels`) · `storage_used_bytes BIGINT` · `deletion_requested_at` · `deletion_scheduled_for` · `deletion_requested_by_id` · `deleted_at` · `purge_summary JSONB` (borrado X-04: tras la purga la fila queda como lápida anonimizada, ADR-027).
+
+**`data_export`** (X-03) — exportación completa de la organización.
+`organization_id` · `requested_by_id` · `status` (pending, ready, failed, expired) · `file` (`org/<org_id>/exports/<uuid>.zip`) · `size_bytes` · `finished_at` · `expires_at` (7 días) · `error`. Índice `(organization_id, created_at DESC)`.
 
 **`organization_feature`** — sobrescribe módulos del plan por organización.
 `organization_id` · `feature_code` · `enabled`. `UNIQUE (organization_id, feature_code)`.

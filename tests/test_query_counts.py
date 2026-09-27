@@ -739,6 +739,22 @@ def test_industry_template_apply_uses_bounded_queries(tenant_a, industry, django
     assert summary.plans
 
 
+def test_settings_and_delete_pages_do_not_grow_with_exports(client, tenant_a):
+    """Tarjeta de exportaciones (X-03): las últimas 5, con quien las pidió, sin N+1."""
+    from apps.organizations.models import DataExport
+
+    def add(n):
+        with tenant_context(tenant_a.org):
+            for _ in range(n):
+                DataExport.objects.create(requested_by=tenant_a.admin.user, status=DataExport.Status.EXPIRED)
+
+    login(client, tenant_a.admin)
+    add(1)
+    few = {name: _count(client, reverse(name)) for name in ("organization_settings", "organization_delete")}
+    add(8)
+    assert {name: _count(client, reverse(name)) for name in few} == few
+
+
 def test_notification_list_and_bell_are_bounded(client, tenant_a, django_assert_max_num_queries):
     """Bandeja (X-02) sin N+1 y campana con una sola consulta de conteo."""
     from apps.notifications.models import Kind, Notification

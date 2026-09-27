@@ -358,10 +358,12 @@ cambios). Consultable y filtrable por el administrador. Solo inserción.
 vencer/vencida, solicitud nueva, solicitud resuelta. Preferencias por usuario.
 
 **X-03 · Exportación completa de datos (M1)**: el administrador descarga un ZIP
-con todos los datos de su organización (Excel/CSV + adjuntos).
+con todos los datos de su organización (Excel/CSV + adjuntos). Implementado: un CSV
+por tabla + archivos, armado en segundo plano, vence a los 7 días (ADR-027).
 
 **X-04 · Borrado de organización (M1)**: a pedido, con período de gracia de
-30 días; luego borrado de datos y archivos, registrado.
+30 días; luego borrado de datos y archivos, registrado. Implementado: purga diaria
+con lápida de la organización; las cuentas de usuario se conservan (ADR-027).
 
 **X-05 · API REST (M1)**: OpenAPI en `/api/schema/`, documentación navegable,
 autenticación por token de organización con alcances; endpoints de activos,

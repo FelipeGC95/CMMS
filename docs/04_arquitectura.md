@@ -808,3 +808,68 @@ tener ingresos).
 - **Alternativas descartadas:** `SET LOCAL` por transacción (Django corre en
   autocommit y habría que abrir transacción en cada consulta); roles de base
   por organización (inmanejable con cientos de organizaciones).
+
+### ADR-027 · Exportación completa y borrado de organización (X-03, X-04)
+- **Contexto:** NF-08 exige que el cliente pueda llevarse todos sus datos y
+  pedir su borrado. Debe respetar el aislamiento (NF-07, ADR-026) y no agregar
+  pasos: el administrador pide, el sistema hace el resto.
+- **Decisión (exportación):**
+  - El administrador pide un ZIP desde `/settings/` (tarjeta "Exportar todos
+    los datos") o desde la página de borrado. Fila `DataExport`
+    (`TenantModel`): estado `pending` → `ready`/`failed` → `expired`. Una en
+    preparación a la vez por organización.
+  - Formato: **un CSV por tabla** (UTF-8 con BOM para Excel, separador coma,
+    fechas ISO 8601 en UTC) bajo `datos/`, más `organizacion.csv`,
+    `membresias.csv` (con correo y nombre) e `invitaciones.csv`; archivos
+    (adjuntos por tipo y propósito, y el logo) bajo `archivos/`; `LEEME.txt`
+    describe el contenido y los conteos. CSV antes que XLSX: portable, sin
+    límite de filas y en streaming.
+  - Las tablas se descubren (todo `TenantModel` concreto), salvo
+    `DataExport` y `DocumentPage` (texto derivado de los PDF, que van
+    completos). Se omiten columnas con nombre sensible (`password`,
+    `secret`, `token`, `key`: el mismo criterio de la auditoría).
+  - Se arma dentro de `tenant_context(organización)` con filtro explícito por
+    `organization_id`; en PostgreSQL RLS impide además que entre una fila de
+    otra organización (`tests/isolation/test_org_export_delete.py`).
+  - Con `DATA_EXPORT_USE_QUEUE=1` lo arma el worker
+    (`organizations.build_data_export`, cola `exports`, con
+    `organization_id`); si no, se arma en `transaction.on_commit` de la misma
+    petición. El ZIP se escribe a un temporal (`SpooledTemporaryFile`, 16 MB
+    en memoria y luego disco) y se guarda en
+    `org/<organization_id>/exports/<uuid>.zip`; se sirve solo por
+    `/settings/export/<id>/` (administrador, `private_file_response`, URL
+    firmada en R2). Vence a los 7 días (`DATA_EXPORT_TTL_DAYS`): la tarea
+    diaria borra el archivo y deja la fila en `expired`.
+  - Aviso al terminar: notificación `data_export_ready` (app y correo, según
+    preferencias) a quien la pidió. Auditoría: creación y cada descarga
+    (`download`).
+- **Decisión (borrado):**
+  - El administrador confirma con su contraseña y escribiendo el nombre de la
+    organización, después de ver la oferta de exportación. La organización
+    pasa a `pending_deletion` con `deletion_scheduled_for` = ahora + 30 días
+    (`ORGANIZATION_DELETION_GRACE_DAYS`). Todos ven un aviso con la fecha;
+    los administradores, el botón "Cancelar eliminación", que la devuelve a
+    `active` (o `trial` si la prueba sigue vigente). Ambas acciones quedan en
+    la auditoría.
+  - Durante la gracia la organización **sigue funcionando normalmente** (no
+    se fuerza solo lectura): más simple, y cancelar no pierde nada.
+  - La purga (tarea diaria `organizations.purge_organizations` a las 08:00
+    UTC o `manage.py purge_organizations`) es código de plataforma con
+    `platform_context()`: borra con `_raw_delete` todas las filas de todo
+    `TenantModel` con ese `organization_id` (las FK de Django son `DEFERRABLE
+    INITIALLY DEFERRED`: el orden no importa y se verifican al confirmar),
+    las membresías, invitaciones y los usuarios de servicio de sus tokens de
+    API; tras confirmar, todos los archivos bajo `org/<organization_id>/`.
+  - **Lápida:** la fila `organization` no se borra: queda anonimizada (nombre
+    "—", slug `deleted-<id>`, sin logo ni color, `is_active=False`, estado
+    `deleted`) con `deleted_at` y `purge_summary` (filas por tabla, archivos,
+    quién y cuándo la pidió). Es el registro de plataforma que sobrevive,
+    porque la auditoría de la organización se borra con ella; la purga
+    también escribe una línea de log. Es idempotente.
+  - Las cuentas de usuario no se borran: quien solo pertenecía a esa
+    organización conserva su cuenta (sin datos ni membresías) y puede ser
+    invitado a otra. Borrar la cuenta personal es otro flujo (fuera de X-04).
+- **Límites conocidos:** los respaldos de la base conservan los datos
+  borrados hasta que vencen (`BACKUP_RETENTION_DAYS`, ver
+  `docs/07_operacion.md`). La exportación síncrona (sin worker) depende del
+  tamaño de la organización, acotado por el cupo de almacenamiento del plan.

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-27 15:46-0300\n"
+"POT-Creation-Date: 2026-09-27 16:40-0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1389,6 +1389,15 @@ msgstr ""
 msgid "Revocación"
 msgstr ""
 
+msgid "Descarga"
+msgstr ""
+
+msgid "Eliminación solicitada"
+msgstr ""
+
+msgid "Eliminación cancelada"
+msgstr ""
+
 msgid "actor"
 msgstr ""
 
@@ -2215,6 +2224,9 @@ msgstr ""
 msgid "Mi solicitud resuelta"
 msgstr ""
 
+msgid "Exportación de datos lista"
+msgstr ""
+
 msgid "destinatario"
 msgstr ""
 
@@ -2428,6 +2440,45 @@ msgstr ""
 msgid "En modo oscuro los enlaces usan %(color)s, un tono más claro."
 msgstr ""
 
+#, python-format
+msgid "Exportación completa de datos · %(name)s"
+msgstr ""
+
+#, python-format
+msgid "Organización: %(id)s"
+msgstr ""
+
+#, python-format
+msgid "Generada: %(date)s (UTC)"
+msgstr ""
+
+msgid ""
+"datos/: un archivo CSV por tabla (UTF-8 con BOM, separador coma, primera "
+"fila = columnas). Las fechas van en ISO 8601 y UTC. Las columnas *_id "
+"enlazan con la columna id de otra tabla; user_id enlaza con datos/"
+"membresias.csv."
+msgstr ""
+
+msgid ""
+"archivos/: adjuntos (fotos, documentos, firmas, manuales) por tipo de objeto "
+"y propósito, con el nombre <id del adjunto>_<nombre original> (ver datos/"
+"attachments_attachment.csv); logo.png es el logo de la organización."
+msgstr ""
+
+msgid "No se incluyen secretos (hash de tokens de API o de invitaciones)."
+msgstr ""
+
+#, python-format
+msgid "%(file)s · %(label)s · %(count)s filas"
+msgstr ""
+
+#, python-format
+msgid "Archivos incluidos: %(count)s"
+msgstr ""
+
+msgid "No se encontraron en el almacenamiento:"
+msgstr ""
+
 msgid "Dentro de"
 msgstr ""
 
@@ -2499,6 +2550,15 @@ msgstr ""
 msgid "Elige un archivo de imagen para el logo."
 msgstr ""
 
+msgid "Tu contraseña"
+msgstr ""
+
+msgid "Nombre de la organización"
+msgstr ""
+
+msgid "Escríbelo tal como aparece arriba para confirmar."
+msgstr ""
+
 msgid "máximo de activos"
 msgstr ""
 
@@ -2520,7 +2580,7 @@ msgstr ""
 msgid "Suspendida"
 msgstr ""
 
-msgid "Eliminación solicitada"
+msgid "Eliminada"
 msgstr ""
 
 msgid "Obligatoria para administradores"
@@ -2565,10 +2625,46 @@ msgstr ""
 msgid "verificación en dos pasos"
 msgstr ""
 
+msgid "eliminación solicitada el"
+msgstr ""
+
+msgid "se eliminará el"
+msgstr ""
+
+msgid "eliminación solicitada por"
+msgstr ""
+
+msgid "eliminada el"
+msgstr ""
+
+msgid "resumen de la purga"
+msgstr ""
+
 msgid "organización"
 msgstr ""
 
 msgid "organizaciones"
+msgstr ""
+
+msgid "En preparación"
+msgstr ""
+
+msgid "Falló"
+msgstr ""
+
+msgid "solicitada por"
+msgstr ""
+
+msgid "terminada el"
+msgstr ""
+
+msgid "error"
+msgstr ""
+
+msgid "exportación de datos"
+msgstr ""
+
+msgid "exportaciones de datos"
 msgstr ""
 
 msgid "Sitio"
@@ -2688,6 +2784,28 @@ msgid ""
 "%(quota)s de su plan. Pide al administrador ampliar el plan."
 msgstr ""
 
+msgid "Ya hay una exportación en preparación. Te avisaremos cuando esté lista."
+msgstr ""
+
+msgid "Tu exportación de datos está lista"
+msgstr ""
+
+#, python-format
+msgid "Descárgala desde Configuración antes del %(date)s."
+msgstr ""
+
+msgid "La eliminación ya está solicitada."
+msgstr ""
+
+msgid "La contraseña no es correcta."
+msgstr ""
+
+msgid "Escribe el nombre de la organización tal como aparece."
+msgstr ""
+
+msgid "No hay una eliminación pendiente."
+msgstr ""
+
 #, python-format
 msgid "Ubicación %(name)s creada."
 msgstr ""
@@ -2714,6 +2832,21 @@ msgid "Logo quitado."
 msgstr ""
 
 msgid "Nombres de los estados guardados."
+msgstr ""
+
+msgid "Exportación lista. Descárgala abajo."
+msgstr ""
+
+msgid "No se pudo preparar la exportación. Inténtalo de nuevo."
+msgstr ""
+
+msgid "Estamos preparando la exportación. Te avisaremos cuando esté lista."
+msgstr ""
+
+msgid "Eliminación programada. Puedes cancelarla durante el período de gracia."
+msgstr ""
+
+msgid "Eliminación cancelada. La organización sigue activa."
 msgstr ""
 
 msgid "Puesta en servicio"
@@ -5687,6 +5820,72 @@ msgstr ""
 msgid "Continuar"
 msgstr ""
 
+#, python-format
+msgid ""
+"Un archivo ZIP con todos los datos de la organización (un CSV por tabla) y "
+"todos sus archivos: manuales, fotos, firmas y logo. El enlace de descarga "
+"vence a los %(days)s días."
+msgstr ""
+
+msgid "Exportaciones recientes"
+msgstr ""
+
+msgid "Pedida"
+msgstr ""
+
+msgid "Descargar"
+msgstr ""
+
+#, python-format
+msgid "Vence el %(date)s"
+msgstr ""
+
+msgid "Aún no hay exportaciones."
+msgstr ""
+
+msgid "Preparar exportación"
+msgstr ""
+
+#, python-format
+msgid ""
+"Esta organización se eliminará el %(date)s, con todos sus datos y archivos."
+msgstr ""
+
+msgid "Cancelar eliminación"
+msgstr ""
+
+msgid "Eliminar la organización"
+msgstr ""
+
+msgid "Volver a configuración"
+msgstr ""
+
+msgid "1. Descarga tus datos primero"
+msgstr ""
+
+msgid "2. Eliminar"
+msgstr ""
+
+#, python-format
+msgid ""
+"La eliminación está programada para el %(date)s. Hasta entonces todo sigue "
+"funcionando y puedes cancelarla."
+msgstr ""
+
+#, python-format
+msgid ""
+"Al confirmar, la organización queda marcada para eliminación. Durante "
+"%(grace_days)s días todo sigue funcionando y cualquier administrador puede "
+"cancelarla. Después se borran de forma definitiva todos los datos, archivos "
+"y accesos de la organización."
+msgstr ""
+
+msgid ""
+"Las cuentas de las personas no se borran: quienes solo pertenecían a esta "
+"organización conservan su usuario, sin datos. Los respaldos de la base se "
+"eliminan solos al vencer su retención."
+msgstr ""
+
 msgid "Avisar problema"
 msgstr ""
 
@@ -5799,6 +5998,22 @@ msgid "Sin límite"
 msgstr ""
 
 msgid "Para cambiar de plan o de cupos, escríbenos a soporte."
+msgstr ""
+
+msgid "Exportar todos los datos"
+msgstr ""
+
+#, python-format
+msgid "La eliminación está programada para el %(date)s."
+msgstr ""
+
+#, python-format
+msgid ""
+"Borra todos los datos y archivos de la organización después de un período de "
+"gracia de %(grace_days)s días, durante el cual se puede cancelar."
+msgstr ""
+
+msgid "Ver opciones de eliminación"
 msgstr ""
 
 #, python-format
@@ -5987,6 +6202,11 @@ msgid "Transición no permitida."
 msgstr ""
 
 msgid "La OT se generó automáticamente desde el plan."
+msgstr ""
+
+msgid ""
+"Esta organización se eliminará el 27 oct 2026, con todos sus datos y "
+"archivos."
 msgstr ""
 
 msgid "Pasos de un asistente"
