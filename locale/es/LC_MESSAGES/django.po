@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-27 00:19-0300\n"
+"POT-Creation-Date: 2026-09-27 00:25-0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -3480,7 +3480,10 @@ msgstr ""
 msgid "Publicar"
 msgstr ""
 
-msgid "Ordena con las flechas."
+msgid "Toca una tarea para editarla; ordena con las flechas."
+msgstr ""
+
+msgid "editar"
 msgstr ""
 
 #, python-format

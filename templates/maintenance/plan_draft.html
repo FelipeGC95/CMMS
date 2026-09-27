@@ -31,17 +31,16 @@
   <section class="card" id="items" aria-labelledby="items-title">
     <h2 id="items-title">{% translate "Checklist" %}</h2>
     {% if items %}
-    <p class="muted">{% translate "Ordena con las flechas." %}</p>
+    <p class="muted">{% translate "Toca una tarea para editarla; ordena con las flechas." %}</p>
     <ol class="list checklist-order">
       {% for item in items %}
       <li class="checklist-order__row">
         <div class="list__main">
-          <span class="list__title"><span class="mono muted">{{ item.order }}.</span> {{ item.text }}</span>
+          <span class="list__title"><span class="mono muted">{{ item.order }}.</span> <a href="{% url 'plan_item_edit' plan.pk item.pk %}">{{ item.text }}<span class="visually-hidden"> ({% translate "editar" %})</span></a></span>
           <span class="list__meta">{% if item.item_type == "measurement" %}{% translate "Medición" %}{% if item.unit %} · {{ item.unit }}{% endif %}{% if item.min_value is not None or item.max_value is not None %} · <span class="num">{{ item.min_value|measure }} – {{ item.max_value|measure }}</span>{% endif %}{% else %}{% translate "Verificación" %}{% endif %}</span>
           <span class="checklist-order__badges">{% if item.required %}<span class="badge badge--info">{% icon 'info' %}{% translate "Obligatorio" %}</span>{% else %}<span class="badge badge--neutral">{% icon 'dot' %}{% translate "Opcional" %}</span>{% endif %}</span>
         </div>
         <div class="checklist-order__actions">
-          <a class="btn btn--secondary btn--lg" href="{% url 'plan_item_edit' plan.pk item.pk %}">{% icon 'wrench' %}{% translate "Editar" %}<span class="visually-hidden"> «{{ item.text }}»</span></a>
           <form method="post" action="{% url 'plan_item_remove' plan.pk item.pk %}">{% csrf_token %}
             <button class="btn btn--danger btn--lg" type="submit">{% icon 'x' %}{% translate "Quitar" %}<span class="visually-hidden"> «{{ item.text }}»</span></button>
           </form>
@@ -72,9 +71,8 @@
     <ul class="list">
       {% for r in resources %}
       <li class="checklist-order__row">
-        <div class="list__main"><span class="list__title">{{ r.description }}</span><span class="list__meta">{{ r.get_kind_display }} · <span class="num">{{ r.quantity|measure }}{% if r.unit %} {{ r.unit }}{% endif %}</span></span></div>
+        <div class="list__main"><span class="list__title"><a href="{% url 'plan_resource_edit' plan.pk r.pk %}">{{ r.description }}<span class="visually-hidden"> ({% translate "editar" %})</span></a></span><span class="list__meta">{{ r.get_kind_display }} · <span class="num">{{ r.quantity|measure }}{% if r.unit %} {{ r.unit }}{% endif %}</span></span></div>
         <div class="checklist-order__actions">
-          <a class="btn btn--secondary btn--lg" href="{% url 'plan_resource_edit' plan.pk r.pk %}">{% icon 'wrench' %}{% translate "Editar" %}<span class="visually-hidden"> «{{ r.description }}»</span></a>
           <form method="post" action="{% url 'plan_resource_remove' plan.pk r.pk %}">{% csrf_token %}
             <button class="btn btn--danger btn--lg" type="submit">{% icon 'x' %}{% translate "Quitar" %}<span class="visually-hidden"> «{{ r.description }}»</span></button>
           </form>
