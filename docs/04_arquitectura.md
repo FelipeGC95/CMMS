@@ -733,3 +733,14 @@ tener ingresos).
   administrador lo abre desde Configuración y ve un aviso en el inicio hasta
   terminar o descartarlo. Solo administradores (`organization.manage`).
 
+### ADR-025 · Tablero semanal con arrastrar y soltar como mejora progresiva
+- **Decisión:** REQ-05 se programa con un formulario por tarjeta («Programar»: día y
+  responsable) que funciona sin JS y en el teléfono; `static/js/board.js` agrega
+  arrastrar y soltar (HTML5 drag-and-drop) en escritorio y envía el mismo formulario
+  con `fetch` y el encabezado `X-CSRFToken`. La vista responde 204/400 con el mensaje
+  cuando llega `X-Board-Drop` y redirige en el resto de los casos. Sin librerías ni JS
+  en línea (ADR-023).
+- **Capacidad:** `membership.weekly_capacity_hours` (la edita el administrador en
+  Equipo); no se crea un modelo de turnos hasta que un cliente lo pida.
+- **Puntaje del backlog:** expresión `CASE` en SQL (criticidad × prioridad) para
+  ordenar y paginar en la base, sin columnas guardadas que haya que mantener.

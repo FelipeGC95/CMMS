@@ -38,7 +38,7 @@ Los nombres de tablas y campos están en inglés (convención de código, ver
 Tablas de django‑allauth para verificación de correo, MFA y (F3) cuentas SSO.
 
 **`membership`** — relación usuario ↔ organización.
-`user_id` · `organization_id` · `role` (admin, planner, supervisor, technician, viewer, external) · `hourly_cost` · `is_active` · `restricted_to_locations` (bool).
+`user_id` · `organization_id` · `role` (admin, planner, supervisor, technician, viewer, external) · `hourly_cost` · `is_active` · `restricted_to_locations` (bool) · `weekly_capacity_hours` (decimal, por defecto 40; capacidad para el backlog en semanas y la carga del tablero semanal, REQ-04/05; solo cuenta en técnicos).
 `UNIQUE (organization_id, user_id)`.
 
 **`membership_location`** — alcance por sitio (si `restricted_to_locations`).
@@ -131,7 +131,7 @@ Pendiente del diseño original: `work_type` del plan.
 `UNIQUE (organization_id, work_type)`.
 
 **`work_order`**
-`organization_id` · `number` · `code` (ej. `OT-P-000123`, calculado) · `work_type` (preventive, corrective, predictive, improvement, inspection) · `status` · `priority` (1–4) · `title` · `description` · `asset_id` · `location_id` · `plan_assignment_id` · `plan_version_id` · `request_id` · `failure_event_id` · `parent_work_order_id` + `source_checklist_item_id` (correctiva nacida de un ítem No OK, WO‑06) · `due_at` · `due_meter_value` · `scheduled_for` (fecha) · `estimated_minutes` · `started_at` · `completed_at` · `closed_at` · `closed_by_id` · `meter_value_at_completion` · `completion_notes` · `labor_cost` · `parts_cost` · `other_cost` · `total_cost` · `client_uuid`.
+`organization_id` · `number` · `code` (ej. `OT-P-000123`, calculado) · `work_type` (preventive, corrective, predictive, improvement, inspection) · `status` · `priority` (1–4) · `title` · `description` · `asset_id` · `location_id` · `plan_assignment_id` · `plan_version_id` · `request_id` · `failure_event_id` · `parent_work_order_id` + `source_checklist_item_id` (correctiva nacida de un ítem No OK, WO‑06) · `due_at` · `due_meter_value` · `scheduled_for` (fecha; la fija la programación semanal, REQ-05, y se borra al volver a `planned`) · `estimated_minutes` · `started_at` · `completed_at` · `closed_at` · `closed_by_id` · `meter_value_at_completion` · `completion_notes` · `labor_cost` · `parts_cost` · `other_cost` · `total_cost` · `client_uuid`.
 `UNIQUE (organization_id, work_type, number)`; `UNIQUE (organization_id, client_uuid)`; índices `(organization_id, status, due_at)`, `(organization_id, asset_id, completed_at)`, `(organization_id, scheduled_for)`.
 Índice único parcial `(plan_assignment_id) WHERE status NOT IN ('closed','cancelled')`: garantiza que no existan dos OT abiertas de la misma asignación.
 
@@ -211,7 +211,7 @@ MTBF/MTTR; si el problema resulta ser de un equipo, la OT se crea sobre él.
 > `revoke` (tokens de API). Las decisiones sobre solicitudes son `transition`.
 
 **`notification`** (X-02)
-`organization_id` · `recipient_id` · `kind` (wo_assigned, wo_due_soon, wo_overdue, request_new, request_resolved) · `title` · `body` · `url` · `work_order_id` · `work_request_id` · `in_app` · `dedupe_key` · `read_at`.
+`organization_id` · `recipient_id` · `kind` (wo_assigned, wo_scheduled, wo_due_soon, wo_overdue, request_new, request_resolved) · `title` · `body` · `url` · `work_order_id` · `work_request_id` · `in_app` · `dedupe_key` · `read_at`.
 Índices `(organization_id, recipient_id, read_at)` (contador de la campana) y `(organization_id, recipient_id, created_at DESC)` (bandeja). `UNIQUE (organization_id, recipient_id, dedupe_key)` si `dedupe_key` no es vacío: el aviso diario de vencimiento usa `<kind>:<work_order_id>:<fecha>`, así que se envía una vez por OT, persona y día.
 > Implementado como `notifications.Notification`. Diferencias: no hay
 > `emailed_at`; una fila con `in_app = false` registra un aviso que solo salió
@@ -322,3 +322,14 @@ erDiagram
 7. **Importación de planes** (PM-08): un código nuevo crea el plan con su v1
    publicada; un código existente con cambios crea una `plan_version`
    borrador (nunca modifica la publicada); sin cambios, se omite.
+8. **Backlog y programación** (REQ-04/05): backlog = OT abiertas (`requested`, `planned`,
+   `scheduled`, `in_progress`, `on_hold`); una `completed` que espera aprobación ya no tiene
+   trabajo pendiente. Puntaje = criticidad del activo (A 3, B 2, C 1; una OT sobre una
+   ubicación cuenta como B) × prioridad (urgente 4, alta 3, normal 2, baja 1), calculado en
+   SQL; desempate por `due_on` (sin fecha al final) y `created_at`. Backlog en semanas =
+   Σ `estimated_minutes` / 60 ÷ Σ `weekly_capacity_hours` de los técnicos activos del alcance
+   (sin alcance propio cuentan siempre; con alcance, si alguna de sus ubicaciones cae en el
+   sitio filtrado). Carga diaria = estimación de las OT donde el técnico es responsable
+   principal; capacidad diaria = semanal ÷ 5 de lunes a viernes, cero el fin de semana.
+   Programar exige `requested`, `planned` o `scheduled` y un día desde hoy; pasa a
+   `scheduled` con la transición normal y avisa (`wo_scheduled`) a responsable y apoyo.
