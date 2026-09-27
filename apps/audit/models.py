@@ -43,6 +43,21 @@ class AuditEvent(TenantModel):
         ADMIN_CREATE = "admin_create", _("Creación en administración")
         ADMIN_UPDATE = "admin_update", _("Edición en administración")
         ADMIN_DELETE = "admin_delete", _("Eliminación en administración")
+        # OT: asignación, checklist, costos y término (X-01).
+        ASSIGN = "assign", _("Asignación")
+        CHECKLIST_EDIT = "checklist_edit", _("Edición de checklist")
+        COST_ADD = "cost_add", _("Costo agregado")
+        COST_REMOVE = "cost_remove", _("Costo quitado")
+        COMPLETE = "complete", _("Término de OT")
+        CLOSE = "close", _("Cierre de OT")
+        # Equipo y accesos.
+        INVITE = "invite", _("Invitación enviada")
+        INVITE_REVOKE = "invite_revoke", _("Invitación revocada")
+        INVITE_ACCEPT = "invite_accept", _("Invitación aceptada")
+        ROLE_CHANGE = "role_change", _("Cambio de rol o alcance")
+        DEACTIVATE = "deactivate", _("Desactivación")
+        REACTIVATE = "reactivate", _("Reactivación")
+        REVOKE = "revoke", _("Revocación")
 
     # SET_NULL: el evento sobrevive a la baja del usuario; actor_repr conserva quién fue.
     actor = models.ForeignKey(

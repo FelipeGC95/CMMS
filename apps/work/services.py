@@ -56,6 +56,9 @@ TRANSITIONS: dict[str, set[str]] = {
     S.CANCELLED: set(),
 }
 
+# Acción de auditoría de las transiciones con nombre propio (X-01); el resto es TRANSITION.
+TRANSITION_ACTIONS = {S.COMPLETED: AuditEvent.Action.COMPLETE, S.CLOSED: AuditEvent.Action.CLOSE}
+
 # Transiciones que un técnico puede hacer; el resto requiere WORK_ORDER_MANAGE.
 EXECUTION_TARGETS = {S.IN_PROGRESS, S.ON_HOLD, S.COMPLETED}
 
@@ -182,6 +185,14 @@ def create_work_order(
     if helpers:
         _save_helpers(work_order=work_order, helpers=helpers)
     WorkOrderTransition.objects.create(work_order=work_order, to_status=status, by=by)
+    audit.record(
+        action=AuditEvent.Action.CREATE,
+        target=work_order,
+        actor=by,
+        changes=audit.snapshot(
+            work_order, fields={"work_type", "status", "priority", "title", "asset", "location", "due_on"}
+        ),
+    )
     return work_order
 
 
@@ -208,7 +219,7 @@ def set_assignees(*, work_order: WorkOrder, membership, assigned_to=None, helper
         changes["helpers"] = [before_helpers, after_helpers]
     if changes:
         audit.record(
-            action=AuditEvent.Action.UPDATE, target=work_order, actor=membership.user, changes=changes
+            action=AuditEvent.Action.ASSIGN, target=work_order, actor=membership.user, changes=changes
         )
     return work_order
 
@@ -275,6 +286,14 @@ def report_failure(
         requested_by=user,
         work_order=work_order,
         client_uuid=client_uuid,
+    )
+    audit.record(
+        action=AuditEvent.Action.CREATE,
+        target=request,
+        actor=user,
+        changes=audit.snapshot(
+            request, fields={"number", "asset", "location", "asset_stopped", "work_order"}
+        ),
     )
     if asset_stopped:
         failure = FailureEvent.objects.create(
@@ -369,6 +388,12 @@ def transition(*, work_order: WorkOrder, to_status: str, membership, comment: st
     WorkOrderTransition.objects.create(
         work_order=work_order, from_status=from_status, to_status=to_status, by=user, comment=comment
     )
+    audit.record(
+        action=TRANSITION_ACTIONS.get(to_status, AuditEvent.Action.TRANSITION),
+        target=work_order,
+        actor=user,
+        changes={"status": [from_status, to_status], **({"comment": comment} if comment else {})},
+    )
 
     if to_status == S.COMPLETED and not work_order.organization.require_close_approval:
         _close(work_order=work_order, user=user, at=now)
@@ -387,6 +412,12 @@ def _close(*, work_order: WorkOrder, user, at, record=True):
             to_status=S.CLOSED,
             by=user,
             comment=_("Cierre automático (la organización no exige aprobación)"),
+        )
+        audit.record(
+            action=AuditEvent.Action.CLOSE,
+            target=work_order,
+            actor=user,
+            changes={"status": [work_order.status, S.CLOSED], "automatic": True},
         )
     recalculate_costs(work_order=work_order)  # los totales quedan fijos al cerrar (WO-04 CA3)
     work_order.status = S.CLOSED
@@ -612,7 +643,7 @@ def apply_plan_checklist(
         ]
     )
     audit.record(
-        action=AuditEvent.Action.UPDATE,
+        action=AuditEvent.Action.CHECKLIST_EDIT,
         target=work_order,
         actor=membership.user,
         changes={"checklist_applied": [None, f"{plan_version.plan.code} v{plan_version.number}"]},
@@ -661,7 +692,7 @@ def add_checklist_item(
         required=required,
     )
     audit.record(
-        action=AuditEvent.Action.UPDATE,
+        action=AuditEvent.Action.CHECKLIST_EDIT,
         target=work_order,
         actor=membership.user,
         changes={"checklist_item_added": [None, text]},
@@ -725,7 +756,7 @@ def remove_checklist_item(*, item: WorkOrderChecklistItem, membership) -> None:
     current.delete()
     _renumber_checklist(remaining)
     audit.record(
-        action=AuditEvent.Action.UPDATE,
+        action=AuditEvent.Action.CHECKLIST_EDIT,
         target=work_order,
         actor=membership.user,
         changes={"checklist_item_removed": [current.text, None]},
@@ -757,7 +788,7 @@ def move_checklist_item(*, item: WorkOrderChecklistItem, membership, direction: 
     items[index], items[target] = items[target], items[index]
     _renumber_checklist(items)
     audit.record(
-        action=AuditEvent.Action.UPDATE,
+        action=AuditEvent.Action.CHECKLIST_EDIT,
         target=work_order,
         actor=membership.user,
         changes={"checklist_item_moved": [f"{index + 1}. {item.text}", f"{target + 1}. {item.text}"]},
@@ -1040,6 +1071,7 @@ def log_labor(*, work_order: WorkOrder, membership, minutes: int) -> LaborEntry:
         hourly_cost=hourly_cost_for(membership),
     )
     recalculate_costs(work_order=work_order)
+    _audit_cost(AuditEvent.Action.COST_ADD, work_order, membership, "labor", f"{minutes} min", entry.cost)
     return entry
 
 
@@ -1068,6 +1100,7 @@ def add_part_usage(
         client_uuid=client_uuid,
     )
     recalculate_costs(work_order=work_order)
+    _audit_cost(AuditEvent.Action.COST_ADD, work_order, membership, "part", part.description, part.cost)
     return part
 
 
@@ -1089,6 +1122,7 @@ def add_other_cost(
         created_by=membership.user,
     )
     recalculate_costs(work_order=work_order)
+    _audit_cost(AuditEvent.Action.COST_ADD, work_order, membership, "other", cost.description, cost.cost)
     return cost
 
 
@@ -1099,8 +1133,23 @@ def remove_cost_line(*, line, membership) -> None:
     require_perm(membership, perm)
     work_order = line.work_order
     _require_cost_editable(work_order)
+    kind = "other" if isinstance(line, OtherCost) else "labor" if isinstance(line, LaborEntry) else "part"
+    label = f"{line.minutes} min" if isinstance(line, LaborEntry) else line.description
+    cost = line.cost
     line.delete()
     recalculate_costs(work_order=work_order)
+    _audit_cost(AuditEvent.Action.COST_REMOVE, work_order, membership, kind, label, cost)
+
+
+def _audit_cost(action, work_order, membership, kind, label, cost) -> None:
+    """Línea de costo agregada o quitada, en la auditoría de la OT (X-01)."""
+    line = {"kind": kind, "description": label, "cost": cost}
+    audit.record(
+        action=action,
+        target=work_order,
+        actor=membership.user,
+        changes={"cost_line": [None, line] if action == AuditEvent.Action.COST_ADD else [line, None]},
+    )
 
 
 # --- Decisión del planificador sobre solicitudes (REQ-01 CA3) -----------------
@@ -1370,7 +1419,7 @@ def create_corrective_from_item(
     work_order.source_checklist_item = item
     work_order.save(update_fields=["title", "parent_work_order", "source_checklist_item", "updated_at"])
     audit.record(
-        action=AuditEvent.Action.CREATE,
+        action=AuditEvent.Action.UPDATE,
         target=work_order,
         actor=membership.user,
         changes={"from_finding": [None, f"{parent.code} · {item.text}"]},

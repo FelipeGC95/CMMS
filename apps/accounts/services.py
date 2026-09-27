@@ -143,6 +143,13 @@ def _issue_invitation(*, organization_id, email, role, invited_by, base_url):
         invited_by=invited_by,
         expires_at=now + INVITATION_TTL,
     )
+    with tenant_context(organization):
+        audit.record(
+            action=AuditEvent.Action.INVITE,
+            target=invitation,
+            actor=invited_by,
+            changes={"email": email, "role": role},
+        )
     accept_url = base_url.rstrip("/") + reverse("invitation_accept", args=[token])
     transaction.on_commit(lambda: _send_invitation_email(invitation, accept_url))
     return invitation
@@ -154,6 +161,12 @@ def revoke_invitation(*, membership, invitation_id):
     invitation = pending_invitations_qs(membership.organization).get(pk=invitation_id)
     invitation.revoked_at = timezone.now()
     invitation.save(update_fields=["revoked_at", "updated_at"])
+    audit.record(
+        action=AuditEvent.Action.INVITE_REVOKE,
+        target=invitation,
+        membership=membership,
+        changes={"email": invitation.email},
+    )
     return invitation
 
 
@@ -178,6 +191,13 @@ def accept_invitation(*, invitation, user):
     User.objects.filter(pk=user.pk).update(last_organization=invitation.organization)
     # Abrir el enlace enviado a ese correo demuestra que es suyo.
     EmailAddress.objects.filter(user=user, email__iexact=invitation.email).update(verified=True)
+    with tenant_context(invitation.organization):
+        audit.record(
+            action=AuditEvent.Action.INVITE_ACCEPT,
+            target=membership,
+            actor=user,
+            changes={"invitation": str(invitation.pk), "role": membership.role},
+        )
     return membership
 
 
@@ -219,6 +239,16 @@ def update_member(*, membership, target, role, restricted_to_locations, location
     if (restricted_to_locations or role == Membership.Role.EXTERNAL) and not location_ids:
         raise TeamError(_("Elige al menos una ubicación para limitar el acceso."))
 
+    before = {
+        "role": target.role,
+        "restricted_to_locations": target.restricted_to_locations,
+        "locations": sorted(
+            str(pk)
+            for pk in MembershipLocation.objects.filter(membership=target).values_list(
+                "location_id", flat=True
+            )
+        ),
+    }
     target.role = role
     target.restricted_to_locations = restricted_to_locations
     target.save(update_fields=["role", "restricted_to_locations", "updated_at"])
@@ -227,6 +257,15 @@ def update_member(*, membership, target, role, restricted_to_locations, location
     existing = set(MembershipLocation.objects.filter(membership=target).values_list("location_id", flat=True))
     for location_id in location_ids - existing:
         MembershipLocation.objects.create(membership=target, location_id=location_id)
+    after = {
+        "role": role,
+        "restricted_to_locations": restricted_to_locations,
+        "locations": sorted(str(pk) for pk in location_ids),
+    }
+    if changes := audit.diff(before, after):
+        audit.record(
+            action=AuditEvent.Action.ROLE_CHANGE, target=target, membership=membership, changes=changes
+        )
     return target
 
 
@@ -248,6 +287,12 @@ def set_member_active(*, membership, target, active):
         _check_seat_available(organization, exclude_email=target.user.email)
     target.is_active = active
     target.save(update_fields=["is_active", "updated_at"])
+    audit.record(
+        action=AuditEvent.Action.REACTIVATE if active else AuditEvent.Action.DEACTIVATE,
+        target=target,
+        membership=membership,
+        changes={"is_active": [not active, active]},
+    )
     return target
 
 

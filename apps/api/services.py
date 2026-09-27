@@ -69,7 +69,7 @@ def revoke_token(*, membership, token: ApiToken) -> ApiToken:
         token.revoked_at = timezone.now()
         token.save(update_fields=["revoked_at", "updated_at"])
         audit.record(
-            action=AuditEvent.Action.UPDATE,
+            action=AuditEvent.Action.REVOKE,
             target=token,
             membership=membership,
             changes={"revoked_at": [None, token.revoked_at]},

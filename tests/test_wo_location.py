@@ -113,7 +113,7 @@ def test_set_assignees_replaces_helpers_and_is_audited(in_a, area):
     wo.refresh_from_db()
     assert wo.assigned_to == in_a.tech.user
     assert list(wo.helpers.all()) == [second]
-    event = AuditEvent.objects.get(target_id=str(wo.pk))
+    event = AuditEvent.objects.get(target_id=str(wo.pk), action=AuditEvent.Action.ASSIGN)
     assert event.changes["helpers"] == [[str(first)], [str(second)]]
     assert event.changes["assigned_to"] == ["", str(in_a.tech.user)]
 
