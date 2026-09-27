@@ -4,6 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#0B2E4F">
+  {# htmx no inyecta su <style> de indicadores: la CSP no admite estilos en línea. #}
+  <meta name="htmx-config" content='{"includeIndicatorStyles": false}'>
   <title>{% block title %}{% endblock %} · GALBUST CMMS</title>
   <link rel="icon" href="{% static 'brand/galbust-favicon.ico' %}">
   <link rel="apple-touch-icon" href="{% static 'brand/galbust-app-icon-180.png' %}">

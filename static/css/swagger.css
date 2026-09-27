@@ -1,0 +1,5 @@
+/* Swagger UI en /api/docs/: reemplaza el <style> en línea de drf-spectacular (CSP, ADR-022). */
+@import url("tokens.css");
+html { box-sizing: border-box; overflow-y: scroll; }
+*, *::after, *::before { box-sizing: inherit; }
+body { background: var(--galbust-mist); margin: 0; }

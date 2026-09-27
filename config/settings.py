@@ -53,6 +53,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    "apps.core.middleware.ContentSecurityPolicyMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.locale.LocaleMiddleware",
@@ -258,6 +259,9 @@ BACKUP_DIR = Path(os.environ.get("BACKUP_DIR", BASE_DIR / "backups"))
 BACKUP_RETENTION_DAYS = int(os.environ.get("BACKUP_RETENTION_DAYS", "30"))
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+# CSP estricta (ADR-022, docs/04 §5): sin scripts ni estilos en línea, sin marcos.
+CONTENT_SECURITY_POLICY = infra.content_security_policy(os.environ)
 
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = "Lax"

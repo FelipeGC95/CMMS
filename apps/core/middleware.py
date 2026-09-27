@@ -57,6 +57,20 @@ class TenantMiddleware:
             timezone.deactivate()
 
 
+class ContentSecurityPolicyMiddleware:
+    """Agrega la cabecera Content-Security-Policy (ADR-022) a toda respuesta que no la traiga."""
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+        self.policy = getattr(settings, "CONTENT_SECURITY_POLICY", "")
+
+    def __call__(self, request):
+        response = self.get_response(request)
+        if self.policy and "Content-Security-Policy" not in response:
+            response["Content-Security-Policy"] = self.policy
+        return response
+
+
 class PrivateCacheMiddleware:
     """Las páginas con sesión no se guardan en el caché del navegador (ORG-07 CA2).
 

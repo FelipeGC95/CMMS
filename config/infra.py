@@ -6,6 +6,7 @@ mientras no se definan sus variables (ver docs/07_operacion.md).
 """
 
 from collections.abc import Mapping
+from urllib.parse import urlsplit
 
 R2_REQUIRED_VARS = ("R2_BUCKET", "R2_ENDPOINT_URL", "R2_ACCESS_KEY_ID", "R2_SECRET_ACCESS_KEY")
 # ADR-014 / NF-06: las descargas son URLs firmadas de corta duración.
@@ -19,6 +20,35 @@ def env_flag(env: Mapping[str, str], name: str, default: bool = False) -> bool:
 def r2_enabled(env: Mapping[str, str]) -> bool:
     """R2 se activa solo con las cuatro variables definidas; si falta alguna, disco local."""
     return all(env.get(name) for name in R2_REQUIRED_VARS)
+
+
+def content_security_policy(env: Mapping[str, str]) -> str:
+    """CSP estricta (ADR-022): todo desde el propio dominio, sin scripts ni estilos en línea.
+
+    Las imágenes admiten `data:` (QR de la verificación en dos pasos) y `blob:` (vista
+    previa de fotos). Con R2, las URL firmadas de descarga llegan por redirección desde
+    el host del endpoint (o un subdominio con el bucket): se agregan a `img-src`.
+    `CSP_EXTRA_IMG_SRC` (separado por espacios) suma otros orígenes si hiciera falta.
+    """
+    img_src = ["'self'", "data:", "blob:"]
+    endpoint = env.get("R2_ENDPOINT_URL", "") if r2_enabled(env) else ""
+    if endpoint:
+        host = urlsplit(endpoint).netloc
+        img_src += [f"https://{host}", f"https://*.{host}"]
+    img_src += env.get("CSP_EXTRA_IMG_SRC", "").split()
+    directives = {
+        "default-src": ["'self'"],
+        "script-src": ["'self'"],
+        "style-src": ["'self'"],
+        "img-src": img_src,
+        "font-src": ["'self'"],
+        "connect-src": ["'self'"],
+        "object-src": ["'none'"],
+        "base-uri": ["'self'"],
+        "form-action": ["'self'"],
+        "frame-ancestors": ["'none'"],
+    }
+    return "; ".join(f"{name} {' '.join(values)}" for name, values in directives.items())
 
 
 def default_storage_config(env: Mapping[str, str]) -> dict:

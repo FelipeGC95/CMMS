@@ -139,7 +139,7 @@ revés; los modelos no llaman servicios; las vistas HTML y la API llaman a
 | Sesión | Cookies `Secure`, `HttpOnly`, `SameSite=Lax`; rotación al iniciar sesión y al cambiar de organización; expiración por inactividad configurable. |
 | Autorización | Permisos por rol verificados en servicios y selectors (no solo en la UI); objetos siempre obtenidos por selectors con alcance. |
 | Transporte | HTTPS obligatorio, HSTS (1 año, preload cuando el dominio sea estable). |
-| Cabeceras | CSP estricta (sin scripts en línea; htmx y Alpine servidos localmente; Alpine en su build compatible con CSP), `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`. |
+| Cabeceras | CSP estricta en toda respuesta (ADR-022: sin scripts ni estilos en línea; htmx y Alpine servidos localmente; Alpine en su build compatible con CSP), `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`. |
 | API | Tokens por organización con alcances, guardados como hash, con prefijo visible; límite de tasa por token. |
 | Archivos | Validación de tipo real (magic bytes) y tamaño; nombres aleatorios; sin ejecución; URLs firmadas de corta duración. |
 | Secretos | Variables de entorno de Render; `.env` solo local e ignorado por git; gitleaks en CI. |
@@ -649,3 +649,24 @@ tener ingresos).
   tratan de MFA la apagan en `conftest.py`). La demo pública (`seed_demo`)
   usa `optional` porque sus usuarios son compartidos. El ingreso con código de
   recuperación usa la misma pantalla que el código TOTP.
+
+### ADR-022 · Content-Security-Policy propia, estricta y sin excepciones en línea
+- **Decisión:** un middleware pequeño (`apps.core.middleware.ContentSecurityPolicyMiddleware`,
+  sin django-csp) agrega a toda respuesta la política armada en
+  `config.infra.content_security_policy`: `default-src 'self'; script-src 'self';
+  style-src 'self'; img-src 'self' data: blob:` (+ host de R2 y subdominios si
+  hay R2, + `CSP_EXTRA_IMG_SRC`); `font-src`, `connect-src` y `base-uri 'self'`;
+  `object-src 'none'; form-action 'self'; frame-ancestors 'none'`. Sin nonces
+  ni `unsafe-inline`: las fuentes son locales, htmx y el JS propio se sirven
+  como archivos. `data:` cubre el QR de la verificación en dos pasos; `blob:`,
+  las vistas previas de fotos.
+- **Ajustes:** htmx no inyecta su `<style>` de indicadores
+  (`<meta name="htmx-config">` con `includeIndicatorStyles: false`); Swagger UI
+  (`/api/docs/`) usa una plantilla propia sin el `<style>` de drf-spectacular
+  (`static/css/swagger.css`) y su script de inicio ya era un archivo aparte; el
+  color de cada organización se sirve como hoja `/org-theme.css` (ORG-09).
+  `tests/test_csp.py` verifica la cabecera y que ninguna plantilla tenga
+  `<script>` sin `src`, `<style>`, atributos `style=` ni manejadores `on*=`.
+- **Consecuencias:** nada de JS o CSS en línea, tampoco en plantillas de
+  terceros que se sobrescriban. Alpine, cuando entre, debe ser su build
+  compatible con CSP.
