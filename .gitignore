@@ -27,6 +27,7 @@ Desktop.ini
 # Django
 db.sqlite3
 media/
+backups/
 staticfiles/
 .env
 .ruff_cache/
