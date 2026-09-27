@@ -72,3 +72,36 @@ def test_inbox_photo_needs_the_manage_permission(client, tenant_a, role):
     member = tenant_a.tech if role == "technician" else tenant_a.viewer
     login(client, member)
     assert client.get(reverse("request_photo", args=[request.pk])).status_code == 403
+
+
+def test_request_photo_file_respects_the_site_scope(client, tenant_a, settings, tmp_path):
+    """El archivo de la foto de un aviso solo lo ve quien ve la solicitud (alcance por sitio)."""
+    from django.core.files.uploadedfile import SimpleUploadedFile
+
+    from apps.accounts.models import Membership, MembershipLocation, User
+    from apps.attachments.models import Attachment
+    from apps.organizations.models import Location
+    from apps.work.services import report_anonymous_failure
+    from tests.conftest import PASSWORD, tiny_jpeg_bytes
+
+    settings.MEDIA_ROOT = tmp_path
+    tenant_a.org.allow_anonymous_reports = True
+    tenant_a.org.save()
+    photo = SimpleUploadedFile("f.jpg", tiny_jpeg_bytes(), content_type="image/jpeg")
+    with tenant_context(tenant_a.org):
+        mine = Location.objects.create(code="P1", name="Planta 1")
+        other = Location.objects.create(code="P2", name="Planta 2")
+        tenant_a.asset.location = other
+        tenant_a.asset.save()
+        report_anonymous_failure(asset=tenant_a.asset, name="Juan", description="x", photo=photo)
+        attachment = Attachment.objects.get()
+        user = User.objects.create_user(f"scoped@{tenant_a.org.slug}.cl", PASSWORD)
+        scoped = Membership.objects.create(
+            user=user, organization=tenant_a.org, role="planner", restricted_to_locations=True
+        )
+        MembershipLocation.objects.create(membership=scoped, location=mine)
+    url = reverse("attachment", args=[attachment.pk])
+    login(client, scoped)
+    assert client.get(url).status_code == 404
+    login(client, tenant_a.admin)
+    assert client.get(url).status_code == 200

@@ -224,7 +224,7 @@ def visible_requests(*, membership):
 def anonymous_request_photos(work_request):
     """Fotos de un aviso anónimo que aún no tiene OT (ver `services.report_anonymous_failure`)."""
     return Attachment.objects.filter(
-        target_type=TargetType.WORK_ORDER, target_id=work_request.pk, purpose=Purpose.PHOTO
+        target_type=TargetType.WORK_REQUEST, target_id=work_request.pk, purpose=Purpose.PHOTO
     ).order_by("created_at")
 
 
@@ -235,7 +235,7 @@ def pending_requests(*, membership):
     """
     require_perm(membership, Perm.WORK_ORDER_MANAGE)
     photos = Attachment.objects.filter(
-        target_type=TargetType.WORK_ORDER, target_id=OuterRef("pk"), purpose=Purpose.PHOTO
+        target_type=TargetType.WORK_REQUEST, target_id=OuterRef("pk"), purpose=Purpose.PHOTO
     ).order_by("created_at")
     return (
         visible_requests(membership=membership)

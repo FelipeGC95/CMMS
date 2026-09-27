@@ -167,7 +167,7 @@ servicio exige que cada usuario tenga membresía activa en la organización.
 
 **`work_request`**
 `organization_id` · `number` · `asset_id` · `location_id` · `description` · `asset_stopped` · `status` (new, accepted, rejected, merged) · `requested_by_id` (null si anónima) · `anonymous_name` · `is_anonymous` · `resolved_by_id` · `resolution_note` · `work_order_id` · `merged_into_id` · `client_uuid`.
-Una solicitud anónima (REQ-02) no tiene OT hasta que se acepta; su foto es un `attachment` con `target_type = work_order` y `target_id` = id de la solicitud, y al aceptarla pasa a la OT nueva (así no hizo falta un `target_type` más).
+Una solicitud anónima (REQ-02) no tiene OT hasta que se acepta; su foto es un `attachment` con `target_type = work_request`, y al aceptarla pasa a la OT nueva (`target_type = work_order`).
 
 **`failure_code`** — catálogo estructurado según ISO 14224, contenido propio.
 `organization_id` · `kind` (mode, cause, mechanism, detection) · `code` · `name` · `description` · `parent_id` (subcategorías) · `iso_categories` (array: a qué categorías de activo aplica) · `is_active`.

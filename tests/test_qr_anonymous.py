@@ -86,7 +86,8 @@ def test_accepting_an_anonymous_report_creates_the_work_order_and_moves_the_phot
         asset=in_a.asset, name="Juan", description="Ruido fuerte", asset_stopped=True, photo=photo()
     )
     attachment = Attachment.objects.get()
-    assert attachment.target_id == request.pk and attachment.uploaded_by is None
+    assert (attachment.target_type, attachment.target_id) == (TargetType.WORK_REQUEST, request.pk)
+    assert attachment.uploaded_by is None
     accept_request(work_request=request, membership=in_a.admin)
     request.refresh_from_db()
     work_order = request.work_order
@@ -294,3 +295,64 @@ def test_public_form_is_csrf_protected(tenant_a):
     strict.cookies.clear()
     assert strict.post(qr_url(tenant_a), data).status_code == 403
     assert not requests_of(tenant_a)
+
+
+# --- Foto del aviso con su propio target (REQ-02) --------------------------------------
+
+
+def test_request_photo_is_served_by_the_generic_file_view(client, tenant_a, settings, tmp_path):
+    settings.MEDIA_ROOT = tmp_path
+    enable(tenant_a)
+    with tenant_context(tenant_a.org):
+        report_anonymous_failure(asset=tenant_a.asset, name="Juan", description="x", photo=photo())
+        attachment = Attachment.objects.get()
+    assert attachment.target_type == TargetType.WORK_REQUEST
+    login(client, tenant_a.admin)
+    assert client.get(reverse("attachment", args=[attachment.pk])).status_code == 200
+
+
+def _migration_apps():
+    from django.db import connection
+    from django.db.migrations.executor import MigrationExecutor
+
+    loader = MigrationExecutor(connection).loader
+    return loader.project_state(("attachments", "0005_work_request_target")).apps
+
+
+def test_migration_moves_old_anonymous_photos_to_the_request_target(tenant_a, tenant_b, settings, tmp_path):
+    """Filas antiguas (`work_order` + id de la solicitud) pasan a `work_request`; nada más cambia."""
+    import importlib
+
+    from apps.core.tenancy import platform_context
+    from apps.work.services import add_attachment, create_work_order
+
+    migration = importlib.import_module("apps.attachments.migrations.0005_work_request_target")
+    settings.MEDIA_ROOT = tmp_path
+    enable(tenant_a)
+    enable(tenant_b)
+    with tenant_context(tenant_b.org):
+        request_b = report_anonymous_failure(asset=tenant_b.asset, name="B", description="x")
+    with tenant_context(tenant_a.org):
+        request = report_anonymous_failure(asset=tenant_a.asset, name="Juan", description="x", photo=photo())
+        old = Attachment.objects.get()
+        wo = create_work_order(work_type="corrective", title="x", asset=tenant_a.asset)
+        wo_photo = add_attachment(work_order=wo, uploaded_file=photo(), by=None)
+        stray = add_attachment(work_order=wo, uploaded_file=photo(), by=None)
+        Attachment.objects.filter(pk=old.pk).update(target_type=TargetType.WORK_ORDER)  # como antes
+        Attachment.objects.filter(pk=stray.pk).update(target_id=request_b.pk)  # id de otra organización
+
+    with platform_context():
+        migration.forwards(_migration_apps(), None)
+    with tenant_context(tenant_a.org):
+        rows = dict(Attachment.objects.values_list("pk", "target_type"))
+    assert rows == {
+        old.pk: TargetType.WORK_REQUEST,
+        wo_photo.pk: TargetType.WORK_ORDER,
+        stray.pk: TargetType.WORK_ORDER,
+    }
+    assert Attachment.all_tenants.get(pk=old.pk).target_id == request.pk  # plataforma: solo lectura
+
+    with platform_context():
+        migration.backwards(_migration_apps(), None)
+    with tenant_context(tenant_a.org):
+        assert Attachment.objects.get(pk=old.pk).target_type == TargetType.WORK_ORDER

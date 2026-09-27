@@ -24,6 +24,8 @@ class TargetType(models.TextChoices):
     WORK_ORDER = "work_order", _("Orden de trabajo")
     CHECKLIST_ITEM = "checklist_item", _("Ítem de checklist")
     ASSET_CLASS = "asset_class", _("Clase de activo")
+    # Foto de un aviso anónimo por QR (REQ-02) hasta que se acepta; entonces pasa a la OT.
+    WORK_REQUEST = "work_request", _("Solicitud")
 
 
 class Purpose(models.TextChoices):
