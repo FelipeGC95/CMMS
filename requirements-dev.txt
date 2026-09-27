@@ -62,6 +62,7 @@ pycparser==3.0 ; implementation_name != 'PyPy'
     # via cffi
 pygments==2.21.0
     # via pytest
+pypdf==6.19.0
 pytest==9.1.1
     # via pytest-django
 pytest-django==4.14.0

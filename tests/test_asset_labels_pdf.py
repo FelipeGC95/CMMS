@@ -1,11 +1,11 @@
 """Etiquetas QR en PDF, varias por hoja A4 (AST-05 CA2)."""
 
-import base64
+import io
 import re
-import zlib
 
 import pytest
 from django.urls import reverse
+from pypdf import PdfReader
 
 from apps.assets.labels import LAYOUTS, MAX_LABELS, render_labels_pdf
 from apps.assets.models import Asset
@@ -26,17 +26,9 @@ def pdf_pages(pdf: bytes) -> int:
 
 
 def pdf_text(pdf: bytes) -> str:
-    """Contenido de las páginas (ASCII85 + Flate de reportlab) para buscar textos dibujados."""
-    chunks = []
-    for raw in re.findall(rb"stream\r?\n(.*?)endstream", pdf, re.S):
-        data = raw.strip()
-        try:
-            if data.endswith(b"~>"):
-                data = base64.a85decode(data, adobe=True)
-            chunks.append(zlib.decompress(data).decode("latin-1"))
-        except (ValueError, zlib.error):
-            continue  # imágenes u otros flujos binarios
-    return "\n".join(chunks)
+    """Texto dibujado en todas las páginas (las fuentes TTF incrustadas no dejan texto plano)."""
+    reader = PdfReader(io.BytesIO(pdf))
+    return "\n".join(page.extract_text() for page in reader.pages)
 
 
 def add_assets(tenant, n, prefix="E"):
@@ -71,14 +63,14 @@ def test_one_label_per_asset_and_pages_by_layout(tenant_a, extra, layout, pages)
     total = extra + 1
     assert pdf_pages(pdf) == pages == -(-total // LAYOUTS[layout].per_page)
     text = pdf_text(pdf)
-    assert text.count("(CMP-01) Tj") == 1
-    assert sum(text.count(f"(E-{i:03d}) Tj") for i in range(extra)) == extra
+    assert text.count("CMP-01") == 1
+    assert sum(text.count(f"E-{i:03d}") for i in range(extra)) == extra
 
 
 def test_without_logo_the_label_shows_the_organization_name(tenant_a):
     pdf = _render(tenant_a)
     assert b"/Subtype /Image" not in pdf
-    assert f"({tenant_a.org.name}) Tj" in pdf_text(pdf)
+    assert tenant_a.org.name in pdf_text(pdf)
 
 
 def test_with_logo_the_label_shows_the_image_once(tenant_a):
@@ -89,14 +81,14 @@ def test_with_logo_the_label_shows_the_image_once(tenant_a):
     # El logo se incrusta una vez (imagen + su máscara de transparencia) y se reutiliza en las 6.
     assert pdf.count(b"/Subtype /Image") == 2
     assert pdf.count(b"/SMask") == 1
-    assert f"({tenant_a.org.name}) Tj" not in pdf_text(pdf)
+    assert tenant_a.org.name not in pdf_text(pdf)
 
 
 def test_missing_logo_file_falls_back_to_the_name(tenant_a):
     with tenant_context(tenant_a.org):
         org = set_organization_logo(membership=tenant_a.admin, uploaded_file=image_upload())
     org.logo.storage.delete(org.logo.name)
-    assert f"({tenant_a.org.name}) Tj" in pdf_text(_render(tenant_a))
+    assert tenant_a.org.name in pdf_text(_render(tenant_a))
 
 
 def test_qr_points_to_the_token_url_not_the_internal_id(client, tenant_a):
@@ -115,15 +107,15 @@ def test_view_prints_only_the_selected_assets(client, tenant_a):
         reverse("asset_labels_pdf"), {"scope": "selected", "ids": [str(extra[0].pk), str(extra[2].pk), "x"]}
     )
     text = pdf_text(response.content)
-    assert "(E-000) Tj" in text and "(E-002) Tj" in text
-    assert "(E-001) Tj" not in text and "(CMP-01) Tj" not in text
+    assert "E-000" in text and "E-002" in text
+    assert "E-001" not in text and "CMP-01" not in text
 
 
 def test_view_prints_the_current_filter(client, tenant_a):
     add_assets(tenant_a, 3)
     login(client, tenant_a.admin)
     text = pdf_text(client.get(reverse("asset_labels_pdf"), {"scope": "filtered", "q": "E-00"}).content)
-    assert "(E-000) Tj" in text and "(CMP-01) Tj" not in text
+    assert "E-000" in text and "CMP-01" not in text
 
 
 def test_selected_without_marks_returns_to_the_list_with_a_message(client, tenant_a):
@@ -152,7 +144,7 @@ def test_retired_assets_are_not_printed(client, tenant_a):
     with tenant_context(tenant_a.org):
         Asset.objects.filter(pk=extra[0].pk).update(is_active=False)
     login(client, tenant_a.admin)
-    assert "(E-000) Tj" not in pdf_text(client.get(reverse("asset_labels_pdf")).content)
+    assert "E-000" not in pdf_text(client.get(reverse("asset_labels_pdf")).content)
 
 
 def test_old_labels_page_redirects_to_the_selection(client, tenant_a):
@@ -178,3 +170,13 @@ def test_many_labels_use_a_bounded_number_of_queries(client, tenant_a, django_as
     with django_assert_max_num_queries(8):
         response = client.get(reverse("asset_labels_pdf"), {"size": "2x5"})
     assert pdf_pages(response.content) == 7
+
+
+def test_names_beyond_latin1_print_with_the_embedded_font(tenant_a):
+    name = "Bomba Ñandú – Nº 3 ø25 ✓"
+    with tenant_context(tenant_a.org):
+        Asset.objects.filter(pk=tenant_a.asset.pk).update(name=name)
+    pdf = _render(tenant_a, layout="2x5")
+    assert b"DejaVuSans" in pdf  # fuente TTF incrustada, no Helvetica
+    text = pdf_text(pdf)
+    assert "Bomba Ñandú – Nº 3 ø25 ✓" in " ".join(text.split())

@@ -18,7 +18,7 @@ def test_every_role_can_print_labels(client, tenant_a, role):
     login(client, tenant_a.tech)
     response = client.get(reverse("asset_labels_pdf"))
     assert response.status_code == 200
-    assert "(CMP-01) Tj" in pdf_text(response.content)
+    assert "CMP-01" in pdf_text(response.content)
 
 
 def test_external_without_locations_has_nothing_to_print(client, tenant_a):
@@ -49,11 +49,11 @@ def test_site_scoped_member_prints_only_assets_in_scope(client, tenant_a):
     login(client, tenant_a.tech)
 
     text = pdf_text(client.get(reverse("asset_labels_pdf")).content)
-    assert "(IN-01) Tj" in text
-    assert "(OUT-01) Tj" not in text and "(CMP-01) Tj" not in text
+    assert "IN-01" in text
+    assert "OUT-01" not in text and "CMP-01" not in text
 
     response = client.get(
         reverse("asset_labels_pdf"), {"scope": "selected", "ids": [str(inside.pk), str(outside.pk)]}
     )
     text = pdf_text(response.content)
-    assert "(IN-01) Tj" in text and "(OUT-01) Tj" not in text
+    assert "IN-01" in text and "OUT-01" not in text

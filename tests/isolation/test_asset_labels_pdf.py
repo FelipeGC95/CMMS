@@ -32,7 +32,7 @@ def test_mixed_ids_print_only_the_own_assets(client, tenant_a, tenant_b):
         {"scope": "selected", "ids": [str(tenant_a.asset.pk), str(tenant_b.asset.pk)]},
     )
     text = pdf_text(response.content)
-    assert "(CMP-01) Tj" in text
+    assert "CMP-01" in text
     assert "SOLO-A" not in text
     assert tenant_a.asset.qr_token not in text
     assert tenant_a.org.name not in text
@@ -49,4 +49,4 @@ def test_logo_of_another_organization_is_not_used(client, tenant_a, tenant_b):
     login(client, tenant_b.admin)
     response = client.get(reverse("asset_labels_pdf"))
     assert b"/Subtype /Image" not in response.content
-    assert f"({tenant_b.org.name}) Tj" in pdf_text(response.content)
+    assert tenant_b.org.name in pdf_text(response.content)

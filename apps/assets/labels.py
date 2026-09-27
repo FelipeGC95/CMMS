@@ -8,6 +8,8 @@ nombre de la organización.
 
 import io
 from dataclasses import dataclass
+from functools import cache
+from pathlib import Path
 
 import segno
 from django.utils.translation import gettext_lazy as _
@@ -15,7 +17,8 @@ from reportlab.lib.colors import HexColor
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.units import mm
 from reportlab.lib.utils import ImageReader, simpleSplit
-from reportlab.pdfbase.pdfmetrics import stringWidth
+from reportlab.pdfbase.pdfmetrics import registerFont, stringWidth
+from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.pdfgen import canvas
 
 # Tope de etiquetas por PDF: 500 son 21 hojas de 24; más que eso se filtra la lista.
@@ -29,9 +32,24 @@ PAGE_MARGIN = 6 * mm  # dentro del área que imprime cualquier impresora de ofic
 CELL_PADDING = 3 * mm
 QR_BORDER_MODULES = 2  # zona silenciosa del QR; el relleno de la celda suma el resto
 
-TEXT_FONT = "Helvetica"
-ORG_FONT = "Helvetica-Bold"
-CODE_FONT = "Courier-Bold"
+# Fuentes TTF incrustadas (DejaVu, licencia libre en fonts/LICENSE_DEJAVU.txt): las
+# estándar del PDF solo cubren Latin-1 y cortan nombres como «Ñandú – Nº 3 ø25».
+FONTS_DIR = Path(__file__).resolve().parent / "fonts"
+TEXT_FONT = "GalbustLabelSans"
+ORG_FONT = "GalbustLabelSans-Bold"
+CODE_FONT = "GalbustLabelMono-Bold"
+FONT_FILES = {
+    TEXT_FONT: "DejaVuSans.ttf",
+    ORG_FONT: "DejaVuSans-Bold.ttf",
+    CODE_FONT: "DejaVuSansMono-Bold.ttf",
+}
+
+
+@cache
+def register_fonts() -> None:
+    """Registra las fuentes una vez por proceso; reportlab incrusta solo los glifos usados."""
+    for name, filename in FONT_FILES.items():
+        registerFont(TTFont(name, str(FONTS_DIR / filename)))
 
 
 @dataclass(frozen=True)
@@ -178,6 +196,7 @@ def render_labels_pdf(*, assets, organization, qr_url, layout_key: str = DEFAULT
 
     `qr_url(token)` devuelve la URL absoluta del QR del activo (`asset_qr`).
     """
+    register_fonts()
     layout = LAYOUTS.get(layout_key, LAYOUTS[DEFAULT_LAYOUT])
     page_w, page_h = A4
     cell_w = (page_w - 2 * PAGE_MARGIN) / layout.columns

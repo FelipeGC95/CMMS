@@ -544,8 +544,11 @@ tener ingresos).
 - **Decisión:** los PDF se generan con **reportlab** (dibujo directo sobre un
   lienzo A4, sin librerías del sistema; solo depende de Pillow, que ya está).
   El QR se dibuja como vectores a partir de la matriz de `segno`, el mismo
-  generador de la ficha del activo. Las etiquetas usan las fuentes estándar
-  del PDF (Helvetica y Courier), que cubren el español.
+  generador de la ficha del activo. Las etiquetas usan fuentes TTF
+  incrustadas (DejaVu Sans, Sans Bold y Sans Mono Bold, licencia libre, en
+  `apps/assets/fonts/` junto a su licencia), que cubren Latin extendido,
+  griego, cirílico y símbolos comunes (–, Nº, ø, ✓); reportlab incrusta solo
+  los glifos usados.
 - **Por qué:** se instala con `uv` como cualquier paquete, funciona igual en
   Windows, en el CI y en Render, y genera 500 etiquetas en menos de un
   segundo sin un proceso aparte. Es una librería madura y mantenida.
@@ -559,7 +562,8 @@ tener ingresos).
   - Los reportes PDF futuros (OT, informes) se dibujan con reportlab
     (`platypus` para documentos con flujo de texto) o se reevalúa este ADR
     si un reporte necesita maquetación HTML compleja.
-  - Las fuentes estándar solo cubren Latin-1: nombres con otros alfabetos se
-    verán mal hasta registrar una fuente TTF propia (se hará con i18n F3).
+  - Las fuentes estándar del PDF (Helvetica, Courier) solo cubren Latin-1, por
+    eso no se usan. Alfabetos fuera de DejaVu (CJK, árabe con ligaduras) no
+    se ven bien; si un cliente los necesita se registra otra TTF.
   - El PDF de etiquetas tiene un tope de 500 por archivo (21 hojas de 24)
     para acotar memoria y tiempo de la petición web; sobre eso se filtra.
