@@ -28,7 +28,10 @@ class DashboardFilterForm(forms.Form):
         ],
     )
     date_from = forms.DateField(
-        label=_("Desde"), required=False, widget=forms.DateInput(attrs={"type": "date"})
+        label=_("Desde"),
+        required=False,
+        help_text=_("Con fechas se mide ese rango."),
+        widget=forms.DateInput(attrs={"type": "date"}),
     )
     date_to = forms.DateField(
         label=_("Hasta"), required=False, widget=forms.DateInput(attrs={"type": "date"})
@@ -74,6 +77,9 @@ class DashboardFilterForm(forms.Form):
 
     def clean(self):
         data = super().clean()
+        # Poner fechas basta para medir ese rango: no hace falta elegir además «Personalizado».
+        if data.get("date_from") or data.get("date_to"):
+            data["period"] = CUSTOM
         if data.get("period") == CUSTOM:
             date_from, date_to = data.get("date_from"), data.get("date_to")
             if not date_from:
@@ -87,9 +93,7 @@ class DashboardFilterForm(forms.Form):
     def filters(self) -> KpiFilters:
         """Filtros válidos; un campo con error se ignora (el tablero siempre se muestra)."""
         data = {key: value for key, value in self.cleaned_data.items() if key not in self.errors}
-        custom = (
-            data.get("period") == CUSTOM and "date_from" not in self.errors and "date_to" not in self.errors
-        )
+        custom = data.get("period") == CUSTOM and not {"date_from", "date_to"} & set(self.errors)
         return KpiFilters(
             days=PERIODS.get(data.get("period") or "30", 30),
             date_from=data.get("date_from") if custom else None,

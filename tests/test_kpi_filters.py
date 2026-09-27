@@ -152,3 +152,9 @@ def test_dashboard_unknown_asset_code_is_a_field_error(client, tenant_a):
     response = client.get(reverse("dashboard"), {"asset": "NO-EXISTE"})
     assert response.status_code == 200
     assert "asset" in response.context["filter_form"].errors
+
+
+def test_dates_alone_select_the_custom_range(client, tenant_a):
+    login(client, tenant_a.admin)
+    response = client.get(reverse("dashboard"), {"period": "30", "date_from": "2026-09-01"})
+    assert response.context["kpis"].period_start == datetime.date(2026, 9, 1)
