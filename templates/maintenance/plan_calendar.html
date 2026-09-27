@@ -75,7 +75,7 @@
   <div class="month-grid__day{% if not cell.in_month %} month-grid__day--out{% endif %}{% if cell.date == today %} month-grid__day--today{% endif %}">
     <span class="month-grid__num">{{ cell.date|date:"j" }}</span>
     {% for o in cell.items %}
-    <span class="month-grid__item{% if o.absorbed_into %} month-grid__item--absorbed{% endif %}">{% if o.work_order %}{% icon 'wrench' %}{% elif o.absorbed_into %}{% icon 'dot' %}{% else %}{% icon 'calendar' %}{% endif %}{% if o.plan %}{{ o.plan.name }}{% else %}{{ o.work_order.title }}{% endif %}{% if o.asset %} · {{ o.asset.code }}{% endif %}</span>
+    <span class="month-grid__item{% if o.absorbed_into %} month-grid__item--absorbed{% endif %}">{% if o.work_order %}{% icon 'wrench' %}{% elif o.absorbed_into %}{% icon 'dot' %}{% else %}{% icon 'calendar' %}{% endif %}{% if o.plan %}{{ o.plan.name }}{% else %}{{ o.work_order.title }}{% endif %}{% if o.asset %} · <span class="month-grid__code">{{ o.asset.code }}</span>{% endif %}</span>
     {% endfor %}
     {% if cell.more %}<a class="month-grid__more" href="#d-{{ cell.date|date:'Y-m-d' }}" tabindex="-1">{% blocktranslate count n=cell.more %}+{{ n }} más{% plural %}+{{ n }} más{% endblocktranslate %}</a>{% endif %}
   </div>
