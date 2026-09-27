@@ -243,8 +243,10 @@ tener ingresos).
   certificados comodín, cookies por subdominio y fricción para usuarios con
   varias organizaciones); prefijo en la URL `/o/<slug>/` (es viable y se
   puede agregar después para enlaces compartibles).
-- **Consecuencias:** los enlaces de notificaciones incluyen la organización
-  (`?org=`) para cambiar de contexto al abrirlos.
+- **Consecuencias:** los enlaces de notificaciones deberían incluir la
+  organización (`?org=`) para cambiar de contexto al abrirlos. Pendiente: hoy
+  los correos enlazan a la OT sin `?org=`; quien tiene varias organizaciones
+  debe cambiar la activa antes (la bandeja muestra solo la organización activa).
 
 ### ADR-004 · Renderizado en servidor con htmx + Alpine; offline acotado en F2
 - **Contexto:** perfil Django/HTML/JS; hay que entregar muchas pantallas CRUD
@@ -613,8 +615,18 @@ tener ingresos).
     PostgreSQL (no soporta SQLite); el esquema llega con `migrate`. Tareas en
     `apps/<app>/tasks.py`: preventivos cada hora, una tarea por organización
     con `tenant_context` (PM-05 CA1); limpieza diaria de la cola; respaldo
-    diario si `BACKUPS_ENABLED=1`. Nada corre sin el proceso
-    `manage.py procrastinate worker`.
+    diario si `BACKUPS_ENABLED=1`; avisos de OT por vencer y vencidas cada
+    día a las 11:00 UTC, una tarea por organización (X-02,
+    `apps/notifications/tasks.py`). Nada corre sin el proceso
+    `manage.py procrastinate worker`; mientras tanto, un cron puede llamar a
+    `manage.py send_due_notifications` (idempotente por OT, persona y día).
+  - **Notificaciones (X-02):** los servicios de OT y solicitudes llaman a
+    `apps.notifications.services` dentro de su transacción; el aviso en la
+    app se crea en `transaction.on_commit` (sin worker, en la misma
+    petición) y el correo sale por `send_mail`, que pasa por la cola si
+    `EMAIL_USE_QUEUE=1`. Los enlaces de los correos usan `SITE_URL` (por
+    defecto el dominio de Render). La campana del encabezado pide su
+    contador por htmx al cargar y cada 60 s (sin JS en línea).
   - **Archivos (ADR-014):** con `R2_BUCKET`, `R2_ENDPOINT_URL`,
     `R2_ACCESS_KEY_ID` y `R2_SECRET_ACCESS_KEY` el almacenamiento pasa a R2
     (bucket privado); las vistas con permisos siguen siendo la entrada y

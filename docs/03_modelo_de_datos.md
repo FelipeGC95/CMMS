@@ -192,13 +192,21 @@ MTBF/MTTR; si el problema resulta ser de un equipo, la OT se crea sobre él.
 > organización, no se registra. `at` es `created_at`; `object_type` es
 > `target_type` (content type). En `changes` nunca se guardan campos sensibles
 > (password, secret, token, key). Consulta: `/audit/`, solo para administradores.
+> Acciones además de las genéricas: `assign`, `checklist_edit`, `cost_add`,
+> `cost_remove`, `complete`, `close` (OT); `invite`, `invite_revoke`,
+> `invite_accept`, `role_change`, `deactivate`, `reactivate` (equipo);
+> `revoke` (tokens de API). Las decisiones sobre solicitudes son `transition`.
 
-**`notification`**
-`organization_id` · `recipient_id` · `kind` · `title` · `body` · `url` · `read_at` · `emailed_at`.
-Índice `(recipient_id, organization_id, read_at)`.
+**`notification`** (X-02)
+`organization_id` · `recipient_id` · `kind` (wo_assigned, wo_due_soon, wo_overdue, request_new, request_resolved) · `title` · `body` · `url` · `work_order_id` · `work_request_id` · `in_app` · `dedupe_key` · `read_at`.
+Índices `(organization_id, recipient_id, read_at)` (contador de la campana) y `(organization_id, recipient_id, created_at DESC)` (bandeja). `UNIQUE (organization_id, recipient_id, dedupe_key)` si `dedupe_key` no es vacío: el aviso diario de vencimiento usa `<kind>:<work_order_id>:<fecha>`, así que se envía una vez por OT, persona y día.
+> Implementado como `notifications.Notification`. Diferencias: no hay
+> `emailed_at`; una fila con `in_app = false` registra un aviso que solo salió
+> por correo (no aparece en la bandeja, pero evita repetir el envío). El
+> título y el detalle se guardan ya traducidos al crearse.
 
 **`notification_preference`**
-`organization_id` · `user_id` · `kind` · `in_app` · `email`.
+`organization_id` · `user_id` · `kind` · `in_app` · `email`. `UNIQUE (organization_id, user_id, kind)`. Sin fila, ambos canales activos.
 
 **`import_job` / `export_job`**
 `organization_id` · `kind` · `status` (pending, validating, ready, running, done, failed) · `file_key` · `result_key` · `summary JSONB` (filas OK/errores) · `created_by_id` · `finished_at`.
