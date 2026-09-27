@@ -27,9 +27,9 @@
       </a>
       <nav class="navbar__links" aria-label="{% translate 'Principal' %}">
         <a href="{% url 'dashboard' %}" {% nav_current '/' %}>{% translate "Inicio" %}</a>
-        <a href="{% url 'work_order_list' %}" {% nav_current '/work-orders/' %}>{% translate "Órdenes de trabajo" %}</a>
-        <a href="{% url 'asset_list' %}" {% nav_current '/assets/' %}>{% translate "Activos" %}</a>
-        {% if membership|can:"work_order.manage" %}<a href="{% url 'request_list' %}" {% nav_current '/requests/' %}>{% translate "Solicitudes" %}</a>{% endif %}
+        {% if organization|has_module:"work_orders" %}<a href="{% url 'work_order_list' %}" {% nav_current '/work-orders/' %}>{% translate "Órdenes de trabajo" %}</a>{% endif %}
+        {% if organization|has_module:"assets" %}<a href="{% url 'asset_list' %}" {% nav_current '/assets/' %}>{% translate "Activos" %}</a>{% endif %}
+        {% if membership|can:"work_order.manage" and organization|has_module:"requests" %}<a href="{% url 'request_list' %}" {% nav_current '/requests/' %}>{% translate "Solicitudes" %}</a>{% endif %}
         {# Catálogo de falla, ubicaciones, clases, equipo, auditoría y configuración viven en "Más", igual que en móvil. #}
         <a href="{% url 'menu' %}" {% nav_current '/menu/' '/report/' '/failure-codes/' '/team/' '/audit/' '/locations/' '/asset-classes/' '/settings/' '/plans/' %}>{% translate "Más" %}</a>
       </nav>
@@ -69,8 +69,8 @@
   {% if user.is_authenticated %}
   <nav class="bottom-nav" aria-label="{% translate 'Navegación móvil' %}">
     <a href="{% url 'dashboard' %}" {% nav_current '/' %}>{% icon 'home' %}{% translate "Inicio" %}</a>
-    <a href="{% url 'work_order_list' %}?scope=mine" {% nav_current '/work-orders/' %}>{% icon 'list' %}{% translate "Mis OT" %}</a>
-    <a href="{% url 'asset_list' %}" {% nav_current '/assets/' %}>{% icon 'box' %}{% translate "Activos" %}</a>
+    {% if organization|has_module:"work_orders" %}<a href="{% url 'work_order_list' %}?scope=mine" {% nav_current '/work-orders/' %}>{% icon 'list' %}{% translate "Mis OT" %}</a>{% endif %}
+    {% if organization|has_module:"assets" %}<a href="{% url 'asset_list' %}" {% nav_current '/assets/' %}>{% icon 'box' %}{% translate "Activos" %}</a>{% endif %}
     <a href="{% url 'menu' %}" {% nav_current '/menu/' '/report/' '/requests/' '/failure-codes/' '/team/' '/audit/' '/locations/' '/asset-classes/' '/settings/' '/plans/' %}>{% icon 'menu' %}{% translate "Más" %}</a>
   </nav>
   {% endif %}

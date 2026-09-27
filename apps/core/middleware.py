@@ -27,7 +27,7 @@ class TenantMiddleware:
             from apps.accounts.models import Membership
 
             memberships = list(
-                Membership.objects.select_related("organization").filter(
+                Membership.objects.select_related("organization__plan").filter(
                     user=request.user, is_active=True, organization__is_active=True
                 )
             )

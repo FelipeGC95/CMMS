@@ -8,6 +8,7 @@ from django.core.files.base import ContentFile
 from django.db import transaction
 from django.template.defaultfilters import filesizeformat
 from django.utils.translation import gettext as _
+from django.utils.translation import gettext_lazy
 from PIL import Image, ImageOps, UnidentifiedImageError
 
 from apps.accounts.permissions import Perm, require_perm
@@ -99,6 +100,64 @@ def delete_location(*, membership, location):
         changes=audit.snapshot(location, LOCATION_FIELDS),
     )
     location.delete()
+
+
+# ---------- Cupos del plan (ORG-10 CA1) ----------
+
+QUOTA_WARNING_RATIO = 0.8
+
+
+class QuotaExceeded(ValidationError):
+    """Crear más superaría el cupo del plan. Leer y editar lo existente sigue permitido."""
+
+
+def _quota(organization, resource):
+    """(en uso, máximo) del recurso; máximo None = ilimitado. Cuenta en la organización activa."""
+    plan = organization.plan
+    if resource == "assets":
+        from apps.assets.models import Asset  # diferido: assets depende de organizations
+
+        # Cuentan todos los activos, también los dados de baja (igual que en Configuración).
+        return Asset.objects.filter(organization=organization).count(), plan.max_assets if plan else None
+    raise ValueError(f"Cupo desconocido: {resource}")
+
+
+QUOTA_LABELS = {"assets": gettext_lazy("activos")}
+
+
+def check_quota(*, organization, resource, adding=1):
+    """Bloquea la creación si superaría el cupo (100 %). Llamar dentro de la transacción que crea.
+
+    Bloquea la fila de la organización para que dos altas simultáneas no pasen ambas el límite.
+    """
+    Organization.objects.select_for_update().filter(pk=organization.pk).first()
+    used, limit = _quota(organization, resource)
+    if limit is not None and used + adding > limit:
+        raise QuotaExceeded(
+            _(
+                "Tu plan %(plan)s permite hasta %(limit)s %(resource)s y ya tienes %(used)s. "
+                "Puedes seguir viendo y editando, pero para crear más hay que cambiar de plan."
+            )
+            % {
+                "plan": organization.plan.name,
+                "limit": limit,
+                "resource": QUOTA_LABELS[resource],
+                "used": used,
+            }
+        )
+
+
+def quota_warning(*, organization, resource):
+    """Aviso al llegar al 80 % del cupo; None si no hay nada que avisar."""
+    used, limit = _quota(organization, resource)
+    if not limit or used < limit * QUOTA_WARNING_RATIO:
+        return None
+    return _("Usas %(used)s de %(limit)s %(resource)s de tu plan (%(percent)s %%).") % {
+        "used": used,
+        "limit": limit,
+        "resource": QUOTA_LABELS[resource],
+        "percent": min(100, round(used * 100 / limit)),
+    }
 
 
 # ---------- Configuración de la organización (WO-02 CA2, REQ-03 CA2) ----------

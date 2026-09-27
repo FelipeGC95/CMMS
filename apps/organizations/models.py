@@ -10,7 +10,8 @@ from apps.core.models import TenantModel, TimeStampedModel
 class Plan(TimeStampedModel):
     """Plan comercial: catálogo de plataforma, sin tenant. Cupo en blanco = ilimitado.
 
-    Los cupos y módulos se hacen cumplir en MVP-1 (ORG-10); por ahora solo se registran.
+    Cupo de activos y módulos se hacen cumplir (ORG-10): `organizations.services.check_quota`
+    y `organizations.modules`. `features` vacío = sin restricción de módulos.
     """
 
     code = models.SlugField(_("código"), unique=True)

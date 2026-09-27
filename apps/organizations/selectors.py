@@ -88,6 +88,11 @@ class QuotaRow:
     def is_over(self) -> bool:
         return self.limit is not None and self.used > self.limit
 
+    @property
+    def is_near(self) -> bool:
+        """Al 80 % o más del cupo (ORG-10 CA1), sin pasarse."""
+        return self.limit is not None and not self.is_over and self.used >= self.limit * 0.8
+
 
 def organization_quotas(*, membership) -> list[QuotaRow]:
     """Uso de los cupos del plan de la organización activa (solo lectura, ORG-01 CA1).

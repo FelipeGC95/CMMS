@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-27 05:46-0300\n"
+"POT-Creation-Date: 2026-09-27 06:03-0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1937,6 +1937,33 @@ msgstr ""
 msgid "ubicaciones"
 msgstr ""
 
+msgid "Órdenes de trabajo"
+msgstr ""
+
+msgid "Mantenimiento preventivo"
+msgstr ""
+
+msgid "Solicitudes"
+msgstr ""
+
+msgid "Indicadores"
+msgstr ""
+
+msgid "Exportación a Excel y PDF"
+msgstr ""
+
+msgid "Inicio de sesión único (SSO)"
+msgstr ""
+
+#, python-format
+msgid ""
+"%(module)s no está incluido en tu plan %(plan)s. Escríbenos a soporte para "
+"cambiar de plan y activarlo."
+msgstr ""
+
+msgid "Tu plan no incluye este módulo."
+msgstr ""
+
 msgid "Usuarios"
 msgstr ""
 
@@ -1965,6 +1992,16 @@ msgstr ""
 msgid ""
 "No se puede eliminar: tiene ubicaciones o activos dentro. Desactívala en su "
 "lugar."
+msgstr ""
+
+#, python-format
+msgid ""
+"Tu plan %(plan)s permite hasta %(limit)s %(resource)s y ya tienes %(used)s. "
+"Puedes seguir viendo y editando, pero para crear más hay que cambiar de plan."
+msgstr ""
+
+#, python-format
+msgid "Usas %(used)s de %(limit)s %(resource)s de tu plan (%(percent)s %%)."
 msgstr ""
 
 msgid "Política de verificación en dos pasos no válida."
@@ -2046,9 +2083,6 @@ msgid "Cerrada"
 msgstr ""
 
 msgid "Costo total"
-msgstr ""
-
-msgid "Órdenes de trabajo"
 msgstr ""
 
 msgid "Período"
@@ -2890,9 +2924,6 @@ msgid "Aviso del operador"
 msgstr ""
 
 msgid "Monitoreo de condición"
-msgstr ""
-
-msgid "Mantenimiento preventivo"
 msgstr ""
 
 msgid "Código y nombre son obligatorios."
@@ -3936,9 +3967,6 @@ msgstr ""
 msgid "Principal"
 msgstr ""
 
-msgid "Solicitudes"
-msgstr ""
-
 msgid "Más"
 msgstr ""
 
@@ -4372,6 +4400,9 @@ msgstr ""
 msgid "Nueva ubicación"
 msgstr ""
 
+msgid "No incluido en tu plan"
+msgstr ""
+
 msgid "Configuración"
 msgstr ""
 
@@ -4422,6 +4453,9 @@ msgstr ""
 msgid "sobre el cupo"
 msgstr ""
 
+msgid "cerca del cupo"
+msgstr ""
+
 msgid "Sin límite"
 msgstr ""
 
@@ -4442,9 +4476,6 @@ msgid "Filtros de indicadores"
 msgstr ""
 
 msgid "Aplicar"
-msgstr ""
-
-msgid "Indicadores"
 msgstr ""
 
 msgid ""

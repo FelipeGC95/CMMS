@@ -1,7 +1,7 @@
 """Catálogo inicial de planes comerciales (lo usan la migración y seed_demo)."""
 
 # Cupos provisionales: se ajustan en el admin cuando se definan los precios.
-# Módulos por código (ORG-10); se hacen cumplir en MVP-1.
+# Módulos por código (ORG-10): se hacen cumplir en apps/organizations/modules.py.
 BASE_MODULES = ["assets", "work_orders", "preventive", "requests", "kpis"]
 DEFAULT_PLANS = [
     # code, name, max_assets, max_users, max_storage_mb, módulos extra

@@ -63,6 +63,7 @@ MIDDLEWARE = [
     "allauth.account.middleware.AccountMiddleware",
     "apps.core.middleware.TenantMiddleware",
     "apps.accounts.mfa.MFARequiredMiddleware",
+    "apps.organizations.modules.PlanModuleMiddleware",
     "apps.core.middleware.PrivateCacheMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
@@ -162,7 +163,11 @@ CACHES = {
 # cuidar), alcance por token, límite de peticiones por token y errores con forma única.
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": ["apps.api.framework.OrganizationTokenAuthentication"],
-    "DEFAULT_PERMISSION_CLASSES": ["apps.api.framework.HasTokenScope"],
+    "DEFAULT_PERMISSION_CLASSES": [
+        "apps.api.framework.HasTokenScope",
+        # Módulos por plan (ORG-10 CA2): `api` y el módulo del endpoint.
+        "apps.organizations.modules.PlanIncludesModule",
+    ],
     "DEFAULT_THROTTLE_CLASSES": ["apps.api.framework.TokenRateThrottle"],
     "DEFAULT_THROTTLE_RATES": {"api_token": os.environ.get("API_RATE_LIMIT", "600/min")},
     "DEFAULT_PAGINATION_CLASS": "apps.api.framework.Pagination",

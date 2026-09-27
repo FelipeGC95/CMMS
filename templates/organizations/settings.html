@@ -71,7 +71,7 @@
         {% for quota in quotas %}
         <tr>
           <td data-label="">{{ quota.label }}</td>
-          <td data-label="{% translate 'En uso' %}" class="num">{% if quota.is_over %}<span class="badge badge--warning">{% icon 'alert' %}{{ quota.used }} · {% translate "sobre el cupo" %}</span>{% else %}{{ quota.used }}{% endif %}</td>
+          <td data-label="{% translate 'En uso' %}" class="num">{% if quota.is_over %}<span class="badge badge--warning">{% icon 'alert' %}{{ quota.used }} · {% translate "sobre el cupo" %}</span>{% elif quota.is_near %}<span class="badge badge--warning">{% icon 'alert' %}{{ quota.used }} · {% translate "cerca del cupo" %}</span>{% else %}{{ quota.used }}{% endif %}</td>
           <td data-label="{% translate 'Máximo' %}" class="num">{% if quota.limit is None %}{% translate "Sin límite" %}{% else %}{{ quota.limit }}{% endif %}</td>
         </tr>
         {% endfor %}
