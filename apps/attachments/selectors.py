@@ -5,6 +5,7 @@ from django.db import connection
 from django.db.models import F, OuterRef, Q, Subquery, Sum
 from django.db.models.functions import Coalesce
 
+from apps.core.tenancy import platform_context
 from apps.organizations.models import Organization
 
 from .models import Attachment, DocumentPage, Purpose, TargetType
@@ -80,12 +81,15 @@ def storage_usage(*, organization) -> StorageUsage:
         .annotate(total=Sum("size_bytes"))
         .values("total")
     )
-    quota_mb, used_bytes = (
-        Organization.objects.filter(pk=organization.pk)
-        .annotate(used=Coalesce(Subquery(used), 0) + F("logo_size_bytes"))
-        .values_list("plan__max_storage_mb", "used")
-        .get()
-    )
+    # La subconsulta all_tenants va dentro de una consulta sobre Organization, que no
+    # activa el bypass de RLS por sí sola (ADR-026): se hace explícito.
+    with platform_context():
+        quota_mb, used_bytes = (
+            Organization.objects.filter(pk=organization.pk)
+            .annotate(used=Coalesce(Subquery(used), 0) + F("logo_size_bytes"))
+            .values_list("plan__max_storage_mb", "used")
+            .get()
+        )
     return StorageUsage(
         used_bytes=used_bytes,
         quota_bytes=None if quota_mb is None else quota_mb * BYTES_PER_MB,
