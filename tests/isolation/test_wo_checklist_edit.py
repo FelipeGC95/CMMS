@@ -37,7 +37,10 @@ def test_b_cannot_move_or_remove_items_of_a(client, tenant_a, tenant_b):
         client.post(reverse("checklist_item_move", args=[wo.pk, second.pk]), {"direction": "up"}).status_code
         == 404
     )
-    assert client.post(reverse("checklist_item_remove", args=[wo.pk, second.pk])).status_code == 404
+    assert (
+        client.post(reverse("checklist_item_remove", args=[wo.pk, second.pk]), {"confirm": "1"}).status_code
+        == 404
+    )
     with tenant_context(tenant_a.org):
         assert list(wo.checklist.values_list("text", flat=True)) == ["Revisar", "Limpiar"]
 

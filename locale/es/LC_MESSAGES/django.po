@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-26 23:31-0300\n"
+"POT-Creation-Date: 2026-09-26 23:32-0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -3657,6 +3657,19 @@ msgid "Agregar un ítem propio"
 msgstr ""
 
 msgid "Agregar ítem"
+msgstr ""
+
+msgid "Quitar ítem"
+msgstr ""
+
+msgid "Quitar ítem del checklist"
+msgstr ""
+
+msgid ""
+"Los demás ítems se renumeran. Esta acción queda en el historial de la OT."
+msgstr ""
+
+msgid "Sí, quitar"
 msgstr ""
 
 msgid "Nueva OT"

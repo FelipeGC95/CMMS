@@ -163,10 +163,26 @@ def test_remove_without_javascript_redirects_with_a_message(client, tenant_a):
     with tenant_context(tenant_a.org):
         wo, (a,) = _wo_with_items(tenant_a, "A")
     login(client, tenant_a.admin)
-    response = client.post(reverse("checklist_item_remove", args=[wo.pk, a.pk]), follow=True)
+    response = client.post(
+        reverse("checklist_item_remove", args=[wo.pk, a.pk]), {"confirm": "1"}, follow=True
+    )
     assert "Ítem «A» quitado." in response.content.decode()
     with tenant_context(tenant_a.org):
         assert not wo.checklist.exists()
+
+
+def test_remove_without_javascript_asks_for_confirmation_first(client, tenant_a):
+    with tenant_context(tenant_a.org):
+        wo, (a,) = _wo_with_items(tenant_a, "A")
+    login(client, tenant_a.admin)
+    response = client.post(reverse("checklist_item_remove", args=[wo.pk, a.pk]))
+    body = response.content.decode()
+    assert response.status_code == 200
+    assert "¿Quitar «A» del checklist?" in body
+    assert 'name="confirm" value="1"' in body
+    assert reverse("work_order_checklist", args=[wo.pk]) in body  # Cancelar
+    with tenant_context(tenant_a.org):
+        assert wo.checklist.count() == 1
 
 
 # --- Quitar fotos ------------------------------------------------------------------------

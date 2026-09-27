@@ -548,8 +548,16 @@ def _checklist_items_changed(request, pk, *, error=None, success=None):
 @require_POST
 @membership_required(perm=Perm.WORK_ORDER_MANAGE)
 def checklist_item_remove_view(request, pk, item_pk):
-    """Quita un ítem sin responder del checklist (WO-03)."""
+    """Quita un ítem sin responder del checklist (WO-03).
+
+    Con htmx la confirmación es `hx-confirm`; sin JS el botón llega sin `confirm=1` y
+    se muestra una página de confirmación que vuelve a enviar con `confirm=1`.
+    """
     item = _checklist_item_or_404(request, pk, item_pk)
+    if not request.headers.get("HX-Request") and request.POST.get("confirm") != "1":
+        return render(
+            request, "work/checklist_item_remove_confirm.html", {"wo": item.work_order, "item": item}
+        )
     try:
         remove_checklist_item(item=item, membership=request.membership)
     except WorkOrderError as exc:

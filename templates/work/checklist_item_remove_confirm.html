@@ -1,0 +1,21 @@
+{% extends "base.html" %}{% load i18n ui %}
+{% block title %}{% translate "Quitar ítem" %} · {{ wo.code }}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <p class="muted mono">{{ wo.code }}</p>
+    <h1>{% translate "Quitar ítem del checklist" %}</h1>
+  </div>
+</div>
+<section class="card" aria-labelledby="confirm-title">
+  <h2 id="confirm-title">{% blocktranslate with text=item.text %}¿Quitar «{{ text }}» del checklist?{% endblocktranslate %}</h2>
+  <p class="muted">{% translate "Los demás ítems se renumeran. Esta acción queda en el historial de la OT." %}</p>
+  <form method="post" action="{% url 'checklist_item_remove' wo.pk item.pk %}">
+    {% csrf_token %}<input type="hidden" name="confirm" value="1">
+    <div class="row">
+      <button class="btn btn--danger btn--lg" type="submit">{% icon 'x' %}{% translate "Sí, quitar" %}</button>
+      <a class="btn btn--ghost btn--lg" href="{% url 'work_order_checklist' wo.pk %}#current-items">{% translate "Cancelar" %}</a>
+    </div>
+  </form>
+</section>
+{% endblock %}
