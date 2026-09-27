@@ -23,7 +23,7 @@ operar aparte de Postgres.
 | Imágenes | Pillow (compresión y miniaturas en el worker) |
 | Correo | Postmark o Brevo vía django-anymail |
 | Asistente IA (F2) | API de Anthropic con el SDK oficial `anthropic`; búsqueda con texto completo de PostgreSQL (ADR-018) |
-| Errores / logs | Sentry + logs JSON a stdout (structlog) |
+| Errores / logs | Sentry + logs JSON a stdout (formateador propio sobre `logging`, ADR-020) |
 | Herramientas | uv, ruff (lint + formato), pytest + pytest-django + factory_boy, pre-commit, GitHub Actions |
 | Hosting | Render (web + worker + Postgres), región US‑East |
 
@@ -567,3 +567,34 @@ tener ingresos).
     se ven bien; si un cliente los necesita se registra otra TTF.
   - El PDF de etiquetas tiene un tope de 500 por archivo (21 hojas de 24)
     para acotar memoria y tiempo de la petición web; sobre eso se filtra.
+
+### ADR-020 · Infraestructura de producción en el código, activada por variables de entorno
+- **Contexto:** la demo corre en el plan gratis de Render sin worker, R2,
+  Sentry ni proveedor de correo; las cuentas pagadas se crean más adelante.
+  El código de producción debe existir y probarse ya, sin cambiar la demo.
+- **Decisión:** cada pieza se enciende sola al definir sus variables
+  (lista completa y checklist en `docs/07_operacion.md`):
+  - **Cola (ADR-007):** `procrastinate.contrib.django` se instala solo con
+    PostgreSQL (no soporta SQLite); el esquema llega con `migrate`. Tareas en
+    `apps/<app>/tasks.py`: preventivos cada hora, una tarea por organización
+    con `tenant_context` (PM-05 CA1); limpieza diaria de la cola; respaldo
+    diario si `BACKUPS_ENABLED=1`. Nada corre sin el proceso
+    `manage.py procrastinate worker`.
+  - **Archivos (ADR-014):** con `R2_BUCKET`, `R2_ENDPOINT_URL`,
+    `R2_ACCESS_KEY_ID` y `R2_SECRET_ACCESS_KEY` el almacenamiento pasa a R2
+    (bucket privado); las vistas con permisos siguen siendo la entrada y
+    redirigen a una URL firmada de 5 minutos (`apps.core.files`). Sin ellas,
+    disco local.
+  - **Errores y logs (NF-15):** Sentry solo con `SENTRY_DSN`,
+    `send_default_pii=False`; `LOG_FORMAT=json` emite JSON con `request_id`
+    (stdlib, sin structlog: una dependencia menos). `/readyz` verifica la
+    base y las tablas de la cola; `/healthz` no cambia.
+  - **Correo:** SMTP de Postmark o Brevo por `EMAIL_*`; consola si no hay
+    `EMAIL_HOST`. `EMAIL_USE_QUEUE=1` envía desde el worker sin cambiar a
+    quienes llaman.
+  - **Respaldos (NF-09):** `manage.py backup_database` (`pg_dump` formato
+    custom) a `backups/` en R2 o a `BACKUP_DIR`, con retención.
+- **Consecuencias:** la demo solo gana `/readyz` y las tablas vacías de la
+  cola. `render.production.example.yaml` describe web + worker + Postgres
+  pagados, pero Render solo lee `render.yaml`. Mientras la demo no tenga
+  worker, los preventivos siguen generándose al arrancar el servidor.
