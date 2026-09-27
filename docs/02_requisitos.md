@@ -78,6 +78,9 @@ Como usuario quiero activar segundo factor (TOTP + códigos de recuperación);
 como administrador quiero exigirlo a mi organización.
 - CA1: Si la organización lo exige, el usuario sin MFA es forzado a configurarlo
   al entrar.
+- Nota: por defecto es obligatorio para administradores y opcional para el
+  resto; cada organización puede exigirlo a todos o dejarlo opcional
+  (`mfa_policy`). Con varias organizaciones manda la activa (ADR-021).
 
 **ORG-09 · Marca por organización (M1)**
 Como administrador quiero subir mi logo y elegir un color primario, para que la

@@ -123,6 +123,26 @@ def update_organization_settings(*, membership, require_close_approval, require_
     return organization
 
 
+@transaction.atomic
+def update_mfa_policy(*, membership, mfa_policy):
+    """Quién debe usar verificación en dos pasos en la organización (ORG-08)."""
+    require_perm(membership, Perm.ORGANIZATION_MANAGE)
+    if mfa_policy not in Organization.MfaPolicy.values:
+        raise ValidationError(_("Política de verificación en dos pasos no válida."))
+    organization = Organization.objects.select_for_update().get(pk=membership.organization_id)
+    before = organization.mfa_policy
+    if before != mfa_policy:
+        organization.mfa_policy = mfa_policy
+        organization.save(update_fields=["mfa_policy", "updated_at"])
+        audit.record(
+            action=AuditEvent.Action.UPDATE,
+            target=organization,
+            membership=membership,
+            changes={"mfa_policy": [before, mfa_policy]},
+        )
+    return organization
+
+
 # ---------- Nombres visibles de los estados de OT (WO-02 CA5) ----------
 
 STATUS_LABEL_MAX_LENGTH = 40

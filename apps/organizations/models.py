@@ -50,6 +50,13 @@ class Organization(TimeStampedModel):
         SUSPENDED = "suspended", _("Suspendida")
         PENDING_DELETION = "pending_deletion", _("Eliminación solicitada")
 
+    class MfaPolicy(models.TextChoices):
+        """Quién debe usar verificación en dos pasos (ORG-08). Por defecto, los administradores."""
+
+        ADMINS_ONLY = "admins_only", _("Obligatoria para administradores")
+        EVERYONE = "everyone", _("Obligatoria para todos")
+        OPTIONAL = "optional", _("Opcional para todos")
+
     name = models.CharField(_("nombre"), max_length=150)
     slug = models.SlugField(_("identificador"), unique=True)
     plan = models.ForeignKey(
@@ -71,6 +78,13 @@ class Organization(TimeStampedModel):
     logo = models.ImageField(_("logo"), upload_to=organization_logo_upload_to, blank=True)
     # Tamaño del logo guardado: cuenta para el cupo de almacenamiento (ORG-10).
     logo_size_bytes = models.PositiveIntegerField(_("tamaño del logo (bytes)"), default=0)
+    # Verificación en dos pasos exigida al entrar (ORG-08); se aplica la de la organización activa.
+    mfa_policy = models.CharField(
+        _("verificación en dos pasos"),
+        max_length=20,
+        choices=MfaPolicy.choices,
+        default=MfaPolicy.ADMINS_ONLY,
+    )
 
     class Meta:
         verbose_name = _("organización")

@@ -241,6 +241,10 @@ class Command(BaseCommand):
             if admin := User.objects.filter(email="jefe@demo.cl").first():
                 self._grant_admin_permissions(admin)
             self._assign_open_work_orders(Organization.objects.get(slug="alimentos-del-sur"))
+            # Demo con usuarios compartidos: sin segundo factor obligatorio (ORG-08).
+            Organization.objects.filter(slug__in=["alimentos-del-sur", "maestranza-norte"]).update(
+                mfa_policy=Organization.MfaPolicy.OPTIONAL
+            )
             self.stdout.write("Los datos demo ya existen. Usa --reset para recrearlos.")
             return
 
@@ -249,7 +253,11 @@ class Command(BaseCommand):
             pro = Plan.objects.get(code="pro")
             platform = self._user("plataforma@galbust.cl", "Equipo GALBUST", superuser=True)
             org = Organization.objects.create(
-                name="Alimentos del Sur SpA", slug="alimentos-del-sur", plan=pro
+                name="Alimentos del Sur SpA",
+                slug="alimentos-del-sur",
+                plan=pro,
+                # Demo pública con usuarios compartidos: sin segundo factor obligatorio (ORG-08).
+                mfa_policy=Organization.MfaPolicy.OPTIONAL,
             )
             admin = self._user("jefe@demo.cl", "Carolina Muñoz", staff=True)
             tech = self._user("tecnico@demo.cl", "Jorge Soto")
@@ -271,6 +279,7 @@ class Command(BaseCommand):
                 slug="maestranza-norte",
                 plan=Plan.objects.get(code="trial"),
                 status=Organization.Status.TRIAL,
+                mfa_policy=Organization.MfaPolicy.OPTIONAL,
                 trial_ends_at=timezone.now() + datetime.timedelta(days=30),
             )
             Membership.objects.create(user=admin, organization=other, role="viewer")

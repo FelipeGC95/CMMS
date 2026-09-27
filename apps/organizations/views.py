@@ -12,7 +12,13 @@ from apps.core.decorators import membership_required
 from apps.core.files import private_file_response
 
 from . import services
-from .forms import LocationForm, OrganizationLogoForm, OrganizationSettingsForm, WorkOrderStatusLabelsForm
+from .forms import (
+    LocationForm,
+    OrganizationLogoForm,
+    OrganizationSettingsForm,
+    SecurityForm,
+    WorkOrderStatusLabelsForm,
+)
 from .models import Location
 from .selectors import descendant_ids, location_tree, organization_quotas, visible_locations
 
@@ -119,6 +125,13 @@ def organization_settings_view(request):
         services.update_organization_settings(membership=membership, **form.cleaned_data)
         messages.success(request, _("Configuración guardada."))
         return redirect("organization_settings")
+    security_form = SecurityForm(
+        request.POST if section == "security" else None, initial={"mfa_policy": organization.mfa_policy}
+    )
+    if section == "security" and security_form.is_valid():
+        services.update_mfa_policy(membership=membership, **security_form.cleaned_data)
+        messages.success(request, _("Configuración de seguridad guardada."))
+        return redirect("organization_settings")
     logo_form = OrganizationLogoForm(
         request.POST if section == "logo" else None, request.FILES if section == "logo" else None
     )
@@ -153,6 +166,7 @@ def organization_settings_view(request):
             "form": form,
             "labels_form": labels_form,
             "logo_form": logo_form,
+            "security_form": security_form,
             "quotas": organization_quotas(membership=membership),
         },
     )

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-27 05:10-0300\n"
+"POT-Creation-Date: 2026-09-27 05:35-0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1776,6 +1776,14 @@ msgid ""
 "obligatorios."
 msgstr ""
 
+msgid "Verificación en dos pasos"
+msgstr ""
+
+msgid ""
+"Quien deba usarla y no la tenga configurada lo hará al entrar. Se recomienda "
+"al menos para los administradores."
+msgstr ""
+
 msgid "Archivo del logo"
 msgstr ""
 
@@ -1814,6 +1822,15 @@ msgstr ""
 msgid "Eliminación solicitada"
 msgstr ""
 
+msgid "Obligatoria para administradores"
+msgstr ""
+
+msgid "Obligatoria para todos"
+msgstr ""
+
+msgid "Opcional para todos"
+msgstr ""
+
 msgid "identificador"
 msgstr ""
 
@@ -1836,6 +1853,9 @@ msgid "logo"
 msgstr ""
 
 msgid "tamaño del logo (bytes)"
+msgstr ""
+
+msgid "verificación en dos pasos"
 msgstr ""
 
 msgid "organización"
@@ -1892,6 +1912,9 @@ msgid ""
 "lugar."
 msgstr ""
 
+msgid "Política de verificación en dos pasos no válida."
+msgstr ""
+
 #, python-format
 msgid "Estado de OT desconocido: %(keys)s."
 msgstr ""
@@ -1926,6 +1949,9 @@ msgid "Ubicación eliminada."
 msgstr ""
 
 msgid "Configuración guardada."
+msgstr ""
+
+msgid "Configuración de seguridad guardada."
 msgstr ""
 
 msgid "Logo guardado."
@@ -4096,6 +4122,78 @@ msgstr ""
 msgid "Guardar ajustes"
 msgstr ""
 
+msgid ""
+"Escribe el código de 6 dígitos de tu app de autenticación. Si no tienes el "
+"teléfono, usa uno de tus códigos de recuperación."
+msgstr ""
+
+msgid "Códigos de recuperación"
+msgstr ""
+
+#, python-format
+msgid "Te queda %(unused_count)s de %(total_count)s códigos."
+msgid_plural "Te quedan %(unused_count)s de %(total_count)s códigos."
+msgstr[0] ""
+msgstr[1] ""
+msgstr[2] ""
+
+msgid ""
+"Si pierdes el teléfono, cada código sirve una sola vez para entrar en lugar "
+"del código de la app. Descárgalos o anótalos y guárdalos en un lugar seguro."
+msgstr ""
+
+msgid "Códigos sin usar"
+msgstr ""
+
+msgid "Descargar códigos"
+msgstr ""
+
+msgid "Generar códigos nuevos"
+msgstr ""
+
+msgid "Ir al inicio"
+msgstr ""
+
+msgid "Activar la verificación en dos pasos"
+msgstr ""
+
+msgid ""
+"Además de tu contraseña, al entrar se pedirá un código de 6 dígitos de una "
+"app de autenticación (Google Authenticator, Microsoft Authenticator u otra)."
+msgstr ""
+
+#, python-format
+msgid ""
+"%(name)s exige la verificación en dos pasos para tu rol. Actívala para "
+"continuar."
+msgstr ""
+
+msgid "Pasos"
+msgstr ""
+
+msgid "Abre la app de autenticación en tu teléfono y agrega una cuenta nueva."
+msgstr ""
+
+msgid ""
+"Escanea este código QR. Si no puedes escanearlo, escribe la clave que "
+"aparece abajo."
+msgstr ""
+
+msgid "Escribe el código de 6 dígitos que muestra la app."
+msgstr ""
+
+msgid "Código QR para la app de autenticación"
+msgstr ""
+
+msgid "Clave para ingresar a mano"
+msgstr ""
+
+msgid "Guárdala en un lugar seguro: sirve para reinstalar la app más adelante."
+msgstr ""
+
+msgid "Activar"
+msgstr ""
+
 msgid "Avisar problema"
 msgstr ""
 
@@ -4891,9 +4989,6 @@ msgid "Acciones"
 msgstr ""
 
 msgid "Renombrar"
-msgstr ""
-
-msgid "Activar"
 msgstr ""
 
 msgid "No hay códigos de este tipo todavía."

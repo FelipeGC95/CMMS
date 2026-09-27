@@ -633,3 +633,19 @@ tener ingresos).
   cola. `render.production.example.yaml` describe web + worker + Postgres
   pagados, pero Render solo lee `render.yaml`. Mientras la demo no tenga
   worker, los preventivos siguen generándose al arrancar el servidor.
+
+### ADR-021 · MFA de allauth con política por organización
+- **Decisión:** `allauth.mfa` con app de autenticación (TOTP) y códigos de
+  recuperación (sin llaves WebAuthn por ahora: exigen JS propio). Cada
+  organización elige `mfa_policy`: `admins_only` (por defecto: obligatoria para
+  administradores), `everyone` u `optional`. `MFARequiredMiddleware` (después de
+  `TenantMiddleware`) manda a `/accounts/2fa/totp/activate/` a quien debe tener
+  segundo factor y no lo tiene, con la política de la **organización activa**:
+  un usuario en dos organizaciones cumple la de la que tiene abierta. Quedan
+  abiertas las rutas de `/accounts/` (configurar, salir, correo), estáticos,
+  salud, `/org/switch/` y la API, que usa tokens de organización sin sesión y
+  no se ve afectada. Con htmx la redirección va en `HX-Redirect`.
+- **Consecuencias:** `MFA_ENFORCE=0` apaga la obligación (los tests que no
+  tratan de MFA la apagan en `conftest.py`). La demo pública (`seed_demo`)
+  usa `optional` porque sus usuarios son compartidos. El ingreso con código de
+  recuperación usa la misma pantalla que el código TOTP.

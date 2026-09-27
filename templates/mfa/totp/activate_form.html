@@ -1,0 +1,33 @@
+{% extends "mfa/totp/base.html" %}
+{% load i18n ui %}
+{% block head_title %}{% translate "Activar la verificación en dos pasos" %}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>{% translate "Activar la verificación en dos pasos" %}</h1>
+    <p class="muted">{% translate "Además de tu contraseña, al entrar se pedirá un código de 6 dígitos de una app de autenticación (Google Authenticator, Microsoft Authenticator u otra)." %}</p>
+  </div>
+</div>
+{% if mfa_required %}
+<div class="alert alert--warning" role="status">{% icon 'alert' %}<span>{% blocktranslate with name=organization.name %}{{ name }} exige la verificación en dos pasos para tu rol. Actívala para continuar.{% endblocktranslate %}</span></div>
+{% endif %}
+<section class="card mfa-setup" aria-labelledby="mfa-steps-title">
+  <h2 id="mfa-steps-title">{% translate "Pasos" %}</h2>
+  <ol class="mfa-setup__steps">
+    <li>{% translate "Abre la app de autenticación en tu teléfono y agrega una cuenta nueva." %}</li>
+    <li>{% translate "Escanea este código QR. Si no puedes escanearlo, escribe la clave que aparece abajo." %}</li>
+    <li>{% translate "Escribe el código de 6 dígitos que muestra la app." %}</li>
+  </ol>
+  <div class="mfa-setup__qr"><img src="{{ totp_svg_data_uri }}" alt="{% translate 'Código QR para la app de autenticación' %}" width="200" height="200"></div>
+  <div class="field">
+    <label for="authenticator_secret">{% translate "Clave para ingresar a mano" %}</label>
+    <input id="authenticator_secret" type="text" value="{{ form.secret }}" readonly class="mono">
+    <span class="help">{% translate "Guárdala en un lugar seguro: sirve para reinstalar la app más adelante." %}</span>
+  </div>
+  <form method="post" action="{% url 'mfa_activate_totp' %}">
+    {% csrf_token %}
+    {% include "_form_fields.html" with form=form %}
+    <button class="btn btn--primary btn--block" type="submit">{% icon 'check' %}{% translate "Activar" %}</button>
+  </form>
+</section>
+{% endblock %}

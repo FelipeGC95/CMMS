@@ -34,6 +34,7 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "allauth",
     "allauth.account",
+    "allauth.mfa",
     "rest_framework",
     "drf_spectacular",
     "drf_spectacular_sidecar",
@@ -61,6 +62,7 @@ MIDDLEWARE = [
     "apps.audit.middleware.AuditContextMiddleware",
     "allauth.account.middleware.AccountMiddleware",
     "apps.core.middleware.TenantMiddleware",
+    "apps.accounts.mfa.MFARequiredMiddleware",
     "apps.core.middleware.PrivateCacheMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
@@ -136,6 +138,12 @@ ACCOUNT_LOGIN_ON_EMAIL_CONFIRMATION = True
 ACCOUNT_LOGIN_ON_PASSWORD_RESET = True
 ACCOUNT_EMAIL_SUBJECT_PREFIX = "[GALBUST CMMS] "
 ACCOUNT_DEFAULT_HTTP_PROTOCOL = "http" if DEBUG else "https"
+# Verificación en dos pasos (ORG-08, ADR-021): app de autenticación (TOTP) y códigos de
+# recuperación. Quién debe usarla lo decide cada organización (`mfa_policy`);
+# MFA_ENFORCE=0 apaga la obligación (solo para tests que no tratan de MFA).
+MFA_ADAPTER = "apps.accounts.adapter.MFAAdapter"
+MFA_SUPPORTED_TYPES = ["totp", "recovery_codes"]
+MFA_ENFORCE = env_bool("MFA_ENFORCE", True)
 # Límites de intentos por defecto de allauth (login, reinicio de clave) sobre el caché.
 # Caché en la base de datos: compartido entre workers de gunicorn (LocMem es por proceso).
 CACHES = {

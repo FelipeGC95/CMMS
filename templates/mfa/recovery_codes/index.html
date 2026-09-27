@@ -1,0 +1,24 @@
+{% extends "mfa/recovery_codes/base.html" %}
+{% load i18n ui %}
+{% block head_title %}{% translate "Códigos de recuperación" %}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>{% translate "Códigos de recuperación" %}</h1>
+    <p class="muted">{% blocktranslate count unused_count=unused_codes|length %}Te queda {{ unused_count }} de {{ total_count }} códigos.{% plural %}Te quedan {{ unused_count }} de {{ total_count }} códigos.{% endblocktranslate %}</p>
+  </div>
+</div>
+<section class="card">
+  <p>{% translate "Si pierdes el teléfono, cada código sirve una sola vez para entrar en lugar del código de la app. Descárgalos o anótalos y guárdalos en un lugar seguro." %}</p>
+  {% if can_view_codes %}
+  <ul class="recovery-codes" aria-label="{% translate 'Códigos sin usar' %}">
+    {% for code in unused_codes %}<li class="mono">{{ code }}</li>{% endfor %}
+  </ul>
+  {% endif %}
+  <div class="row mt-2">
+    {% if can_download_codes %}<a class="btn btn--primary" href="{% url 'mfa_download_recovery_codes' %}">{% translate "Descargar códigos" %}</a>{% endif %}
+    {% if can_generate_codes %}<a class="btn btn--secondary" href="{% url 'mfa_generate_recovery_codes' %}">{% translate "Generar códigos nuevos" %}</a>{% endif %}
+    <a class="btn btn--secondary" href="{% url 'dashboard' %}">{% translate "Ir al inicio" %}</a>
+  </div>
+</section>
+{% endblock %}

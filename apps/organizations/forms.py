@@ -1,7 +1,7 @@
 from django import forms
 from django.utils.translation import gettext_lazy as _
 
-from .models import Location
+from .models import Location, Organization
 from .services import STATUS_LABEL_MAX_LENGTH
 
 
@@ -40,6 +40,17 @@ class OrganizationSettingsForm(forms.Form):
         label=_("Exigir modo y causa de falla"),
         required=False,
         help_text=_("Al completar una OT correctiva, el modo y la causa de la falla son obligatorios."),
+    )
+
+
+class SecurityForm(forms.Form):
+    mfa_policy = forms.ChoiceField(
+        label=_("Verificación en dos pasos"),
+        choices=Organization.MfaPolicy.choices,
+        help_text=_(
+            "Quien deba usarla y no la tenga configurada lo hará al entrar. "
+            "Se recomienda al menos para los administradores."
+        ),
     )
 
 

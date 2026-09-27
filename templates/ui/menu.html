@@ -65,6 +65,7 @@
     </div>
     <ul class="list list--nav">
       <li><a href="{% url 'account_change_password' %}">{% icon 'key' %}{% translate "Cambiar contraseña" %}</a></li>
+      <li><a href="{% url 'mfa_index' %}">{% icon 'key' %}{% translate "Verificación en dos pasos" %}</a></li>
     </ul>
     <div class="row mt-2">
       {% include "_theme_button.html" with extra_class="btn btn--secondary" %}

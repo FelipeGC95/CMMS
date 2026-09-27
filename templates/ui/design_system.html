@@ -308,4 +308,15 @@
     <div class="card"><h3>{% translate "Otra tarjeta" %}</h3><p class="muted">{% translate "Bajo 720 px queda una sola columna." %}</p></div>
   </div>
 </section>
+
+<section class="card mb-4" aria-labelledby="ds-mfa">
+  <h2 id="ds-mfa">{% translate "Verificación en dos pasos" %}</h2>
+  <ol class="mfa-setup__steps">
+    <li>{% translate "Abre la app de autenticación en tu teléfono y agrega una cuenta nueva." %}</li>
+    <li>{% translate "Escribe el código de 6 dígitos que muestra la app." %}</li>
+  </ol>
+  <ul class="recovery-codes" aria-label="{% translate 'Códigos sin usar' %}">
+    <li class="mono">1234-5678</li><li class="mono">2345-6789</li><li class="mono">3456-7890</li>
+  </ul>
+</section>
 {% endblock %}

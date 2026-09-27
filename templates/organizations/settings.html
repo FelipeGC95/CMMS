@@ -30,6 +30,16 @@
     </form>
   </section>
 
+  <section class="card" id="security" aria-labelledby="security-title">
+    <h2 id="security-title">{% translate "Seguridad" %}</h2>
+    <form method="post" action="{% url 'organization_settings' %}#security">
+      {% csrf_token %}
+      <input type="hidden" name="section" value="security">
+      {% include "_form_fields.html" with form=security_form %}
+      <button class="btn btn--primary" type="submit">{% translate "Guardar" %}</button>
+    </form>
+  </section>
+
   <section class="card" id="logo" aria-labelledby="logo-title">
     <h2 id="logo-title">{% translate "Logo" %}</h2>
     <p class="muted">{% translate "Se imprime en las etiquetas QR de los activos. Sin logo, las etiquetas llevan el nombre de la organización." %}</p>
