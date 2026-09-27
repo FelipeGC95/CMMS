@@ -338,7 +338,12 @@ Con filtros por fecha, sitio, clase y activo:
 - MTBF = tiempo operativo / número de fallas con detención.
 - MTTR = tiempo total de reparación / número de reparaciones.
 - Cumplimiento del preventivo = OT preventivas cerradas dentro de tolerancia /
-  OT preventivas vencidas en el período.
+  OT preventivas vencidas en el período. "Dentro de tolerancia" es la regla de
+  PM-02 CA3 (`is_on_time`): fecha límite ± tolerancia del plan, o lectura
+  programada ± tolerancia; basta una. Preventivas sin plan: tolerancia cero.
+  No cuentan (fuera del denominador) las canceladas ni las abiertas cuya
+  ventana de tolerancia aún no termina; las abiertas con la ventana cumplida
+  cuentan como incumplidas. Se calcula en una consulta, sin consultas por OT.
 - CA: Cada KPI muestra su fórmula y referencia (EN 15341 / SMRP) en un tooltip.
 - CA: Resultados verificados por tests con datos de fixture de valor conocido.
 

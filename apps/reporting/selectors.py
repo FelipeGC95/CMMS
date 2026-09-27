@@ -1,5 +1,6 @@
 """Indicadores básicos (KPI-01). Definiciones en docs/02_requisitos.md."""
 
+import copy
 import datetime
 from dataclasses import dataclass
 
@@ -10,6 +11,7 @@ from apps.accounts.scoping import allowed_location_ids
 from apps.assets.models import Asset, AssetStatusPeriod
 from apps.assets.selectors import asset_scope_ids, visible_assets
 from apps.maintenance.models import PlanAssignment
+from apps.maintenance.selectors import is_on_time
 from apps.organizations.selectors import descendant_ids
 from apps.work.models import FailureEvent, WorkOrder
 from apps.work.selectors import OPEN_STATUSES, in_locations, visible_work_orders
@@ -192,13 +194,28 @@ def filtered_assets(*, membership, filters: KpiFilters, location_ids=None):
     return qs
 
 
-def _closed_on_time(work_order) -> bool:
-    """OT preventiva cerrada a tiempo: completada a más tardar el día de su fecha límite.
+def _compliance_outcome(work_order, now) -> bool | None:
+    """¿La OT preventiva vencida cuenta como cumplida (True), incumplida (False) o no cuenta (None)?
 
-    TODO(KPI-01): cuando maintenance exponga `is_on_time` (tolerancia del plan),
-    usarlo aquí; es el único punto que decide "dentro de tolerancia".
+    Misma regla que `apps.maintenance.selectors.is_on_time` (PM-02 CA3): vencimiento ±
+    `tolerance_pct` de la versión del plan, por fecha o por medidor (basta uno). Sin versión
+    de plan (preventiva manual) la tolerancia es cero: a tiempo si se completó a más tardar
+    en su fecha límite. Una OT abierta cuya ventana de tolerancia aún no termina no cuenta
+    todavía (None, fuera del denominador); si ya terminó, es incumplida. Espera la OT con
+    `plan_version` precargada: no consulta la base.
     """
-    return bool(work_order.completed_at) and timezone.localdate(work_order.completed_at) <= work_order.due_on
+    if work_order.completed_at is None:
+        if work_order.plan_version_id is None:
+            return False
+        probe = copy.copy(work_order)
+        probe.completed_at = now
+        probe.meter_value_at_completion = None
+        # Completarla ahora aún caería dentro de la tolerancia: pendiente, no incumplida.
+        return None if is_on_time(probe) else False
+    on_time = is_on_time(work_order)
+    if on_time is None:
+        return timezone.localdate(work_order.completed_at) <= work_order.due_on
+    return on_time
 
 
 def dashboard_kpis(*, membership, days: int = 30, now=None, filters: KpiFilters | None = None) -> Kpis:
@@ -239,9 +256,23 @@ def dashboard_kpis(*, membership, days: int = 30, now=None, filters: KpiFilters 
         due_on__gte=window_start.date(),
         due_on__lt=due_before,
     ).exclude(status=WorkOrder.Status.CANCELLED)
-    due_count = due_preventives.count()
-    on_time = sum(1 for wo in due_preventives.only("due_on", "completed_at") if _closed_on_time(wo))
-    compliance = 100 * on_time / due_count if due_count else None
+    # Una sola consulta: la versión del plan viene con la OT y la regla no consulta más.
+    outcomes = [
+        _compliance_outcome(wo, now)
+        for wo in due_preventives.select_related("plan_version").only(
+            "work_type",
+            "due_on",
+            "completed_at",
+            "due_meter_value",
+            "meter_value_at_completion",
+            "plan_version__tolerance_pct",
+            "plan_version__calendar_interval",
+            "plan_version__calendar_unit",
+            "plan_version__meter_interval",
+        )
+    ]
+    measured = [outcome for outcome in outcomes if outcome is not None]
+    compliance = 100 * sum(measured) / len(measured) if measured else None
 
     open_qs = work_orders.filter(status__in=OPEN_STATUSES)
     return Kpis(
