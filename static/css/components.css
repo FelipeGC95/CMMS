@@ -610,6 +610,7 @@ main { max-width: var(--content-max); margin: 0 auto; padding: var(--space-5) va
   padding-block: calc(var(--logo-height) * 0.25); color: var(--color-nav-text); text-decoration: none;
   font-family: var(--font-brand); font-weight: 500; font-size: var(--text-md); letter-spacing: 0.04em;
 }
+.field-bar--sample { position: static; }
 .field-bar__brand img { height: var(--logo-height); width: auto; display: block; }
 .field-bar__status {
   margin: 0; display: inline-flex; align-items: center; gap: var(--space-1); min-height: 32px;
