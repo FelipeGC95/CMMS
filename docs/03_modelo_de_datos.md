@@ -183,7 +183,7 @@ MTBF/MTTR; si el problema resulta ser de un equipo, la OT se crea sobre él.
 ### 2.7 Transversales
 
 **`attachment`**
-`organization_id` · `target_type` (asset, asset_class, work_order, checklist_item, request, failure, plan_version, organization) · `target_id` · `purpose` (photo, document, manual, signature, logo) · `storage_key` (`org/<org_id>/<yyyy>/<mm>/<uuid>.<ext>`) · `filename` · `content_type` · `size_bytes` · `width` · `height` · `sha256` · `uploaded_by_id` · `client_uuid`.
+`organization_id` · `target_type` (asset, asset_class, work_order, checklist_item, work_request) · `target_id` · `purpose` (photo, document, manual, signature; el logo es `organization.logo`, no un adjunto) · `storage_key` (campo `file`: `org/<org_id>/<uuid>.<ext>`) · `filename` · `content_type` · `size_bytes` · `width` · `height` · `sha256` · `uploaded_by_id` · `client_uuid`.
 Índice `(organization_id, target_type, target_id)`. Se usa referencia genérica (`target_type` + `target_id`) y no `GenericForeignKey` de Django, para mantener simple la exportación.
 
 **`document_page`** (M1, AST-06 CA3) — texto extraído de un manual, una fila por página.

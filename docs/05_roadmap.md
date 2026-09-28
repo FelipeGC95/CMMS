@@ -133,9 +133,10 @@ Para el "Hecho cuando" faltan pasos que no son código: crear las cuentas
 Pendientes menores resueltos el 2026-09-27: cumplimiento con tolerancia,
 completar OT y responder checklist por API, enlaces de correo con `?org=`,
 preferencias según el rol, carriles por técnico en el tablero y foto del aviso
-anónimo con su propio destino. Quedan: ítems con foto obligatoria no se
-responden por API (sin carga de adjuntos) y la organización no queda en solo
-lectura durante el período de gracia de eliminación (decisión en ADR-027).
+anónimo con su propio destino. Resuelto después: fotos de OT y de ítems por
+API (los ítems con foto obligatoria ya se responden por API). Queda: la
+organización no queda en solo lectura durante el período de gracia de
+eliminación (decisión en ADR-027).
 
 | # | Entregable | Req. | Sem. |
 |---|---|---|---|

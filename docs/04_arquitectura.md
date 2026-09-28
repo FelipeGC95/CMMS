@@ -122,7 +122,11 @@ revés; los modelos no llaman servicios; las vistas HTML y la API llaman a
 5. **Alcance por sitio**: los selectors aplican además el filtro de
    `membership_location` cuando la membresía está restringida.
 6. **Archivos**: claves con prefijo `org/<organization_id>/`; se sirven
-   solo mediante URL firmada tras verificar permisos.
+   solo mediante URL firmada tras verificar permisos. Cada adjunto usa el
+   alcance de su objeto (`attachments.views._target_is_visible`): la foto de
+   una solicitud (`work_request`) la ve quien ve la solicitud
+   (`visible_requests`), también un técnico, por diseño
+   (`tests/permissions/test_request_photo.py`).
 7. **Tests de aislamiento** (`tests/isolation/`): para cada modelo, vista y
    endpoint, se crean dos organizaciones y se verifica que A no puede listar,
    ver, editar ni referenciar datos de B (incluido pasar IDs de B en
@@ -315,6 +319,18 @@ tener ingresos).
     `POST /work-orders/{id}/checklist-items/{item_id}/answer/` usa
     `answer_checklist_item`; reenviar la misma respuesta devuelve el ítem sin
     cambios (también con la OT ya completada). Ambos exigen alcance `write`.
+  - **Fotos desde la API (WO-03 CA2, AST-06):** `POST /work-orders/{id}/photos/`
+    y `POST /work-orders/{id}/checklist-items/{item_id}/photos/` (multipart,
+    campo `file` y `client_uuid` opcional) usan `add_work_order_photo` y
+    `add_checklist_photo`: mismas validaciones, compresión, cupo, ruta
+    `org/<organization_id>/` y auditoría que la web; solo OT visibles y abiertas,
+    permiso de ejecutar OT y alcance `write`. Responden 201 con metadatos (nunca
+    una URL: el archivo se descarga por la web con URL firmada); reenviar el
+    mismo `client_uuid` devuelve la misma foto (200) y usarlo en otro objeto →
+    409. En un ítem «foto obligatoria» la foto es la respuesta; después,
+    `…/answer/` solo guarda la observación, y sin foto responde 400.
+    `GET /work-orders/{id}/checklist-items/` (con `photo_count`) y
+    `GET /work-orders/{id}/attachments/` listan ítems y adjuntos, paginados.
   - **Errores:** `{"error": {"code", "message", "details"}}` con textos en español.
   - **Documentación:** esquema en `/api/schema/` y Swagger UI en `/api/docs/`
     servido desde estáticos locales (`drf-spectacular-sidecar`) con el script de
