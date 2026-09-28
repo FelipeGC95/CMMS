@@ -8,6 +8,7 @@ from rest_framework import serializers
 from apps.assets.models import Asset, AssetClass, Meter, MeterReading
 from apps.assets.reading_imports import MAX_ROWS
 from apps.assets.selectors import visible_assets
+from apps.attachments.models import Attachment
 from apps.organizations.models import Location
 from apps.work.models import FailureEvent, WorkOrder, WorkOrderChecklistItem, WorkRequest
 
@@ -276,6 +277,45 @@ class ChecklistItemSerializer(serializers.ModelSerializer):
             "answered_at",
         ]
         read_only_fields = fields
+
+
+class ChecklistItemListSerializer(ChecklistItemSerializer):
+    photo_count = serializers.IntegerField(read_only=True, help_text="Fotos subidas al ítem.")
+
+    class Meta(ChecklistItemSerializer.Meta):
+        fields = [*ChecklistItemSerializer.Meta.fields, "photo_count"]
+        read_only_fields = fields
+
+
+class AttachmentSerializer(serializers.ModelSerializer):
+    """Metadatos de un adjunto. Nunca incluye una URL: el archivo se descarga desde la web,
+    tras verificar permisos, con una URL firmada de corta duración (ADR-014)."""
+
+    class Meta:
+        model = Attachment
+        fields = [
+            "id",
+            "target_type",
+            "target_id",
+            "purpose",
+            "filename",
+            "content_type",
+            "size_bytes",
+            "width",
+            "height",
+            "sha256",
+            "client_uuid",
+            "created_at",
+        ]
+        read_only_fields = fields
+
+
+class PhotoUploadSerializer(serializers.Serializer):
+    """Foto en `multipart/form-data` (JPEG, PNG, WebP o HEIC; hasta 20 MB). Se comprime a JPEG
+    con el lado mayor ≤ 2000 px y sin metadatos (incluida la ubicación GPS)."""
+
+    file = serializers.FileField()
+    client_uuid = serializers.UUIDField(required=False, allow_null=True)
 
 
 class ChecklistAnswerSerializer(serializers.Serializer):

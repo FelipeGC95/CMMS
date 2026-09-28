@@ -9,6 +9,7 @@ from drf_spectacular.utils import OpenApiParameter, extend_schema, extend_schema
 from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import NotFound, ValidationError
+from rest_framework.parsers import MultiPartParser
 from rest_framework.response import Response
 
 from apps.accounts.permissions import Perm, require_perm
@@ -21,7 +22,12 @@ from apps.organizations.selectors import descendant_ids
 from apps.work import services as work_services
 from apps.work.forms import CompleteWorkOrderForm, decode_signature
 from apps.work.models import WorkOrder, WorkRequest
-from apps.work.selectors import visible_requests, work_order_list
+from apps.work.selectors import (
+    checklist_with_photo_count,
+    visible_requests,
+    work_order_attachments,
+    work_order_list,
+)
 
 from . import serializers as s
 from .framework import TenantAPIMixin
@@ -29,6 +35,8 @@ from .services import (
     answer_checklist_item_idempotent,
     complete_work_order_idempotent,
     create_work_order_idempotent,
+    upload_checklist_photo_idempotent,
+    upload_work_order_photo_idempotent,
 )
 
 
@@ -313,11 +321,12 @@ class WorkOrderViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, BaseVie
     )
     @action(detail=True, methods=["post"], url_path="checklist-items/<uuid:item_id>/answer")
     def answer(self, request, pk=None, item_id=None):
-        """Responde un ítem del checklist (WO-03 CA2); reenviar la misma respuesta no cambia nada."""
-        work_order = self.get_object()
-        item = work_order.checklist.filter(pk=item_id).select_related("work_order").first()
-        if item is None:
-            raise NotFound(_("No encontrado."))
+        """Responde un ítem del checklist (WO-03 CA2); reenviar la misma respuesta no cambia nada.
+
+        Un ítem «foto obligatoria» se responde subiendo la foto (`…/photos/`); después,
+        responderlo solo guarda la observación. Sin foto → 400.
+        """
+        item = self._checklist_item(item_id)
         serializer = s.ChecklistAnswerSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = dict(serializer.validated_data)
@@ -326,6 +335,78 @@ class WorkOrderViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, BaseVie
             membership=self.membership, item=item, signature=signature, **data
         )
         return Response(s.ChecklistItemSerializer(item).data)
+
+    @extend_schema(responses=s.ChecklistItemListSerializer(many=True))
+    @action(detail=True, methods=["get"], url_path="checklist-items")
+    def checklist_items(self, request, pk=None):
+        """Ítems del checklist de la OT, en orden, con cuántas fotos tiene cada uno."""
+        items = checklist_with_photo_count(work_order=self.get_object())
+        page = self.paginate_queryset(items)
+        return self.get_paginated_response(s.ChecklistItemListSerializer(page, many=True).data)
+
+    @extend_schema(responses=s.AttachmentSerializer(many=True))
+    @action(detail=True, methods=["get"])
+    def attachments(self, request, pk=None):
+        """Adjuntos de la OT y de sus ítems (metadatos). Sin URL: el archivo no se sirve por la API."""
+        attachments = work_order_attachments(work_order=self.get_object())
+        page = self.paginate_queryset(attachments)
+        return self.get_paginated_response(s.AttachmentSerializer(page, many=True).data)
+
+    @extend_schema(
+        request={"multipart/form-data": s.PhotoUploadSerializer},
+        responses={201: s.AttachmentSerializer, 200: s.AttachmentSerializer},
+    )
+    @action(detail=True, methods=["post"], parser_classes=[MultiPartParser])
+    def photos(self, request, pk=None):
+        """Sube una foto a la OT (201). Idempotente por `client_uuid`: reenviarlo devuelve la
+        foto ya subida (200); usarlo en otro objeto → 409."""
+        work_order = self.get_object()
+        data = self._photo_upload(request)
+        photo, created = upload_work_order_photo_idempotent(
+            membership=self.membership, work_order=work_order, **data
+        )
+        return self._photo_response(photo, created)
+
+    @extend_schema(
+        request={"multipart/form-data": s.PhotoUploadSerializer},
+        responses={201: s.AttachmentSerializer, 200: s.AttachmentSerializer},
+        parameters=[OpenApiParameter("item_id", OpenApiTypes.UUID, OpenApiParameter.PATH)],
+    )
+    @action(
+        detail=True,
+        methods=["post"],
+        url_path="checklist-items/<uuid:item_id>/photos",
+        parser_classes=[MultiPartParser],
+    )
+    def item_photos(self, request, pk=None, item_id=None):
+        """Sube una foto a un ítem del checklist (201); en un ítem «foto obligatoria» la foto es
+        la respuesta y el ítem queda hecho. Idempotente por `client_uuid` como `…/photos/`."""
+        item = self._checklist_item(item_id)
+        data = self._photo_upload(request)
+        photo, created = upload_checklist_photo_idempotent(membership=self.membership, item=item, **data)
+        return self._photo_response(photo, created)
+
+    def _checklist_item(self, item_id):
+        item = self.get_object().checklist.filter(pk=item_id).select_related("work_order").first()
+        if item is None:
+            raise NotFound(_("No encontrado."))
+        return item
+
+    @staticmethod
+    def _photo_upload(request):
+        serializer = s.PhotoUploadSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        return {
+            "uploaded_file": serializer.validated_data["file"],
+            "client_uuid": serializer.validated_data.get("client_uuid"),
+        }
+
+    @staticmethod
+    def _photo_response(photo, created):
+        return Response(
+            s.AttachmentSerializer(photo).data,
+            status=status.HTTP_201_CREATED if created else status.HTTP_200_OK,
+        )
 
 
 # Campos del formulario web de cierre que se pasan tal cual al servicio.

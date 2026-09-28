@@ -139,6 +139,8 @@ def _save_within_quota(
             }
         )
     attachment = Attachment(
+        # La organización se fija antes de guardar el archivo: su ruta es org/<organization_id>/….
+        organization=organization,
         target_type=target_type,
         target_id=target_id,
         purpose=purpose,

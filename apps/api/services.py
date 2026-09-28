@@ -11,12 +11,16 @@ from rest_framework.exceptions import APIException
 
 from apps.accounts.models import Membership, User
 from apps.accounts.permissions import Perm, require_perm
+from apps.attachments.models import Attachment
+from apps.attachments.models import TargetType as AttachmentTargetType
 from apps.audit import services as audit
 from apps.audit.models import AuditEvent
 from apps.audit.services import API_TOKEN_EMAIL_DOMAIN
 from apps.work.models import WorkOrder
 from apps.work.services import (
     WorkOrderError,
+    add_checklist_photo,
+    add_work_order_photo,
     answer_checklist_item,
     complete_work_order,
     create_work_order,
@@ -170,8 +174,8 @@ def _same_answer(item, *, result, value_number, value_text, signature, note) -> 
     """¿El ítem ya tiene exactamente esta respuesta? (reenvío desde un cliente sin conexión)"""
     if not item.result or item.note != (note or "")[:500]:
         return False
-    if item.item_type == "signature":
-        return True  # una firma ya guardada no se duplica
+    if item.item_type in ("signature", "photo"):
+        return True  # una firma ya guardada no se duplica; la foto ya es la respuesta
     if item.item_type == "measurement":
         try:
             return item.value_number == parse_measurement(value_number)
@@ -197,3 +201,53 @@ def answer_checklist_item_idempotent(
     if _same_answer(item, **answer):
         return item
     return answer_checklist_item(item=item, membership=membership, **answer)
+
+
+def _replayed_photo(*, client_uuid, target_type: str, target_id) -> Attachment | None:
+    """La foto ya subida con este `client_uuid`, o None. Si era de otro objeto, es un conflicto."""
+    if not client_uuid:
+        return None
+    existing = Attachment.objects.filter(client_uuid=client_uuid).first()
+    if existing is None:
+        return None
+    if (existing.target_type, existing.target_id) != (target_type, target_id):
+        raise Conflict(_("Este client_uuid ya se usó para otra operación."))
+    return existing
+
+
+def upload_work_order_photo_idempotent(
+    *, membership, work_order: WorkOrder, uploaded_file, client_uuid=None
+) -> tuple[Attachment, bool]:
+    """Foto de la OT desde la API con el servicio de la web; devuelve (foto, creada).
+
+    Reenviar el mismo `client_uuid` devuelve la foto ya subida (también con la OT ya completada).
+    """
+    require_perm(membership, Perm.WORK_ORDER_EXECUTE)
+    existing = _replayed_photo(
+        client_uuid=client_uuid, target_type=AttachmentTargetType.WORK_ORDER, target_id=work_order.pk
+    )
+    if existing is not None:
+        return existing, False
+    photo = add_work_order_photo(
+        work_order=work_order, membership=membership, uploaded_file=uploaded_file, client_uuid=client_uuid
+    )
+    return photo, True
+
+
+def upload_checklist_photo_idempotent(
+    *, membership, item, uploaded_file, client_uuid=None
+) -> tuple[Attachment, bool]:
+    """Foto de un ítem del checklist desde la API (`add_checklist_photo`); devuelve (foto, creada).
+
+    En un ítem «foto obligatoria» la foto es la respuesta: el ítem queda hecho.
+    """
+    require_perm(membership, Perm.WORK_ORDER_EXECUTE)
+    existing = _replayed_photo(
+        client_uuid=client_uuid, target_type=AttachmentTargetType.CHECKLIST_ITEM, target_id=item.pk
+    )
+    if existing is not None:
+        return existing, False
+    photo = add_checklist_photo(
+        item=item, membership=membership, uploaded_file=uploaded_file, client_uuid=client_uuid
+    )
+    return photo, True

@@ -3607,7 +3607,7 @@ msgstr ""
 msgid "Ingresa un número, por ejemplo 7,5."
 msgstr ""
 
-msgid "Este ítem se responde con una foto."
+msgid "Este ítem se responde con una foto: súbela primero."
 msgstr ""
 
 msgid "Escribe la respuesta."

@@ -16,6 +16,7 @@ from django.db.models import (
     Value,
     When,
 )
+from django.db.models.functions import Coalesce
 from django.utils import timezone
 
 from apps.accounts.models import Membership, User
@@ -300,6 +301,31 @@ def checklist_plan_versions(*, work_order):
 def checklist_photos(*, items) -> dict:
     """Fotos de los ítems del checklist en una sola consulta: {item_id: [adjuntos]}."""
     return attachments_by_target(target_type=TargetType.CHECKLIST_ITEM, target_ids=[i.pk for i in items])
+
+
+def work_order_attachments(*, work_order):
+    """Adjuntos de una OT ya visible y de sus ítems de checklist (API v1), del más antiguo al más nuevo."""
+    item_ids = work_order.checklist.values("pk")
+    return Attachment.objects.filter(
+        Q(target_type=TargetType.WORK_ORDER, target_id=work_order.pk)
+        | Q(target_type=TargetType.CHECKLIST_ITEM, target_id__in=item_ids)
+    ).order_by("created_at", "pk")
+
+
+def checklist_with_photo_count(*, work_order):
+    """Ítems del checklist de una OT ya visible, con `photo_count` en la misma consulta."""
+    photos = (
+        Attachment.objects.filter(
+            target_type=TargetType.CHECKLIST_ITEM, target_id=OuterRef("pk"), purpose=Purpose.PHOTO
+        )
+        .order_by()
+        .values("target_id")
+        .annotate(n=Count("pk"))
+        .values("n")
+    )
+    return work_order.checklist.annotate(
+        photo_count=Coalesce(Subquery(photos, output_field=IntegerField()), 0)
+    ).order_by("order", "created_at")
 
 
 # --- Backlog priorizado y programación semanal (REQ-04, REQ-05) -----------------

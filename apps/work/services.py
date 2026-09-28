@@ -695,7 +695,11 @@ def answer_checklist_item(
     require_perm(membership, Perm.WORK_ORDER_EXECUTE)
     work_order = item.work_order
     if item.item_type == ItemType.PHOTO:
-        raise WorkOrderError(_("Este ítem se responde con una foto."))
+        # La foto es la respuesta (`add_checklist_photo` marca el ítem hecho); con la foto
+        # ya subida, responder solo guarda la observación. Sin foto, no hay respuesta posible.
+        if not _item_photos(item).exists():
+            raise WorkOrderError(_("Este ítem se responde con una foto: súbela primero."))
+        return save_checklist_note(item=item, membership=membership, note=note)
     if item.item_type == ItemType.TEXT:
         value_text = (value_text or "").strip()[:TEXT_ANSWER_MAX]
         if not value_text:
@@ -985,12 +989,50 @@ def add_checklist_photo(
     require_perm(membership, Perm.WORK_ORDER_EXECUTE)
     if item.work_order.status in CHECKLIST_LOCKED_STATUSES:
         raise WorkOrderError(_("La OT ya no admite cambios."))
+    photo = _add_photo(
+        target_type=AttachmentTargetType.CHECKLIST_ITEM,
+        target_id=item.pk,
+        membership=membership,
+        uploaded_file=uploaded_file,
+        client_uuid=client_uuid,
+    )
+    if item.item_type == ItemType.PHOTO and item.result != item.Result.DONE:
+        _start_if_needed(work_order=item.work_order, membership=membership)
+        item.result = item.Result.DONE
+        item.answered_by = membership.user
+        item.answered_at = timezone.now()
+        item.save(update_fields=["result", "answered_by", "answered_at", "updated_at"])
+    return photo
+
+
+@transaction.atomic
+def add_work_order_photo(*, work_order: WorkOrder, membership, uploaded_file, client_uuid=None) -> Attachment:
+    """Foto de la OT (evidencia general, fuera del checklist), comprimida y dentro del cupo (AST-06).
+
+    Mismas reglas que la foto de un ítem: quien ejecuta OT, solo imágenes y con la OT
+    aún no completada. Idempotente por `client_uuid`.
+    """
+    require_perm(membership, Perm.WORK_ORDER_EXECUTE)
+    if work_order.status in CHECKLIST_LOCKED_STATUSES:
+        raise WorkOrderError(_("La OT ya no admite cambios."))
+    return _add_photo(
+        target_type=AttachmentTargetType.WORK_ORDER,
+        target_id=work_order.pk,
+        membership=membership,
+        uploaded_file=uploaded_file,
+        client_uuid=client_uuid,
+    )
+
+
+def _add_photo(*, target_type, target_id, membership, uploaded_file, client_uuid) -> Attachment:
+    """Sube una foto con el servicio de adjuntos y audita la subida (una vez por `client_uuid`)."""
     if not (uploaded_file.content_type or "").startswith("image/"):
         raise WorkOrderError(_("Adjunta una imagen (de la cámara o de la galería)."))
+    replay = bool(client_uuid) and Attachment.objects.filter(client_uuid=client_uuid).exists()
     try:
         photo = attachments_services.add_attachment(
-            target_type=AttachmentTargetType.CHECKLIST_ITEM,
-            target_id=item.pk,
+            target_type=target_type,
+            target_id=target_id,
             uploaded_file=uploaded_file,
             by=membership.user,
             purpose=AttachmentPurpose.PHOTO,
@@ -998,12 +1040,19 @@ def add_checklist_photo(
         )
     except AttachmentError as error:
         raise WorkOrderError(error.message) from error
-    if item.item_type == ItemType.PHOTO and item.result != item.Result.DONE:
-        _start_if_needed(work_order=item.work_order, membership=membership)
-        item.result = item.Result.DONE
-        item.answered_by = membership.user
-        item.answered_at = timezone.now()
-        item.save(update_fields=["result", "answered_by", "answered_at", "updated_at"])
+    if not replay:
+        audit.record(
+            action=AuditEvent.Action.CREATE,
+            target=photo,
+            actor=membership.user,
+            changes={
+                "target_type": target_type,
+                "target_id": str(target_id),
+                "filename": photo.filename,
+                "size_bytes": photo.size_bytes,
+                "sha256": photo.sha256,
+            },
+        )
     return photo
 
 
