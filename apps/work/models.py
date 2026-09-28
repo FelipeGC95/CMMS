@@ -383,11 +383,17 @@ class LaborEntry(TenantModel):
     minutes = models.PositiveIntegerField(verbose_name=_("minutos"))
     # Copia de la tarifa vigente al registrar (WO-04 CA1).
     hourly_cost = models.DecimalField(_("costo por hora"), default=0, **MONEY)
+    client_uuid = models.UUIDField(null=True, blank=True, verbose_name=_("UUID del cliente"))
 
     class Meta:
         verbose_name = _("registro de mano de obra")
         verbose_name_plural = _("registros de mano de obra")
         ordering = ["created_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["organization", "client_uuid"], name="uniq_labor_entry_client_uuid"
+            ),
+        ]
 
     @property
     def cost(self):

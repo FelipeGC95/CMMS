@@ -53,6 +53,8 @@ class AuditEvent(TenantModel):
         # OT: asignación, checklist, costos y término (X-01).
         ASSIGN = "assign", _("Asignación")
         CHECKLIST_EDIT = "checklist_edit", _("Edición de checklist")
+        # Respuesta sobrescrita o descartada por llegar con hora anterior (X-06, ADR-011).
+        CHECKLIST_ANSWER = "checklist_answer", _("Respuesta de checklist")
         COST_ADD = "cost_add", _("Costo agregado")
         COST_REMOVE = "cost_remove", _("Costo quitado")
         COMPLETE = "complete", _("Término de OT")

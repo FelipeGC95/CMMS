@@ -1377,6 +1377,9 @@ msgstr ""
 msgid "Edición de checklist"
 msgstr ""
 
+msgid "Respuesta de checklist"
+msgstr ""
+
 msgid "Costo agregado"
 msgstr ""
 
