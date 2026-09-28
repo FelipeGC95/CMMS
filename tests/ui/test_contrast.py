@@ -49,6 +49,11 @@ CONTRAST_PAIRS = [
     ("--color-link", "--color-info-bg", TEXT),
     # Tablero semanal (REQ-05): contorno del día donde se suelta una OT (hoy, fondo info).
     ("--color-focus", "--color-info-bg", UI),
+    # Vista de terreno (ADR-011): borde de las OT asignadas a la persona. El estado de conexión
+    # de la barra (--color-nav-text y --color-nav-active sobre --color-nav-bg) y el título como
+    # enlace (--color-link sobre --color-surface) ya están arriba.
+    ("--color-accent-text", "--color-surface", UI),
+    ("--color-accent-text", "--color-bg", UI),
 ]
 
 

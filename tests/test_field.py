@@ -291,3 +291,32 @@ def test_field_modules_use_relative_imports(path):
     source = (FIELD_STATIC / path).read_text(encoding="utf-8")
     for target in re.findall(r'from\s+"([^"]+)"', source):
         assert target.startswith("./") and (FIELD_STATIC / target[2:]).exists(), target
+
+
+# ---------- i18n ----------
+
+TRANSLATE_TAG = re.compile(r"""\{%\s*translate\s+(?:"([^"]+)"|'([^']+)')\s*%\}""")
+GETTEXT_CALL = re.compile(r"""\b_\(\s*"([^"]+)"\s*\)""")
+
+
+def test_field_texts_are_in_the_catalog():
+    """Los textos de la vista (que el JS recibe ya traducidos) están en el catálogo es-CL.
+
+    Complementa a tests/test_i18n_catalog.py, que necesita GNU gettext y en local se omite.
+    """
+    from tests.test_i18n_catalog import CATALOG, po_entries
+
+    catalog = {msgid for ctx, msgid, _ in po_entries(CATALOG.read_text(encoding="utf-8")) if not ctx}
+    shell = (Path(settings.BASE_DIR) / "templates" / "field" / "shell.html").read_text(encoding="utf-8")
+    code = (Path(settings.BASE_DIR) / "apps" / "field" / "pwa.py").read_text(encoding="utf-8")
+    msgids = {a or b for a, b in TRANSLATE_TAG.findall(shell)} | set(GETTEXT_CALL.findall(code))
+    assert len(msgids) > 30
+    assert msgids <= catalog, sorted(msgids - catalog)
+
+
+def test_field_js_has_no_visible_spanish_text():
+    """El JS no escribe textos propios: los toma de data-msg-* y <template> (traducidos)."""
+    words = re.compile(r'"[^"]*\b(OT|Sin|Hoy|Pendiente|Asignada|conexión|datos)\b[^"]*"')
+    for path in sorted(FIELD_STATIC.glob("*.js")):
+        code = re.sub(r"(^|\s)//.*$", "", path.read_text(encoding="utf-8"), flags=re.M)
+        assert not words.search(code), path.name

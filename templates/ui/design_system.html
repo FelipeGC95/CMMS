@@ -455,4 +455,39 @@
     </section>
   </div>
 </section>
+
+<section class="mb-4" aria-labelledby="ds-field">
+  <h2 id="ds-field">{% translate "Vista de terreno sin conexión" %}</h2>
+  <p class="muted">{% translate "Barra de /field/ con el estado de conexión, OT del día (las asignadas a la persona con borde de acento) y datos de la OT." %}</p>
+  <div class="field-bar mb-4">
+    <div class="field-bar__inner">
+      <span class="field-bar__brand"><img src="{% static 'brand/galbust-isotipo-blanco.svg' %}" alt="" width="28" height="28"><span class="field-bar__title">{% translate "Terreno" %}</span></span>
+      <p class="field-bar__status" data-online="false">{% icon 'x' %}{% translate "Sin conexión" %}</p>
+    </div>
+  </div>
+  <section class="card field-day mb-4">
+    <h3 class="day-list__title">{% translate "Lunes 5 de octubre" %} <span class="badge badge--info">{% icon 'calendar' %}{% translate "Hoy" %}</span></h3>
+    <ul class="field-list">
+      <li class="field-wo field-wo--mine">
+        <a class="field-wo__link" href="#ds-field">
+          <span class="field-wo__head"><span class="mono">OT-P-00003</span> <span class="field-wo__title">{% translate "Mensual compresor" %}</span></span>
+          <span class="field-wo__meta"><span class="field-wo__fact">{% icon 'box' %}CMP-01 · {% translate "Compresor" %}</span><span class="field-wo__fact">{% icon 'calendar' %}{% translate "Fecha límite" %}: 7 oct</span></span>
+          <span class="field-wo__badges"><span class="badge badge--info">{% icon 'info' %}{% translate "Programada" %}</span><span class="badge badge--info">{% icon 'user' %}{% translate "Asignada a ti" %}</span></span>
+        </a>
+      </li>
+      <li class="field-wo">
+        <a class="field-wo__link" href="#ds-field">
+          <span class="field-wo__head"><span class="mono">OT-C-00012</span> <span class="field-wo__title">{% translate "Fuga en reductor" %}</span></span>
+          <span class="field-wo__badges"><span class="badge badge--warning">{% icon 'wrench' %}{% translate "En espera" %}</span><span class="badge badge--error">{% icon 'alert' %}{% translate "Urgente" %}</span></span>
+        </a>
+      </li>
+    </ul>
+  </section>
+  <div class="card">
+    <dl class="field-facts">
+      <div class="field-facts__row"><dt>{% translate "Activo o ubicación" %}</dt><dd>{% icon 'box' %}CMP-01 · {% translate "Compresor" %}</dd></div>
+      <div class="field-facts__row"><dt>{% translate "Medidor" %}</dt><dd>{% icon 'clock' %}{% translate "Horómetro (h) · Pide lectura al completar" %}</dd></div>
+    </dl>
+  </div>
+</section>
 {% endblock %}

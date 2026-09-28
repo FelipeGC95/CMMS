@@ -619,7 +619,7 @@ main { max-width: var(--content-max); margin: 0 auto; padding: var(--space-5) va
 .field-bar__status:empty { display: none; }
 .field-bar__status svg { width: 18px; height: 18px; }
 .field-bar__status[data-online="true"] svg { color: var(--color-nav-active); }
-.field main { padding-bottom: var(--space-6); }
+.field-app main { padding-bottom: var(--space-6); }
 .field-update { flex-wrap: wrap; align-items: center; }
 .field-update > span { flex: 1 1 12rem; }
 .field-empty > svg { width: 40px; height: 40px; margin-bottom: var(--space-2); }
@@ -654,3 +654,5 @@ main { max-width: var(--content-max); margin: 0 auto; padding: var(--space-5) va
 @media (min-width: 720px) {
   .field-facts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
+/* El título recibe el foco al cambiar de pantalla (lectores de pantalla); no es un control. */
+.field-view [tabindex="-1"]:focus { outline: none; }
