@@ -386,25 +386,130 @@ tener ingresos).
   opción de base dedicada del plan Empresa en un proveedor con región
   sudamericana (ej. AWS São Paulo o Santiago).
 
-### ADR-011 · Estrategia offline (se implementa en F2, se diseña ahora)
-- **Alcance:** solo el flujo del técnico: ver OT asignadas, ejecutar
-  checklist, registrar lecturas, horas y fotos, y crear solicitudes.
-- **Diseño:**
-  - Un Service Worker cachea la estructura de la aplicación y las OT asignadas
-    de los próximos N días.
-  - Cada escritura se encola en IndexedDB con un `client_uuid` generado en el
-    dispositivo y se envía cuando hay conexión.
-  - En el servidor, las escrituras son **idempotentes por `client_uuid`**:
-    reintentar un envío nunca duplica datos.
-  - Los correlativos (número de OT o de solicitud) los asigna el servidor al
-    sincronizar; mientras tanto la UI muestra "pendiente".
-  - **Conflictos:** en los ítems de checklist gana la última respuesta por
-    `answered_at`, y la anterior queda en auditoría. En el estado de la OT, el
-    servidor valida la transición: si la OT fue cancelada o reasignada, la
-    sincronización se rechaza para ese elemento y el técnico ve el conflicto.
-    Lecturas y fotos se agregan sin conflicto.
-- **Consecuencias hoy:** `client_uuid` en las tablas del técnico, servicios
-  idempotentes y una API que cubre el flujo del técnico desde el MVP.
+### ADR-011 · Modo sin conexión del técnico: PWA en `/field/` sobre la sesión (X-06)
+- **Alcance:** flujo del técnico: ver **todas las OT visibles** para su
+  membresía (alcance por sitio, igual que en la web; primero las asignadas como
+  responsable o apoyo), ejecutar checklist, registrar lecturas, horas y fotos,
+  y crear solicitudes. Entrada opcional en v1 ("Modo sin conexión" en Mis OT,
+  Mi semana y "Más") e instalable; tras el piloto se decide si es la vista por
+  defecto. Fuera de v1: QR, repuestos, ver fotos o manuales, Background Sync,
+  push, crear/aprobar/cerrar OT y varias organizaciones a la vez.
+- **Autenticación:** la sesión de Django (mismo origen, CSRF con la cookie
+  `csrftoken`) bajo `/field/api/`, con `MembershipSessionAuthentication` y el
+  módulo `work_orders` o `requests` del plan (sin exigir `api`). `/field/api/`
+  **no** se exime de MFA (responde 403 JSON `mfa_required`); sin sesión, 401.
+  Descartados: tokens por dispositivo (robables desde IndexedDB) y sesión en
+  `/api/v1/` (cae en la exención de MFA de `/api/`).
+- **Interfaz (`apps/field`, sin modelos):** `/field/` es un shell HTML propio
+  (`templates/field/shell.html`, no hereda de `base.html`) **sin datos de la
+  organización ni de la persona**, porque lo guarda el Service Worker; exige
+  sesión, membresía y el módulo `work_orders`. Carga `static/field/app.js`
+  (módulos ES `app.js`, `db.js`, `ui.js`, sin build), enruta por hash
+  (`#/`, `#/wo/<id>`), lleva el foco al `<h1>` al navegar y escribe solo con
+  `textContent` y nodos clonados de `<template>` (un test prohíbe `innerHTML`).
+  Los textos llegan traducidos en `data-msg-*` y `<template>`; fechas con
+  `Intl` es-CL en la zona de la organización; nombres de estado desde
+  `bootstrap`. Sin datos muestra "Sin conexión · sin datos descargados"; con
+  `DEBUG`, `/field/demo.json` carga un fixture con el contrato de abajo.
+- **Módulos ES con hash:** `config.storage.ModuleManifestStaticFilesStorage`
+  (whitenoise + `support_js_module_import_aggregation`) reescribe en
+  `collectstatic` los `import` relativos a los nombres con hash (probado en
+  `tests/test_field.py`). Sin import maps (serían JS en línea).
+- **Service Worker (`/field/sw.js`, alcance `/field/`):** vista sin sesión,
+  `application/javascript`, `Cache-Control: no-cache`, exenta de MFA, del
+  bloqueo por módulo y de `no-store`. Precarga solo el shell: `/field/`, el
+  manifest, `field/*.js`, tokens.css, components.css, theme.js,
+  signature-pad.js, fuentes, isotipo e íconos. `CACHE_VERSION` = sha1 de las
+  URL con hash + `RENDER_GIT_COMMIT` (en desarrollo, del contenido): cada
+  despliegue instala una caché `field-<versión>`, `activate` borra las
+  anteriores y la página ofrece "Hay una versión nueva · Actualizar"
+  (`SKIP_WAITING`). Navegación a `/field/`: red primero (3 s) y si no, el shell
+  guardado (una redirección al login nunca se guarda); estáticos precargados:
+  caché primero. Nunca pasan por la caché `/field/api/`, `/files/`,
+  `/accounts/`, `/org-theme.css`, POST ni otra navegación.
+- **Manifest (`/field/manifest.webmanifest`):** "GALBUST · Terreno",
+  `start_url`/`scope` `/field/`, `standalone`, es-CL, `theme_color` y
+  `background_color` = `--color-nav-bg` y `--color-bg` (test contra
+  tokens.css), íconos 192, 512 y maskable 512 exportados de `Marca/`.
+- **Datos en el teléfono:** IndexedDB `galbust-field` v1 con `meta` (user_id,
+  organization_id, synced_at, client_version, bootstrap), `work_orders`
+  (checklist incrustado), `reference`, `queue` (índices `wo_id`, `status`;
+  cada entrada con user_id y organization_id) y `blobs` (fotos). Un snapshot
+  de más de 14 días se borra. Si `bootstrap` trae otra persona u organización
+  se borran OT, catálogos y `meta` (la cola ajena se retiene sin mostrarla);
+  "Salir" con la cola vacía borra la base y con pendientes pide confirmación.
+- **Escrituras y conflictos:** cada cambio se encola con `client_uuid` y se
+  envía desde la página (no desde el SW), de a uno y en orden por OT; el
+  servidor es **idempotente por `client_uuid`** y los correlativos llegan al
+  sincronizar. Horas del teléfono con `client_time(at, not_before=…)` (futuro
+  → ahora, antes de la creación → creación, > 30 días → ahora y queda en
+  auditoría). Checklist: **gana la última por `answered_at`** y la descartada
+  o sobrescrita queda en auditoría (`CHECKLIST_ANSWER`, también en la web).
+  Transiciones offline solo de ejecución (iniciar, pausar, reanudar,
+  completar); OT cancelada o cerrada → 409 `cancelled`/`locked`; no hay regla
+  de "reasignada". Lecturas y fotos se agregan sin conflicto (fotos hasta
+  `completed_at`, reducidas en el teléfono a ≤ 2000 px). 401 o `mfa_required`
+  pausan la cola ("Inicia sesión para enviar N cambios"); 409/404 bloquean esa
+  OT hasta "Descartar"; 400 permite "Corregir y reenviar" con el mismo
+  `client_uuid`; red o 5xx reintentan con espera exponencial.
+
+#### Contrato de `/field/api/` (referencia para la implementación)
+Subclases de los viewsets de v1 con `FieldAPIMixin`: `readings/` POST,
+`meters/` GET, `requests/` POST (multipart con `photo` y `reported_at`),
+`work-orders/{id}/checklist-items/`, `…/checklist-items/{item}/answer/`
+(+ `answered_at`; responde `answered_at` y `superseded`), `…/photos/` y
+`…/checklist-items/{item}/photos/` (+ `taken_at`), `…/complete/` (+ `at`).
+Nuevos: `work-orders/{id}/transition/` (+ `client_uuid`, `at`),
+`work-orders/{id}/labor/` (`minutes`, `client_uuid`), `bootstrap/`,
+`snapshot/?days=N` (7 por defecto, máx. 14) y `reference/` (códigos de falla
+activos por tipo, activos visibles compactos con tope 2000 y `truncated`,
+medidores activos). Errores 409 con código `cancelled`, `locked`, `conflict`
+o `upgrade_required` (cliente con versión menor que `min_client_version`).
+Forma de `bootstrap` y `snapshot` (ejemplo completo en
+`apps/field/fixtures/demo.json`, verificado por `tests/test_field.py`):
+
+```json
+{
+  "bootstrap": {
+    "user": {"id": "…", "name": "…"},
+    "organization": {"id": "…", "name": "…", "timezone": "America/Santiago",
+                     "require_failure_details": false},
+    "role": "technician",
+    "permissions": {"execute": true, "request_create": true, "reading_create": true},
+    "horizon_days": 7,
+    "status_labels": {"scheduled": "Programada", "in_progress": "En ejecución", "…": "…"},
+    "execution_transitions": {"start": {"from": ["planned", "scheduled"], "to": "in_progress"},
+                              "pause": {"from": ["in_progress"], "to": "on_hold"},
+                              "resume": {"from": ["on_hold"], "to": "in_progress"},
+                              "complete": {"from": ["in_progress"], "to": "completed"}},
+    "server_time": "2026-09-28T13:00:00Z",
+    "min_client_version": 1
+  },
+  "snapshot": {
+    "generated_at": "…", "days": 7, "truncated": false,
+    "work_orders": [{
+      "id": "…", "code": "OT-P-00118", "title": "…", "work_type": "preventive",
+      "status": "scheduled", "priority": 3, "scheduled_for": "2026-09-28",
+      "due_on": "2026-09-30", "estimated_minutes": 90, "description": "",
+      "assigned_to_me": true, "assigned_to": {"id": "…", "name": "…"},
+      "asset": {"id": "…", "code": "CMP-01", "name": "…"},
+      "location": null,
+      "meter": {"id": "…", "name": "Horómetro", "unit": "h"}, "meter_required": true,
+      "allowed_transitions": ["in_progress"], "updated_at": "…",
+      "checklist": [{"id": "…", "position": 1, "section": "…", "text": "…",
+                     "item_type": "measurement", "unit": "bar", "min_value": "6.5",
+                     "max_value": "8", "required": true, "result": "ok",
+                     "value_number": "7.2", "value_text": "", "note": "",
+                     "answered_at": "…", "photo_count": 0}]
+    }]
+  }
+}
+```
+`snapshot` incluye las OT visibles en estados abiertos con `scheduled_for` o
+`due_on` ≤ hoy + N, más las en ejecución o en espera, las vencidas y las sin
+fecha; asignadas a la persona primero; tope 200 con `truncated`. `location`
+lleva `{id, name, path}`; los decimales van como texto; consultas acotadas
+(`photo_count` en lote).
 
 ### ADR-012 · Código en inglés, interfaz en español vía i18n
 - **Decisión:** identificadores, modelos, tablas y commits en inglés;
