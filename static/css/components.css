@@ -596,3 +596,61 @@ main { max-width: var(--content-max); margin: 0 auto; padding: var(--space-5) va
 .load--over { font-weight: 600; }
 /* Puntaje del backlog (REQ-04). */
 .score { font-weight: 600; font-family: var(--font-ui); }
+
+/* ---------- Vista de terreno sin conexión (ADR-011, templates/field/shell.html) ---------- */
+.field-bar { background: var(--color-nav-bg); color: var(--color-nav-text); position: sticky; top: 0; z-index: 20; }
+.field-bar__inner {
+  max-width: var(--content-max); margin: 0 auto; min-height: var(--navbar-height);
+  display: flex; align-items: center; justify-content: space-between; gap: var(--space-3);
+  padding: var(--space-2) var(--space-4);
+}
+/* Área de resguardo del isotipo: la mitad de su alto. */
+.field-bar__brand {
+  display: flex; align-items: center; gap: calc(var(--logo-height) * 0.5); min-height: var(--touch-target);
+  padding-block: calc(var(--logo-height) * 0.25); color: var(--color-nav-text); text-decoration: none;
+  font-family: var(--font-brand); font-weight: 500; font-size: var(--text-md); letter-spacing: 0.04em;
+}
+.field-bar__brand img { height: var(--logo-height); width: auto; display: block; }
+.field-bar__status {
+  margin: 0; display: inline-flex; align-items: center; gap: var(--space-1); min-height: 32px;
+  padding: 0 var(--space-3); border: 1px solid var(--color-nav-control-border); border-radius: var(--radius-pill);
+  font-family: var(--font-ui); font-size: var(--text-md); font-weight: 500; white-space: nowrap;
+}
+.field-bar__status:empty { display: none; }
+.field-bar__status svg { width: 18px; height: 18px; }
+.field-bar__status[data-online="true"] svg { color: var(--color-nav-active); }
+.field main { padding-bottom: var(--space-6); }
+.field-update { flex-wrap: wrap; align-items: center; }
+.field-update > span { flex: 1 1 12rem; }
+.field-empty > svg { width: 40px; height: 40px; margin-bottom: var(--space-2); }
+.field-empty h1 { font-size: var(--text-lg); overflow-wrap: anywhere; }
+.field-empty .btn { margin-top: var(--space-2); }
+.field-days { display: flex; flex-direction: column; gap: var(--space-4); }
+.field-list { list-style: none; margin: 0; padding: 0; }
+.field-wo + .field-wo { border-top: 1px solid var(--color-border); }
+/* Toda la fila es el enlace (≥ 48 px); las asignadas a la persona llevan un borde de acento. */
+.field-wo__link {
+  display: flex; flex-direction: column; gap: var(--space-2); min-height: var(--touch-target);
+  padding: var(--space-3) var(--space-3); border-left: 4px solid transparent;
+  color: var(--color-text); text-decoration: none; font-size: var(--text-md);
+}
+.field-wo--mine .field-wo__link { border-left-color: var(--color-accent-text); }
+.field-wo__head { font-weight: 500; overflow-wrap: anywhere; }
+.field-wo__head .mono { color: var(--color-text-muted); }
+.field-wo__title { color: var(--color-link); text-decoration: underline; text-underline-offset: 2px; }
+.field-wo__meta { display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-4); color: var(--color-text-muted); }
+.field-wo__meta:empty { display: none; }
+.field-wo__fact { display: inline-flex; align-items: flex-start; gap: var(--space-1); min-width: 0; overflow-wrap: anywhere; }
+.field-wo__fact svg { margin-top: 0.2em; }
+.field-wo__badges { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.field-back { margin-bottom: var(--space-4); }
+.field-detail h1 { overflow-wrap: anywhere; }
+.field-detail__code { margin: 0 0 var(--space-1); }
+.field-facts { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-3); margin: 0; }
+.field-facts__row dt { color: var(--color-text-muted); font-weight: 500; }
+.field-facts__row dd { margin: 0; display: flex; gap: var(--space-2); align-items: flex-start; overflow-wrap: anywhere; min-width: 0; }
+.field-facts__row dd svg { margin-top: 0.2em; }
+.field-detail__description { margin: var(--space-4) 0 0; white-space: pre-line; overflow-wrap: anywhere; }
+@media (min-width: 720px) {
+  .field-facts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}

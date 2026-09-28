@@ -51,6 +51,7 @@ INSTALLED_APPS = [
     "apps.api",
     "apps.ui",
     "apps.onboarding",
+    "apps.field",
 ]
 
 MIDDLEWARE = [
@@ -258,9 +259,12 @@ STORAGES = {
     "staticfiles": {
         "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"
         if DEBUG
-        else "whitenoise.storage.CompressedManifestStaticFilesStorage"
+        # Hash en el nombre, compresión y `import` de módulos ES reescritos (config/storage.py).
+        else "config.storage.ModuleManifestStaticFilesStorage"
     },
 }
+# Versión desplegada: invalida la caché de la vista de terreno (/field/sw.js, ADR-011).
+APP_RELEASE = os.environ.get("RENDER_GIT_COMMIT", "")
 
 # Solo con almacenamiento local (sin R2).
 MEDIA_ROOT = Path(os.environ.get("MEDIA_ROOT", BASE_DIR / "media"))

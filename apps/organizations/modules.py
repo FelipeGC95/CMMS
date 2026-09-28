@@ -33,6 +33,8 @@ MODULE_ROUTES = [
     (re.compile(r"^/(assets|work-orders|work-orders/backlog|plans/calendar)/export\.xlsx$"), "exports"),
     (re.compile(r"^/(assets|work-orders)/[^/]+/sheet\.pdf$"), "exports"),
     (re.compile(r"^/settings/api-tokens/"), "api"),
+    # Vista de terreno (ADR-011); el Service Worker y el manifest no llevan datos y quedan fuera.
+    (re.compile(r"^/field/(?!sw\.js$|manifest\.webmanifest$)"), "work_orders"),
     (re.compile(r"^/plans/"), "preventive"),
     (re.compile(r"^/assets/[^/]+/plans/"), "preventive"),
     (re.compile(r"^/(requests|report)/"), "requests"),
