@@ -1,15 +1,26 @@
 name: CI
 
+# Minutos de Actions (repo privado): cada push corre una vez (sin pull_request duplicado),
+# los cambios solo de documentación no corren, un push nuevo cancela la corrida anterior
+# de la misma rama y las ramas prueban solo la versión de producción (Render: 3.13);
+# main prueba además 3.11.
 on:
   push:
-  pull_request:
+    paths-ignore:
+      - "docs/**"
+      - "**/*.md"
+      - "Marca/**"
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
   test:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.11", "3.13"]
+        python-version: ${{ github.ref == 'refs/heads/main' && fromJSON('["3.11", "3.13"]') || fromJSON('["3.13"]') }}
     services:
       postgres:
         image: postgres:16
