@@ -156,6 +156,7 @@ servicio exige que cada usuario tenga membresía activa en la organización.
 
 **`labor_entry`**
 `organization_id` · `work_order_id` · `membership_id` · `started_at` · `ended_at` · `minutes` · `hourly_cost` (copiado) · `client_uuid`.
+`UNIQUE (organization_id, client_uuid)` (implementado): reenviar horas desde el modo sin conexión (X-06) no las duplica. Hoy se guarda la persona (`user_id`) y solo `minutes`; inicio y fin explícitos quedan fuera de v1.
 
 **`part_usage`**
 `organization_id` · `work_order_id` · `description` · `quantity` · `unit` · `unit_cost` · `part_id` (F2) · `stock_movement_id` (F2) · `client_uuid`.
@@ -209,7 +210,9 @@ MTBF/MTTR; si el problema resulta ser de un equipo, la OT se crea sobre él.
 > organización, no se registra. `at` es `created_at`; `object_type` es
 > `target_type` (content type). En `changes` nunca se guardan campos sensibles
 > (password, secret, token, key). Consulta: `/audit/`, solo para administradores.
-> Acciones además de las genéricas: `assign`, `checklist_edit`, `cost_add`,
+> Acciones además de las genéricas: `assign`, `checklist_edit`, `checklist_answer`
+> (respuesta sobrescrita con antes/después, o descartada por llegar con
+> `answered_at` anterior a la vigente; X-06), `cost_add`,
 > `cost_remove`, `complete`, `close` (OT); `invite`, `invite_revoke`,
 > `invite_accept`, `role_change`, `deactivate`, `reactivate` (equipo);
 > `revoke` (tokens de API). Las decisiones sobre solicitudes son `transition`.

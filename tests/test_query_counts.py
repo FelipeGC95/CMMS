@@ -961,3 +961,40 @@ def test_public_qr_page_query_budget(client, tenant_a, django_assert_max_num_que
     url = reverse("asset_qr", args=[tenant_a.asset.qr_token])
     with django_assert_max_num_queries(3):  # sesión + activo con su organización y plan
         assert client.get(url).status_code == 200
+
+
+def _field_queries(tenant, membership):
+    """Consultas del snapshot sin conexión (X-06) y de sus catálogos, recorriendo lo que usa el teléfono."""
+    from apps.work.selectors import field_reference, field_work_orders
+
+    with tenant_context(tenant.org), CaptureQueriesContext(connection) as ctx:
+        snapshot = field_work_orders(membership=membership, days=14)
+        for wo in snapshot.work_orders:
+            str(wo.asset.location if wo.asset_id else wo.location)
+            [str(user) for user in wo.helpers.all()]
+            [(item.photo_count, str(item.answered_by)) for item in wo.field_checklist]
+            (wo.field_meter, wo.meter_required, wo.assigned_to_me, str(wo.assigned_to))
+        field_reference(membership=membership)  # devuelve listas ya evaluadas
+    return len(ctx.captured_queries), len(snapshot.work_orders)
+
+
+def test_field_snapshot_and_reference_do_not_grow_with_rows(tenant_a, settings, tmp_path):
+    from apps.assets.models import Meter, MeterKind
+
+    settings.MEDIA_ROOT = tmp_path
+
+    def add(n):
+        _add_rows(tenant_a, n)
+        with tenant_context(tenant_a.org):
+            for asset in Asset.objects.filter(meters__isnull=True):
+                Meter.objects.create(asset=asset, kind=MeterKind.HOURS)
+            wo = create_work_order(work_type="corrective", title="c", asset=tenant_a.asset)
+        _typed_items(tenant_a, wo, n)
+
+    add(1)
+    few, rows_few = _field_queries(tenant_a, tenant_a.tech)
+    add(4)
+    many, rows_many = _field_queries(tenant_a, tenant_a.tech)
+    assert rows_many > rows_few
+    assert many == few, f"snapshot sin conexión: {few} → {many} consultas"
+    assert few <= 12, f"snapshot sin conexión: {few} consultas"
