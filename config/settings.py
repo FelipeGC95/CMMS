@@ -204,6 +204,7 @@ SPECTACULAR_SETTINGS = {
         "AssetStatusEnum": "apps.assets.models.Asset.Status",
         "WorkOrderStatusEnum": "apps.work.models.WorkOrder.Status",
         "WorkRequestStatusEnum": "apps.work.models.WorkRequest.Status",
+        "ChecklistItemResultEnum": "apps.work.models.WorkOrderChecklistItem.Result",
     },
 }
 

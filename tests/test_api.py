@@ -204,6 +204,14 @@ def test_openapi_schema_and_docs(client):
     )
     schema = client.get(reverse("api_schema"), HTTP_ACCEPT="application/vnd.oai.openapi+json")
     assert schema.status_code == 200 and b"/api/v1/work-orders/" in schema.content
+    for path in (
+        b"/api/v1/work-orders/{id}/photos/",
+        b"/api/v1/work-orders/{id}/checklist-items/{item_id}/photos/",
+        b"/api/v1/work-orders/{id}/checklist-items/",
+        b"/api/v1/work-orders/{id}/attachments/",
+    ):
+        assert path in schema.content, path
+    assert b"multipart/form-data" in schema.content
     docs = client.get(reverse("api_docs"))
     assert docs.status_code == 200
     assert b"<script>" not in docs.content  # el inicio va en un archivo aparte (CSP)

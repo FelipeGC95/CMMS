@@ -565,6 +565,23 @@ def test_checklist_with_new_item_types_does_not_grow(client, tenant_a, settings,
     assert many == few, f"checklist con tipos nuevos: {few} → {many} consultas"
 
 
+@pytest.mark.parametrize("suffix", ["checklist-items", "attachments"])
+def test_api_work_order_checklist_and_attachments_do_not_grow(tenant_a, settings, tmp_path, suffix):
+    """Listas de la API v1 de una OT (ítems con su conteo de fotos y adjuntos): consultas acotadas."""
+    from tests.api_utils import api_client
+
+    settings.MEDIA_ROOT = tmp_path
+    with tenant_context(tenant_a.org):
+        wo = create_work_order(work_type="corrective", title="x", asset=tenant_a.asset)
+    client = api_client(tenant_a)
+    url = f"/api/v1/work-orders/{wo.pk}/{suffix}/"
+    _typed_items(tenant_a, wo, 1)
+    few = _api_count(client, url)
+    _typed_items(tenant_a, wo, 5)
+    many = _api_count(client, url)
+    assert many == few, f"{suffix}: {few} → {many} consultas"
+
+
 def _absorbing_assets(tenant, n, plans):
     """n activos nuevos con un plan mayor que absorbe a uno menor, ambos por vencer (PM-05 CA3)."""
     import datetime as dt
