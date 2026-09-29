@@ -1,0 +1,385 @@
+# 08 · Guía de la API v1
+
+Guía funcional de la API REST: qué resuelve cada endpoint, sus reglas y
+ejemplos de uso. La decisión técnica está en ADR-005
+(`docs/04_arquitectura.md`); el contrato exacto, en `/api/schema/`.
+Actualizada al 2026-09-29.
+
+## Resumen
+
+La API v1 permite que otro sistema haga, sin pasar por la pantalla, lo mismo que un planificador o un técnico hacen en la web: consultar y dar de alta activos, cargar lecturas de medidores, crear y mover órdenes de trabajo, responder su checklist con fotos y cerrarlas, y reportar fallas.
+
+Resuelve tres necesidades concretas:
+
+- **App móvil o cliente sin conexión:** el técnico ejecuta la OT completa (iniciar, checklist, fotos, cierre) y los reintentos no duplican nada gracias a `client_uuid`.
+- **Integración con otros sistemas (ERP, BI, planillas):** leer el catálogo de activos y el historial de OT, o crear OT y avisos desde otro sistema.
+- **Telemetría y medidores:** un PLC, SCADA o script envía horómetros y contadores, y los preventivos por uso se disparan solos.
+
+Toda la API usa los mismos servicios que la web: las reglas, permisos, auditoría y aislamiento entre organizaciones son idénticos. No hay una segunda versión de las reglas que pueda desalinearse.
+
+## Conceptos base
+
+Toda petición lleva un token de organización; el token decide de qué empresa son los datos, qué puede hacer y cuántas peticiones por minuto acepta.
+
+### Token y autenticación
+
+1. Un administrador entra a **Más → Tokens de API** (`/settings/api-tokens/`) y crea un token con nombre (p. ej. «ERP»), alcance y vencimiento (nunca, 30 días, 90 días o 1 año).
+2. El token completo (`gbt_…`) se muestra **una sola vez**; la base de datos guarda solo su hash y un prefijo visible para reconocerlo.
+3. Cada petición lo envía en el encabezado:
+
+```http
+Authorization: Bearer gbt_1a2b3c4d_XXXXXXXXXXXXXXXXXXXX
+```
+
+No hay sesión ni cookies, así que no aplica CSRF. Un token revocado, vencido, inexistente o de una organización inactiva responde **401**.
+
+### Qué puede hacer un token
+
+| Aspecto | Comportamiento |
+| --- | --- |
+| Organización | La del token; no se elige ni se envía. Un id de otra empresa responde igual que uno inexistente (404 o error de validación). |
+| Rol efectivo | Planificador sobre toda la organización (sin restricción por sitio). |
+| Alcance `read` | Solo `GET`. Cualquier escritura → 403. |
+| Alcance `write` | Lectura y escritura: activos, lecturas, OT, checklist, fotos, solicitudes. |
+| Nunca puede | Administrar equipo, auditoría, configuración ni otros tokens. |
+| Autoría | Cada token tiene su propio usuario de servicio (`API · <nombre>`): la auditoría muestra qué integración hizo cada cambio. |
+| Zona horaria | La de la organización del token. |
+| Límite de tasa | `600/min` por token por defecto (variable `API_RATE_LIMIT`); al superarlo → 429. |
+
+### Paginación
+
+Toda lista es paginada: `?page=2&page_size=100` (50 por defecto, máximo 200). La respuesta trae `count`, `next`, `previous` y `results`.
+
+```json
+{
+  "count": 134,
+  "next": "https://…/api/v1/assets/?page=2",
+  "previous": null,
+  "results": [ … ]
+}
+```
+
+### Idempotencia con `client_uuid`
+
+Un cliente móvil puede perder la señal justo después de enviar. Para que el reintento no duplique, las altas aceptan un `client_uuid` que genera el propio cliente:
+
+- **Lecturas, OT, solicitudes, fotos:** reenviar el mismo `client_uuid` devuelve el registro ya creado, sin crear otro.
+- **Cierre de OT:** reenviar la misma clave devuelve la OT actual (200); usar esa clave en otra OT → **409 conflict**.
+- **Fotos:** misma clave en otro objeto → **409**.
+- **Respuesta de checklist y transiciones:** repetir la misma respuesta o el mismo estado destino no hace nada.
+- **Carga masiva de lecturas:** idempotente por (medidor, fecha, valor), sin `client_uuid`.
+
+### Errores
+
+Todos los errores tienen la misma forma, con textos en español:
+
+```json
+{
+  "error": {
+    "code": "invalid",
+    "message": "Revisa los datos enviados.",
+    "details": { "labor_minutes": ["Este campo es requerido."] }
+  }
+}
+```
+
+| HTTP | `code` | Cuándo |
+| --- | --- | --- |
+| 400 | `invalid` | Datos inválidos o regla de negocio incumplida (transición no permitida, ítem obligatorio sin responder). |
+| 401 | `not_authenticated` / `authentication_failed` | Sin token, token mal formado, revocado o vencido. |
+| 403 | `permission_denied` | Token `read` intentando escribir, o acción fuera del rol. |
+| 404 | `not_found` | No existe o es de otra organización. |
+| 409 | `conflict` | `client_uuid` ya usado en otra operación. |
+| 429 | `throttled` | Límite de peticiones por minuto superado. |
+
+### Documentación interactiva
+
+- `/api/docs/`: Swagger UI para probar cada endpoint con un token.
+- `/api/schema/`: esquema OpenAPI 3 para generar clientes (Postman, openapi-generator).
+
+## Mapa de endpoints
+
+Son 5 recursos bajo `/api/v1/` con 23 operaciones; las escrituras exigen un token `write`.
+
+| Recurso | Método y ruta | Qué resuelve |
+| --- | --- | --- |
+| Activos | `GET /assets/` | Listar el catálogo, filtrar por código, texto, ubicación, clase o estado. |
+| Activos | `GET /assets/{id}/` | Ficha de un activo. |
+| Activos | `POST /assets/` | Dar de alta un activo desde otro sistema. |
+| Activos | `PATCH /assets/{id}/` | Actualizar datos de un activo (solo los campos enviados). |
+| Medidores | `GET /meters/` | Saber qué medidores tiene un activo y su valor actual. |
+| Medidores | `GET /meters/{id}/` | Detalle de un medidor (uso diario promedio incluido). |
+| Lecturas | `GET /readings/` | Historial de lecturas por medidor o activo. |
+| Lecturas | `GET /readings/{id}/` | Una lectura. |
+| Lecturas | `POST /readings/` | Registrar una lectura (dispara preventivos por uso). |
+| Lecturas | `POST /readings/bulk/` | Cargar hasta 2.000 lecturas en un envío. |
+| OT | `GET /work-orders/` | Listar OT por alcance, estado, tipo, activo o ubicación. |
+| OT | `GET /work-orders/{id}/` | Detalle de una OT. |
+| OT | `POST /work-orders/` | Crear una OT (preventiva, correctiva, mejora, inspección…). |
+| OT | `POST /work-orders/{id}/transition/` | Cambiar el estado (planificar, iniciar, pausar, cerrar, cancelar). |
+| OT | `POST /work-orders/{id}/complete/` | Completar la OT con horas, notas, falla, lectura y firma. |
+| Checklist | `GET /work-orders/{id}/checklist-items/` | Ver los ítems a responder, con cuántas fotos tiene cada uno. |
+| Checklist | `POST /work-orders/{id}/checklist-items/{item_id}/answer/` | Responder un ítem (OK/No OK/N.A., medición, texto, firma). |
+| Fotos | `POST /work-orders/{id}/photos/` | Subir una foto a la OT. |
+| Fotos | `POST /work-orders/{id}/checklist-items/{item_id}/photos/` | Subir una foto a un ítem del checklist. |
+| Adjuntos | `GET /work-orders/{id}/attachments/` | Listar los adjuntos de la OT y sus ítems (solo metadatos). |
+| Solicitudes | `GET /requests/` | Listar avisos de falla por estado. |
+| Solicitudes | `GET /requests/{id}/` | Detalle de un aviso y su OT. |
+| Solicitudes | `POST /requests/` | Reportar una falla: crea el aviso y su OT correctiva. |
+
+## Guía por funcionalidad
+
+Cada bloque explica qué problema resuelve, las reglas que aplica y un ejemplo real de petición y respuesta. En los ejemplos, `$T` es el token y `$API` es `https://galbust-cmms.onrender.com/api/v1`.
+
+### 1. Activos: el catálogo de equipos
+
+**Qué resuelve:** mantener sincronizado el inventario de equipos con un ERP o planilla, y que otras integraciones encuentren un activo por su código sin conocer su id interno.
+
+**Filtros de la lista:** `code` (exacto, sin distinguir mayúsculas), `search` (texto en código o nombre), `location` (incluye sub-ubicaciones), `asset_class`, `status` (`operational`, `stopped`, `in_maintenance`). Los activos dados de baja no aparecen.
+
+**Ejemplo: buscar la envasadora por código.**
+
+```bash
+curl -H "Authorization: Bearer $T" "$API/assets/?code=ENV-01"
+```
+
+```json
+{
+  "count": 1,
+  "results": [{
+    "id": "0192f1a4-…",
+    "code": "ENV-01",
+    "name": "Envasadora línea 1",
+    "asset_class_code": "ENV",
+    "location_code": "PLANTA-1",
+    "status": "operational",
+    "criticality": "A",
+    "manufacturer": "Krones",
+    "attributes": { "potencia_kw": 15 }
+  }]
+}
+```
+
+**Alta y edición:** `POST /assets/` exige `code`, `name` y `asset_class` (id); opcionales `location`, `parent` (activo padre), `criticality` (`A`/`B`/`C`), fabricante, modelo, serie, año, fecha de puesta en servicio y `attributes` (atributos propios de la clase). `PATCH` cambia solo los campos enviados. El código es único por organización.
+
+### 2. Medidores y lecturas: mantenimiento por uso
+
+**Qué resuelve:** que el horómetro, cuentakilómetros o contador de ciclos llegue solo al CMMS y que los planes preventivos por uso («cada 500 horas») generen su OT cuando corresponde, sin que nadie digite lecturas.
+
+**Reglas (las mismas que la web):**
+
+- La lectura no puede ser negativa.
+- En un medidor acumulativo el valor no puede bajar, salvo que se marque `is_reset: true` (cambio de horómetro).
+- Si falta `read_at`, se usa la hora actual.
+- Registrar la lectura recalcula el uso diario promedio y dispara los preventivos por uso que vencen.
+- Las lecturas llegadas por la API quedan con `source: "api"`.
+
+**Ejemplo: enviar una lectura del horómetro.**
+
+```bash
+curl -X POST "$API/readings/" \
+  -H "Authorization: Bearer $T" -H "Content-Type: application/json" \
+  -d '{"meter": "0192f1b0-…", "value": "12480.5",
+       "read_at": "2026-09-29T08:00:00-03:00",
+       "client_uuid": "7b1e…"}'
+```
+
+**Carga masiva (`POST /readings/bulk/`):** hasta 2.000 filas por envío, con las mismas reglas que el CSV de la web. Cada fila identifica el medidor por `meter` (id) o por `asset_code` si el activo tiene un solo medidor. Acepta fechas `aaaa-mm-dd hh:mm` o `dd-mm-aaaa hh:mm`. Las filas válidas se guardan y las inválidas se informan una a una, sin detener el lote.
+
+```json
+// petición
+{ "rows": [
+  { "asset_code": "ENV-01", "value": "12480", "read_at": "2026-09-29 08:00" },
+  { "asset_code": "COMP-02", "value": "-5", "read_at": "2026-09-29 08:00" }
+]}
+
+// respuesta
+{ "created": 1, "duplicates": 0, "errors": 1,
+  "rows": [
+    { "row": 1, "asset_code": "ENV-01", "result": "create", "errors": [] },
+    { "row": 2, "asset_code": "COMP-02", "result": "error",
+      "errors": ["La lectura no puede ser negativa."] }
+  ]}
+```
+
+Reenviar el mismo lote no duplica: las filas ya cargadas vuelven como duplicadas.
+
+### 3. Órdenes de trabajo: crear, listar y mover
+
+**Qué resuelve:** que otro sistema cree trabajo (p. ej. una alarma de SCADA crea una OT predictiva) y que un tablero externo consulte las OT pendientes o atrasadas.
+
+**Filtros de la lista:** `scope` (`open`, `overdue`, `done`, `all`), `status`, `work_type`, `asset`, `location`.
+
+**Crear:** `work_type` (`preventive`, `corrective`, `predictive`, `improvement`, `inspection`), `title` y **exactamente uno** entre `asset` y `location`. Opcionales: `description`, `priority` (1 urgente, 2 alta, 3 normal por defecto, 4 baja), `due_on`, `estimated_minutes`, `client_uuid`. El correlativo visible (`code`, p. ej. `OT-D-00042`) lo asigna el sistema.
+
+```bash
+curl -X POST "$API/work-orders/" -H "Authorization: Bearer $T" \
+  -H "Content-Type: application/json" \
+  -d '{"work_type": "predictive", "title": "Vibración alta en rodamiento",
+       "asset": "0192f1a4-…", "priority": 2, "client_uuid": "c3d9…"}'
+```
+
+**Ciclo de vida (`POST /work-orders/{id}/transition/`):** se envía `to_status` y un `comment` opcional. Transiciones válidas:
+
+| Desde | Puede pasar a |
+| --- | --- |
+| `requested` (solicitada) | `planned`, `scheduled`, `in_progress`, `cancelled` |
+| `planned` (planificada) | `scheduled`, `in_progress`, `cancelled` |
+| `scheduled` (programada) | `planned`, `in_progress`, `cancelled` |
+| `in_progress` (en ejecución) | `on_hold`, `completed`, `cancelled` |
+| `on_hold` (en espera) | `in_progress`, `cancelled` |
+| `completed` (completada) | `closed`, `in_progress` (reabrir) |
+| `closed` / `cancelled` | ninguno (estados finales) |
+
+Repetir el estado actual no hace nada (idempotente). Pasar a `completed` por esta ruta falla si quedan ítems obligatorios sin responder; para cerrar con datos se usa `complete`.
+
+### 4. Checklist: ejecutar la pauta en terreno
+
+**Qué resuelve:** que el técnico responda la pauta de la OT desde un teléfono o tablet, incluso con conexión intermitente.
+
+`GET /work-orders/{id}/checklist-items/` devuelve los ítems en orden, con `item_type`, rango (`min_value`, `max_value`, `unit`), si es obligatorio y `photo_count`. La respuesta depende del tipo:
+
+| Tipo de ítem | Qué se envía a `…/answer/` |
+| --- | --- |
+| Verificación | `result`: `ok`, `not_ok` o `na` |
+| Medición | `value_number` (fuera de rango queda como No OK automáticamente) |
+| Texto | `value_text` |
+| Firma | `signature` (data URL PNG en base64) |
+| Foto obligatoria | Se responde subiendo la foto a `…/checklist-items/{item_id}/photos/`; después `answer` solo guarda la observación. Sin foto → 400. |
+
+Todos aceptan `note` (observación, hasta 500 caracteres). Reenviar la misma respuesta devuelve el ítem sin cambios, también con la OT ya completada.
+
+```json
+// POST /work-orders/{id}/checklist-items/{item_id}/answer/
+{ "value_number": "4.2", "note": "Medido en caliente" }
+```
+
+### 5. Fotos y adjuntos: evidencia del trabajo
+
+**Qué resuelve:** dejar evidencia visual del antes y después, o del hallazgo, en la OT o en el ítem exacto del checklist.
+
+- Envío en `multipart/form-data`: campo `file` (JPEG, PNG, WebP o HEIC, hasta 20 MB) y `client_uuid` opcional.
+- El servidor comprime a JPEG (lado mayor ≤ 2.000 px) y borra los metadatos, incluida la ubicación GPS.
+- Solo en OT abiertas y visibles; cuenta contra el cupo de almacenamiento de la organización.
+- Responde **201** con los metadatos; reenviar el mismo `client_uuid` devuelve la misma foto con **200**.
+- La API **nunca entrega una URL** del archivo: se descarga desde la web, con permisos y URL firmada de corta duración.
+
+```bash
+curl -X POST "$API/work-orders/$OT/photos/" -H "Authorization: Bearer $T" \
+  -F "file=@rodamiento.jpg" -F "client_uuid=5e0a…"
+```
+
+`GET /work-orders/{id}/attachments/` lista los adjuntos de la OT y de sus ítems (nombre, tipo, tamaño, dimensiones, sha256).
+
+### 6. Cierre de OT: registrar lo que se hizo
+
+**Qué resuelve:** cerrar el trabajo con los datos que alimentan los indicadores (MTTR, MTBF, costos, historial de fallas) sin pasar por la pantalla.
+
+`POST /work-orders/{id}/complete/` aplica exactamente el formulario de cierre de la web:
+
+- **Siempre:** `labor_minutes` (0 a 1.440). Opcional `notes` (acción realizada) y `signature`.
+- **Si el plan usa medidor:** `meter_value` obligatorio (la lectura queda registrada).
+- **Correctiva sobre un activo:** `impact` (`total_stop`, `partial`, `none`), `symptom`, `failure_started_at` y `failure_ended_at`; y si la organización lo exige, `failure_mode` y `failure_cause` (ids del catálogo de fallas). Opcionales `failure_mechanism`, `detection_method` y `component` (activo hijo).
+- **Todos los ítems obligatorios** del checklist deben estar respondidos.
+- `client_uuid` evita cerrar dos veces; en otra OT → 409.
+
+```json
+{
+  "labor_minutes": 95,
+  "notes": "Cambio de rodamiento lado acople",
+  "impact": "total_stop",
+  "symptom": "Ruido y vibración",
+  "failure_started_at": "2026-09-29T07:10:00-03:00",
+  "failure_ended_at": "2026-09-29T09:05:00-03:00",
+  "failure_mode": "0192e7…",
+  "failure_cause": "0192e8…",
+  "client_uuid": "a41f…"
+}
+```
+
+### 7. Solicitudes: reportar una falla
+
+**Qué resuelve:** que un operador, otro sistema o un bot de mensajería avise una falla en un paso; el aviso crea su OT correctiva en estado `requested`, lista para que el planificador la tome.
+
+- `description` y **exactamente uno** entre `asset` y `location`.
+- `asset_stopped: true` solo con activo: sube la prioridad sugerida y fija el vencimiento para hoy.
+- Prioridad sugerida: activo detenido de criticidad A → urgente; otro activo detenido → alta; resto → normal.
+- Idempotente por `client_uuid`.
+
+```json
+// POST /requests/
+{ "asset": "0192f1a4-…", "description": "Fuga de aceite en reductor",
+  "asset_stopped": true, "client_uuid": "e2b7…" }
+
+// respuesta 201
+{ "number": 118, "status": "pending", "work_order_code": "OT-C-00213", … }
+```
+
+Estados de la solicitud: `pending`, `accepted`, `rejected`, `merged` (fusionada con otra).
+
+## Casos de aplicación de punta a punta
+
+Cuatro escenarios típicos de una pyme productiva, con la secuencia exacta de llamadas.
+
+### Caso A — Técnico en terreno con app móvil (token `write`)
+
+El técnico recibe una preventiva mensual de un compresor en una planta con señal irregular.
+
+1. `GET /work-orders/?scope=open` — la app descarga sus OT abiertas y las guarda en el teléfono.
+2. `GET /work-orders/{id}/checklist-items/` — descarga la pauta para trabajar sin conexión.
+3. `POST /work-orders/{id}/transition/` con `{"to_status": "in_progress"}` — marca el inicio.
+4. `POST …/checklist-items/{item_id}/answer/` por cada ítem (verificación, presión medida, observaciones).
+5. `POST …/checklist-items/{item_id}/photos/` para los ítems con foto obligatoria, y `POST /work-orders/{id}/photos/` para la evidencia general.
+6. `POST /work-orders/{id}/complete/` con minutos, notas, lectura del horómetro y firma.
+
+Si la señal se corta, la app guarda cada paso en una cola y lo reenvía después con el mismo `client_uuid`: nada se duplica y el cierre no se hace dos veces.
+
+### Caso B — Telemetría de horómetros (token `write`)
+
+Un PLC o un script en el PC de la planta lee los horómetros de 30 equipos cada noche.
+
+1. Una sola vez: `GET /meters/?asset_code=ENV-01` para cada equipo con varios medidores y guardar el `id` del que corresponde.
+2. Cada noche: `POST /readings/bulk/` con las 30 filas (`asset_code` o `meter`, `value`, `read_at`).
+3. Revisar `errors` de la respuesta (p. ej. un contador que retrocedió sin reinicio) y alertar.
+
+Resultado: los planes «cada 500 horas» generan su OT preventiva al cruzar el umbral, sin digitación. Si el script falla a medias y se reenvía el lote, las filas ya cargadas vuelven como duplicadas.
+
+### Caso C — Sincronización con el ERP (token `write` para altas, `read` para reportes)
+
+El ERP es el maestro de equipos y necesita los costos y horas de mantenimiento.
+
+1. Alta de equipo nuevo en el ERP → `GET /assets/?code=XXX`; si `count` es 0, `POST /assets/`; si existe, `PATCH /assets/{id}/` con lo que cambió.
+2. Cierre contable mensual → `GET /work-orders/?scope=done` paginado, leyendo `total_cost`, `completed_at`, `asset` y `work_type`.
+3. Tablero BI → un token aparte con alcance `read`, que no puede modificar nada aunque se filtre.
+
+### Caso D — Aviso de falla desde otro canal (token `write`)
+
+Un bot de WhatsApp o un formulario de la intranet recibe «la envasadora se detuvo».
+
+1. `GET /assets/?search=envasadora` para resolver el activo (o `code` si el operador escaneó la etiqueta).
+2. `POST /requests/` con `description`, `asset` y `asset_stopped: true`.
+3. Responder al operador con el `work_order_code` devuelto (p. ej. `OT-C-00213`) para que haga seguimiento.
+4. Consultar `GET /requests/{id}/` o `GET /work-orders/{id}/` para informar el avance.
+
+El planificador ve la OT correctiva con prioridad urgente (si el activo es crítico A) y vencimiento hoy, sin haber digitado nada.
+
+## Lo que la API aún no hace
+
+La v1 cubre el flujo del técnico y las integraciones de datos; la configuración y la planificación siguen solo en la web.
+
+| Falta | Consecuencia práctica | Cómo resolverlo hoy |
+| --- | --- | --- |
+| Endpoints de ubicaciones, clases de activo y catálogo de fallas | Los ids de `location`, `asset_class`, `failure_mode` y `failure_cause` no se pueden descubrir por la API. | Copiarlos desde la web, o leer `location` y `asset_class` de un activo existente. |
+| Planes preventivos | No se crean ni editan planes por la API. | Web; las OT preventivas se generan solas por fecha o por lectura. |
+| Asignar técnico | `assigned_to` es solo lectura: no se asigna ni se reasigna por la API. | Web. |
+| Gestionar solicitudes | No se aceptan, rechazan ni fusionan avisos por la API. | Web (bandeja del planificador). |
+| Descargar archivos | Los adjuntos devuelven solo metadatos, nunca una URL. | Descarga desde la web con URL firmada. |
+| Borrado | No hay `DELETE` en ningún recurso (sin borrado físico por diseño). | Cancelar una OT con `transition` a `cancelled`. |
+| Notificaciones salientes | No hay webhooks: un sistema externo debe consultar periódicamente. | Consultar `GET /work-orders/?scope=open` cada cierto tiempo. |
+| Token por usuario | El token actúa como integración (rol planificador), no como un técnico concreto. | Un token por app o integración, con nombre claro. |
+
+### Referencias
+
+- Swagger UI: `/api/docs/` · esquema OpenAPI: `/api/schema/`.
+- Decisión y detalle técnico: ADR-005 en `docs/04_arquitectura.md`.
+- Código: `apps/api/v1.py` (endpoints), `apps/api/serializers.py` (campos), `apps/api/services.py` (tokens e idempotencia).
