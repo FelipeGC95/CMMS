@@ -171,6 +171,25 @@ generan solas.
   búsqueda con alcance, conversación en el worker, citas, cupos y conjunto de
   evaluación con casos del piloto — 4 semanas.
 - Inventario: repuestos, bodegas, stock mínimo, reservas y consumos — 5 semanas.
+  - **En curso** (diseño aprobado el 2026-10-10): INV-01..INV-17
+    ([02_requisitos.md](02_requisitos.md) §6), modelo en
+    [03_modelo_de_datos.md](03_modelo_de_datos.md) §2.10 y ADR-028. Módulo
+    `inventory` en los planes Prueba, Profesional y Empresa. Stock negativo
+    permitido, sin órdenes de compra en v1 (solo reposición + Excel). Incluye
+    los repuestos sin conexión que quedaron fuera de la PWA (INV-13).
+  - Paquetes (uno por rama; no corren en paralelo dos que creen migraciones
+    en la misma app):
+
+    | Paquete | Contenido | Migraciones | Depende de | Inicio |
+    |---|---|---|---|---|
+    | P0 · Docs base | INV-01..17, modelo, ADR-028, roadmap | — | — | al inicio |
+    | P1 · Núcleo | `apps/inventory`: modelos, servicios de stock, costo promedio, reservas, reconciliación, permisos, módulo de plan, alerta `stock_low` | inventory, organizations (datos), audit, notifications | — | al inicio |
+    | P2 · Catálogo, bodegas e importación web | INV-01..INV-04 (catálogo, bodegas, stock, importación Excel/CSV) | — | P1 | tras P1 |
+    | P3 · Integración con la OT | INV-09, INV-10 (manual y "Usar"), devolución al quitar, liberación al cerrar/cancelar, previstos pre-marcados en la web | work | P1 | tras P1, en paralelo con P2 y P4 |
+    | P4 · Planes y reserva automática | INV-11, INV-10 CA1, "Crear catálogo desde los planes" | maintenance | P1 | tras P1, en paralelo con P2 y P3 |
+    | P5 · Movimientos, reposición, alertas y Excel | INV-05..INV-07 (entrada, conteo, transferencia), INV-12, INV-14 | — | P2 | tras P2 (en paralelo con P6) |
+    | P6 · API v1, API de terreno y PWA | INV-13, INV-17, docs/08, ADR-011, X-06 | — | P3 (y P4) | tras P3 y P4 |
+    | P7 · Indicadores, seed y cierre de docs | INV-15, `seed_demo`, exportación y purga, cierre de docs 02–08 | — | P2–P6 | al final |
 - Mantenimiento por condición: umbrales, alertas, ingesta CSV/API — 3 semanas.
 - ✔ KPIs ampliados (KPI-02) — hecho (2026-10): `/reports/kpis/` con backlog
   en semanas en el tiempo, planificado vs. correctivo, costos por activo y
