@@ -7846,3 +7846,251 @@ msgstr ""
 
 msgid "Septiembre 2026"
 msgstr ""
+
+msgid "categoría"
+msgstr ""
+
+msgid "n° de parte"
+msgstr ""
+
+msgid "notas"
+msgstr ""
+
+msgid "costo promedio"
+msgstr ""
+
+msgid "último costo"
+msgstr ""
+
+msgid "última entrada"
+msgstr ""
+
+msgid "repuesto"
+msgstr ""
+
+msgid "por defecto"
+msgstr ""
+
+msgid "bodega"
+msgstr ""
+
+msgid "bodegas"
+msgstr ""
+
+msgid "existencia"
+msgstr ""
+
+msgid "reservado"
+msgstr ""
+
+msgid "stock mínimo"
+msgstr ""
+
+msgid "stock objetivo"
+msgstr ""
+
+msgid "ubicación en bodega"
+msgstr ""
+
+msgid "último movimiento"
+msgstr ""
+
+msgid "stock"
+msgstr ""
+
+msgid "costo promedio resultante"
+msgstr ""
+
+msgid "saldo resultante"
+msgstr ""
+
+msgid "transferencia"
+msgstr ""
+
+msgid "documento"
+msgstr ""
+
+msgid "fecha"
+msgstr ""
+
+msgid "movimiento de stock"
+msgstr ""
+
+msgid "movimientos de stock"
+msgstr ""
+
+msgid "consumido"
+msgstr ""
+
+msgid "motivo de liberación"
+msgstr ""
+
+msgid "liberada el"
+msgstr ""
+
+msgid "reserva de repuesto"
+msgstr ""
+
+msgid "reservas de repuestos"
+msgstr ""
+
+msgid "Entrada"
+msgstr ""
+
+msgid "Salida a OT"
+msgstr ""
+
+msgid "Devolución desde OT"
+msgstr ""
+
+msgid "Ajuste"
+msgstr ""
+
+msgid "Transferencia (salida)"
+msgstr ""
+
+msgid "Transferencia (entrada)"
+msgstr ""
+
+msgid "Conteo"
+msgstr ""
+
+msgid "Stock inicial"
+msgstr ""
+
+msgid "Reconciliación"
+msgstr ""
+
+msgid "revierte a"
+msgstr ""
+
+msgid "Cubierta"
+msgstr ""
+
+msgid "Liberada"
+msgstr ""
+
+msgid "Plan preventivo"
+msgstr ""
+
+msgid "OT cerrada"
+msgstr ""
+
+msgid "OT cancelada"
+msgstr ""
+
+msgid "Liberada a mano"
+msgstr ""
+
+msgid "recurso del plan"
+msgstr ""
+
+msgid "creada por"
+msgstr ""
+
+msgid "Repuesto no encontrado."
+msgstr ""
+
+msgid "La OT está cancelada: no admite repuestos."
+msgstr ""
+
+msgid "La OT está cerrada: sus repuestos ya no se pueden cambiar."
+msgstr ""
+
+msgid "Solo se puede devolver una salida a OT."
+msgstr ""
+
+msgid "La OT ya no admite reservas."
+msgstr ""
+
+msgid "Reserva no encontrada."
+msgstr ""
+
+msgid "La reserva ya no está activa."
+msgstr ""
+
+msgid "Ingresa un número válido."
+msgstr ""
+
+msgid "La cantidad no puede ser negativa."
+msgstr ""
+
+msgid "El costo no puede ser negativo."
+msgstr ""
+
+#, python-format
+msgid "Máximo %(n)s caracteres."
+msgstr ""
+
+msgid "Bodega no encontrada."
+msgstr ""
+
+msgid "Ubicación no encontrada."
+msgstr ""
+
+msgid "La bodega por defecto no se puede desactivar: elige primero otra bodega por defecto."
+msgstr ""
+
+msgid "La bodega tiene stock: transfiérelo o ajústalo a cero antes de desactivarla."
+msgstr ""
+
+msgid "La bodega tiene reservas activas: libéralas antes de desactivarla."
+msgstr ""
+
+msgid "Indica el motivo: la diferencia es negativa o supera el 10 %."
+msgstr ""
+
+msgid "Elige una bodega de destino distinta a la de origen."
+msgstr ""
+
+#, python-format
+msgid "Ya existe otro con el código %(code)s."
+msgstr ""
+
+#, python-format
+msgid "La bodega %(code)s está desactivada."
+msgstr ""
+
+msgid "El objetivo no puede ser menor que el mínimo."
+msgstr ""
+
+msgid "Bodega principal"
+msgstr ""
+
+msgid "Inventario y repuestos"
+msgstr ""
+
+#, python-format
+msgid "%(part)s bajo mínimo en %(warehouse)s"
+msgstr ""
+
+#, python-format
+msgid "Disponible %(available)s %(unit)s · mínimo %(min)s"
+msgstr ""
+
+msgid "Repuesto bajo mínimo"
+msgstr ""
+
+msgid "Entrada de stock"
+msgstr ""
+
+msgid "Ajuste de stock"
+msgstr ""
+
+msgid "Transferencia de stock"
+msgstr ""
+
+msgid "Salida de stock a OT"
+msgstr ""
+
+msgid "Devolución de stock"
+msgstr ""
+
+msgid "Reconciliación de stock"
+msgstr ""
+
+msgid "Reserva de repuesto"
+msgstr ""
+
+msgid "Liberación de reserva"
+msgstr ""

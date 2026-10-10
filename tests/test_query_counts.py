@@ -1110,3 +1110,29 @@ def test_extended_kpis_do_not_grow_with_rows(
     assert many == few, f"{url}: {few} → {many} consultas"
     with django_assert_max_num_queries(30):
         client.get(url)
+
+
+def test_inventory_stock_list_and_part_detail_are_bounded(tenant_a, django_assert_max_num_queries):
+    """INV-01/04: la lista de stock y la ficha no crecen con repuestos, bodegas ni movimientos."""
+    from apps.inventory import services as inventory
+    from apps.inventory.selectors import part_detail, stock_list
+
+    with tenant_context(tenant_a.org):
+        main = inventory.ensure_default_warehouse()
+        other = inventory.create_warehouse(membership=tenant_a.admin, code="B2", name="Bodega 2")
+        parts = [
+            inventory.create_part(membership=tenant_a.admin, code=f"P{i}", name=f"P{i}") for i in range(12)
+        ]
+        for part in parts:
+            inventory.receive_stock(membership=tenant_a.admin, part=part, quantity=3, unit_cost="5")
+            inventory.transfer_stock(
+                membership=tenant_a.admin, part=part, from_warehouse=main, to_warehouse=other, quantity=1
+            )
+        with django_assert_max_num_queries(1):
+            rows = list(stock_list(membership=tenant_a.admin, status="below_min"))
+        with django_assert_max_num_queries(1):
+            rows = list(stock_list(membership=tenant_a.admin)[:10])
+        assert [row.on_hand_total for row in rows] == [3] * 10
+        with django_assert_max_num_queries(3):
+            detail = part_detail(parts[0].pk, membership=tenant_a.admin)
+            [(m.warehouse.code, m.created_by) for m in detail.movements]

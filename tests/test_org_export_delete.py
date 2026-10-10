@@ -225,3 +225,42 @@ def test_purge_command_runs_due_purges(tenant_a):
     assert Organization.objects.get(pk=org.pk).status == Organization.Status.DELETED
     with platform_context():
         assert not Asset.all_tenants.filter(organization_id=org.pk).exists()
+
+
+# ---------- Inventario (INV-14): exportación y purga ----------
+
+
+def _inventory_data(tenant):
+    from apps.inventory import services as inventory
+    from apps.work.services import create_work_order
+
+    with tenant_context(tenant.org):
+        part = inventory.create_part(membership=tenant.admin, code="ROD", name="Rodamiento")
+        inventory.receive_stock(membership=tenant.admin, part=part, quantity=5, unit_cost="10")
+        wo = create_work_order(work_type="corrective", title="x", asset=tenant.asset)
+        inventory.issue_to_work_order(work_order=wo, part=part, quantity=2, by=tenant.tech.user)
+        inventory.reserve_for_work_order(work_order=wo, part=part, quantity=1, source="manual")
+
+
+def test_export_includes_inventory_tables(tenant_a, django_capture_on_commit_callbacks):
+    _inventory_data(tenant_a)
+    files = read_zip(_export(tenant_a, django_capture_on_commit_callbacks).file)
+    movements = csv_rows(files["datos/inventory_stockmovement.csv"])
+    assert sorted(row["kind"] for row in movements) == ["issue", "receipt"]
+    for name in ("part", "warehouse", "stockitem", "reservation"):
+        assert len(csv_rows(files[f"datos/inventory_{name}.csv"])) == 1, name
+
+
+def test_purge_removes_immutable_inventory_rows(tenant_a, tenant_b):
+    from apps.inventory.models import Part, StockMovement
+
+    _inventory_data(tenant_a)
+    _inventory_data(tenant_b)
+    org = _request_deletion(tenant_a)
+    summary = purge.purge_organization(org)
+    connection.check_constraints()
+    assert summary["tables"]["inventory.stockmovement"] == 2
+    with platform_context():
+        assert not StockMovement.all_tenants.filter(organization_id=org.pk).exists()
+        assert StockMovement.all_tenants.filter(organization_id=tenant_b.org.pk).count() == 2
+        assert Part.all_tenants.filter(organization_id=tenant_b.org.pk).count() == 1
