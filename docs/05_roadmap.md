@@ -172,7 +172,10 @@ generan solas.
   evaluación con casos del piloto — 4 semanas.
 - Inventario: repuestos, bodegas, stock mínimo, reservas y consumos — 5 semanas.
 - Mantenimiento por condición: umbrales, alertas, ingesta CSV/API — 3 semanas.
-- KPIs ampliados, Pareto de fallas y costos por activo — 2 semanas.
+- ✔ KPIs ampliados (KPI-02) — hecho (2026-10): `/reports/kpis/` con backlog
+  en semanas en el tiempo, planificado vs. correctivo, costos por activo y
+  clase, Pareto de fallas y exportación a Excel. Queda fuera: historial de
+  capacidad, moneda configurable, PDF y API de estos indicadores.
 - Correctiva desde hallazgo y mejoras de UX surgidas del piloto — 1 semana.
 
 ## F3 · Escala comercial (~12 semanas)

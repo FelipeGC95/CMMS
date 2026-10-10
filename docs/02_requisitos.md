@@ -349,6 +349,48 @@ Con filtros por fecha, sitio, clase y activo:
 
 **KPI-02 · Indicadores ampliados (F2)**: backlog en semanas en el tiempo,
 proporción preventivo/correctivo, costos por activo/clase, Pareto de fallas.
+Implementado (2026-10) en `/reports/kpis/` (módulo `kpis` del plan; enlace en el
+inicio y en "Más"), con los filtros del tablero (período —por defecto las
+últimas 12 semanas—, sitio, clase, criticidad, activo), el alcance por sitio
+de la membresía y los mismos roles que ven el tablero. Selectores en
+`apps/reporting/extended.py`.
+- CA1 ✔ Backlog en semanas en el tiempo: un punto por semana hacia atrás desde
+  el fin del período (12 por defecto, hasta 53). Misma definición que REQ-04
+  CA2: horas estimadas de las OT pendientes (ni completadas, ni cerradas, ni
+  canceladas; incluye las solicitadas) / capacidad semanal de los técnicos del
+  alcance. Se reconstruye a cada fecha con creación, término/cierre y la fecha
+  del cambio de estado a cancelada (sin snapshots nuevos; una cancelada sin
+  ese registro usa su última modificación). La capacidad es la vigente: no
+  hay historial de capacidad. Sin capacidad se muestran horas, no semanas.
+- CA2 ✔ Planificado vs. correctivo: OT completadas en el período (por fecha
+  de término, sin las canceladas) por tipo y mes; planificado = preventiva +
+  predictiva/condición + inspección, correctivo = correctiva; las de mejora se
+  informan aparte, fuera del %. % planificado por horas registradas (SMRP
+  Planned Maintenance Percentage) y por cantidad.
+- CA3 ✔ Costos por activo y por clase: OT cerradas en el período con los
+  totales guardados al cierre (WO-04 CA3): mano de obra, repuestos, otros y
+  total. Top 10 activos con "Ver todos" paginado (25 por página) y agregado
+  por clase; las OT sobre una ubicación van en una fila aparte. Cada OT suma a
+  su activo directo (no hay convención de sumar componentes al padre en
+  costos: `include_components` de `asset_kpis` es una opción de la ficha).
+  Moneda: no existe un campo de moneda en la organización; se muestra `$` como
+  en la OT.
+- CA4 ✔ Pareto de fallas por modo o por causa (catálogo ISO 14224): cantidad,
+  horas de detención (fallas con detención total, como MTTR, cortadas al fin
+  del período) y % acumulado, de mayor a menor según "Cantidad" o
+  "Detención"; se marcan (ícono + "80 %") los códigos hasta el que cruza el
+  80 %. Las fallas sin código quedan fuera del Pareto y se informan aparte.
+- CA5 ✔ Cada indicador muestra su fórmula y referencia (SMRP / EN 15341 /
+  ISO 14224) en el desplegable "Fórmula"; "Exportar a Excel" (módulo
+  `exports`) baja un libro con una hoja de filtros y una por indicador (costos
+  por activo completos).
+- CA6 ✔ Gráficos SVG generados en el servidor (sin JS ni estilos en línea),
+  colores por tokens, siempre con su tabla; a 360 px sin scroll horizontal.
+- CA7 ✔ Cada indicador en un número fijo de consultas agregadas
+  (`tests/test_query_counts.py`).
+- No incluido: historial de capacidad de técnicos, moneda configurable,
+  gráfico de línea del % acumulado (se muestra como barra acumulada por fila),
+  exportación PDF de estos indicadores y endpoints de API.
 
 **KPI-03 · Exportación (M1)**: listas y reportes a Excel; ficha de activo y OT
 a PDF con marca de la organización.

@@ -254,6 +254,7 @@ Todos se muestran en `/design-system/` en ambos modos, con sus estados
 | **Diálogo de confirmación** (`.dialog`) | confirmar al salir o cambiar de organización | `<dialog>` nativo con `showModal()` (foco atrapado, Esc cancela), fondo `--color-overlay`; título con ícono de advertencia + texto, acciones apiladas en móvil y en fila desde 720 px; la acción segura ("Ir a sincronizar") lleva el foco inicial. |
 | **Barra de terreno** (`.field-bar`) | con "Salir" | Barra de `/field/` con estado de conexión (ícono + texto) y "Salir"; bajo 720 px "Salir" muestra solo el ícono y conserva su nombre para lectores de pantalla (objetivo de 48 px). |
 | **Horas de apoyo** (`.field-labor`) | | Tarjeta en la OT de terreno: minutos (1–1440), ayuda y aviso "guardado en el teléfono". |
+| **Gráficos de indicadores** (`.chart-columns`, `.chart-bar`, `.chart-legend`) | columnas en el tiempo; barra en una celda de tabla (simple, apilada, acumulada con marca del 80 %) | SVG generado en el servidor con tamaños en atributos (`viewBox` o `%`, cifras sin localizar) y colores por clase con tokens (`.chart__fill` `--color-accent-text`, `.chart__fill--alt` `--color-warning`, `.chart__prior` `--color-border-strong`, riel `--color-surface-sunken`). Siempre `aria-hidden`, con la tabla de datos al lado; la celda del gráfico se oculta vacía bajo 720 px. |
 | **Estado vacío** | | Ilustración mínima con el isotipo en monocromo + acción sugerida. |
 | **Código** | OT, activo | JetBrains Mono, botón de copiar. |
 
