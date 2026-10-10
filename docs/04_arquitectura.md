@@ -166,6 +166,10 @@ revés; los modelos no llaman servicios; las vistas HTML y la API llaman a
 
 Pipeline (GitHub Actions): ruff → verificación de migraciones faltantes →
 pytest (con Postgres de servicio) → `check --deploy` → pip-audit/gitleaks.
+Para cuidar los minutos de Actions (repo privado), corre una vez por push
+(sin `pull_request`), omite cambios solo de documentación (`docs/`, `*.md`,
+`Marca/`), cancela la corrida anterior de la misma rama y en las ramas prueba
+solo Python 3.13 (la versión de Render); `main` prueba 3.11 y 3.13.
 
 Operación:
 
