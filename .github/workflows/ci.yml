@@ -10,13 +10,17 @@ on:
       - "docs/**"
       - "**/*.md"
       - "Marca/**"
+  # Solo a mano (pestaña Actions → CI → Run workflow): el e2e de la PWA de terreno con
+  # Playwright. No corre en cada push porque los minutos de Actions son escasos.
+  workflow_dispatch:
 
 concurrency:
-  group: ci-${{ github.ref }}
+  group: ci-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
   test:
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -72,3 +76,55 @@ jobs:
           DJANGO_SECRET_KEY: ci-only-not-secret-0123456789-abcdefghijklmnopqrstuvwxyz-ABCDEFG
           DJANGO_ALLOWED_HOSTS: cmms.example.com
         run: uv run python manage.py check --deploy --fail-level WARNING
+
+  # E2E de la PWA de terreno (X-06, ADR-011): servidor con seed_demo + Playwright chromium.
+  # Solo con workflow_dispatch; cómo correrlo en local: docs/07_operacion.md.
+  e2e:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: cmms
+          POSTGRES_PASSWORD: cmms
+          POSTGRES_DB: cmms
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U cmms"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgres://cmms:cmms@localhost:5432/cmms
+      E2E_BASE_URL: http://127.0.0.1:8765
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.13"
+          enable-cache: true
+      - name: Dependencias
+        run: uv sync --locked
+      - name: Base de demostración
+        run: |
+          uv run python manage.py migrate --noinput
+          uv run python manage.py seed_demo --reset
+      - name: Servidor
+        run: |
+          nohup uv run python manage.py runserver 127.0.0.1:8765 --noreload > server.log 2>&1 &
+          for i in $(seq 1 30); do curl -fs http://127.0.0.1:8765/healthz && break; sleep 1; done
+      - name: Playwright chromium
+        run: uv run --no-project --with playwright playwright install --with-deps chromium
+      - name: E2E
+        run: |
+          mkdir -p e2e-shots
+          E2E_SHOTS=e2e-shots uv run --no-project --with playwright --with pytest pytest -c tests/e2e/pytest.ini tests/e2e
+      - name: Capturas y registro del servidor
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e
+          path: |
+            e2e-shots/
+            server.log
+          retention-days: 7
