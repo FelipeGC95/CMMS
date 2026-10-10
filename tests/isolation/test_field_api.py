@@ -28,7 +28,9 @@ def _wo(tenant):
         wo = create_work_order(work_type="improvement", title="OT", asset=tenant.asset)
         item = WorkOrderChecklistItem.objects.create(work_order=wo, text="Revisar", item_type="check")
         meter = Meter.objects.create(asset=tenant.asset, kind=MeterKind.HOURS)
-        FailureCode.objects.create(kind=FailureCode.Kind.MODE, code=f"M-{tenant.org.slug}", name="Modo")
+        FailureCode.objects.create(
+            kind=FailureCode.Kind.MODE, code=f"M-{tenant.org.slug[-1].upper()}", name="Modo"
+        )
     return wo, item, meter
 
 
@@ -44,7 +46,7 @@ def test_reads_only_bring_the_active_organization(tenant_a, tenant_b):
     assert {a["id"] for a in reference["assets"]} == {str(tenant_b.asset.pk)}
     assert {m["id"] for m in reference["meters"]} == {str(meter_b.pk)}
     codes = {c["code"] for kind in reference["failure_codes"].values() for c in kind}
-    assert "M-empresa-a" not in codes
+    assert "M-A" not in codes and "M-B" in codes
     meters = {m["id"] for m in client.get(f"{FIELD_API}/meters/").json()["results"]}
     assert meters == {str(meter_b.pk)}
     assert client.get(f"{FIELD_API}/meters/{meter_a.pk}/").status_code == 404
