@@ -483,11 +483,56 @@
       </li>
     </ul>
   </section>
-  <div class="card">
+  <div class="card mb-4">
     <dl class="field-facts">
       <div class="field-facts__row"><dt>{% translate "Activo o ubicación" %}</dt><dd>{% icon 'box' %}CMP-01 · {% translate "Compresor" %}</dd></div>
       <div class="field-facts__row"><dt>{% translate "Medidor" %}</dt><dd>{% icon 'clock' %}{% translate "Horómetro (h) · Pide lectura al completar" %}</dd></div>
     </dl>
   </div>
+  <h3>{% translate "Barra de sincronización" %}</h3>
+  <p class="muted">{% translate "Estado de la cola de cambios hechos sin conexión, con su acción. Se anuncia con aria-live." %}</p>
+  <div class="mb-4">
+    <section class="field-sync" data-tone="info">
+      <div class="field-sync__inner">
+        <p class="field-sync__row field-sync__row--info">{% icon 'clock' %}<span class="field-sync__text">{% translate "3 cambios por enviar" %}</span><button class="btn btn--ghost field-sync__action" type="button">{% translate "Enviar ahora" %}</button></p>
+        <p class="field-sync__row field-sync__row--warning">{% icon 'x' %}<span class="field-sync__text">{% translate "Sin conexión · 3 cambios guardados en el teléfono" %}</span></p>
+        <p class="field-sync__row field-sync__row--warning">{% icon 'key' %}<span class="field-sync__text">{% translate "Inicia sesión para enviar 3 cambios" %}</span><a class="btn btn--ghost field-sync__action" href="#ds-field">{% translate "Iniciar sesión" %}</a></p>
+        <p class="field-sync__row field-sync__row--error">{% icon 'stop' %}<span class="field-sync__text">{% translate "1 cambio con conflicto o rechazado" %}</span><a class="btn btn--ghost field-sync__action" href="#ds-field">{% translate "Revisar" %}</a></p>
+        <p class="field-sync__row field-sync__row--success">{% icon 'check' %}<span class="field-sync__text">{% translate "Todo enviado" %}</span></p>
+      </div>
+    </section>
+  </div>
+  <h3>{% translate "Ejecución de la OT" %}</h3>
+  <section class="card mb-4 field-exec">
+    <div class="field-toolbar">
+      <button class="btn btn--ghost btn--lg" type="button">{% icon 'sync' %}{% translate "Descargar de nuevo" %}</button>
+      <a class="btn btn--secondary btn--lg" href="#ds-field">{% icon 'megaphone' %}{% translate "Nueva solicitud" %}</a>
+    </div>
+    <div class="field-actions">
+      <button class="btn btn--secondary btn--lg" type="button">{% icon 'pause' %}{% translate "Pausar" %}</button>
+      <a class="btn btn--primary btn--lg" href="#ds-field">{% icon 'check' %}{% translate "Completar" %}</a>
+    </div>
+    <p class="field-exec__worked">{% translate "Trabajado en este teléfono: 35 min" %}</p>
+  </section>
+  <ol class="checklist mb-4">
+    <li class="check-item check-item--ok">
+      <p class="check-item__text"><span class="check-item__num">1.</span><span>{% translate "Revisar ruidos y vibraciones anormales" %}</span></p>
+      <div class="row field-item-badges"><span class="badge badge--success">{% icon 'check' %}{% translate "OK" %}</span><span class="badge badge--warning">{% icon 'clock' %}{% translate "Por enviar: 1" %}</span></div>
+      <p class="field-saved">{% icon 'check' %}{% translate "Respuesta guardada en el teléfono" %}</p>
+      <p class="field-saved field-saved--error">{% icon 'stop' %}{% translate "Escribe un número (coma o punto para los decimales)." %}</p>
+    </li>
+  </ol>
+  <h3>{% translate "Conflictos o rechazados" %}</h3>
+  <ul class="field-problems">
+    <li class="card field-problem">
+      <div class="field-problem__head"><span class="badge badge--warning">{% icon 'alert' %}{% translate "Rechazado" %}</span><h4 class="field-problem__title">{% translate "Cierre de la OT" %} · OT-P-00003</h4></div>
+      <p class="field-problem__message">{% translate "Revisa los datos enviados." %}</p>
+      <ul class="field-problem__details"><li>{% translate "Este campo es obligatorio." %}</li></ul>
+      <div class="field-actions">
+        <a class="btn btn--primary btn--lg" href="#ds-field">{% icon 'wrench' %}{% translate "Corregir y reenviar" %}</a>
+        <button class="btn btn--ghost btn--lg" type="button">{% icon 'x' %}{% translate "Descartar" %}</button>
+      </div>
+    </li>
+  </ul>
 </section>
 {% endblock %}

@@ -7168,9 +7168,6 @@ msgstr ""
 msgid "Abre esta vista con conexión para descargar las OT de los próximos días."
 msgstr ""
 
-msgid "Cargar datos de demostración"
-msgstr ""
-
 msgid "Volver a la lista"
 msgstr ""
 
@@ -7247,4 +7244,274 @@ msgid "Fuga en reductor"
 msgstr ""
 
 msgid "Horómetro (h) · Pide lectura al completar"
+msgstr ""
+
+msgid "Sincronización"
+msgstr ""
+
+msgid "Descargando las OT…"
+msgstr ""
+
+msgid "1 cambio por enviar"
+msgstr ""
+
+msgid "{n} cambios por enviar"
+msgstr ""
+
+msgid "Sin conexión · 1 cambio guardado en el teléfono"
+msgstr ""
+
+msgid "Sin conexión · {n} cambios guardados en el teléfono"
+msgstr ""
+
+msgid "Enviando cambios…"
+msgstr ""
+
+msgid "Todo enviado"
+msgstr ""
+
+msgid "1 cambio con conflicto o rechazado"
+msgstr ""
+
+msgid "{n} cambios con conflicto o rechazados"
+msgstr ""
+
+msgid "Tu sesión terminó: inicia sesión para descargar las OT."
+msgstr ""
+
+msgid "Inicia sesión para enviar 1 cambio"
+msgstr ""
+
+msgid "Inicia sesión para enviar {n} cambios"
+msgstr ""
+
+msgid "Hay una versión nueva: actualiza para seguir sincronizando."
+msgstr ""
+
+msgid "Cambios guardados de «{org}»: {n}. Cambia a esa organización para enviarlos."
+msgstr ""
+
+msgid "Cambios de otra persona guardados en este teléfono: {n}."
+msgstr ""
+
+msgid "Iniciar sesión"
+msgstr ""
+
+msgid "Configurar"
+msgstr ""
+
+msgid "Enviar ahora"
+msgstr ""
+
+msgid "Revisar"
+msgstr ""
+
+msgid "Descartar"
+msgstr ""
+
+msgid "¿Descartar este cambio? No se podrá recuperar."
+msgstr ""
+
+msgid "¿Descartar los cambios de otra persona? No se podrán recuperar."
+msgstr ""
+
+msgid "Por enviar"
+msgstr ""
+
+msgid "Con conflicto"
+msgstr ""
+
+msgid "Conflicto"
+msgstr ""
+
+msgid "Rechazado"
+msgstr ""
+
+msgid "Trabajado en este teléfono"
+msgstr ""
+
+msgid "Respuesta guardada en el teléfono"
+msgstr ""
+
+msgid "Observación guardada en el teléfono"
+msgstr ""
+
+msgid "Foto guardada en el teléfono"
+msgstr ""
+
+msgid "Estado guardado en el teléfono: se envía al tener conexión."
+msgstr ""
+
+msgid "OT completada en el teléfono: se envía al tener conexión."
+msgstr ""
+
+msgid "Solicitud guardada: se envía al tener conexión."
+msgstr ""
+
+msgid "Lectura guardada: se envía al tener conexión."
+msgstr ""
+
+msgid "Cambio corregido: se reenvía al tener conexión."
+msgstr ""
+
+msgid "La foto supera los 20 MB."
+msgstr ""
+
+msgid "Fotos por enviar"
+msgstr ""
+
+msgid "Escribe un número (coma o punto para los decimales)."
+msgstr ""
+
+msgid "Faltan ítems obligatorios del checklist"
+msgstr ""
+
+msgid "Elige un activo o una ubicación."
+msgstr ""
+
+msgid "Elige un medidor."
+msgstr ""
+
+msgid "Faltan los catálogos: abre esta vista con conexión para descargarlos."
+msgstr ""
+
+msgid "Solicitud N°"
+msgstr ""
+
+msgid "Respuesta del checklist"
+msgstr ""
+
+msgid "Foto de un ítem"
+msgstr ""
+
+msgid "Foto de la OT"
+msgstr ""
+
+msgid "Cierre de la OT"
+msgstr ""
+
+msgid "Lectura de medidor"
+msgstr ""
+
+msgid "Hecho el"
+msgstr ""
+
+msgid "Esta OT ya no se modifica desde terreno."
+msgstr ""
+
+msgid "Tu rol puede ver esta OT, pero no ejecutarla."
+msgstr ""
+
+msgid "— Elegir —"
+msgstr ""
+
+msgid "Acciones de terreno"
+msgstr ""
+
+msgid "Descargar de nuevo"
+msgstr ""
+
+msgid "Conflictos o rechazados"
+msgstr ""
+
+msgid "Solicitudes enviadas"
+msgstr ""
+
+msgid "No hay OT para los próximos días."
+msgstr ""
+
+msgid "Hay cambios de esta OT con conflicto o rechazados."
+msgstr ""
+
+msgid "Pausar"
+msgstr ""
+
+msgid "Avisar otra falla en este activo"
+msgstr ""
+
+msgid "Registrar lectura"
+msgstr ""
+
+msgid "Fotos de la OT"
+msgstr ""
+
+msgid "Firma lista: guárdala para enviarla."
+msgstr ""
+
+msgid "Guardar observación"
+msgstr ""
+
+msgid "Volver a la OT"
+msgstr ""
+
+msgid "Calculado entre «Iniciar» y «Completar», sin las pausas. Corrígelo si hace falta."
+msgstr ""
+
+msgid "Falla"
+msgstr ""
+
+msgid "Si lo dejas vacío, se usa la hora de término."
+msgstr ""
+
+msgid "Avisa una falla: se crea la solicitud y su OT correctiva."
+msgstr ""
+
+msgid "O una ubicación (si no es un activo)"
+msgstr ""
+
+msgid "¿Qué pasa?"
+msgstr ""
+
+msgid "Enviar solicitud"
+msgstr ""
+
+msgid "El medidor se reinició o se cambió"
+msgstr ""
+
+msgid "Guardar lectura"
+msgstr ""
+
+msgid "Cambios que el servidor no aceptó. Lo que sigue de la misma OT espera hasta que los resuelvas."
+msgstr ""
+
+msgid "No hay cambios con conflicto ni rechazados."
+msgstr ""
+
+msgid "La OT cambió en el servidor (por ejemplo, otra persona la canceló o la completó). Descarta el cambio; la OT se descarga de nuevo."
+msgstr ""
+
+msgid "Los datos no pasaron la validación. Corrígelos y reenvía: no se duplica."
+msgstr ""
+
+msgid "Corregir y reenviar"
+msgstr ""
+
+msgid "Barra de sincronización"
+msgstr ""
+
+msgid "Estado de la cola de cambios hechos sin conexión, con su acción. Se anuncia con aria-live."
+msgstr ""
+
+msgid "3 cambios por enviar"
+msgstr ""
+
+msgid "Sin conexión · 3 cambios guardados en el teléfono"
+msgstr ""
+
+msgid "Inicia sesión para enviar 3 cambios"
+msgstr ""
+
+msgid "Ejecución de la OT"
+msgstr ""
+
+msgid "Trabajado en este teléfono: 35 min"
+msgstr ""
+
+msgid "Revisar ruidos y vibraciones anormales"
+msgstr ""
+
+msgid "Por enviar: 1"
+msgstr ""
+
+msgid "Este campo es obligatorio."
 msgstr ""
