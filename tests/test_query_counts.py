@@ -998,3 +998,44 @@ def test_field_snapshot_and_reference_do_not_grow_with_rows(tenant_a, settings, 
     assert rows_many > rows_few
     assert many == few, f"snapshot sin conexión: {few} → {many} consultas"
     assert few <= 12, f"snapshot sin conexión: {few} consultas"
+
+
+def _field_api_queries(client, url):
+    with CaptureQueriesContext(connection) as ctx:
+        response = client.get(url)
+    assert response.status_code == 200, url
+    return len(ctx.captured_queries)
+
+
+@pytest.mark.parametrize("path", ["snapshot/?days=14", "reference/", "meters/", "checklist-items"])
+def test_field_api_queries_do_not_grow_with_rows(
+    tenant_a, settings, tmp_path, path, django_assert_max_num_queries
+):
+    """API de terreno (X-06): snapshot, catálogos y listas con consultas acotadas."""
+    from apps.assets.models import Meter, MeterKind
+    from tests.api_utils import FIELD_API, field_client
+
+    settings.MEDIA_ROOT = tmp_path
+    with tenant_context(tenant_a.org):
+        wo = create_work_order(work_type="corrective", title="c", asset=tenant_a.asset)
+
+    def add(n):
+        _add_rows(tenant_a, n)
+        with tenant_context(tenant_a.org):
+            for asset in Asset.objects.filter(meters__isnull=True):
+                Meter.objects.create(asset=asset, kind=MeterKind.HOURS)
+        _typed_items(tenant_a, wo, n)
+
+    url = (
+        f"{FIELD_API}/work-orders/{wo.pk}/checklist-items/"
+        if path == "checklist-items"
+        else f"{FIELD_API}/{path}"
+    )
+    client = field_client(tenant_a.tech)
+    add(1)
+    few = _field_api_queries(client, url)
+    add(4)
+    many = _field_api_queries(client, url)
+    assert many == few, f"{url}: {few} → {many} consultas"
+    with django_assert_max_num_queries(16):
+        client.get(url)

@@ -131,6 +131,7 @@ class MembershipSessionAuthentication(SessionAuthentication):
         membership = getattr(request._request, "membership", None)
         if membership is None:
             raise exceptions.PermissionDenied(_("No perteneces a ninguna organización activa."))
+        membership.user = result[0]  # la misma persona ya cargada: sin otra consulta
         return result[0], membership
 
     def authenticate_header(self, request):
