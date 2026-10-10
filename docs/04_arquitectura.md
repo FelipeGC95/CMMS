@@ -72,6 +72,7 @@ apps/
   assets/               AssetClass, Asset, AssetStatusPeriod, Meter, MeterReading
   maintenance/          MaintenancePlan, versiones, disparadores, asignaciones, programador
   work/                 WorkOrder, checklist, mano de obra, costos, WorkRequest, FailureEvent, backlog
+  inventory/            (F2, ADR-028) Part, Warehouse, StockItem, StockMovement, Reservation, reposición
   catalogs/             FailureCode, plantillas de plataforma (template packs)
   reporting/            KPIs, exportaciones Excel/PDF
   audit/                AuditLog y registro automático
@@ -398,6 +399,15 @@ tener ingresos).
   Mi semana y "Más") e instalable; tras el piloto se decide si es la vista por
   defecto. Fuera de v1: QR, repuestos, ver fotos o manuales, Background Sync,
   push, crear/aprobar/cerrar OT y varias organizaciones a la vez.
+- **Repuestos (F2, INV-13, ADR-028):** dejan de estar fuera: entran con el
+  paquete P6 de inventario. `reference/` suma el catálogo activo compacto (sin
+  costos, tope 2.000 con `truncated`, solo con el módulo `inventory` y
+  `inventory.view`) y `snapshot/` suma por OT `planned_parts` y `parts`. "Usar"
+  un previsto o agregar un repuesto se encola con `client_uuid` y `used_at` en
+  la cola de la OT, antes de "Completar". Como el stock negativo se permite,
+  no hay conflictos de stock: solo 409 `cancelled`/`locked`, y el mismo
+  `client_uuid` en otra OT → 409 `conflict`. Crear repuestos sin conexión
+  sigue fuera.
 - **Estado (2026-10):** implementado en cinco paquetes: P1 servicios en
   `apps/work` (horas del teléfono, regla de checklist, `LaborEntry.client_uuid`),
   P2 `/field/api/`, P3 shell/SW/manifest, P4 cola, sincronización, flujos y e2e,
@@ -652,6 +662,15 @@ lleva `{id, name, path}`; los decimales van como texto; consultas acotadas
     `frequency_label`, `uses_meter`…) delegan en la versión vigente y
     devuelven vacío si no la hay.
   - Las versiones usadas por OT no se pueden borrar.
+- **Excepción acotada (F2, inventario, ADR-028):** en una versión
+  **publicada**, un `plan_resource` de tipo repuesto con `part` vacío se puede
+  enlazar una sola vez al catálogo (`link_published_resource`: vacío →
+  repuesto; nunca cambiar ni quitar un enlace). Es el único cambio permitido
+  sobre una versión publicada: no altera lo que el plan pide (descripción,
+  cantidad y unidad quedan igual), solo identifica el repuesto para reservarlo
+  (INV-10, INV-11) y evita obligar a publicar una versión nueva de cada plan
+  al adoptar el inventario. Un borrador copia `part` y al publicar se
+  conservan los enlaces.
 
 ### ADR-017 · Toda la aplicación es usable completa desde un smartphone
 - **Contexto:** los clientes son pymes donde el administrador, el
@@ -1070,3 +1089,109 @@ lleva `{id, name, path}`; los decimales van como texto; consultas acotadas
   borrados hasta que vencen (`BACKUP_RETENTION_DAYS`, ver
   `docs/07_operacion.md`). La exportación síncrona (sin worker) depende del
   tamaño de la organización, acotado por el cupo de almacenamiento del plan.
+
+### ADR-028 · Inventario: saldo materializado + libro inmutable, costo promedio por repuesto, stock negativo permitido
+- **Contexto:** F2 agrega inventario y repuestos (INV-01..INV-17,
+  [02_requisitos.md](02_requisitos.md) §6). Hoy el repuesto de la OT es texto
+  (`part_usage`) y el del plan también (`plan_resource`). Los clientes son
+  pymes sin bodeguero dedicado: el técnico consume en terreno, a veces sin
+  señal, y el jefe de mantención compra según lo que falta. El inventario
+  debe reducir pasos (principio rector): nadie elige bodega ni escribe costos
+  al consumir, y nada debe bloquear el cierre de una OT. Decisiones de
+  producto de Felipe (2026-10-10): Q1 stock negativo permitido siempre; Q2
+  previstos pre-marcados al completar una preventiva en la web (en API y PWA
+  el consumo es explícito); Q3 técnicos y externos no ven costos de
+  inventario; Q4 módulo `inventory` en planes Prueba, Profesional y Empresa;
+  Q5 sin órdenes de compra en v1 (solo reposición + Excel).
+- **Decisión:**
+  1. **App propia `apps/inventory`** (no dentro de `work` ni de un catálogo
+     general): modelos `Part`, `Warehouse`, `StockItem`, `StockMovement` y
+     `Reservation`, todos `TenantModel`.
+  2. **Saldo materializado + libro inmutable:** `stock_movement` es el libro
+     (solo inserción: `save()` fuera del alta y `delete()` lanzan
+     `ImmutableMovementError`; admin solo lectura; los errores se corrigen
+     con un movimiento contrario; la purga de ADR-027 usa `_raw_delete`; sin
+     trigger SQL). `stock_item` guarda `on_hand` y `reserved` como caché
+     transaccional que solo cambian los servicios, en la misma transacción
+     que el movimiento. El libro manda: `manage.py inventory_reconcile`
+     verifica (y con `--fix` reescribe) el saldo desde el libro; una tarea
+     semanal sin `--fix` reporta desvíos a Sentry.
+  3. **Costo promedio ponderado por repuesto en la organización**
+     (`part.avg_cost`), no por bodega. Q = Σ `on_hand` del repuesto en todas
+     las bodegas antes del movimiento; si Q ≤ 0 el promedio pasa a ser el
+     costo entrante. Solo lo cambian entradas con costo, devoluciones desde la
+     OT y conteos/importaciones con costo cuando el stock es ≤ 0; cada
+     movimiento guarda `unit_cost` aplicado y `avg_cost_after`.
+  4. **Stock negativo permitido** (Q1): un consumo nunca se rechaza por falta
+     de stock; se marca "Negativo · regularizar" y encabeza la reposición.
+  5. **Bodega por defecto creada sola y en diferido:** "Bodega principal"
+     (`BOD`) aparece al primer uso del inventario (`ensure_default_warehouse`),
+     no en el asistente de puesta en marcha. Con una sola bodega no hay
+     selector.
+  6. **Un solo punto de consumo:** `work.services.add_part_usage(part=…)`
+     delega en `inventory.services.issue_to_work_order` para la web, la API v1
+     y `/field/api/`. El servidor fija descripción, unidad, costo (promedio
+     vigente) y bodega (reserva → bodega del ancestro más cercano de la
+     ubicación → por defecto). Quitar la línea crea una devolución. El texto
+     libre sigue posible.
+  7. **Las reservas informan, no bloquean:** al generar una preventiva se
+     reservan los repuestos previstos (principal y absorbidas); faltar stock
+     solo muestra "Faltan N". `stock_item.reserved` = Σ pendientes de
+     reservas activas.
+  8. **Enlace único vacío → repuesto en un recurso de una versión publicada:**
+     excepción acotada a ADR-016 (ver la nota allí).
+  9. **"Dónde se usa" calculado** desde los planes vigentes y los consumos
+     de 24 meses, sin BOM manual.
+  10. **Categoría como texto con sugerencias**, no tabla.
+  11. **Liberación de reservas con llamadas explícitas** en
+      `transition(CANCELLED)` y `_close` de `work.services`, no con signals.
+  12. **Sin ajustes de inventario por organización en v1** (umbrales y
+      reglas fijas).
+  - Concurrencia: todo en `transaction.atomic`; se bloquea primero el
+    repuesto (`select_for_update` en orden de pk), luego los `stock_item` en
+    orden de `warehouse_id`; con el repuesto bloqueado se calcula el promedio,
+    se crea el movimiento y se actualiza el saldo con `F()`; notificaciones
+    (`stock_low`) con `on_commit`. Test de concurrencia solo en PostgreSQL.
+  - Idempotencia por `client_uuid` en el movimiento (y en `part_usage`, que lo
+    copia), revisada **antes** de las validaciones de estado: el reenvío
+    devuelve lo mismo aunque la OT ya esté cerrada; la misma clave en otra OT
+    o con otro repuesto es conflicto.
+  - Permisos nuevos `inventory.view`, `inventory.cost_view`,
+    `inventory.move` e `inventory.manage` (INV-16); consumir sigue siendo
+    `work_order.execute` y reservar `work_order.manage`.
+- **Alternativas descartadas:**
+  - Inventario dentro de `work` o de un catálogo común: mezcla
+    responsabilidades y migraciones; `work` ya es la app más grande.
+  - Saldo siempre calculado desde el libro: simple de mantener consistente,
+    pero cada lista y alerta suma todo el historial. Solo saldo, sin libro:
+    sin trazabilidad ni forma de reconciliar.
+  - Promedio por bodega: una transferencia cambiaría el costo y complica el
+    cálculo sin beneficio para una pyme. FIFO o costo estándar: exigen capas
+    de costo o mantenimiento de precios; fuera de v1.
+  - Rechazar consumos sin stock: bloquea el cierre de OT y genera conflictos
+    en el modo sin conexión, con stock que muchas veces está mal registrado.
+  - Crear la bodega en el asistente: agrega un paso que la mayoría no
+    necesita.
+  - Reservas que bloquean: la reserva se crea hasta 14 días antes y el stock
+    real lo maneja el jefe, no el sistema.
+  - Exigir una nueva versión del plan para enlazar repuestos: obligaría a
+    republicar todos los planes al adoptar el inventario.
+  - BOM manual por activo, tabla de categorías, signals para liberar
+    reservas: más pasos o efectos ocultos.
+- **Consecuencias:**
+  - El saldo puede desviarse del libro si alguien escribe fuera de los
+    servicios: mitigado con admin solo lectura, reconciliación semanal y un
+    fixture que reconcilia al final de cada test de inventario, más un test
+    de propiedad con secuencias aleatorias.
+  - Orden fijo de bloqueo para evitar interbloqueos; transacciones cortas.
+  - El promedio se puede distorsionar con costo cero o stock negativo:
+    advertencias, marcas "Sin costo" y "Negativo" y fixtures de resultado
+    conocido.
+  - Las reservas se crean hasta 14 días antes (horizonte del programador) e
+    inflan el reservado: es informativo y no bloquea.
+  - Si se desactiva el módulo, los datos se ocultan; `part_usage` conserva su
+    texto y costo, así que KPI-02, PDF y Excel no cambian.
+  - Fuera de v1 (Q5 y alcance): órdenes de compra, proveedores como entidad,
+    lotes y series, conversión de unidades, FIFO, integración contable,
+    códigos de barra de repuestos y crear repuestos sin conexión.
+  - Modo sin conexión: los repuestos entran a ADR-011 con INV-13.
