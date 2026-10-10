@@ -722,6 +722,8 @@ main { max-width: var(--content-max); margin: 0 auto; padding: var(--space-5) va
 @media (max-width: 720px) {
   .field-bar__exit-text { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 }
+.field-labor { max-width: 40rem; }
+.field-labor input[type="number"] { max-width: 12rem; }
 .dialog {
   width: min(32rem, calc(100vw - 2 * var(--space-4))); max-height: calc(100vh - 2 * var(--space-4));
   padding: 0; border: 1px solid var(--color-border); border-radius: var(--radius-lg);

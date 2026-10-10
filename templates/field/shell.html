@@ -231,20 +231,6 @@
         </div>
         <p class="field-exec__worked" data-slot="worked" hidden></p>
       </section>
-      {# Horas de apoyos (o tiempo extra): se encolan y se envían a work-orders/{id}/labor/. #}
-      <section class="card mb-4" aria-labelledby="field-labor-title" data-slot="labor" hidden>
-        <h2 id="field-labor-title">{% translate "Registrar horas" %}</h2>
-        <form class="field-labor" novalidate data-form="labor">
-          <div class="field" data-field="minutes">
-            <label for="fl-minutes">{% translate "Minutos trabajados" %}</label>
-            <input id="fl-minutes" name="minutes" type="number" inputmode="numeric" min="1" max="1440" step="1" required aria-describedby="fl-minutes-help">
-            <span class="help" id="fl-minutes-help">{% translate "Para quien apoya o trabajó tiempo extra. Quien completa la OT registra su tiempo al completarla." %}</span>
-            <span class="error" data-error hidden></span>
-          </div>
-          <button class="btn btn--secondary btn--lg" type="submit">{% icon 'clock' %}{% translate "Guardar horas" %}</button>
-          <p class="field-saved" data-slot="labor-saved" role="status"></p>
-        </form>
-      </section>
       <section class="card mb-4" aria-labelledby="field-facts-title">
         <h2 class="visually-hidden" id="field-facts-title">{% translate "Datos de la OT" %}</h2>
         <dl class="field-facts" data-slot="facts"></dl>
@@ -262,7 +248,7 @@
         <ol class="checklist" data-slot="checklist"></ol>
         <p class="card empty" data-slot="checklist-empty" hidden>{% translate "Esta OT no tiene checklist." %}</p>
       </section>
-      <section class="card" aria-labelledby="field-wo-photos-title" data-slot="wo-photos" hidden>
+      <section class="card mb-4" aria-labelledby="field-wo-photos-title" data-slot="wo-photos" hidden>
         <h2 id="field-wo-photos-title">{% translate "Fotos de la OT" %}</h2>
         <p class="muted" data-slot="wo-photo-count" hidden></p>
         <div class="photo-upload">
@@ -270,6 +256,20 @@
           <label class="btn btn--secondary btn--lg photo-upload__button" data-slot="wo-photo-label">{% icon 'camera' %}{% translate "Agregar foto" %}</label>
           <span class="field-saved" data-slot="wo-photo-status" role="status"></span>
         </div>
+      </section>
+      {# Horas de apoyos (o tiempo extra): se encolan y se envían a work-orders/{id}/labor/. #}
+      <section class="card" aria-labelledby="field-labor-title" data-slot="labor" hidden>
+        <h2 id="field-labor-title">{% translate "Registrar horas" %}</h2>
+        <form class="field-labor" novalidate data-form="labor">
+          <div class="field" data-field="minutes">
+            <label for="fl-minutes">{% translate "Minutos trabajados" %}</label>
+            <input id="fl-minutes" name="minutes" type="number" inputmode="numeric" min="1" max="1440" step="1" required aria-describedby="fl-minutes-help">
+            <span class="help" id="fl-minutes-help">{% translate "Para quien apoya o trabajó tiempo extra. Quien completa la OT registra su tiempo al completarla." %}</span>
+            <span class="error" data-error hidden></span>
+          </div>
+          <button class="btn btn--secondary btn--lg" type="submit">{% icon 'clock' %}{% translate "Guardar horas" %}</button>
+          <p class="field-saved" data-slot="labor-saved" role="status"></p>
+        </form>
       </section>
     </article>
   </template>

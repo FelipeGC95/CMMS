@@ -184,6 +184,10 @@ def test_offline_execution_reaches_the_server_once(browser, tmp_path):
     item(page, first).locator("input[type=file]").set_input_files(photo_file)
     item(page, first).locator("[data-slot='saved']:not(:empty)").wait_for()
     assert "Sin conexión" in page.inner_text("#field-sync-rows")
+    # Horas de un apoyo (P5): se encolan aparte del cierre.
+    page.fill("#fl-minutes", "15")
+    page.click("form[data-form='labor'] button[type=submit]")
+    page.wait_for_selector("[data-slot='labor-saved']:not(:empty)")
 
     page.click("[data-slot='complete']")
     page.wait_for_selector("form[data-form='complete']")
@@ -206,7 +210,7 @@ def test_offline_execution_reaches_the_server_once(browser, tmp_path):
     state = manage(STATE.format(id=wo["id"]))
     photo_items = sum(1 for row in wo["items"] if row["type"] == "photo")
     assert state["status"] in ("completed", "closed")  # sin revisión, el cierre es automático
-    assert state["labor"] == [30]
+    assert sorted(state["labor"]) == [15, 30]
     assert state["answered"] == state["items"]
     assert state["photos"] == photo_items + 1
     assert errors == []
@@ -279,5 +283,73 @@ def test_cancelled_work_order_is_a_conflict_that_can_be_discarded(browser):
     card.locator("[data-action='discard']").click()
     page.wait_for_selector("[data-slot='none']:not([hidden])")
     assert manage(STATE.format(id=wo["id"]))["status"] == "cancelled"
+    assert errors == []
+    context.close()
+
+
+# ---------- P5: salir borra los datos del teléfono (ADR-011 §1e) ----------
+
+DATABASES = "async () => (await indexedDB.databases()).map((info) => info.name)"
+
+
+def shot(page, name):
+    if os.environ.get("E2E_SHOTS"):
+        page.screenshot(path=f"{os.environ['E2E_SHOTS']}/{name}.png", full_page=True)
+
+
+def test_exit_from_the_web_with_an_empty_queue_deletes_the_database(browser):
+    context, page, errors = field_page(browser)
+    assert "galbust-field" in page.evaluate(DATABASES)
+    # "Salir" de la web (en móvil está en "Más"): sin cambios pendientes no pregunta nada.
+    page.goto("/menu/")
+    page.click("#account form[data-field-exit] button[type=submit]")
+    page.wait_for_url("**/accounts/login/**")
+    assert "galbust-field" not in page.evaluate(DATABASES)
+    assert errors == []
+    context.close()
+
+
+def test_exit_with_pending_changes_asks_before_deleting(browser):
+    context, page, errors = field_page(browser)
+    wo = pick(page, need_items=False)
+    assert wo, "seed_demo no tiene una OT planificada para el técnico"
+    # El servidor no recibe nada: el cambio queda en la cola.
+    page.route(
+        "**/field/api/**",
+        lambda route: route.abort() if route.request.method == "POST" else route.continue_(),
+    )
+    page.evaluate("id => { location.hash = `#/wo/${id}`; }", wo["id"])
+    page.wait_for_selector(".field-detail")
+    page.fill("#fl-minutes", "20")
+    page.click("form[data-form='labor'] button[type=submit]")
+    page.wait_for_selector("[data-slot='labor-saved']:not(:empty)")
+
+    exit_button = page.locator(".field-bar form[data-field-exit] button[type=submit]")
+    exit_button.click()
+    dialog = page.locator("#field-exit-dialog")
+    dialog.wait_for(state="visible")
+    assert "1 cambio de terreno sin enviar" in dialog.inner_text()
+    shot(page, "exit-dialog-360")
+    dialog.locator("button[value='cancel']").click()
+    dialog.wait_for(state="hidden")
+    assert "/field/" in page.url
+    assert "galbust-field" in page.evaluate(DATABASES)
+    pending = page.evaluate(
+        """() => new Promise((resolve) => {
+            const request = indexedDB.open("galbust-field");
+            request.onsuccess = () => {
+              const db = request.result;
+              const count = db.transaction("queue").objectStore("queue").count();
+              count.onsuccess = () => { db.close(); resolve(count.result); };
+            };
+        })"""
+    )
+    assert pending == 1
+
+    exit_button.click()
+    dialog.wait_for(state="visible")
+    dialog.locator("button[value='confirm'][data-mode='exit']").click()
+    page.wait_for_url("**/accounts/login/**")
+    assert "galbust-field" not in page.evaluate(DATABASES)
     assert errors == []
     context.close()
