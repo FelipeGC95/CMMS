@@ -45,6 +45,7 @@ INSTALLED_APPS = [
     "apps.maintenance",
     "apps.attachments",
     "apps.work",
+    "apps.inventory",
     "apps.reporting",
     "apps.audit",
     "apps.notifications",

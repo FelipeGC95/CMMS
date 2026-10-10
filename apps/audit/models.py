@@ -71,6 +71,15 @@ class AuditEvent(TenantModel):
         DOWNLOAD = "download", _("Descarga")
         DELETION_REQUEST = "deletion_request", _("Eliminación solicitada")
         DELETION_CANCEL = "deletion_cancel", _("Eliminación cancelada")
+        # Inventario (INV-14). Alta y edición de repuestos y bodegas usan CREATE y UPDATE.
+        STOCK_RECEIVE = "stock_receive", _("Entrada de stock")
+        STOCK_ADJUST = "stock_adjust", _("Ajuste de stock")
+        STOCK_TRANSFER = "stock_transfer", _("Transferencia de stock")
+        STOCK_ISSUE = "stock_issue", _("Salida de stock a OT")
+        STOCK_RETURN = "stock_return", _("Devolución de stock")
+        STOCK_RECONCILE = "stock_reconcile", _("Reconciliación de stock")
+        RESERVE = "reserve", _("Reserva de repuesto")
+        RELEASE = "release", _("Liberación de reserva")
 
     # SET_NULL: el evento sobrevive a la baja del usuario; actor_repr conserva quién fue.
     actor = models.ForeignKey(

@@ -17,7 +17,7 @@ from django.conf import settings
 from django.core.mail import send_mail
 from django.db import transaction
 from django.template.loader import render_to_string
-from django.urls import reverse
+from django.urls import NoReverseMatch, reverse
 from django.utils import timezone
 from django.utils.formats import date_format
 from django.utils.translation import gettext as _
@@ -296,6 +296,82 @@ def _deliver_request_resolved(*, work_request_id, actor) -> None:
         actor=actor,
         location_id=target_location_id(work_request),
     )
+
+
+def notify_stock_low(*, stock_item, actor=None) -> None:
+    """Un repuesto cruzó su mínimo en una bodega (INV-12 CA3): aviso al confirmar, una vez al día."""
+    _on_commit(_deliver_stock_low, stock_item_id=stock_item.pk, actor=actor)
+
+
+def _part_url(part) -> str:
+    # La ficha del repuesto llega con las pantallas de inventario (P2); antes, sin enlace.
+    try:
+        return reverse("inventory_part_detail", args=[part.pk])
+    except NoReverseMatch:
+        return ""
+
+
+def _deliver_stock_low(*, stock_item_id, actor) -> int:
+    """A quienes mueven inventario y ven la bodega; `dedupe_key` stock_low:<ítem>:<fecha local>."""
+    from apps.inventory.models import StockItem
+    from apps.maintenance.models import format_number
+
+    stock_item = StockItem.objects.select_related("part", "warehouse").filter(pk=stock_item_id).first()
+    if stock_item is None or not stock_item.is_below_min:
+        return 0  # al confirmar ya no está bajo mínimo (otra operación lo repuso)
+    organization = require_current_organization()
+    today = timezone.localdate(timezone=zoneinfo.ZoneInfo(organization.timezone))
+    key = f"{Kind.STOCK_LOW}:{stock_item.pk}:{today.isoformat()}"
+    location_id = stock_item.warehouse.location_id
+    recipients = {
+        m.user_id: m
+        for m in active_memberships()
+        if has_perm(m, Perm.INVENTORY_MOVE)
+        and (actor is None or m.user_id != actor.pk)
+        and (location_id is None or _in_scope(m, location_id))
+    }
+    already = set(
+        Notification.objects.filter(recipient_id__in=list(recipients), dedupe_key=key).values_list(
+            "recipient_id", flat=True
+        )
+    )
+    pending = [user_id for user_id in recipients if user_id not in already]
+    if not pending:
+        return 0
+    prefs = preferences_for(pending, Kind.STOCK_LOW)
+    part, warehouse = stock_item.part, stock_item.warehouse
+    title = _("%(part)s bajo mínimo en %(warehouse)s") % {"part": part.code, "warehouse": warehouse.name}
+    body = _("Disponible %(available)s %(unit)s · mínimo %(min)s") % {
+        "available": format_number(stock_item.available),
+        "unit": part.unit,
+        "min": format_number(stock_item.min_quantity),
+    }
+    url = _part_url(part)
+    rows = [
+        Notification(
+            organization=organization,
+            recipient_id=user_id,
+            kind=Kind.STOCK_LOW,
+            title=title[:200],
+            body=f"{part.name} · {body}"[:500],
+            url=url,
+            in_app=prefs[user_id][0],
+            dedupe_key=key,
+        )
+        for user_id in pending
+        if any(prefs[user_id])
+    ]
+    # ignore_conflicts: dos cruces simultáneos el mismo día tampoco duplican.
+    Notification.objects.bulk_create(rows, ignore_conflicts=True)
+    for user_id in pending:
+        if prefs[user_id][1]:
+            _send_email(
+                user=recipients[user_id].user,
+                subject=title,
+                template="notification",
+                context={"title": title, "body": body, "url": email_link(url) if url else ""},
+            )
+    return len(rows)
 
 
 # --- Vencimientos (resumen diario) ------------------------------------------------

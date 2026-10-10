@@ -5,11 +5,13 @@
 BASE_MODULES = ["assets", "work_orders", "preventive", "requests", "kpis"]
 DEFAULT_PLANS = [
     # code, name, max_assets, max_users, max_storage_mb, módulos extra
-    ("trial", "Prueba", 50, 10, 1024, []),
+    ("trial", "Prueba", 50, 10, 1024, ["inventory"]),
     ("basic", "Básico", 50, 10, 2048, []),
-    ("pro", "Profesional", 300, None, 20480, ["api", "exports"]),
-    ("enterprise", "Empresa", None, None, None, ["api", "exports", "sso"]),
+    ("pro", "Profesional", 300, None, 20480, ["api", "exports", "inventory"]),
+    ("enterprise", "Empresa", None, None, None, ["api", "exports", "sso", "inventory"]),
 ]
+# Planes que incluyen inventario (INV-16, decisión Q4): la migración de datos lo agrega a los existentes.
+INVENTORY_PLAN_CODES = ("trial", "pro", "enterprise")
 
 
 def ensure_default_plans(plan_model):

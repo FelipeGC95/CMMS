@@ -1,4 +1,5 @@
 from apps.accounts.permissions import Perm, has_perm
+from apps.organizations.modules import has_module
 
 from .models import Kind, Notification, NotificationPreference
 
@@ -11,12 +12,21 @@ KIND_PERMS = {
     Kind.REQUEST_NEW: Perm.WORK_ORDER_MANAGE,
     Kind.REQUEST_RESOLVED: Perm.REQUEST_CREATE,
     Kind.DATA_EXPORT_READY: Perm.ORGANIZATION_MANAGE,
+    Kind.STOCK_LOW: Perm.INVENTORY_MOVE,  # quienes reponen (INV-12)
 }
+# Módulo de plan que además exige el tipo (ORG-10): sin él, el aviso no existe para nadie.
+KIND_MODULES = {Kind.STOCK_LOW: "inventory"}
 
 
 def receivable_kinds(*, membership) -> list[str]:
     """Tipos que el rol de la persona en la organización activa puede recibir."""
-    return [kind for kind in Kind.values if has_perm(membership, KIND_PERMS[kind])]
+    organization = getattr(membership, "organization", None)
+    return [
+        kind
+        for kind in Kind.values
+        if has_perm(membership, KIND_PERMS[kind])
+        and (kind not in KIND_MODULES or has_module(organization, KIND_MODULES[kind]))
+    ]
 
 
 def notification_list(*, membership):
