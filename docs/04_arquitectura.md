@@ -468,7 +468,12 @@ Nuevos: `work-orders/{id}/transition/` (+ `client_uuid`, `at`),
 `snapshot/?days=N` (7 por defecto, máx. 14) y `reference/` (códigos de falla
 activos por tipo, activos visibles compactos con tope 2000 y `truncated`,
 medidores activos). Errores 409 con código `cancelled`, `locked`, `conflict`
-o `upgrade_required` (cliente con versión menor que `min_client_version`).
+o `upgrade_required` (el cliente envía su versión en `X-Client-Version`; menor
+que `min_client_version` → 409 con `details.min_client_version`; `bootstrap/`
+nunca lo rechaza). La v1 recibe lo aditivo (`at`, `answered_at`, `superseded`,
+`taken_at`, `client_uuid` en `transition/`) pero sigue respondiendo 400 en los
+errores de estado. Horas de `bootstrap`, `snapshot` y `reference` en UTC (`Z`).
+Detalle de uso en `docs/08_api.md`.
 Forma de `bootstrap` y `snapshot` (ejemplo completo en
 `apps/field/fixtures/demo.json`, verificado por `tests/test_field.py`):
 

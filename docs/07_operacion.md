@@ -27,6 +27,7 @@ lo único nuevo que expone es `/readyz`. Decisión en ADR-020
 | `BACKUPS_ENABLED=1` | Respaldo diario (07:00 UTC) desde el worker. | La tarea diaria no hace nada. |
 | `BACKUP_DIR`, `BACKUP_RETENTION_DAYS` | Carpeta local de respaldos (sin R2) y retención. | `./backups`, `30`. |
 | `ACCOUNT_EMAIL_VERIFICATION` | Quitarla (queda `mandatory`) al tener proveedor de correo. | `mandatory`. |
+| `API_RATE_LIMIT`, `FIELD_API_RATE_LIMIT` | Límite de peticiones de la API v1 (por token) y de la API de terreno `/field/api/` (por persona). | `600/min` y `600/min`. |
 
 Proveedor de correo (SMTP, ambos con plan gratuito para empezar):
 

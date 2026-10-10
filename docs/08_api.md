@@ -66,7 +66,8 @@ Un cliente móvil puede perder la señal justo después de enviar. Para que el r
 - **Lecturas, OT, solicitudes, fotos:** reenviar el mismo `client_uuid` devuelve el registro ya creado, sin crear otro.
 - **Cierre de OT:** reenviar la misma clave devuelve la OT actual (200); usar esa clave en otra OT → **409 conflict**.
 - **Fotos:** misma clave en otro objeto → **409**.
-- **Respuesta de checklist y transiciones:** repetir la misma respuesta o el mismo estado destino no hace nada.
+- **Transiciones:** repetir el mismo estado destino no hace nada; con `client_uuid`, reenviar el cambio devuelve la OT actual aunque ya haya avanzado (en otra OT → **409**).
+- **Respuesta de checklist:** repetir la misma respuesta no hace nada.
 - **Carga masiva de lecturas:** idempotente por (medidor, fecha, valor), sin `client_uuid`.
 
 ### Errores
@@ -89,7 +90,7 @@ Todos los errores tienen la misma forma, con textos en español:
 | 401 | `not_authenticated` / `authentication_failed` | Sin token, token mal formado, revocado o vencido. |
 | 403 | `permission_denied` | Token `read` intentando escribir, o acción fuera del rol. |
 | 404 | `not_found` | No existe o es de otra organización. |
-| 409 | `conflict` | `client_uuid` ya usado en otra operación. |
+| 409 | `conflict` | `client_uuid` ya usado en otra operación. (La API de terreno además usa `cancelled`, `locked` y `upgrade_required`; ver más abajo.) |
 | 429 | `throttled` | Límite de peticiones por minuto superado. |
 
 ### Documentación interactiva
@@ -219,7 +220,7 @@ curl -X POST "$API/work-orders/" -H "Authorization: Bearer $T" \
        "asset": "0192f1a4-…", "priority": 2, "client_uuid": "c3d9…"}'
 ```
 
-**Ciclo de vida (`POST /work-orders/{id}/transition/`):** se envía `to_status` y un `comment` opcional. Transiciones válidas:
+**Ciclo de vida (`POST /work-orders/{id}/transition/`):** se envía `to_status` y opcionales `comment`, `client_uuid` (idempotencia) y `at` (hora real del cambio si se hizo sin conexión; ver «Horas informadas por el cliente»). Transiciones válidas:
 
 | Desde | Puede pasar a |
 | --- | --- |
@@ -249,6 +250,8 @@ Repetir el estado actual no hace nada (idempotente). Pasar a `completed` por est
 
 Todos aceptan `note` (observación, hasta 500 caracteres). Reenviar la misma respuesta devuelve el ítem sin cambios, también con la OT ya completada.
 
+Con `answered_at` (hora en que se respondió sin conexión) **gana la última**: si el ítem ya tiene una respuesta posterior, la enviada no se aplica, queda en la auditoría como descartada y la respuesta trae `"superseded": true` con el ítem vigente. La respuesta siempre incluye `answered_at` y `superseded`.
+
 ```json
 // POST /work-orders/{id}/checklist-items/{item_id}/answer/
 { "value_number": "4.2", "note": "Medido en caliente" }
@@ -258,7 +261,7 @@ Todos aceptan `note` (observación, hasta 500 caracteres). Reenviar la misma res
 
 **Qué resuelve:** dejar evidencia visual del antes y después, o del hallazgo, en la OT o en el ítem exacto del checklist.
 
-- Envío en `multipart/form-data`: campo `file` (JPEG, PNG, WebP o HEIC, hasta 20 MB) y `client_uuid` opcional.
+- Envío en `multipart/form-data`: campo `file` (JPEG, PNG, WebP o HEIC, hasta 20 MB), `client_uuid` y `taken_at` opcionales. Con `taken_at` anterior al término, la foto se acepta aunque la OT ya esté completada o cerrada (sin cambiar el resultado del ítem); en una OT cancelada, nunca.
 - El servidor comprime a JPEG (lado mayor ≤ 2.000 px) y borra los metadatos, incluida la ubicación GPS.
 - Solo en OT abiertas y visibles; cuenta contra el cupo de almacenamiento de la organización.
 - Responde **201** con los metadatos; reenviar el mismo `client_uuid` devuelve la misma foto con **200**.
@@ -282,6 +285,7 @@ curl -X POST "$API/work-orders/$OT/photos/" -H "Authorization: Bearer $T" \
 - **Correctiva sobre un activo:** `impact` (`total_stop`, `partial`, `none`), `symptom`, `failure_started_at` y `failure_ended_at`; y si la organización lo exige, `failure_mode` y `failure_cause` (ids del catálogo de fallas). Opcionales `failure_mechanism`, `detection_method` y `component` (activo hijo).
 - **Todos los ítems obligatorios** del checklist deben estar respondidos.
 - `client_uuid` evita cerrar dos veces; en otra OT → 409.
+- `at` opcional: hora real de término si se completó sin conexión (fija término, cierre, fin de la falla y la fecha que reprograma el plan).
 
 ```json
 {
@@ -363,6 +367,40 @@ Un bot de WhatsApp o un formulario de la intranet recibe «la envasadora se detu
 
 El planificador ve la OT correctiva con prioridad urgente (si el activo es crítico A) y vencimiento hoy, sin haber digitado nada.
 
+## API de terreno (`/field/api/`)
+
+**Qué resuelve:** que la PWA del técnico (`/field/`, modo sin conexión, ADR-011) descargue sus OT y envíe lo que hizo sin señal. Es una API **interna** del mismo origen: usa la **sesión de la web** (cookie + encabezado `X-CSRFToken` en las escrituras), nunca un token, y no la necesita ninguna integración.
+
+**Reglas comunes:**
+
+- La membresía es la de la persona (rol y alcance por sitio, como en la web); un token de integración no entra (401).
+- Exige el módulo `work_orders` del plan (`requests/` exige `requests`), **no** el módulo `api`.
+- MFA: si la organización lo exige y la persona no lo configuró → 403 `mfa_required` (JSON, sin redirección). Sin sesión → 401 con `WWW-Authenticate: Session realm="field"`.
+- Límite por persona: `FIELD_API_RATE_LIMIT` (`600/min` por defecto).
+- Las horas de `bootstrap`, `snapshot` y `reference` van en UTC con `Z`; los decimales como texto.
+- Encabezado opcional `X-Client-Version`: menor que `min_client_version` → 409 `upgrade_required` (`details.min_client_version`); `bootstrap/` responde igual.
+- Errores de estado de la OT → **409** (no 400): `cancelled` (OT cancelada), `locked` (completada o cerrada), `conflict` (`client_uuid` usado en otra cosa). El teléfono no reintenta un 409: lo muestra como conflicto.
+
+| Método y ruta | Qué resuelve |
+| --- | --- |
+| `GET bootstrap/` | Persona, organización (zona horaria, `require_failure_details`), rol, permisos (`execute`, `request_create`, `reading_create`), días por defecto, nombres de estado, transiciones de ejecución, `server_time` y `min_client_version`. |
+| `GET snapshot/?days=N` | OT visibles abiertas con fecha ≤ hoy + N (7 por defecto, máx. 14), más las en ejecución, en espera, vencidas y sin fecha; asignadas a la persona primero; tope 200 con `truncated`. Cada OT trae activo o ubicación, medidor, `meter_required`, `allowed_transitions` y el checklist con `photo_count`. |
+| `GET reference/` | Códigos de falla activos por tipo, activos visibles (tope 2.000 con `truncated`) y sus medidores activos. |
+| `POST work-orders/{id}/transition/` | Iniciar, pausar o reanudar (`in_progress`, `on_hold`, `completed`), con `client_uuid` y `at`. |
+| `POST work-orders/{id}/complete/` | Cierre como en la v1, con `at`. |
+| `POST work-orders/{id}/labor/` | Minutos de la persona (p. ej. un apoyo): `minutes`, `client_uuid`. 201; reenvío → 200. |
+| `GET work-orders/{id}/checklist-items/` y `POST …/{item_id}/answer/` | Como en la v1, con `answered_at` y `superseded`. |
+| `POST work-orders/{id}/photos/` y `…/checklist-items/{item_id}/photos/` | Como en la v1, con `taken_at`. |
+| `GET work-orders/{id}/attachments/` | Como en la v1. |
+| `POST requests/` | Aviso de falla en JSON o `multipart/form-data` con `photo` y `reported_at` (inicio de la falla); responde además `photo_warning` si la foto no cupo. |
+| `POST readings/` y `GET meters/` | Lectura de medidor (origen «manual») y medidores visibles. |
+
+La forma completa de `bootstrap` y `snapshot` está en `apps/field/fixtures/demo.json` (los tests la comparan con las respuestas reales).
+
+### Horas informadas por el cliente
+
+`at`, `answered_at`, `taken_at` y `reported_at` (también en la v1, opcionales) se acotan a lo creíble: vacía o futura → ahora (2 minutos de tolerancia de reloj); más de 30 días atrás → ahora; anterior a la creación de la OT → la creación. Cuando se ajusta, la auditoría guarda la hora informada y el motivo.
+
 ## Lo que la API aún no hace
 
 La v1 cubre el flujo del técnico y las integraciones de datos; la configuración y la planificación siguen solo en la web.
@@ -382,4 +420,4 @@ La v1 cubre el flujo del técnico y las integraciones de datos; la configuració
 
 - Swagger UI: `/api/docs/` · esquema OpenAPI: `/api/schema/`.
 - Decisión y detalle técnico: ADR-005 en `docs/04_arquitectura.md`.
-- Código: `apps/api/v1.py` (endpoints), `apps/api/serializers.py` (campos), `apps/api/services.py` (tokens e idempotencia).
+- Código: `apps/api/v1.py` (endpoints), `apps/api/serializers.py` (campos), `apps/api/services.py` (tokens e idempotencia); terreno en `apps/api/field_views.py`, `apps/api/field.py` y `apps/api/field_serializers.py` (ADR-011).

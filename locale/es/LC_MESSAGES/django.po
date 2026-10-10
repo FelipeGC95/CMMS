@@ -283,6 +283,18 @@ msgstr ""
 msgid "Token inválido, revocado o vencido."
 msgstr ""
 
+msgid "No perteneces a ninguna organización activa."
+msgstr ""
+
+msgid "Hay una versión nueva de la aplicación: actualízala para sincronizar."
+msgstr ""
+
+msgid "Indica un número de días entre 0 y 14."
+msgstr ""
+
+msgid "Configura la verificación en dos pasos para seguir sincronizando."
+msgstr ""
+
 msgid "El token no tiene permiso para esta operación."
 msgstr ""
 
