@@ -1377,6 +1377,9 @@ msgstr ""
 msgid "Edición de checklist"
 msgstr ""
 
+msgid "Respuesta de checklist"
+msgstr ""
+
 msgid "Costo agregado"
 msgstr ""
 
@@ -7124,4 +7127,106 @@ msgid "Elige la solicitud que se mantiene"
 msgstr ""
 
 msgid "No hay otras solicitudes abiertas de este activo."
+msgstr ""
+
+msgid "Terreno"
+msgstr ""
+
+msgid "Hay una versión nueva"
+msgstr ""
+
+msgid "Actualizar"
+msgstr ""
+
+msgid "Cargando…"
+msgstr ""
+
+msgid "Esta vista necesita JavaScript."
+msgstr ""
+
+msgid "Sin conexión · sin datos descargados"
+msgstr ""
+
+msgid "Abre esta vista con conexión para descargar las OT de los próximos días."
+msgstr ""
+
+msgid "Cargar datos de demostración"
+msgstr ""
+
+msgid "Volver a la lista"
+msgstr ""
+
+msgid "Datos de la OT"
+msgstr ""
+
+msgid "Esta OT no tiene checklist."
+msgstr ""
+
+msgid "Esta OT no está en los datos descargados"
+msgstr ""
+
+msgid "En línea"
+msgstr ""
+
+msgid "Sin conexión"
+msgstr ""
+
+msgid "OT para terreno"
+msgstr ""
+
+msgid "Datos del"
+msgstr ""
+
+msgid "Se muestran solo las primeras OT; revisa el resto en la web."
+msgstr ""
+
+msgid "Atrasadas"
+msgstr ""
+
+msgid "Sin fecha"
+msgstr ""
+
+msgid "Asignada a ti"
+msgstr ""
+
+msgid "Pide lectura al completar"
+msgstr ""
+
+msgid "Rango"
+msgstr ""
+
+msgid "Fotos"
+msgstr ""
+
+msgid "ítems respondidos"
+msgstr ""
+
+msgid "de"
+msgstr ""
+
+msgid "GALBUST · Terreno"
+msgstr ""
+
+msgid "Órdenes de trabajo sin conexión para técnicos."
+msgstr ""
+
+msgid "Vista de terreno sin conexión"
+msgstr ""
+
+msgid "Barra de /field/ con el estado de conexión, OT del día (las asignadas a la persona con borde de acento) y datos de la OT."
+msgstr ""
+
+msgid "Lunes 5 de octubre"
+msgstr ""
+
+msgid "Mensual compresor"
+msgstr ""
+
+msgid "Compresor"
+msgstr ""
+
+msgid "Fuga en reductor"
+msgstr ""
+
+msgid "Horómetro (h) · Pide lectura al completar"
 msgstr ""

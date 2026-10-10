@@ -121,7 +121,9 @@ class PrivateCacheMiddleware:
     """
 
     # /org-theme.css no tiene datos: solo los colores de la marca (ORG-09), cacheables.
-    SKIPPED_PATHS = ("/healthz", "/readyz", "/org-theme.css")
+    # El Service Worker y el manifest de terreno (ADR-011) tampoco: `no-cache` para que el
+    # navegador revise la versión en cada visita.
+    SKIPPED_PATHS = ("/healthz", "/readyz", "/org-theme.css", "/field/sw.js", "/field/manifest.webmanifest")
 
     def __init__(self, get_response):
         self.get_response = get_response

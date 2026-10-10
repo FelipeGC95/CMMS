@@ -10,6 +10,7 @@ from django.db.models import (
     F,
     IntegerField,
     OuterRef,
+    Prefetch,
     Q,
     Subquery,
     Sum,
@@ -22,13 +23,15 @@ from django.utils import timezone
 from apps.accounts.models import Membership, User
 from apps.accounts.permissions import ROLE_PERMISSIONS, Perm, require_perm
 from apps.accounts.scoping import allowed_location_ids, is_scoped
+from apps.assets.models import Meter
+from apps.assets.selectors import visible_assets
 from apps.attachments.models import Attachment, Purpose, TargetType
 from apps.attachments.selectors import attachments_by_target
 from apps.maintenance.models import PlanAssignment, PlanVersion
 from apps.organizations.models import Location
 from apps.organizations.selectors import descendant_ids
 
-from .models import FailureCode, WorkOrder, WorkOrderHelper, WorkRequest
+from .models import FailureCode, WorkOrder, WorkOrderChecklistItem, WorkOrderHelper, WorkRequest
 
 OPEN_STATUSES = [
     WorkOrder.Status.REQUESTED,
@@ -610,3 +613,159 @@ def board_lanes(*, work_orders, loads, days, visible_days) -> list[Lane]:
     cells = [LaneCell(day, grouped.get((None, day), []), None) for day in visible_days]
     lanes.append(Lane(user=None, cells=cells, week=None))
     return lanes
+
+
+# --- Modo sin conexión del técnico (X-06, ADR-011) -------------------------------
+
+FIELD_DEFAULT_DAYS = 7
+FIELD_MAX_DAYS = 14
+FIELD_WORK_ORDER_LIMIT = 200
+FIELD_ASSET_LIMIT = 2000
+
+
+@dataclass
+class FieldSnapshot:
+    """OT que se llevan al teléfono; `truncated` avisa que había más que el tope."""
+
+    work_orders: list
+    truncated: bool
+    horizon: datetime.date
+
+
+def field_work_orders(*, membership, days: int = FIELD_DEFAULT_DAYS) -> FieldSnapshot:
+    """OT para trabajar sin conexión: todas las visibles (alcance por sitio), no solo las asignadas.
+
+    Estados abiertos con fecha programada o límite hasta hoy + `days` (incluye las
+    vencidas), más las que están en ejecución o en espera y las que no tienen fecha.
+    Primero las asignadas a la persona (responsable o apoyo), luego por fecha y
+    prioridad; como máximo `FIELD_WORK_ORDER_LIMIT`.
+
+    Cada OT trae lo que el teléfono necesita sin más consultas: activo y ubicación,
+    `assigned_to_me`, `helpers`, `field_checklist` (ítems con `photo_count`),
+    `field_meter` y `meter_required` (lectura al completar). Las transiciones
+    permitidas se calculan con `services.allowed_transitions` (sin consultas).
+    """
+
+    days = max(0, min(int(days), FIELD_MAX_DAYS))
+    horizon = timezone.localdate() + datetime.timedelta(days=days)
+    user = membership.user
+    photos = (
+        Attachment.objects.filter(
+            target_type=TargetType.CHECKLIST_ITEM, target_id=OuterRef("pk"), purpose=Purpose.PHOTO
+        )
+        .order_by()
+        .values("target_id")
+        .annotate(n=Count("pk"))
+        .values("n")
+    )
+    checklist = (
+        WorkOrderChecklistItem.objects.select_related("answered_by")
+        .annotate(photo_count=Coalesce(Subquery(photos, output_field=IntegerField()), 0))
+        .order_by("order", "created_at")
+    )
+    meters = Meter.objects.filter(is_active=True).order_by("kind", "name")
+    qs = (
+        visible_work_orders(membership=membership)
+        .filter(status__in=OPEN_STATUSES)
+        .filter(
+            Q(status__in=(WorkOrder.Status.IN_PROGRESS, WorkOrder.Status.ON_HOLD))
+            | Q(scheduled_for__lte=horizon)
+            | Q(due_on__lte=horizon)
+            | Q(scheduled_for__isnull=True, due_on__isnull=True)
+        )
+        .select_related(
+            "asset",
+            "asset__location",
+            "location",
+            "assigned_to",
+            "plan_assignment__plan",
+            "plan_assignment__meter",
+        )
+        .prefetch_related(
+            "helpers",
+            Prefetch("checklist", queryset=checklist, to_attr="field_checklist"),
+            Prefetch("asset__meters", queryset=meters, to_attr="field_meters"),
+        )
+        .annotate(
+            assigned_to_me=Case(
+                When(assigned_to_user(user), then=Value(True)),
+                default=Value(False),
+                output_field=BooleanField(),
+            ),
+            field_day=Coalesce("scheduled_for", "due_on"),
+        )
+        .order_by(
+            "-assigned_to_me",
+            F("field_day").asc(nulls_last=True),
+            "priority",
+            "created_at",
+        )
+    )
+    rows = list(qs[: FIELD_WORK_ORDER_LIMIT + 1])
+    for wo in rows:
+        _attach_field_meter(wo)
+    return FieldSnapshot(
+        work_orders=rows[:FIELD_WORK_ORDER_LIMIT],
+        truncated=len(rows) > FIELD_WORK_ORDER_LIMIT,
+        horizon=horizon,
+    )
+
+
+def _attach_field_meter(wo) -> None:
+    """Medidor de la lectura al completar, como `services.work_order_meter`, sin consultas."""
+    assignment = wo.plan_assignment
+    if assignment is not None and assignment.meter_id:
+        meter = assignment.meter
+    elif wo.asset_id is not None:
+        meter = next(iter(wo.asset.field_meters), None)
+    else:
+        meter = None
+    wo.field_meter = meter
+    wo.meter_required = bool(assignment and assignment.plan.uses_meter and meter)
+
+
+@dataclass
+class FieldReference:
+    """Catálogos para trabajar sin conexión: códigos de falla, activos visibles y medidores."""
+
+    failure_codes: dict
+    assets: list
+    assets_truncated: bool
+    meters: list
+
+
+def field_reference(*, membership) -> FieldReference:
+    """Códigos de falla activos por tipo, índice compacto de activos visibles y sus medidores activos.
+
+    Tres consultas, sin importar la cantidad de datos; los activos con tope
+    `FIELD_ASSET_LIMIT` (`assets_truncated`).
+    """
+
+    codes: dict = {kind: [] for kind in FailureCode.Kind.values}
+    for row in (
+        FailureCode.objects.filter(is_active=True)
+        .order_by("kind", "code")
+        .values("id", "kind", "code", "name")
+    ):
+        codes[row.pop("kind")].append(row)
+    assets = list(
+        _field_assets(membership=membership)
+        .order_by("code")
+        .values("id", "code", "name", "location_id", "location__code", "location__name")[
+            : FIELD_ASSET_LIMIT + 1
+        ]
+    )
+    truncated = len(assets) > FIELD_ASSET_LIMIT
+    assets = assets[:FIELD_ASSET_LIMIT]
+    meters = list(
+        Meter.objects.filter(is_active=True, asset__in=_field_assets(membership=membership))
+        .order_by("asset__code", "kind", "name")
+        .values("id", "asset_id", "kind", "name", "unit", "is_cumulative", "current_value", "current_read_at")
+    )
+    return FieldReference(failure_codes=codes, assets=assets, assets_truncated=truncated, meters=meters)
+
+
+def _field_assets(*, membership):
+    """Activos en servicio que la membresía puede ver (alcance por sitio)."""
+
+    return visible_assets(membership=membership).filter(is_active=True)

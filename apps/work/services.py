@@ -67,7 +67,64 @@ EXECUTION_TARGETS = {S.IN_PROGRESS, S.ON_HOLD, S.COMPLETED}
 
 
 class WorkOrderError(ValidationError):
-    pass
+    """Regla de negocio incumplida. `code` distingue los choques de estado sin leer el texto:
+    `cancelled` (OT cancelada), `locked` (OT completada o cerrada), `conflict` (clave de cliente
+    ya usada en otra cosa); None en errores de validación comunes."""
+
+
+# Códigos de `WorkOrderError` que la API traduce a 409 (X-06).
+ERROR_CANCELLED = "cancelled"
+ERROR_LOCKED = "locked"
+ERROR_CONFLICT = "conflict"
+
+
+def _locked_error(work_order, message=None) -> WorkOrderError:
+    """La OT ya no admite cambios: `cancelled` si se canceló, `locked` si se completó o cerró."""
+    code = ERROR_CANCELLED if work_order.status == WorkOrder.Status.CANCELLED else ERROR_LOCKED
+    return WorkOrderError(message or _("La OT ya no admite cambios."), code=code)
+
+
+# --- Hora informada por el cliente (trabajo sin conexión, X-06 / ADR-011) ---------
+
+CLIENT_TIME_TOLERANCE = datetime.timedelta(minutes=2)  # desfase de reloj aceptado hacia el futuro
+CLIENT_TIME_MAX_AGE = datetime.timedelta(days=30)  # más antiguo que esto no se cree
+
+
+def resolve_client_time(at, *, not_before=None) -> tuple[datetime.datetime, str]:
+    """Hora de un hecho informada por el cliente, acotada a lo creíble; devuelve (hora, motivo).
+
+    Vacía → ahora. Futura → ahora (sin motivo si cae dentro de la tolerancia de
+    reloj). Más de 30 días atrás → ahora. Anterior a `not_before` (la creación del
+    objeto) → `not_before`. El motivo (`future`, `stale`, `before_creation`) es ""
+    si la hora se usó tal cual y se guarda en la auditoría cuando no.
+    """
+    now = timezone.now()
+    if at is None:
+        return now, ""
+    if timezone.is_naive(at):
+        at = timezone.make_aware(at)
+    if at > now:
+        return now, "future" if at - now > CLIENT_TIME_TOLERANCE else ""
+    if now - at > CLIENT_TIME_MAX_AGE:
+        return now, "stale"
+    if not_before is not None and at < not_before:
+        return not_before, "before_creation"
+    return at, ""
+
+
+def client_time(at, *, not_before=None) -> datetime.datetime:
+    """Hora del cliente acotada (ver `resolve_client_time`), sin el motivo."""
+    return resolve_client_time(at, not_before=not_before)[0]
+
+
+def _client_time_changes(at, used, reason) -> dict:
+    """Rastro en la auditoría de la hora informada por el cliente (solo si la informó)."""
+    if at is None:
+        return {}
+    changes = {"client_at": at.isoformat()}
+    if reason:
+        changes["client_at_adjusted"] = {"used": used.isoformat(), "reason": reason}
+    return changes
 
 
 def next_number(*, key: str) -> int:
@@ -335,6 +392,7 @@ def report_failure(
     asset_stopped: bool = False,
     photo=None,
     client_uuid=None,
+    reported_at=None,
 ) -> WorkRequest:
     """Aviso de falla (REQ-01): crea la solicitud y su OT correctiva en un paso.
 
@@ -345,6 +403,9 @@ def report_failure(
     foto no cabe en el cupo de almacenamiento, el aviso se crea igual sin ella
     y `request.photo_warning` explica por qué: una falla no se pierde por falta
     de espacio.
+
+    `reported_at` es la hora en que se avisó sin conexión (acotada con
+    `client_time`): marca el inicio de la falla y de la detención del equipo.
     """
     require_perm(membership, Perm.REQUEST_CREATE)
     if client_uuid:
@@ -356,7 +417,7 @@ def report_failure(
         raise WorkOrderError(_("«Equipo detenido» solo aplica a un activo."))
 
     user = membership.user
-    now = timezone.now()
+    now, adjusted = resolve_client_time(reported_at)
     work_order = create_work_order(
         work_type=WorkOrder.Type.CORRECTIVE,
         title=description.strip().splitlines()[0][:120] or _("Falla reportada"),
@@ -382,9 +443,10 @@ def report_failure(
         action=AuditEvent.Action.CREATE,
         target=request,
         actor=user,
-        changes=audit.snapshot(
-            request, fields={"number", "asset", "location", "asset_stopped", "work_order"}
-        ),
+        changes={
+            **audit.snapshot(request, fields={"number", "asset", "location", "asset_stopped", "work_order"}),
+            **_client_time_changes(reported_at, now, adjusted),
+        },
     )
     notify_request_created(work_request=request, actor=user)
     if asset_stopped:
@@ -517,15 +579,21 @@ def allowed_transitions(*, work_order: WorkOrder, membership) -> list[str]:
 
 
 @transaction.atomic
-def transition(*, work_order: WorkOrder, to_status: str, membership, comment: str = "") -> WorkOrder:
+def transition(*, work_order: WorkOrder, to_status: str, membership, comment: str = "", at=None) -> WorkOrder:
+    """Cambia el estado de la OT según el ciclo de vida (WO-02).
+
+    `at` es la hora real del cambio informada por un cliente sin conexión
+    (acotada con `client_time`: nunca antes de la creación ni, al completar,
+    antes del inicio); vacía = ahora. Fija inicio, término y cierre.
+    """
     if to_status not in allowed_transitions(work_order=work_order, membership=membership):
-        raise WorkOrderError(
-            _("Transición no permitida: %(from)s → %(to)s.")
-            % {
-                "from": work_order_status_label(work_order.status),
-                "to": work_order_status_label(to_status),
-            }
-        )
+        message = _("Transición no permitida: %(from)s → %(to)s.") % {
+            "from": work_order_status_label(work_order.status),
+            "to": work_order_status_label(to_status),
+        }
+        if work_order.status in CHECKLIST_LOCKED_STATUSES:
+            raise _locked_error(work_order, message)
+        raise WorkOrderError(message)
     if to_status == S.COMPLETED:
         pending = work_order.checklist.filter(required=True, result="").count()
         if pending:
@@ -534,7 +602,10 @@ def transition(*, work_order: WorkOrder, to_status: str, membership, comment: st
             )
 
     user = membership.user
-    now = timezone.now()
+    not_before = work_order.created_at
+    if to_status == S.COMPLETED and work_order.started_at:
+        not_before = max(not_before, work_order.started_at)
+    now, adjusted = resolve_client_time(at, not_before=not_before)
     from_status = work_order.status
     work_order.status = to_status
     if to_status == S.IN_PROGRESS:
@@ -564,7 +635,11 @@ def transition(*, work_order: WorkOrder, to_status: str, membership, comment: st
         action=TRANSITION_ACTIONS.get(to_status, AuditEvent.Action.TRANSITION),
         target=work_order,
         actor=user,
-        changes={"status": [from_status, to_status], **({"comment": comment} if comment else {})},
+        changes={
+            "status": [from_status, to_status],
+            **({"comment": comment} if comment else {}),
+            **_client_time_changes(at, now, adjusted),
+        },
     )
 
     if to_status == S.COMPLETED:
@@ -665,12 +740,65 @@ def parse_measurement(raw) -> Decimal:
 TEXT_ANSWER_MAX = 1000
 
 
-def _start_if_needed(*, work_order: WorkOrder, membership) -> None:
-    """La primera respuesta (resultado, foto o firma) inicia la OT."""
+def _start_if_needed(*, work_order: WorkOrder, membership, at=None) -> None:
+    """La primera respuesta (resultado, foto o firma) inicia la OT (a la hora `at` si se informa)."""
     if work_order.status in CHECKLIST_LOCKED_STATUSES:
-        raise WorkOrderError(_("La OT ya no admite cambios."))
+        raise _locked_error(work_order)
     if work_order.status != S.IN_PROGRESS:
-        transition(work_order=work_order, to_status=S.IN_PROGRESS, membership=membership)
+        transition(work_order=work_order, to_status=S.IN_PROGRESS, membership=membership, at=at)
+
+
+# Campos de la respuesta de un ítem que se comparan y auditan al sobrescribirla o descartarla.
+ANSWER_FIELDS = ("result", "value_number", "value_text", "note")
+
+
+def _answer_values(item: WorkOrderChecklistItem) -> dict:
+    return {field: getattr(item, field) for field in ANSWER_FIELDS}
+
+
+def _lock_item(item: WorkOrderChecklistItem) -> None:
+    """Bloquea la fila del ítem y trae su respuesta vigente (dos envíos del mismo ítem se ordenan)."""
+    WorkOrderChecklistItem.objects.select_for_update().filter(pk=item.pk).values_list("pk").first()
+    item.refresh_from_db(fields=[*ANSWER_FIELDS, "answered_by", "answered_at"])
+
+
+def _is_superseded(item: WorkOrderChecklistItem, *, at, membership, discarded: dict) -> bool:
+    """¿El ítem ya tiene una respuesta posterior a `at`? Gana la última por hora de respuesta.
+
+    Si es así, la respuesta que llega (hecha antes, enviada después) no se aplica:
+    queda en la auditoría como descartada y el ítem se marca `superseded`.
+    """
+    item.superseded = bool(item.answered_at and at < item.answered_at)
+    if item.superseded:
+        audit.record(
+            action=AuditEvent.Action.CHECKLIST_ANSWER,
+            target=item.work_order,
+            actor=membership.user,
+            changes={
+                "item_id": str(item.pk),
+                "item": item.text,
+                "discarded": {**discarded, "answered_at": at.isoformat()},
+                "kept_answered_at": item.answered_at.isoformat(),
+            },
+        )
+    return item.superseded
+
+
+def _audit_overwrite(item: WorkOrderChecklistItem, *, before: dict, membership, extra=None) -> None:
+    """Una respuesta que reemplaza otra distinta deja el antes y el después en la auditoría."""
+    after = _answer_values(item)
+    changed = {
+        field: [before[field], after[field]] for field in ANSWER_FIELDS if before[field] != after[field]
+    }
+    if extra:
+        changed.update(extra)
+    if changed:
+        audit.record(
+            action=AuditEvent.Action.CHECKLIST_ANSWER,
+            target=item.work_order,
+            actor=membership.user,
+            changes={"item_id": str(item.pk), "item": item.text, **changed},
+        )
 
 
 @transaction.atomic
@@ -683,6 +811,7 @@ def answer_checklist_item(
     value_text: str = "",
     signature=None,
     note="",
+    answered_at=None,
 ) -> WorkOrderChecklistItem:
     """Registra la respuesta de un ítem según su tipo (PM-01 CA1, WO-03 CA2).
 
@@ -691,6 +820,12 @@ def answer_checklist_item(
     imagen dibujada (adjunto del ítem con propósito «firma»). La foto
     obligatoria se responde subiendo una foto (`add_checklist_photo`). La
     primera respuesta inicia la OT.
+
+    `answered_at` es la hora en que se respondió sin conexión (acotada con
+    `client_time`); vacía = ahora. Gana la última respuesta por esa hora: una
+    más antigua que la vigente no se aplica y el ítem vuelve con
+    `superseded=True` (queda auditada como descartada). Reemplazar una
+    respuesta distinta queda auditado con el antes y el después.
     """
     require_perm(membership, Perm.WORK_ORDER_EXECUTE)
     work_order = item.work_order
@@ -699,21 +834,35 @@ def answer_checklist_item(
         # ya subida, responder solo guarda la observación. Sin foto, no hay respuesta posible.
         if not _item_photos(item).exists():
             raise WorkOrderError(_("Este ítem se responde con una foto: súbela primero."))
-        return save_checklist_note(item=item, membership=membership, note=note)
+        return save_checklist_note(item=item, membership=membership, note=note, answered_at=answered_at)
     if item.item_type == ItemType.TEXT:
         value_text = (value_text or "").strip()[:TEXT_ANSWER_MAX]
         if not value_text:
             raise WorkOrderError(_("Escribe la respuesta."))
     if item.item_type == ItemType.SIGNATURE and signature is None:
         raise WorkOrderError(_("Firma dentro del recuadro antes de guardar."))
-    _start_if_needed(work_order=work_order, membership=membership)
+    if item.item_type == ItemType.MEASUREMENT:
+        value_number = parse_measurement(value_number)
+    elif item.item_type not in (ItemType.TEXT, ItemType.SIGNATURE) and result not in (
+        item.Result.OK,
+        item.Result.NOT_OK,
+        item.Result.NA,
+    ):
+        raise WorkOrderError(_("Resultado inválido."))
+
+    at = client_time(answered_at, not_before=work_order.created_at)
+    _lock_item(item)
+    incoming = {"result": result, "value_number": value_number, "value_text": value_text, "note": note[:500]}
+    if _is_superseded(item, at=at, membership=membership, discarded=incoming):
+        return item
+    before = _answer_values(item)
+    _start_if_needed(work_order=work_order, membership=membership, at=at)
 
     if item.item_type == ItemType.MEASUREMENT:
-        value = parse_measurement(value_number)
-        out_of_range = (item.min_value is not None and value < item.min_value) or (
-            item.max_value is not None and value > item.max_value
+        out_of_range = (item.min_value is not None and value_number < item.min_value) or (
+            item.max_value is not None and value_number > item.max_value
         )
-        item.value_number = value
+        item.value_number = value_number
         result = item.Result.NOT_OK if out_of_range else item.Result.OK
     elif item.item_type == ItemType.TEXT:
         item.value_text = value_text
@@ -730,28 +879,47 @@ def answer_checklist_item(
         except AttachmentError as error:
             raise WorkOrderError(error.message) from error
         result = item.Result.DONE
-    elif result not in (item.Result.OK, item.Result.NOT_OK, item.Result.NA):
-        raise WorkOrderError(_("Resultado inválido."))
 
     item.result = result
     item.note = note[:500]
     item.answered_by = membership.user
-    item.answered_at = timezone.now()
+    item.answered_at = at
     item.save()
+    if before["result"]:
+        # Una firma nueva siempre reemplaza a la anterior, aunque el resultado siga «Hecho».
+        extra = {"signature": [True, True]} if signature is not None else None
+        _audit_overwrite(item, before=before, membership=membership, extra=extra)
     return item
 
 
 @transaction.atomic
-def save_checklist_note(*, item: WorkOrderChecklistItem, membership, note: str) -> WorkOrderChecklistItem:
+def save_checklist_note(
+    *, item: WorkOrderChecklistItem, membership, note: str, answered_at=None
+) -> WorkOrderChecklistItem:
     """Guarda solo la observación del ítem (WO-03 CA2), sin tocar su resultado.
 
     Permite escribirla antes o después de marcar el resultado (guardado por ítem).
+    Misma regla que `answer_checklist_item`: gana la última por `answered_at`. En
+    un ítem ya respondido la observación renueva la hora de respuesta.
     """
     require_perm(membership, Perm.WORK_ORDER_EXECUTE)
-    if item.work_order.status in (S.COMPLETED, *WorkOrder.CLOSED_STATUSES):
-        raise WorkOrderError(_("La OT ya no admite cambios."))
-    item.note = note.strip()[:500]
-    item.save(update_fields=["note", "updated_at"])
+    work_order = item.work_order
+    note = note.strip()[:500]
+    at = client_time(answered_at, not_before=work_order.created_at)
+    _lock_item(item)
+    if _is_superseded(item, at=at, membership=membership, discarded={"note": note}):
+        return item
+    if work_order.status in CHECKLIST_LOCKED_STATUSES:
+        raise _locked_error(work_order)
+    before = _answer_values(item)
+    item.note = note
+    fields = ["note", "updated_at"]
+    if item.answered_at is not None:
+        item.answered_at = at
+        fields.append("answered_at")
+    item.save(update_fields=fields)
+    if before["note"]:
+        _audit_overwrite(item, before=before, membership=membership)
     return item
 
 
@@ -977,18 +1145,39 @@ def move_checklist_item(*, item: WorkOrderChecklistItem, membership, direction: 
     )
 
 
+def _photo_time(work_order: WorkOrder, taken_at):
+    """Hora de la foto y si llega a una OT ya terminada; rechaza las que ya no caben.
+
+    Con la OT abierta vale siempre. Una foto tomada sin conexión antes del término
+    (`taken_at ≤ completed_at`) se acepta aunque la OT ya esté completada o cerrada:
+    es evidencia de ese trabajo. En una OT cancelada, nunca.
+    """
+    at = client_time(taken_at, not_before=work_order.created_at)
+    if work_order.status not in CHECKLIST_LOCKED_STATUSES:
+        return at, False
+    if (
+        work_order.status != S.CANCELLED
+        and taken_at is not None
+        and work_order.completed_at is not None
+        and at <= work_order.completed_at
+    ):
+        return at, True
+    raise _locked_error(work_order)
+
+
 @transaction.atomic
 def add_checklist_photo(
-    *, item: WorkOrderChecklistItem, membership, uploaded_file, client_uuid=None
+    *, item: WorkOrderChecklistItem, membership, uploaded_file, client_uuid=None, taken_at=None
 ) -> Attachment:
     """Foto de un ítem del checklist (WO-03 CA2), comprimida y dentro del cupo (AST-06).
 
     En un ítem «foto obligatoria» la foto es la respuesta: lo marca como hecho
-    e inicia la OT, igual que responder cualquier otro ítem.
+    (respondido a la hora `taken_at`, si se informa) e inicia la OT, igual que
+    responder cualquier otro ítem. Una foto tomada sin conexión que llega con la
+    OT ya terminada se guarda sin cambiar el resultado del ítem (`_photo_time`).
     """
     require_perm(membership, Perm.WORK_ORDER_EXECUTE)
-    if item.work_order.status in CHECKLIST_LOCKED_STATUSES:
-        raise WorkOrderError(_("La OT ya no admite cambios."))
+    at, late = _photo_time(item.work_order, taken_at)
     photo = _add_photo(
         target_type=AttachmentTargetType.CHECKLIST_ITEM,
         target_id=item.pk,
@@ -996,25 +1185,27 @@ def add_checklist_photo(
         uploaded_file=uploaded_file,
         client_uuid=client_uuid,
     )
-    if item.item_type == ItemType.PHOTO and item.result != item.Result.DONE:
-        _start_if_needed(work_order=item.work_order, membership=membership)
+    if not late and item.item_type == ItemType.PHOTO and item.result != item.Result.DONE:
+        _start_if_needed(work_order=item.work_order, membership=membership, at=at)
         item.result = item.Result.DONE
         item.answered_by = membership.user
-        item.answered_at = timezone.now()
+        item.answered_at = at
         item.save(update_fields=["result", "answered_by", "answered_at", "updated_at"])
     return photo
 
 
 @transaction.atomic
-def add_work_order_photo(*, work_order: WorkOrder, membership, uploaded_file, client_uuid=None) -> Attachment:
+def add_work_order_photo(
+    *, work_order: WorkOrder, membership, uploaded_file, client_uuid=None, taken_at=None
+) -> Attachment:
     """Foto de la OT (evidencia general, fuera del checklist), comprimida y dentro del cupo (AST-06).
 
     Mismas reglas que la foto de un ítem: quien ejecuta OT, solo imágenes y con la OT
-    aún no completada. Idempotente por `client_uuid`.
+    aún no completada (o tomada antes del término, `_photo_time`). Idempotente por
+    `client_uuid`.
     """
     require_perm(membership, Perm.WORK_ORDER_EXECUTE)
-    if work_order.status in CHECKLIST_LOCKED_STATUSES:
-        raise WorkOrderError(_("La OT ya no admite cambios."))
+    _photo_time(work_order, taken_at)
     return _add_photo(
         target_type=AttachmentTargetType.WORK_ORDER,
         target_id=work_order.pk,
@@ -1170,8 +1361,14 @@ def complete_work_order(
     symptom: str | None = None,
     meter_value=None,
     signature=None,
+    at=None,
 ) -> WorkOrder:
     """Completa la OT; si se informa la lectura del medidor, la registra y reprograma desde ella.
+
+    `at` es la hora real de término informada por un cliente sin conexión
+    (acotada con `client_time`); vacía = ahora. Fija inicio (si la OT no había
+    empezado), término, cierre automático, fin de la falla, hora de la lectura
+    y la fecha de ejecución que reprograma el plan.
 
     Toda OT correctiva completada deja su evento de falla (REQ-03 CA2), con
     síntoma observado (`symptom` → `failure_event.description`) y acción
@@ -1198,6 +1395,12 @@ def complete_work_order(
         raise WorkOrderError(_("El componente debe ser un activo hijo del activo de la OT."))
     if impact and impact not in FailureEvent.Impact.values:
         raise WorkOrderError(_("Impacto de falla inválido."))
+    if work_order.status in WorkOrder.CLOSED_STATUSES:
+        raise _locked_error(work_order)
+    # Misma hora que usará la transición a «completada» (no antes del inicio).
+    completed_at = client_time(
+        at, not_before=max(filter(None, (work_order.created_at, work_order.started_at)))
+    )
 
     if meter_value is not None:
         meter = work_order_meter(work_order)
@@ -1209,6 +1412,7 @@ def complete_work_order(
                 source=MeterReading.Source.WORK_ORDER,
                 work_order=work_order,
                 generate_work_orders=False,
+                read_at=completed_at if at is not None else None,
             )
             work_order.meter_value_at_completion = reading.value
             work_order.save(update_fields=["meter_value_at_completion", "updated_at"])
@@ -1233,7 +1437,7 @@ def complete_work_order(
         _record_failure_at_completion(
             work_order=work_order,
             user=membership.user,
-            at=timezone.now(),
+            at=completed_at,
             impact=impact,
             started_at=failure_started_at,
             ended_at=failure_ended_at,
@@ -1247,8 +1451,8 @@ def complete_work_order(
             },
         )
     if work_order.status != S.IN_PROGRESS:
-        transition(work_order=work_order, to_status=S.IN_PROGRESS, membership=membership)
-    work_order = transition(work_order=work_order, to_status=S.COMPLETED, membership=membership)
+        transition(work_order=work_order, to_status=S.IN_PROGRESS, membership=membership, at=at)
+    work_order = transition(work_order=work_order, to_status=S.COMPLETED, membership=membership, at=at)
     work_order.signature_warning = signature_warning
     return work_order
 
@@ -1260,7 +1464,7 @@ COST_LOCKED_STATUSES = (S.CLOSED, S.CANCELLED)
 
 def _require_cost_editable(work_order: WorkOrder) -> None:
     if work_order.status in COST_LOCKED_STATUSES:
-        raise WorkOrderError(_("La OT está cerrada: sus costos ya no se pueden cambiar."))
+        raise _locked_error(work_order, _("La OT está cerrada: sus costos ya no se pueden cambiar."))
 
 
 def hourly_cost_for(membership) -> Decimal:
@@ -1285,9 +1489,22 @@ def recalculate_costs(*, work_order: WorkOrder) -> WorkOrder:
 
 
 @transaction.atomic
-def log_labor(*, work_order: WorkOrder, membership, minutes: int) -> LaborEntry:
-    """Registra horas de la persona con su tarifa vigente copiada (WO-04 CA1)."""
+def log_labor(*, work_order: WorkOrder, membership, minutes: int, client_uuid=None) -> LaborEntry:
+    """Registra horas de la persona con su tarifa vigente copiada (WO-04 CA1).
+
+    Idempotente por `client_uuid` (móvil sin conexión): reenviarlo devuelve el
+    registro ya creado, aunque la OT se haya cerrado después; usarlo en otra OT
+    es un conflicto.
+    """
     require_perm(membership, Perm.WORK_ORDER_EXECUTE)
+    if client_uuid:
+        existing = LaborEntry.objects.filter(client_uuid=client_uuid).first()
+        if existing is not None:
+            if existing.work_order_id != work_order.pk:
+                raise WorkOrderError(
+                    _("Este client_uuid ya se usó para otra operación."), code=ERROR_CONFLICT
+                )
+            return existing
     _require_cost_editable(work_order)
     if minutes <= 0:
         raise WorkOrderError(_("Indica los minutos trabajados."))
@@ -1296,6 +1513,7 @@ def log_labor(*, work_order: WorkOrder, membership, minutes: int) -> LaborEntry:
         user=membership.user,
         minutes=minutes,
         hourly_cost=hourly_cost_for(membership),
+        client_uuid=client_uuid,
     )
     recalculate_costs(work_order=work_order)
     _audit_cost(AuditEvent.Action.COST_ADD, work_order, membership, "labor", f"{minutes} min", entry.cost)

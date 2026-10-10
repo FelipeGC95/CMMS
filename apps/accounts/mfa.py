@@ -27,6 +27,9 @@ ALLOWED_PREFIXES = (
     "/readyz",
     "/org/switch/",
     "/org-theme.css",
+    # PWA de terreno (ADR-011): el navegador los pide solo, sin datos. /field/ y /field/api/ no.
+    "/field/sw.js",
+    "/field/manifest.webmanifest",
 )
 
 

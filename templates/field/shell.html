@@ -1,0 +1,175 @@
+{% load static i18n ui %}<!doctype html>
+{% get_current_language as LANGUAGE_CODE %}<html lang="{{ LANGUAGE_CODE }}">
+{# Vista de terreno sin conexión (ADR-011). Solo estructura: la guarda el Service Worker, así que #}
+{# nunca lleva datos de la organización ni de la persona. Los textos que usa el JS van aquí, #}
+{# traducidos, en data-msg-* y en <template>; el JS solo escribe con textContent. #}
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="{{ theme_color }}">
+  <title>{% translate "Terreno" %} · GALBUST CMMS</title>
+  <link rel="manifest" href="{% url 'field_manifest' %}">
+  <link rel="icon" href="{% static 'brand/galbust-favicon.ico' %}">
+  <link rel="apple-touch-icon" href="{% static 'brand/galbust-app-icon-180.png' %}">
+  <link rel="preload" href="{% static 'fonts/poppins-latin-500-normal.woff2' %}" as="font" type="font/woff2" crossorigin>
+  <script src="{% static 'js/theme.js' %}"></script>
+  <link rel="stylesheet" href="{% static 'css/tokens.css' %}">
+  <link rel="stylesheet" href="{% static 'css/components.css' %}">
+  <script type="module" src="{% static 'field/app.js' %}"></script>
+</head>
+<body class="field-app" data-sw-url="{% url 'field_sw' %}" data-scope="{% url 'field_shell' %}"{% if demo %} data-demo-url="{% url 'field_demo' %}"{% endif %}>
+  <a class="skip-link" href="#main">{% translate "Saltar al contenido" %}</a>
+  <header class="field-bar">
+    <div class="field-bar__inner">
+      <a class="field-bar__brand" href="{% url 'dashboard' %}" aria-label="{% translate 'GALBUST CMMS, inicio' %}">
+        <img src="{% static 'brand/galbust-isotipo-blanco.svg' %}" alt="" width="28" height="28">
+        <span class="field-bar__title">{% translate "Terreno" %}</span>
+      </a>
+      <p class="field-bar__status" id="field-status" role="status" aria-live="polite"></p>
+    </div>
+  </header>
+
+  <main id="main">
+    <div class="alert alert--info field-update" id="field-update" role="status" hidden>
+      {% icon 'info' %}<span>{% translate "Hay una versión nueva" %}</span>
+      <button class="btn btn--primary" type="button" data-action="update">{% translate "Actualizar" %}</button>
+    </div>
+    <div id="field-view" class="field-view">
+      <p class="muted">{% translate "Cargando…" %}</p>
+    </div>
+    <noscript><p class="alert alert--warning">{% translate "Esta vista necesita JavaScript." %}</p></noscript>
+  </main>
+
+  <div id="field-text" hidden
+    data-msg-online="{% translate 'En línea' %}"
+    data-msg-offline="{% translate 'Sin conexión' %}"
+    data-msg-list-title="{% translate 'OT para terreno' %}"
+    data-msg-work-orders="{% translate 'OT' %}"
+    data-msg-synced-at="{% translate 'Datos del' %}"
+    data-msg-truncated="{% translate 'Se muestran solo las primeras OT; revisa el resto en la web.' %}"
+    data-msg-overdue="{% translate 'Atrasadas' %}"
+    data-msg-no-date="{% translate 'Sin fecha' %}"
+    data-msg-today="{% translate 'Hoy' %}"
+    data-msg-assigned-to-me="{% translate 'Asignada a ti' %}"
+    data-msg-scheduled-for="{% translate 'Programada para' %}"
+    data-msg-due-on="{% translate 'Fecha límite' %}"
+    data-msg-target="{% translate 'Activo o ubicación' %}"
+    data-msg-assignee="{% translate 'Responsable' %}"
+    data-msg-estimate="{% translate 'Estimación' %}"
+    data-msg-minutes="{% translate 'min' %}"
+    data-msg-meter="{% translate 'Medidor' %}"
+    data-msg-meter-required="{% translate 'Pide lectura al completar' %}"
+    data-msg-pending="{% translate 'Pendiente' %}"
+    data-msg-optional="{% translate 'Opcional' %}"
+    data-msg-range="{% translate 'Rango' %}"
+    data-msg-photos="{% translate 'Fotos' %}"
+    data-msg-items-done="{% translate 'ítems respondidos' %}"
+    data-msg-of="{% translate 'de' %}"></div>
+  <div id="field-labels" hidden>
+    {% for value, label in result_choices %}<span data-result="{{ value }}">{{ label }}</span>{% endfor %}
+    {% for value, label in priority_choices %}<span data-priority="{{ value }}">{{ label }}</span>{% endfor %}
+  </div>
+
+  <template id="tpl-empty">
+    <section class="card empty field-empty" aria-labelledby="field-empty-title">
+      {% icon 'info' %}
+      <h1 id="field-empty-title" tabindex="-1">{% translate "Sin conexión · sin datos descargados" %}</h1>
+      <p>{% translate "Abre esta vista con conexión para descargar las OT de los próximos días." %}</p>
+      {% if demo %}<button class="btn btn--secondary btn--lg" type="button" data-action="load-demo">{% translate "Cargar datos de demostración" %}</button>{% endif %}
+    </section>
+  </template>
+
+  <template id="tpl-list">
+    <div class="page-header">
+      <div>
+        <h1 tabindex="-1" data-slot="title"></h1>
+        <p class="muted" data-slot="summary"></p>
+      </div>
+    </div>
+    <p class="alert alert--warning" data-slot="truncated" hidden></p>
+    <div class="field-days" data-slot="days"></div>
+  </template>
+
+  <template id="tpl-day">
+    <section class="card field-day">
+      <h2 class="day-list__title" data-slot="title"></h2>
+      <ul class="field-list" data-slot="items"></ul>
+    </section>
+  </template>
+
+  <template id="tpl-wo-item">
+    <li class="field-wo">
+      <a class="field-wo__link" data-slot="link">
+        <span class="field-wo__head"><span class="mono" data-slot="code"></span> <span class="field-wo__title" data-slot="title"></span></span>
+        <span class="field-wo__meta" data-slot="meta"></span>
+        <span class="field-wo__badges" data-slot="badges"></span>
+      </a>
+    </li>
+  </template>
+
+  <template id="tpl-detail">
+    <article class="field-detail">
+      <a class="btn btn--ghost btn--lg field-back" href="#/">{% icon 'list' %}{% translate "Volver a la lista" %}</a>
+      <div class="page-header">
+        <div>
+          <p class="mono muted field-detail__code" data-slot="code"></p>
+          <h1 tabindex="-1" data-slot="title"></h1>
+        </div>
+        <div class="row" data-slot="badges"></div>
+      </div>
+      <section class="card mb-4" aria-labelledby="field-facts-title">
+        <h2 class="visually-hidden" id="field-facts-title">{% translate "Datos de la OT" %}</h2>
+        <dl class="field-facts" data-slot="facts"></dl>
+        <p class="field-detail__description" data-slot="description" hidden></p>
+      </section>
+      <section aria-labelledby="field-checklist-title">
+        <div class="card__header">
+          <h2 id="field-checklist-title">{% translate "Checklist" %}</h2>
+          <span class="muted" data-slot="progress"></span>
+        </div>
+        <ol class="checklist" data-slot="checklist"></ol>
+        <p class="card empty" data-slot="checklist-empty" hidden>{% translate "Esta OT no tiene checklist." %}</p>
+      </section>
+    </article>
+  </template>
+
+  <template id="tpl-fact">
+    <div class="field-facts__row"><dt data-slot="label"></dt><dd data-slot="value"></dd></div>
+  </template>
+
+  <template id="tpl-check-section">
+    <li class="checklist__section"><h3 data-slot="title"></h3></li>
+  </template>
+
+  <template id="tpl-check-item">
+    <li class="check-item">
+      <p class="check-item__text"><span class="check-item__num" data-slot="num"></span><span data-slot="text"></span></p>
+      <div class="row" data-slot="badges"></div>
+      <p class="muted check-item__hint" data-slot="hint" hidden></p>
+      <p class="check-item__note-text" data-slot="note" hidden></p>
+    </li>
+  </template>
+
+  <template id="tpl-not-found">
+    <section class="card empty field-empty" aria-labelledby="field-missing-title">
+      {% icon 'alert' %}
+      <h1 id="field-missing-title" tabindex="-1">{% translate "Esta OT no está en los datos descargados" %}</h1>
+      <a class="btn btn--ghost btn--lg" href="#/">{% icon 'list' %}{% translate "Volver a la lista" %}</a>
+    </section>
+  </template>
+
+  {# Íconos de estado y de datos: el JS clona el SVG (nunca arma HTML). #}
+  <template id="icon-check">{% icon 'check' %}</template>
+  <template id="icon-stop">{% icon 'stop' %}</template>
+  <template id="icon-alert">{% icon 'alert' %}</template>
+  <template id="icon-info">{% icon 'info' %}</template>
+  <template id="icon-dot">{% icon 'dot' %}</template>
+  <template id="icon-wrench">{% icon 'wrench' %}</template>
+  <template id="icon-clock">{% icon 'clock' %}</template>
+  <template id="icon-calendar">{% icon 'calendar' %}</template>
+  <template id="icon-camera">{% icon 'camera' %}</template>
+  <template id="icon-box">{% icon 'box' %}</template>
+  <template id="icon-user">{% icon 'user' %}</template>
+  <template id="icon-x">{% icon 'x' %}</template>
+</body>
+</html>
