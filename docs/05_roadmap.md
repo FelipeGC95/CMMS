@@ -161,7 +161,12 @@ generan solas.
 
 ## F2 · Terreno y stock (~20 semanas, el orden se decide con el piloto)
 
-- PWA offline para técnicos (ADR-011) — 5 semanas.
+- ✔ PWA offline para técnicos (X-06, ADR-011) — hecha (2026-10): `/field/`
+  con cola, sincronización, conflictos, borrado al salir, horas de apoyo y
+  e2e. Queda fuera de v1: QR, repuestos y correctiva desde hallazgo sin
+  conexión, ver fotos o manuales, Background Sync y push, crear/aprobar/cerrar
+  OT, varias organizaciones a la vez, horas con inicio y fin, `/field/` como
+  vista por defecto (se decide con el piloto) y asistente IA sin conexión.
 - Asistente de diagnóstico con IA (AI-01..05, ADR-018): herramientas de
   búsqueda con alcance, conversación en el worker, citas, cupos y conjunto de
   evaluación con casos del piloto — 4 semanas.

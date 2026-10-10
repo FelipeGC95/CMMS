@@ -376,6 +376,38 @@ lecturas, OT y solicitudes. Desde la API también se completa una OT y se
 responde su checklist con las mismas reglas que la web (ADR-005).
 
 **X-06 · Modo offline PWA (F2)**: ver [04_arquitectura.md](04_arquitectura.md), ADR-011.
+Como técnico quiero ejecutar mis OT sin señal y que lo hecho llegue solo al
+servidor cuando vuelva la conexión. Implementado en `/field/` (2026-10).
+- CA1 ✔ Entrada opcional "Modo sin conexión" en Mis OT, Mi semana y "Más"
+  (quien ejecuta OT, con el módulo `work_orders`); instalable (manifest e
+  íconos 192/512/maskable).
+- CA2 ✔ Descarga todas las OT visibles de los próximos 7 días (asignadas
+  primero, tope 200), catálogos de falla, activos y medidores; se ven sin señal
+  hasta 14 días.
+- CA3 ✔ Sin señal: iniciar, pausar, reanudar y completar; responder el
+  checklist (con firma), fotos de ítems y de la OT, horas al completar y horas
+  de apoyo, lectura de medidor y solicitud con foto.
+- CA4 ✔ Cola con `client_uuid`: reintentar nunca duplica; correlativos al
+  sincronizar; barra de estado accesible (pendientes, enviando, conflictos).
+- CA5 ✔ Conflictos: OT cancelada o cerrada → conflicto con "Descartar";
+  datos rechazados → "Corregir y reenviar"; checklist: gana la última respuesta
+  y la otra queda en auditoría.
+- CA6 ✔ Sesión vencida o MFA pendiente pausan la cola sin perder cambios;
+  versión vieja del cliente → "Actualizar".
+- CA7 ✔ Teléfono compartido: "Salir" borra los datos (con pendientes, pide
+  confirmar y cuántos se pierden); cambiar de organización u otra persona
+  borra los datos descargados; un cambio nunca se envía con la sesión de otra
+  organización (409 `organization_changed`).
+- CA8 ✔ Móvil 360 px, objetivos ≥ 48 px, texto ≥ 16 px, sin JS en línea
+  (CSP), solo `textContent`; e2e Playwright (`tests/e2e/`, a pedido y como job
+  manual del CI).
+- No cumplido / fuera de v1: QR sin conexión; repuestos y correctiva desde
+  hallazgo sin conexión; ver fotos o manuales sin conexión; Background Sync y
+  push; crear, aprobar o cerrar OT; varias organizaciones a la vez; horas con
+  inicio y fin explícitos; `/field/` como vista por defecto del técnico (se
+  decide tras el piloto); asistente IA sin conexión. Los datos de IndexedDB no
+  van cifrados en el teléfono (mitigado con el borrado al salir y el
+  vencimiento de 14 días).
 
 **X-07 · i18n (M0)**: todos los textos marcados para traducción; español (Chile)
 completo; inglés y portugués en F3.

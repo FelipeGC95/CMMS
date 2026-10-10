@@ -27,7 +27,7 @@ lo único nuevo que expone es `/readyz`. Decisión en ADR-020
 | `BACKUPS_ENABLED=1` | Respaldo diario (07:00 UTC) desde el worker. | La tarea diaria no hace nada. |
 | `BACKUP_DIR`, `BACKUP_RETENTION_DAYS` | Carpeta local de respaldos (sin R2) y retención. | `./backups`, `30`. |
 | `ACCOUNT_EMAIL_VERIFICATION` | Quitarla (queda `mandatory`) al tener proveedor de correo. | `mandatory`. |
-| `API_RATE_LIMIT`, `FIELD_API_RATE_LIMIT` | Límite de peticiones de la API v1 (por token) y de la API de terreno `/field/api/` (por persona). | `600/min` y `600/min`. |
+| `API_RATE_LIMIT`, `FIELD_API_RATE_LIMIT` | Límite de peticiones de la API v1 (por token) y de la API de terreno `/field/api/` (por persona; formato DRF, p. ej. `600/min`). Una sincronización envía un cambio por petición: subirlo si un técnico con muchos cambios recibe 429 (el teléfono reintenta solo). | `600/min` y `600/min`. |
 
 Proveedor de correo (SMTP, ambos con plan gratuito para empezar):
 
@@ -131,6 +131,45 @@ Proveedor de correo (SMTP, ambos con plan gratuito para empezar):
 - **Usuarios:** las cuentas no se borran; quien solo pertenecía a esa
   organización entra y ve "sin organización". Borrar la cuenta es un pedido
   aparte (admin de Django).
+
+## 3d. PWA de terreno sin conexión (X-06, ADR-011)
+
+- **Versión del cliente (`MIN_CLIENT_VERSION`):** constante en
+  `apps/api/framework.py` (no es variable de entorno); el cliente declara la
+  suya en `CLIENT_VERSION` de `static/field/api.js`. Se sube **solo** cuando
+  un cambio del contrato de `/field/api/` deja de servir a la versión anterior
+  (campo obligatorio nuevo, forma distinta de una respuesta o de la cola): subir
+  primero `CLIENT_VERSION` del JS y `MIN_CLIENT_VERSION` en el mismo despliegue.
+  Los teléfonos con la versión vieja reciben 409 `upgrade_required`, pausan la
+  cola sin perder cambios y muestran "Actualizar". Un cambio aditivo no la sube.
+- **Actualización del Service Worker:** su versión cambia en cada despliegue
+  (nombres con hash + `RENDER_GIT_COMMIT`); no hay que hacer nada.
+- **Íconos:** `static/brand/galbust-app-icon-192.png`, `-512.png` y
+  `-maskable-512.png` (exportados de `Marca/`, que no se edita; el maskable
+  ocupa el cuadrado completo, con test). Si cambia la marca, exportarlos de
+  nuevo con los mismos nombres.
+- **Límite:** `FIELD_API_RATE_LIMIT` (sección 1).
+- **Datos en el teléfono:** IndexedDB `galbust-field`; se borra al "Salir"
+  (pide confirmar si hay cambios sin enviar) y los datos descargados se
+  borran al cambiar de organización o si entra otra persona. Soporte: si un
+  técnico "perdió" cambios, preguntar si salió con "Salir y descartar".
+- **E2E (Playwright, no corre en cada push):**
+  - En local (SQLite o `DATABASE_URL`):
+    ```powershell
+    uv run python manage.py migrate
+    uv run python manage.py seed_demo --reset
+    uv run python manage.py runserver 127.0.0.1:8765 --noreload
+    # en otra terminal:
+    $env:E2E_BASE_URL = "http://127.0.0.1:8765"
+    $env:E2E_SHOTS = "C:\ruta\capturas"   # opcional
+    uv run --no-project --with playwright --with pytest pytest -c tests/e2e/pytest.ini tests/e2e
+    ```
+    La primera vez: `uv run --no-project --with playwright playwright install chromium`.
+    `seed_demo --reset` antes de cada corrida (las pruebas completan y cancelan OT).
+  - En GitHub: Actions → CI → *Run workflow* (`workflow_dispatch`) corre solo
+    el job `e2e` (Postgres, `seed_demo`, `runserver`, chromium) y sube las
+    capturas y el log del servidor como artefacto. El botón aparece cuando el
+    workflow con `workflow_dispatch` está en `main`.
 
 ## 4. Checklist para activar producción
 

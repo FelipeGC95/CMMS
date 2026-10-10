@@ -90,7 +90,7 @@ Todos los errores tienen la misma forma, con textos en español:
 | 401 | `not_authenticated` / `authentication_failed` | Sin token, token mal formado, revocado o vencido. |
 | 403 | `permission_denied` | Token `read` intentando escribir, o acción fuera del rol. |
 | 404 | `not_found` | No existe o es de otra organización. |
-| 409 | `conflict` | `client_uuid` ya usado en otra operación. (La API de terreno además usa `cancelled`, `locked` y `upgrade_required`; ver más abajo.) |
+| 409 | `conflict` | `client_uuid` ya usado en otra operación. (La API de terreno además usa `cancelled`, `locked`, `organization_changed` y `upgrade_required`; ver más abajo.) |
 | 429 | `throttled` | Límite de peticiones por minuto superado. |
 
 ### Documentación interactiva
@@ -379,6 +379,7 @@ El planificador ve la OT correctiva con prioridad urgente (si el activo es crít
 - Límite por persona: `FIELD_API_RATE_LIMIT` (`600/min` por defecto).
 - Las horas de `bootstrap`, `snapshot` y `reference` van en UTC con `Z`; los decimales como texto.
 - Encabezado opcional `X-Client-Version`: menor que `min_client_version` → 409 `upgrade_required` (`details.min_client_version`); `bootstrap/` responde igual.
+- Encabezado opcional `X-Field-Organization` en las escrituras: la organización donde se hizo el cambio en el teléfono. Si la sesión ya es de otra (cambio de organización en otra pestaña) → 409 `organization_changed` y no se aplica nada; el teléfono repite `bootstrap/` y deja el cambio en cola.
 - Errores de estado de la OT → **409** (no 400): `cancelled` (OT cancelada), `locked` (completada o cerrada), `conflict` (`client_uuid` usado en otra cosa). A diferencia de la v1, `transition/` y `complete/` nunca reabren una OT ya completada (→ 409 `locked`). El teléfono no reintenta un 409: lo muestra como conflicto.
 
 | Método y ruta | Qué resuelve |

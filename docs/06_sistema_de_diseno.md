@@ -186,6 +186,8 @@ terceros y simplifican la CSP. Solo los pesos 400/500/600 y
 - `--touch-target`: 48px (vistas de técnico), 40px mínimo en escritorio.
 - Sombras: `--shadow-sm` (tarjetas) y `--shadow-md` (menús, modales), suaves y
   teñidas de azul; en modo oscuro se reemplazan por bordes.
+- `--color-overlay`: fondo detrás de un diálogo modal (`::backdrop`), azul
+  marca al 60 % (negro al 60 % en modo oscuro).
 - Movimiento: `--duration-fast` 120ms, `--duration-base` 200ms; se desactiva con
   `prefers-reduced-motion`.
 
@@ -249,6 +251,9 @@ Todos se muestran en `/design-system/` en ambos modos, con sus estados
 | **Navegación inferior móvil** | 4–5 destinos | Bajo 1100 px, para todos los roles. Técnico: Mis OT, Escanear QR, Avisar falla, Perfil. Otros roles: sus destinos principales + "Más" con el resto del menú de escritorio. |
 | **Alerta / toast** | 4 estados | `role="status"` o `role="alert"` según urgencia. |
 | **Modal / hoja inferior** | | Hoja inferior en móvil; foco atrapado; se cierra con Esc. |
+| **Diálogo de confirmación** (`.dialog`) | confirmar al salir o cambiar de organización | `<dialog>` nativo con `showModal()` (foco atrapado, Esc cancela), fondo `--color-overlay`; título con ícono de advertencia + texto, acciones apiladas en móvil y en fila desde 720 px; la acción segura ("Ir a sincronizar") lleva el foco inicial. |
+| **Barra de terreno** (`.field-bar`) | con "Salir" | Barra de `/field/` con estado de conexión (ícono + texto) y "Salir"; bajo 720 px "Salir" muestra solo el ícono y conserva su nombre para lectores de pantalla (objetivo de 48 px). |
+| **Horas de apoyo** (`.field-labor`) | | Tarjeta en la OT de terreno: minutos (1–1440), ayuda y aviso "guardado en el teléfono". |
 | **Estado vacío** | | Ilustración mínima con el isotipo en monocromo + acción sugerida. |
 | **Código** | OT, activo | JetBrains Mono, botón de copiar. |
 
