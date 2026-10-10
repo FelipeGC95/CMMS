@@ -28,7 +28,17 @@ ICONS = [
 ]
 
 # Módulos ES de la vista (static/field/). app.js es la entrada.
-FIELD_SCRIPTS = ["field/app.js", "field/db.js", "field/ui.js"]
+FIELD_SCRIPTS = [
+    "field/app.js",
+    "field/api.js",
+    "field/db.js",
+    "field/forms.js",
+    "field/local.js",
+    "field/photos.js",
+    "field/queue.js",
+    "field/sync.js",
+    "field/ui.js",
+]
 
 # Estáticos que la vista necesita sin conexión (Cache Storage, caché primero).
 SHELL_STATIC = [

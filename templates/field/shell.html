@@ -15,9 +15,10 @@
   <script src="{% static 'js/theme.js' %}"></script>
   <link rel="stylesheet" href="{% static 'css/tokens.css' %}">
   <link rel="stylesheet" href="{% static 'css/components.css' %}">
+  <script src="{% static 'js/signature-pad.js' %}" defer></script>
   <script type="module" src="{% static 'field/app.js' %}"></script>
 </head>
-<body class="field-app" data-sw-url="{% url 'field_sw' %}" data-scope="{% url 'field_shell' %}"{% if demo %} data-demo-url="{% url 'field_demo' %}"{% endif %}>
+<body class="field-app" data-sw-url="{% url 'field_sw' %}" data-scope="{% url 'field_shell' %}" data-api-url="{{ api_url }}" data-login-url="{{ login_url }}" data-mfa-url="{% url 'mfa_activate_totp' %}">
   <a class="skip-link" href="#main">{% translate "Saltar al contenido" %}</a>
   <header class="field-bar">
     <div class="field-bar__inner">
@@ -29,10 +30,15 @@
     </div>
   </header>
 
+  {# Estado de la cola: siempre en el DOM para que los lectores de pantalla anuncien los cambios. #}
+  <section class="field-sync" id="field-sync" data-tone="none" aria-label="{% translate 'Sincronización' %}">
+    <div class="field-sync__inner" id="field-sync-rows" role="status" aria-live="polite"></div>
+  </section>
+
   <main id="main">
     <div class="alert alert--info field-update" id="field-update" role="status" hidden>
       {% icon 'info' %}<span>{% translate "Hay una versión nueva" %}</span>
-      <button class="btn btn--primary" type="button" data-action="update">{% translate "Actualizar" %}</button>
+      <button class="btn btn--primary btn--lg" type="button" data-action="update">{% icon 'sync' %}{% translate "Actualizar" %}</button>
     </div>
     <div id="field-view" class="field-view">
       <p class="muted">{% translate "Cargando…" %}</p>
@@ -64,10 +70,75 @@
     data-msg-range="{% translate 'Rango' %}"
     data-msg-photos="{% translate 'Fotos' %}"
     data-msg-items-done="{% translate 'ítems respondidos' %}"
-    data-msg-of="{% translate 'de' %}"></div>
+    data-msg-of="{% translate 'de' %}"
+    data-msg-loading="{% translate 'Descargando las OT…' %}"
+    data-msg-sync-pending-one="{% translate '1 cambio por enviar' %}"
+    data-msg-sync-pending-other="{% translate '{n} cambios por enviar' %}"
+    data-msg-sync-offline-one="{% translate 'Sin conexión · 1 cambio guardado en el teléfono' %}"
+    data-msg-sync-offline-other="{% translate 'Sin conexión · {n} cambios guardados en el teléfono' %}"
+    data-msg-sync-sending="{% translate 'Enviando cambios…' %}"
+    data-msg-sync-done="{% translate 'Todo enviado' %}"
+    data-msg-sync-problems-one="{% translate '1 cambio con conflicto o rechazado' %}"
+    data-msg-sync-problems-other="{% translate '{n} cambios con conflicto o rechazados' %}"
+    data-msg-sync-auth-none="{% translate 'Tu sesión terminó: inicia sesión para descargar las OT.' %}"
+    data-msg-sync-auth-one="{% translate 'Inicia sesión para enviar 1 cambio' %}"
+    data-msg-sync-auth-other="{% translate 'Inicia sesión para enviar {n} cambios' %}"
+    data-msg-sync-mfa="{% translate 'Configura la verificación en dos pasos para seguir sincronizando.' %}"
+    data-msg-sync-upgrade="{% translate 'Hay una versión nueva: actualiza para seguir sincronizando.' %}"
+    data-msg-sync-other-org="{% translate 'Cambios guardados de «{org}»: {n}. Cambia a esa organización para enviarlos.' %}"
+    data-msg-sync-other-people="{% translate 'Cambios de otra persona guardados en este teléfono: {n}.' %}"
+    data-msg-action-login="{% translate 'Iniciar sesión' %}"
+    data-msg-action-mfa="{% translate 'Configurar' %}"
+    data-msg-action-update="{% translate 'Actualizar' %}"
+    data-msg-action-send-now="{% translate 'Enviar ahora' %}"
+    data-msg-action-review="{% translate 'Revisar' %}"
+    data-msg-action-discard="{% translate 'Descartar' %}"
+    data-msg-confirm-discard="{% translate '¿Descartar este cambio? No se podrá recuperar.' %}"
+    data-msg-confirm-discard-others="{% translate '¿Descartar los cambios de otra persona? No se podrán recuperar.' %}"
+    data-msg-badge-pending="{% translate 'Por enviar' %}"
+    data-msg-badge-problem="{% translate 'Con conflicto' %}"
+    data-msg-status-conflict="{% translate 'Conflicto' %}"
+    data-msg-status-rejected="{% translate 'Rechazado' %}"
+    data-msg-worked="{% translate 'Trabajado en este teléfono' %}"
+    data-msg-saved-answer="{% translate 'Respuesta guardada en el teléfono' %}"
+    data-msg-saved-note="{% translate 'Observación guardada en el teléfono' %}"
+    data-msg-saved-photo="{% translate 'Foto guardada en el teléfono' %}"
+    data-msg-saved-transition="{% translate 'Estado guardado en el teléfono: se envía al tener conexión.' %}"
+    data-msg-saved-complete="{% translate 'OT completada en el teléfono: se envía al tener conexión.' %}"
+    data-msg-saved-request="{% translate 'Solicitud guardada: se envía al tener conexión.' %}"
+    data-msg-saved-reading="{% translate 'Lectura guardada: se envía al tener conexión.' %}"
+    data-msg-saved-fix="{% translate 'Cambio corregido: se reenvía al tener conexión.' %}"
+    data-msg-photo-too-large="{% translate 'La foto supera los 20 MB.' %}"
+    data-msg-photo-missing="{% translate 'Falta la foto' %}"
+    data-msg-photo-ready="{% translate 'Foto lista' %}"
+    data-msg-photos-pending="{% translate 'Fotos por enviar' %}"
+    data-msg-signed="{% translate 'Firmado' %}"
+    data-msg-in-range="{% translate 'En rango' %}"
+    data-msg-out-of-range="{% translate 'Fuera de rango' %}"
+    data-msg-invalid-number="{% translate 'Escribe un número (coma o punto para los decimales).' %}"
+    data-msg-required-text="{% translate 'Escribe la respuesta.' %}"
+    data-msg-required-signature="{% translate 'Firma dentro del recuadro antes de guardar.' %}"
+    data-msg-missing-required="{% translate 'Faltan ítems obligatorios del checklist' %}"
+    data-msg-choose-target="{% translate 'Elige un activo o una ubicación.' %}"
+    data-msg-choose-meter="{% translate 'Elige un medidor.' %}"
+    data-msg-no-reference="{% translate 'Faltan los catálogos: abre esta vista con conexión para descargarlos.' %}"
+    data-msg-current-value="{% translate 'Lectura actual' %}"
+    data-msg-request-number="{% translate 'Solicitud N°' %}"
+    data-msg-kind-transition="{% translate 'Cambio de estado' %}"
+    data-msg-kind-answer="{% translate 'Respuesta del checklist' %}"
+    data-msg-kind-item-photo="{% translate 'Foto de un ítem' %}"
+    data-msg-kind-wo-photo="{% translate 'Foto de la OT' %}"
+    data-msg-kind-complete="{% translate 'Cierre de la OT' %}"
+    data-msg-kind-reading="{% translate 'Lectura de medidor' %}"
+    data-msg-kind-request="{% translate 'Solicitud' %}"
+    data-msg-made-at="{% translate 'Hecho el' %}"
+    data-msg-locked="{% translate 'Esta OT ya no se modifica desde terreno.' %}"
+    data-msg-read-only="{% translate 'Tu rol puede ver esta OT, pero no ejecutarla.' %}"
+    data-msg-choose="{% translate '— Elegir —' %}"></div>
   <div id="field-labels" hidden>
     {% for value, label in result_choices %}<span data-result="{{ value }}">{{ label }}</span>{% endfor %}
     {% for value, label in priority_choices %}<span data-priority="{{ value }}">{{ label }}</span>{% endfor %}
+    {% for value, label in impact_choices %}<span data-impact="{{ value }}">{{ label }}</span>{% endfor %}
   </div>
 
   <template id="tpl-empty">
@@ -75,7 +146,13 @@
       {% icon 'info' %}
       <h1 id="field-empty-title" tabindex="-1">{% translate "Sin conexión · sin datos descargados" %}</h1>
       <p>{% translate "Abre esta vista con conexión para descargar las OT de los próximos días." %}</p>
-      {% if demo %}<button class="btn btn--secondary btn--lg" type="button" data-action="load-demo">{% translate "Cargar datos de demostración" %}</button>{% endif %}
+    </section>
+  </template>
+
+  <template id="tpl-loading">
+    <section class="card empty field-empty" aria-labelledby="field-loading-title">
+      {% icon 'sync' %}
+      <h1 id="field-loading-title" tabindex="-1">{% translate "Descargando las OT…" %}</h1>
     </section>
   </template>
 
@@ -86,8 +163,20 @@
         <p class="muted" data-slot="summary"></p>
       </div>
     </div>
+    <p class="alert alert--success" data-slot="flash" role="status" hidden></p>
+    <nav class="field-toolbar" aria-label="{% translate 'Acciones de terreno' %}">
+      <button class="btn btn--ghost btn--lg" type="button" data-action="refresh">{% icon 'sync' %}{% translate "Descargar de nuevo" %}</button>
+      <a class="btn btn--secondary btn--lg" href="#/request" data-perm="request_create" hidden>{% icon 'megaphone' %}{% translate "Nueva solicitud" %}</a>
+      <a class="btn btn--secondary btn--lg" href="#/reading" data-perm="reading_create" hidden>{% icon 'clock' %}{% translate "Lectura de medidor" %}</a>
+      <a class="btn btn--ghost btn--lg" href="#/conflicts" data-slot="conflicts">{% icon 'alert' %}{% translate "Conflictos o rechazados" %}</a>
+    </nav>
     <p class="alert alert--warning" data-slot="truncated" hidden></p>
+    <section class="card field-recent mb-4" aria-labelledby="field-recent-title" data-slot="recent" hidden>
+      <h2 id="field-recent-title">{% translate "Solicitudes enviadas" %}</h2>
+      <ul class="field-recent__list" data-slot="recent-list"></ul>
+    </section>
     <div class="field-days" data-slot="days"></div>
+    <p class="card empty" data-slot="none" hidden>{% translate "No hay OT para los próximos días." %}</p>
   </template>
 
   <template id="tpl-day">
@@ -117,18 +206,44 @@
         </div>
         <div class="row" data-slot="badges"></div>
       </div>
+      <p class="alert alert--success" data-slot="flash" role="status" hidden></p>
+      <p class="alert alert--error" data-slot="problem" hidden>{% icon 'stop' %}<span>{% translate "Hay cambios de esta OT con conflicto o rechazados." %} <a href="#/conflicts">{% translate "Revisar" %}</a></span></p>
+      <section class="card mb-4 field-exec" aria-labelledby="field-exec-title" data-slot="exec">
+        <h2 id="field-exec-title">{% translate "Ejecución" %}</h2>
+        <p class="muted" data-slot="exec-note" hidden></p>
+        <div class="field-actions" data-slot="actions">
+          <button class="btn btn--primary btn--lg" type="button" data-action="transition" data-transition="start" hidden>{% icon 'play' %}{% translate "Iniciar" %}</button>
+          <button class="btn btn--primary btn--lg" type="button" data-action="transition" data-transition="resume" hidden>{% icon 'play' %}{% translate "Reanudar" %}</button>
+          <button class="btn btn--secondary btn--lg" type="button" data-action="transition" data-transition="pause" hidden>{% icon 'pause' %}{% translate "Pausar" %}</button>
+          <a class="btn btn--primary btn--lg" data-slot="complete" hidden>{% icon 'check' %}{% translate "Completar" %}</a>
+        </div>
+        <p class="field-exec__worked" data-slot="worked" hidden></p>
+      </section>
       <section class="card mb-4" aria-labelledby="field-facts-title">
         <h2 class="visually-hidden" id="field-facts-title">{% translate "Datos de la OT" %}</h2>
         <dl class="field-facts" data-slot="facts"></dl>
         <p class="field-detail__description" data-slot="description" hidden></p>
+        <div class="field-links" data-slot="links">
+          <a class="btn btn--ghost btn--lg" data-slot="link-request" hidden>{% icon 'megaphone' %}{% translate "Avisar otra falla en este activo" %}</a>
+          <a class="btn btn--ghost btn--lg" data-slot="link-reading" hidden>{% icon 'clock' %}{% translate "Registrar lectura" %}</a>
+        </div>
       </section>
-      <section aria-labelledby="field-checklist-title">
+      <section class="mb-4" aria-labelledby="field-checklist-title">
         <div class="card__header">
           <h2 id="field-checklist-title">{% translate "Checklist" %}</h2>
           <span class="muted" data-slot="progress"></span>
         </div>
         <ol class="checklist" data-slot="checklist"></ol>
         <p class="card empty" data-slot="checklist-empty" hidden>{% translate "Esta OT no tiene checklist." %}</p>
+      </section>
+      <section class="card" aria-labelledby="field-wo-photos-title" data-slot="wo-photos" hidden>
+        <h2 id="field-wo-photos-title">{% translate "Fotos de la OT" %}</h2>
+        <p class="muted" data-slot="wo-photo-count" hidden></p>
+        <div class="photo-upload">
+          <input class="photo-upload__input" type="file" accept="image/*" capture="environment" data-photo="wo" data-slot="wo-photo-input">
+          <label class="btn btn--secondary btn--lg photo-upload__button" data-slot="wo-photo-label">{% icon 'camera' %}{% translate "Agregar foto" %}</label>
+          <span class="field-saved" data-slot="wo-photo-status" role="status"></span>
+        </div>
       </section>
     </article>
   </template>
@@ -147,6 +262,248 @@
       <div class="row" data-slot="badges"></div>
       <p class="muted check-item__hint" data-slot="hint" hidden></p>
       <p class="check-item__note-text" data-slot="note" hidden></p>
+    </li>
+  </template>
+
+  {# Ítem editable: el JS deja solo el bloque del tipo del ítem (data-type). #}
+  <template id="tpl-check-edit">
+    <li class="check-item">
+      <p class="check-item__text"><span class="check-item__num" data-slot="num"></span><span data-slot="text"></span></p>
+      <div class="row field-item-badges" data-slot="badges"></div>
+      <div class="segmented" role="group" aria-label="{% translate 'Resultado' %}" data-type="check">
+        <button type="button" class="is-ok" data-action="answer" data-result="ok" aria-pressed="false">{% icon 'check' %}{% translate "OK" %}</button>
+        <button type="button" class="is-not_ok" data-action="answer" data-result="not_ok" aria-pressed="false">{% icon 'x' %}{% translate "No OK" %}</button>
+        <button type="button" class="is-na" data-action="answer" data-result="na" aria-pressed="false">{% icon 'dot' %}{% translate "N.A." %}</button>
+      </div>
+      <div data-type="measurement">
+        <div class="measure">
+          <label class="visually-hidden" data-slot="value-label">{% translate "Valor medido" %}</label>
+          <input class="input num" type="text" inputmode="decimal" autocomplete="off" data-slot="value">
+          <span class="muted" data-slot="unit"></span>
+          <button class="btn btn--secondary btn--lg" type="button" data-action="answer">{% translate "Guardar" %}</button>
+        </div>
+        <p class="help field-item-range" data-slot="range" hidden></p>
+      </div>
+      <div data-type="text">
+        <div class="field">
+          <label data-slot="text-label">{% translate "Respuesta" %}</label>
+          <textarea class="input" rows="3" maxlength="1000" autocapitalize="sentences" data-slot="value-text"></textarea>
+        </div>
+        <button class="btn btn--secondary btn--lg" type="button" data-action="answer">{% icon 'check' %}{% translate "Guardar respuesta" %}</button>
+      </div>
+      <div data-type="signature">
+        <div class="field signature-pad" data-signature-pad>
+          <span class="signature-pad__label" data-slot="sign-label">{% translate "Firma" %}</span>
+          <canvas class="signature-pad__canvas" data-signature-canvas role="img"></canvas>
+          <input type="hidden" data-slot="signature">
+          <div class="signature-pad__footer">
+            <span class="help" data-signature-status data-empty="{% translate 'Firma con el dedo dentro del recuadro.' %}" data-signed="{% translate 'Firma lista: guárdala para enviarla.' %}">{% translate "Firma con el dedo dentro del recuadro." %}</span>
+            <button class="btn btn--ghost" type="button" data-signature-clear>{% icon 'x' %}{% translate "Borrar firma" %}</button>
+          </div>
+        </div>
+        <button class="btn btn--secondary btn--lg" type="button" data-action="answer">{% icon 'check' %}{% translate "Guardar firma" %}</button>
+      </div>
+      <p class="help" data-type="photo" data-slot="photo-state"></p>
+      <div class="check-item__note">
+        <label data-slot="note-label">{% translate "Observación (opcional)" %}</label>
+        <textarea class="input" rows="2" maxlength="500" autocapitalize="sentences" data-slot="note"></textarea>
+        <button class="btn btn--ghost btn--lg field-note-save" type="button" data-action="note" data-slot="note-save" hidden>{% translate "Guardar observación" %}</button>
+      </div>
+      <div class="photo-upload">
+        <input class="photo-upload__input" type="file" accept="image/*" capture="environment" data-photo="item" data-slot="photo-input">
+        <label class="btn btn--secondary btn--lg photo-upload__button" data-slot="photo-label">{% icon 'camera' %}{% translate "Agregar foto" %}</label>
+      </div>
+      <p class="field-saved" data-slot="saved" role="status"></p>
+    </li>
+  </template>
+
+  <template id="tpl-complete">
+    <article class="field-form">
+      <a class="btn btn--ghost btn--lg field-back" data-slot="back">{% icon 'list' %}{% translate "Volver a la OT" %}</a>
+      <div class="page-header">
+        <div>
+          <p class="mono muted field-detail__code" data-slot="code"></p>
+          <h1 tabindex="-1">{% translate "Completar OT" %}</h1>
+          <p class="muted" data-slot="title"></p>
+        </div>
+      </div>
+      <div class="alert alert--error" data-slot="errors" role="alert" hidden>{% icon 'stop' %}<span data-slot="errors-text"></span></div>
+      <form class="card" novalidate data-form="complete">
+        <div class="field" data-field="labor_minutes">
+          <label for="fc-labor">{% translate "Tiempo trabajado (minutos)" %}</label>
+          <input id="fc-labor" name="labor_minutes" type="number" inputmode="numeric" min="0" max="1440" step="1" required>
+          <span class="help" data-slot="labor-help">{% translate "Calculado entre «Iniciar» y «Completar», sin las pausas. Corrígelo si hace falta." %}</span>
+          <span class="error" data-error hidden></span>
+        </div>
+        <div class="field field--dictation" data-field="notes">
+          <label for="fc-notes" data-slot="notes-label">{% translate "Comentario de cierre" %}</label>
+          <label for="fc-notes" data-slot="notes-label-failure" hidden>{% translate "Acción realizada" %}</label>
+          <textarea id="fc-notes" name="notes" rows="3" maxlength="4000" autocapitalize="sentences"></textarea>
+          <span class="error" data-error hidden></span>
+        </div>
+        <div class="field" data-field="meter_value" data-slot="meter" hidden>
+          <label for="fc-meter">{% translate "Lectura del medidor" %} <span class="muted" data-slot="meter-name"></span></label>
+          <input id="fc-meter" name="meter_value" type="text" inputmode="decimal" autocomplete="off">
+          <span class="help" data-slot="meter-required">{% translate "Obligatorio: el próximo preventivo se calcula desde esta lectura." %}</span>
+          <span class="help" data-slot="meter-optional">{% translate "Opcional: actualiza la lectura del equipo." %}</span>
+          <span class="error" data-error hidden></span>
+        </div>
+        <fieldset class="fieldset" data-slot="failure" hidden>
+          <legend>{% translate "Falla" %}</legend>
+          <div class="field field--dictation" data-field="symptom">
+            <label for="fc-symptom">{% translate "Síntoma observado" %}</label>
+            <textarea id="fc-symptom" name="symptom" rows="3" maxlength="4000" autocapitalize="sentences"></textarea>
+            <span class="error" data-error hidden></span>
+          </div>
+          <div class="field" data-field="impact">
+            <label for="fc-impact">{% translate "Impacto" %}</label>
+            <select id="fc-impact" name="impact" data-choices="impact"></select>
+            <span class="error" data-error hidden></span>
+          </div>
+          <div class="field-pair">
+            <div class="field" data-field="failure_started_at">
+              <label for="fc-started">{% translate "Inicio de la detención" %}</label>
+              <input id="fc-started" name="failure_started_at" type="datetime-local">
+              <span class="help">{% translate "Si no hubo detención: cuándo se detectó la falla." %}</span>
+              <span class="error" data-error hidden></span>
+            </div>
+            <div class="field" data-field="failure_ended_at">
+              <label for="fc-ended">{% translate "Fin de la detención" %}</label>
+              <input id="fc-ended" name="failure_ended_at" type="datetime-local">
+              <span class="help">{% translate "Si lo dejas vacío, se usa la hora de término." %}</span>
+              <span class="error" data-error hidden></span>
+            </div>
+          </div>
+          <div class="field-pair">
+            <div class="field" data-field="failure_mode">
+              <label for="fc-mode">{% translate "Modo de falla" %}</label>
+              <select id="fc-mode" name="failure_mode" data-codes="mode"></select>
+              <span class="error" data-error hidden></span>
+            </div>
+            <div class="field" data-field="failure_cause">
+              <label for="fc-cause">{% translate "Causa" %}</label>
+              <select id="fc-cause" name="failure_cause" data-codes="cause"></select>
+              <span class="error" data-error hidden></span>
+            </div>
+          </div>
+        </fieldset>
+        <div class="field signature-pad" data-signature-pad data-field="signature">
+          <span class="signature-pad__label" id="fc-sign-label">{% translate "Firma" %} <span class="muted">({% translate "opcional" %})</span></span>
+          <canvas class="signature-pad__canvas" data-signature-canvas role="img" aria-labelledby="fc-sign-label" aria-describedby="fc-sign-help"></canvas>
+          <input type="hidden" name="signature">
+          <div class="signature-pad__footer">
+            <span class="help" id="fc-sign-help" data-signature-status data-empty="{% translate 'Firma con el dedo dentro del recuadro.' %}" data-signed="{% translate 'Firma lista: se guarda al completar la OT.' %}">{% translate "Firma con el dedo dentro del recuadro." %}</span>
+            <button class="btn btn--ghost" type="button" data-signature-clear>{% icon 'x' %}{% translate "Borrar firma" %}</button>
+          </div>
+          <span class="error" data-error hidden></span>
+        </div>
+        <button class="btn btn--primary btn--lg btn--block" type="submit">{% icon 'check' %}{% translate "Completar OT" %}</button>
+      </form>
+    </article>
+  </template>
+
+  <template id="tpl-request">
+    <article class="field-form">
+      <a class="btn btn--ghost btn--lg field-back" href="#/">{% icon 'list' %}{% translate "Volver a la lista" %}</a>
+      <div class="page-header"><div><h1 tabindex="-1">{% translate "Nueva solicitud" %}</h1>
+        <p class="muted">{% translate "Avisa una falla: se crea la solicitud y su OT correctiva." %}</p></div></div>
+      <div class="alert alert--error" data-slot="errors" role="alert" hidden>{% icon 'stop' %}<span data-slot="errors-text"></span></div>
+      <p class="alert alert--warning" data-slot="no-reference" hidden></p>
+      <form class="card" novalidate data-form="request">
+        <div class="field">
+          <label for="fr-search">{% translate "Buscar activo" %}</label>
+          <input id="fr-search" type="search" autocomplete="off" data-filter="fr-asset">
+        </div>
+        <div class="field" data-field="asset">
+          <label for="fr-asset">{% translate "Activo" %}</label>
+          <select id="fr-asset" name="asset"></select>
+          <span class="error" data-error hidden></span>
+        </div>
+        <div class="field" data-field="location">
+          <label for="fr-location">{% translate "O una ubicación (si no es un activo)" %}</label>
+          <select id="fr-location" name="location"></select>
+          <span class="error" data-error hidden></span>
+        </div>
+        <div class="field field--check">
+          <input id="fr-stopped" name="asset_stopped" type="checkbox">
+          <label for="fr-stopped">{% translate "El equipo está detenido" %}</label>
+        </div>
+        <div class="field field--dictation" data-field="description">
+          <label for="fr-description">{% translate "¿Qué pasa?" %}</label>
+          <textarea id="fr-description" name="description" rows="4" maxlength="4000" autocapitalize="sentences" required></textarea>
+          <span class="error" data-error hidden></span>
+        </div>
+        <div class="field" data-field="photo">
+          <span class="label">{% translate "Foto (opcional)" %}</span>
+          <div class="photo-upload">
+            <input class="photo-upload__input" id="fr-photo" type="file" accept="image/*" capture="environment" data-photo="request">
+            <label class="btn btn--secondary btn--lg photo-upload__button" for="fr-photo">{% icon 'camera' %}{% translate "Agregar foto" %}</label>
+            <span class="field-saved" data-slot="photo-status" role="status"></span>
+          </div>
+          <span class="error" data-error hidden></span>
+        </div>
+        <button class="btn btn--primary btn--lg btn--block" type="submit">{% icon 'megaphone' %}{% translate "Enviar solicitud" %}</button>
+      </form>
+    </article>
+  </template>
+
+  <template id="tpl-reading">
+    <article class="field-form">
+      <a class="btn btn--ghost btn--lg field-back" href="#/">{% icon 'list' %}{% translate "Volver a la lista" %}</a>
+      <div class="page-header"><div><h1 tabindex="-1">{% translate "Lectura de medidor" %}</h1></div></div>
+      <div class="alert alert--error" data-slot="errors" role="alert" hidden>{% icon 'stop' %}<span data-slot="errors-text"></span></div>
+      <p class="alert alert--warning" data-slot="no-reference" hidden></p>
+      <form class="card" novalidate data-form="reading">
+        <div class="field">
+          <label for="fm-search">{% translate "Buscar activo" %}</label>
+          <input id="fm-search" type="search" autocomplete="off" data-filter="fm-meter">
+        </div>
+        <div class="field" data-field="meter">
+          <label for="fm-meter">{% translate "Medidor" %}</label>
+          <select id="fm-meter" name="meter" required></select>
+          <span class="help" data-slot="current"></span>
+          <span class="error" data-error hidden></span>
+        </div>
+        <div class="field" data-field="value">
+          <label for="fm-value">{% translate "Lectura" %} <span class="muted" data-slot="unit"></span></label>
+          <input id="fm-value" name="value" type="text" inputmode="decimal" autocomplete="off" required>
+          <span class="error" data-error hidden></span>
+        </div>
+        <div class="field field--check">
+          <input id="fm-reset" name="is_reset" type="checkbox">
+          <label for="fm-reset">{% translate "El medidor se reinició o se cambió" %}</label>
+        </div>
+        <button class="btn btn--primary btn--lg btn--block" type="submit">{% icon 'check' %}{% translate "Guardar lectura" %}</button>
+      </form>
+    </article>
+  </template>
+
+  <template id="tpl-conflicts">
+    <article>
+      <a class="btn btn--ghost btn--lg field-back" href="#/">{% icon 'list' %}{% translate "Volver a la lista" %}</a>
+      <div class="page-header"><div><h1 tabindex="-1">{% translate "Conflictos o rechazados" %}</h1>
+        <p class="muted">{% translate "Cambios que el servidor no aceptó. Lo que sigue de la misma OT espera hasta que los resuelvas." %}</p></div></div>
+      <p class="alert alert--success" data-slot="flash" role="status" hidden></p>
+      <ul class="field-problems" data-slot="items"></ul>
+      <p class="card empty" data-slot="none" hidden>{% translate "No hay cambios con conflicto ni rechazados." %}</p>
+    </article>
+  </template>
+
+  <template id="tpl-problem">
+    <li class="card field-problem">
+      <div class="field-problem__head">
+        <span data-slot="badge"></span>
+        <h2 class="field-problem__title" data-slot="title"></h2>
+      </div>
+      <p class="muted" data-slot="meta"></p>
+      <p class="field-problem__message" data-slot="message"></p>
+      <ul class="field-problem__details" data-slot="details" hidden></ul>
+      <p class="muted" data-slot="help-conflict" hidden>{% translate "La OT cambió en el servidor (por ejemplo, otra persona la canceló o la completó). Descarta el cambio; la OT se descarga de nuevo." %}</p>
+      <p class="muted" data-slot="help-rejected" hidden>{% translate "Los datos no pasaron la validación. Corrígelos y reenvía: no se duplica." %}</p>
+      <div class="field-actions">
+        <a class="btn btn--primary btn--lg" data-slot="fix" hidden>{% icon 'wrench' %}{% translate "Corregir y reenviar" %}</a>
+        <button class="btn btn--ghost btn--lg" type="button" data-action="discard" data-slot="discard">{% icon 'x' %}{% translate "Descartar" %}</button>
+      </div>
     </li>
   </template>
 
@@ -171,5 +528,7 @@
   <template id="icon-box">{% icon 'box' %}</template>
   <template id="icon-user">{% icon 'user' %}</template>
   <template id="icon-x">{% icon 'x' %}</template>
+  <template id="icon-sync">{% icon 'sync' %}</template>
+  <template id="icon-key">{% icon 'key' %}</template>
 </body>
 </html>

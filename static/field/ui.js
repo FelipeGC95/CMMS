@@ -2,6 +2,8 @@
 // escribiendo con textContent: nunca se interpreta HTML (los datos vienen del servidor o del
 // teléfono y podrían traer marcas).
 
+import { LOCKED_STATUSES, canAnswer, editableDecimal, executionActions, workedMinutes } from "./local.js";
+
 const STATUS_TONES = {
   requested: "warning",
   planned: "neutral",
@@ -23,9 +25,16 @@ const labels = document.getElementById("field-labels");
 // data-msg-list-title → msg("listTitle")
 export const msg = (key) => text[`msg${key.charAt(0).toUpperCase()}${key.slice(1)}`] || key;
 
-function label(kind, value) {
+// Plural con dos textos: data-msg-x-one y data-msg-x-other ("{n} …").
+export const plural = (key, n) => (n === 1 ? msg(`${key}One`) : msg(`${key}Other`).replace("{n}", String(n)));
+
+export function label(kind, value) {
   const node = labels.querySelector(`[data-${kind}="${CSS.escape(String(value))}"]`);
   return node ? node.textContent : String(value);
+}
+
+export function choices(kind) {
+  return [...labels.querySelectorAll(`[data-${kind}]`)].map((node) => [node.dataset[kind], node.textContent]);
 }
 
 export function icon(name) {
@@ -33,22 +42,22 @@ export function icon(name) {
   return tpl.content.firstElementChild.cloneNode(true);
 }
 
-function clone(id) {
+export function clone(id) {
   return document.getElementById(id).content.cloneNode(true);
 }
 
-function slot(root, name) {
+export function slot(root, name) {
   return root.querySelector(`[data-slot="${name}"]`);
 }
 
-function badge(tone, iconName, textValue) {
+export function badge(tone, iconName, textValue) {
   const span = document.createElement("span");
   span.className = `badge badge--${tone}`;
   span.append(icon(iconName), document.createTextNode(textValue));
   return span;
 }
 
-function statusBadge(status, bootstrap) {
+export function statusBadge(status, bootstrap) {
   const tone = STATUS_TONES[status] || "neutral";
   const name = (bootstrap.status_labels && bootstrap.status_labels[status]) || status;
   return badge(tone, TONE_ICONS[tone], name);
@@ -57,6 +66,32 @@ function statusBadge(status, bootstrap) {
 function priorityBadge(priority) {
   const tone = PRIORITY_TONES[priority];
   return tone ? badge(tone, "alert", label("priority", priority)) : null;
+}
+
+// Insignias de la cola: "Por enviar: 2" y "Con conflicto".
+function queueBadges(counts) {
+  const out = [];
+  if (counts && counts.pending) out.push(badge("warning", "clock", `${msg("badgePending")}: ${counts.pending}`));
+  if (counts && counts.problems) out.push(badge("error", "stop", msg("badgeProblem")));
+  return out;
+}
+
+function show(node, value) {
+  if (!node) return;
+  if (value === undefined || value === null || value === false || value === "") {
+    node.hidden = true;
+  } else {
+    if (typeof value === "string") node.textContent = value;
+    node.hidden = false;
+  }
+}
+
+export function setFlash(root, message) {
+  const node = slot(root, "flash");
+  if (node && message) {
+    node.replaceChildren(icon("check"), document.createTextNode(message));
+    node.hidden = false;
+  }
 }
 
 // ---------- Fechas (es-CL, en la zona de la organización) ----------
@@ -74,9 +109,7 @@ function todayIn(timeZone) {
 
 // Una fecha sin hora ("2026-09-28") se formatea en UTC para que no cambie de día.
 function formatDay(isoDate, options) {
-  return new Intl.DateTimeFormat("es-CL", { timeZone: "UTC", ...options }).format(
-    new Date(`${isoDate}T12:00:00Z`),
-  );
+  return new Intl.DateTimeFormat("es-CL", { timeZone: "UTC", ...options }).format(new Date(`${isoDate}T12:00:00Z`));
 }
 
 function formatDayTitle(isoDate) {
@@ -88,13 +121,11 @@ function formatShortDay(isoDate) {
   return formatDay(isoDate, { day: "numeric", month: "short" });
 }
 
-function formatDateTime(iso, timeZone) {
-  return new Intl.DateTimeFormat("es-CL", { timeZone, dateStyle: "medium", timeStyle: "short" }).format(
-    new Date(iso),
-  );
+export function formatDateTime(iso, timeZone) {
+  return new Intl.DateTimeFormat("es-CL", { timeZone, dateStyle: "medium", timeStyle: "short" }).format(new Date(iso));
 }
 
-function formatNumber(value) {
+export function formatNumber(value) {
   return new Intl.NumberFormat("es-CL", { maximumFractionDigits: 3 }).format(Number(value));
 }
 
@@ -138,7 +169,7 @@ function fact(iconName, value) {
   return span;
 }
 
-function workOrderItem(wo, bootstrap) {
+function workOrderItem(wo, bootstrap, counts) {
   const fragment = clone("tpl-wo-item");
   const link = slot(fragment, "link");
   link.href = `#/wo/${encodeURIComponent(wo.id)}`;
@@ -154,21 +185,38 @@ function workOrderItem(wo, bootstrap) {
   const priority = priorityBadge(wo.priority);
   if (priority) badges.append(priority);
   if (wo.assigned_to_me) badges.append(badge("info", "user", msg("assignedToMe")));
+  badges.append(...queueBadges(counts));
   return fragment;
 }
 
-export function renderList(view, { session, workOrders }) {
+function applyPermissions(root, bootstrap) {
+  root.querySelectorAll("[data-perm]").forEach((node) => {
+    node.hidden = !bootstrap.permissions[node.dataset.perm];
+  });
+}
+
+export function renderList(view, { session, workOrders, summary, recent, flash }) {
   const { bootstrap } = session;
   const timeZone = bootstrap.organization.timezone;
   const today = todayIn(timeZone);
   const fragment = clone("tpl-list");
   slot(fragment, "title").textContent = msg("listTitle");
-  slot(fragment, "summary").textContent =
-    `${workOrders.length} ${msg("workOrders")} · ${msg("syncedAt")} ${formatDateTime(session.synced_at, timeZone)}`;
-  if (session.truncated) {
-    const warning = slot(fragment, "truncated");
-    warning.textContent = msg("truncated");
-    warning.hidden = false;
+  const synced = session.synced_at ? ` · ${msg("syncedAt")} ${formatDateTime(session.synced_at, timeZone)}` : "";
+  slot(fragment, "summary").textContent = `${workOrders.length} ${msg("workOrders")}${synced}`;
+  setFlash(fragment, flash);
+  applyPermissions(fragment, bootstrap);
+  slot(fragment, "conflicts").hidden = !summary.problems;
+  if (session.truncated) show(slot(fragment, "truncated"), msg("truncated"));
+  if (recent.length) {
+    const list = slot(fragment, "recent-list");
+    for (const item of recent) {
+      const li = document.createElement("li");
+      li.append(icon("check"), document.createTextNode(` ${msg("requestNumber")} ${item.number}`));
+      if (item.work_order_code) li.append(document.createTextNode(` · ${item.work_order_code}`));
+      if (item.photo_warning) li.append(document.createTextNode(` · ${item.photo_warning}`));
+      list.append(li);
+    }
+    slot(fragment, "recent").hidden = false;
   }
   const days = slot(fragment, "days");
   for (const [key, items] of groupByDay(workOrders, today)) {
@@ -183,13 +231,14 @@ export function renderList(view, { session, workOrders }) {
       if (key === today) title.append(document.createTextNode(" "), badge("info", "calendar", msg("today")));
     }
     const list = slot(day, "items");
-    items.forEach((wo) => list.append(workOrderItem(wo, bootstrap)));
+    items.forEach((wo) => list.append(workOrderItem(wo, bootstrap, summary.byWorkOrder.get(wo.id))));
     days.append(day);
   }
+  slot(fragment, "none").hidden = workOrders.length > 0;
   view.replaceChildren(fragment);
 }
 
-// ---------- Detalle de OT (solo lectura en esta etapa) ----------
+// ---------- Detalle y ejecución de una OT ----------
 
 function addFact(facts, labelText, value, iconName) {
   if (value === null || value === undefined || value === "") return;
@@ -209,52 +258,129 @@ function itemBadge(item) {
   return badge(tone, TONE_ICONS[tone], label("result", item.result));
 }
 
+function rangeText(item) {
+  if (item.min_value === null && item.max_value === null) return "";
+  const low = item.min_value === null ? "…" : formatNumber(item.min_value);
+  const high = item.max_value === null ? "…" : formatNumber(item.max_value);
+  return `${msg("range")}: ${low} – ${high}${item.unit ? ` ${item.unit}` : ""}`;
+}
+
 function itemHint(item) {
   const parts = [];
   if (item.value_number !== null && item.value_number !== undefined && item.value_number !== "") {
     parts.push(`${formatNumber(item.value_number)}${item.unit ? ` ${item.unit}` : ""}`);
   }
   if (item.value_text) parts.push(item.value_text);
-  if (item.min_value !== null || item.max_value !== null) {
-    const low = item.min_value === null ? "…" : formatNumber(item.min_value);
-    const high = item.max_value === null ? "…" : formatNumber(item.max_value);
-    parts.push(`${msg("range")}: ${low} – ${high}${item.unit ? ` ${item.unit}` : ""}`);
-  }
+  const range = rangeText(item);
+  if (range) parts.push(range);
   if (item.photo_count) parts.push(`${msg("photos")}: ${item.photo_count}`);
   return parts.join(" · ");
 }
 
-function checklistItem(item, index) {
+function readOnlyItem(item, index, counts) {
   const fragment = clone("tpl-check-item");
   const li = fragment.firstElementChild;
   if (item.result) li.classList.add(`check-item--${item.result}`);
   slot(fragment, "num").textContent = `${index}.`;
   slot(fragment, "text").textContent = item.text;
-  slot(fragment, "badges").append(itemBadge(item));
-  const hint = itemHint(item);
-  if (hint) {
-    const node = slot(fragment, "hint");
-    node.textContent = hint;
-    node.hidden = false;
-  }
-  if (item.note) {
-    const note = slot(fragment, "note");
-    note.textContent = item.note;
-    note.hidden = false;
-  }
+  slot(fragment, "badges").append(itemBadge(item), ...queueBadges(counts));
+  show(slot(fragment, "hint"), itemHint(item));
+  show(slot(fragment, "note"), item.note);
   return fragment;
 }
 
-export function renderDetail(view, { session, workOrder: wo }) {
+// Un id único por ítem para enlazar etiquetas y campos.
+function bind(root, labelSlot, fieldSlot, id) {
+  const field = slot(root, fieldSlot);
+  const labelNode = slot(root, labelSlot);
+  field.id = id;
+  if (labelNode.tagName === "LABEL") labelNode.htmlFor = id;
+  else labelNode.id = `${id}-label`;
+  return field;
+}
+
+export function editableItem(item, index, counts) {
+  const fragment = clone("tpl-check-edit");
+  const li = fragment.firstElementChild;
+  li.dataset.itemId = item.id;
+  li.id = `item-${item.id}`;
+  if (item.result) li.classList.add(`check-item--${item.result}`);
+  slot(fragment, "num").textContent = `${index}.`;
+  slot(fragment, "text").textContent = item.text;
+  slot(fragment, "badges").append(itemBadge(item), ...queueBadges(counts));
+  const type = ["measurement", "text", "signature", "photo"].includes(item.item_type) ? item.item_type : "check";
+  fragment.querySelectorAll("[data-type]").forEach((node) => {
+    if (node.dataset.type !== type) node.remove();
+  });
+  if (type === "check") {
+    fragment.querySelectorAll("[data-result]").forEach((button) => {
+      button.setAttribute("aria-pressed", String(button.dataset.result === item.result));
+    });
+  } else if (type === "measurement") {
+    const input = bind(fragment, "value-label", "value", `value-${item.id}`);
+    input.value = editableDecimal(item.value_number);
+    slot(fragment, "unit").textContent = item.unit || "";
+    const range = slot(fragment, "range");
+    const parts = [rangeText(item)].filter(Boolean);
+    range.replaceChildren(document.createTextNode(parts.join("")));
+    if (item.result === "ok" || item.result === "not_ok") {
+      range.append(
+        document.createTextNode(" "),
+        item.result === "ok" ? badge("success", "check", msg("inRange")) : badge("error", "stop", msg("outOfRange")),
+      );
+    }
+    range.hidden = !range.textContent.trim();
+  } else if (type === "text") {
+    bind(fragment, "text-label", "value-text", `text-${item.id}`).value = item.value_text || "";
+  } else if (type === "signature") {
+    const canvas = fragment.querySelector("[data-signature-canvas]");
+    slot(fragment, "sign-label").id = `sign-${item.id}-label`;
+    canvas.setAttribute("aria-labelledby", `sign-${item.id}-label`);
+    if (item._signature) slot(fragment, "signature").value = item._signature;
+  } else if (type === "photo") {
+    const state = slot(fragment, "photo-state");
+    state.append(item.photo_count ? badge("success", "check", msg("photoReady")) : badge("warning", "camera", msg("photoMissing")));
+  }
+  bind(fragment, "note-label", "note", `note-${item.id}`).value = item.note || "";
+  // La observación sola se envía con una respuesta ya dada (o con la foto ya tomada).
+  slot(fragment, "note-save").hidden = !(item.result && (type !== "signature" || item._signature));
+  const photo = bind(fragment, "photo-label", "photo-input", `photo-${item.id}`);
+  photo.dataset.itemId = item.id;
+  return fragment;
+}
+
+export function renderDetail(view, { session, workOrder: wo, summary, timer, flash }) {
   const { bootstrap } = session;
   const fragment = clone("tpl-detail");
+  const article = fragment.firstElementChild;
+  article.dataset.woId = wo.id;
   slot(fragment, "code").textContent = wo.code;
   slot(fragment, "title").textContent = wo.title;
+  const counts = summary.byWorkOrder.get(wo.id);
   const badges = slot(fragment, "badges");
   badges.append(statusBadge(wo.status, bootstrap));
   const priority = priorityBadge(wo.priority);
   if (priority) badges.append(priority);
   if (wo.assigned_to_me) badges.append(badge("info", "user", msg("assignedToMe")));
+  badges.append(...queueBadges(counts));
+  setFlash(fragment, flash);
+  slot(fragment, "problem").hidden = !(counts && counts.problems);
+
+  // Ejecución: iniciar, pausar, reanudar y completar.
+  const actions = executionActions(wo, bootstrap);
+  fragment.querySelectorAll("[data-transition]").forEach((button) => {
+    button.hidden = !actions.includes(button.dataset.transition);
+  });
+  const complete = slot(fragment, "complete");
+  complete.href = `#/wo/${encodeURIComponent(wo.id)}/complete`;
+  complete.hidden = !actions.includes("complete");
+  const minutes = workedMinutes(timer);
+  if (minutes > 0) show(slot(fragment, "worked"), `${msg("worked")}: ${minutes} ${msg("minutes")}`);
+  if (!bootstrap.permissions.execute) show(slot(fragment, "exec-note"), msg("readOnly"));
+  else if (LOCKED_STATUSES.has(wo.status)) show(slot(fragment, "exec-note"), msg("locked"));
+  if (!actions.length && slot(fragment, "exec-note").hidden && slot(fragment, "worked").hidden) {
+    slot(fragment, "exec").hidden = true;
+  }
 
   const facts = slot(fragment, "facts");
   addFact(facts, msg("target"), targetText(wo), "box");
@@ -266,12 +392,19 @@ export function renderDetail(view, { session, workOrder: wo }) {
     const required = wo.meter_required ? ` · ${msg("meterRequired")}` : "";
     addFact(facts, msg("meter"), `${wo.meter.name} (${wo.meter.unit})${required}`, "clock");
   }
-  if (wo.description) {
-    const description = slot(fragment, "description");
-    description.textContent = wo.description;
-    description.hidden = false;
+  show(slot(fragment, "description"), wo.description);
+  if (wo.asset && bootstrap.permissions.request_create) {
+    const link = slot(fragment, "link-request");
+    link.href = `#/request?asset=${encodeURIComponent(wo.asset.id)}`;
+    link.hidden = false;
+  }
+  if (wo.meter && bootstrap.permissions.reading_create) {
+    const link = slot(fragment, "link-reading");
+    link.href = `#/reading?meter=${encodeURIComponent(wo.meter.id)}`;
+    link.hidden = false;
   }
 
+  const editable = canAnswer(wo, bootstrap);
   const list = slot(fragment, "checklist");
   const items = wo.checklist || [];
   let section = null;
@@ -282,15 +415,26 @@ export function renderDetail(view, { session, workOrder: wo }) {
       list.append(header);
     }
     section = item.section;
-    list.append(checklistItem(item, index + 1));
+    const itemCounts = summary.byItem.get(item.id);
+    list.append(editable ? editableItem(item, index + 1, itemCounts) : readOnlyItem(item, index + 1, itemCounts));
   });
   if (items.length) {
-    const answered = items.filter((item) => item.result).length;
-    slot(fragment, "progress").textContent = `${answered} ${msg("of")} ${items.length} ${msg("itemsDone")}`;
+    setProgress(fragment, items);
   } else {
     slot(fragment, "checklist-empty").hidden = false;
   }
+
+  if (editable) {
+    slot(fragment, "wo-photos").hidden = false;
+    bind(fragment, "wo-photo-label", "wo-photo-input", `photo-wo-${wo.id}`);
+    if (wo._photo_count) show(slot(fragment, "wo-photo-count"), `${msg("photosPending")}: ${wo._photo_count}`);
+  }
   view.replaceChildren(fragment);
+}
+
+export function setProgress(root, items) {
+  const answered = items.filter((item) => item.result).length;
+  slot(root, "progress").textContent = `${answered} ${msg("of")} ${items.length} ${msg("itemsDone")}`;
 }
 
 export function renderTemplate(view, id) {
@@ -300,6 +444,77 @@ export function renderTemplate(view, id) {
 export function renderConnection(node, online) {
   node.replaceChildren(icon(online ? "check" : "x"), document.createTextNode(msg(online ? "online" : "offline")));
   node.dataset.online = online ? "true" : "false";
+}
+
+// ---------- Barra de sincronización ----------
+
+function syncRow(tone, iconName, message, action) {
+  const row = document.createElement("p");
+  row.className = `field-sync__row field-sync__row--${tone}`;
+  const textNode = document.createElement("span");
+  textNode.className = "field-sync__text";
+  textNode.textContent = message;
+  row.append(icon(iconName), textNode);
+  if (action) row.append(action);
+  return row;
+}
+
+function actionLink(textValue, href) {
+  const link = document.createElement("a");
+  link.className = "btn btn--ghost field-sync__action";
+  link.href = href;
+  link.textContent = textValue;
+  return link;
+}
+
+function actionButton(textValue, action) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "btn btn--ghost field-sync__action";
+  button.dataset.action = action;
+  button.textContent = textValue;
+  return button;
+}
+
+// Filas de la barra según la cola y el estado del envío (ADR-011 §1a y §1e).
+export function renderSync(container, { summary, sync, online, urls, loggedOut }) {
+  const rows = [];
+  const pending = summary.pending;
+  if (sync.pause === "auth" || loggedOut) {
+    const message = pending ? plural("syncAuth", pending) : msg("syncAuthNone");
+    rows.push(syncRow("warning", "key", message, actionLink(msg("actionLogin"), urls.login)));
+  } else if (sync.pause === "mfa") {
+    rows.push(syncRow("warning", "key", msg("syncMfa"), actionLink(msg("actionMfa"), urls.mfa)));
+  } else if (sync.pause === "upgrade") {
+    rows.push(syncRow("warning", "sync", msg("syncUpgrade"), actionButton(msg("actionUpdate"), "update")));
+  } else if (pending && !online) {
+    rows.push(syncRow("warning", "x", plural("syncOffline", pending)));
+  } else if (sync.running && pending) {
+    rows.push(syncRow("info", "sync", msg("syncSending")));
+  } else if (pending) {
+    rows.push(syncRow("info", "clock", plural("syncPending", pending), actionButton(msg("actionSendNow"), "sync")));
+  } else if (sync.lastDrained) {
+    rows.push(syncRow("success", "check", msg("syncDone")));
+  }
+  if (summary.problems) {
+    rows.push(syncRow("error", "stop", plural("syncProblems", summary.problems), actionLink(msg("actionReview"), "#/conflicts")));
+  }
+  for (const [org, count] of summary.otherOrgs) {
+    rows.push(syncRow("warning", "info", msg("syncOtherOrg").replace("{org}", org).replace("{n}", String(count))));
+  }
+  if (summary.otherPeople) {
+    rows.push(
+      syncRow(
+        "warning",
+        "user",
+        msg("syncOtherPeople").replace("{n}", String(summary.otherPeople)),
+        actionButton(msg("actionDiscard"), "discard-others"),
+      ),
+    );
+  }
+  container.replaceChildren(...rows);
+  const tones = rows.map((row) => row.className.split("--").pop());
+  container.parentElement.dataset.tone = rows.length ? tones[0] : "none";
 }
 
 // Al cambiar de pantalla el foco va al título (lectores de pantalla y teclado).

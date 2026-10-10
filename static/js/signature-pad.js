@@ -115,4 +115,6 @@
   document.addEventListener("DOMContentLoaded", () => init(document));
   // El formulario de cierre se recarga con htmx al responder el checklist.
   document.addEventListener("htmx:load", (event) => init(event.detail.elt));
+  // La vista de terreno (static/field/) arma sus pantallas sin htmx y avisa con este evento.
+  document.addEventListener("cmms:content", (event) => init(event.target));
 })();

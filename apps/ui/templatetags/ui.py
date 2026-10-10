@@ -34,6 +34,10 @@ _ICONS = {
     "key": '<circle cx="8" cy="15" r="4"/><path d="M11 12l8.5-8.5M16 7l2.5 2.5M14 9l2 2"/>',
     "user": '<circle cx="12" cy="8" r="4"/><path d="M4.5 20a7.5 7.5 0 0 1 15 0"/>',
     "bell": '<path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z"/><path d="M10 20.5a2 2 0 0 0 4 0"/>',
+    # Vista de terreno (ADR-011): pausar una OT y sincronizar la cola.
+    "pause": '<path d="M9 5.5v13M15 5.5v13"/>',
+    "sync": '<path d="M19.5 9A8 8 0 0 0 5 7.5L4 9M4.5 15A8 8 0 0 0 19 16.5l1-1.5"/>'
+    '<path d="M4 4.5V9h4.5M20 19.5V15h-4.5"/>',
 }
 
 

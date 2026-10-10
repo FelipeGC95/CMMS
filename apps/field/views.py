@@ -12,12 +12,14 @@ from django.conf import settings
 from django.http import Http404, HttpResponse, JsonResponse
 from django.shortcuts import render
 from django.template.loader import render_to_string
+from django.urls import reverse
 from django.utils import timezone
+from django.utils.http import urlencode
 from django.views.decorators.csrf import ensure_csrf_cookie
 from django.views.decorators.http import require_GET
 
 from apps.core.decorators import membership_required
-from apps.work.models import WorkOrder, WorkOrderChecklistItem
+from apps.work.models import FailureEvent, WorkOrder, WorkOrderChecklistItem
 
 from . import pwa
 
@@ -28,8 +30,9 @@ DATETIME_KEYS = {"server_time", "generated_at", "updated_at", "answered_at"}
 
 @require_GET
 @membership_required
-@ensure_csrf_cookie  # el JS envía la cookie csrftoken en X-CSRFToken (P2/P4)
+@ensure_csrf_cookie  # el JS lee la cookie csrftoken y la envía en X-CSRFToken
 def shell_view(request):
+    shell = reverse("field_shell")
     return render(
         request,
         "field/shell.html",
@@ -37,7 +40,9 @@ def shell_view(request):
             "theme_color": pwa.THEME_COLOR,
             "result_choices": WorkOrderChecklistItem.Result.choices,
             "priority_choices": WorkOrder.Priority.choices,
-            "demo": settings.DEBUG,
+            "impact_choices": FailureEvent.Impact.choices,
+            "api_url": reverse("field_api_bootstrap").removesuffix("bootstrap/"),
+            "login_url": f"{reverse('account_login')}?{urlencode({'next': shell})}",
         },
     )
 
@@ -94,7 +99,9 @@ def demo_payload(today: datetime.date) -> dict:
 @require_GET
 @membership_required
 def demo_data_view(request):
-    """Datos de demostración para ver la vista sin la API (solo con DEBUG)."""
+    """Fixture del contrato (`bootstrap` + `snapshot`) para tests y demostraciones (solo con DEBUG).
+
+    La vista ya no lo carga: descarga de `/field/api/`."""
     if not settings.DEBUG:
         raise Http404
     return JsonResponse(demo_payload(timezone.localdate()), json_dumps_params={"ensure_ascii": False})
