@@ -183,7 +183,11 @@ REST_FRAMEWORK = {
         "apps.organizations.modules.PlanIncludesModule",
     ],
     "DEFAULT_THROTTLE_CLASSES": ["apps.api.framework.TokenRateThrottle"],
-    "DEFAULT_THROTTLE_RATES": {"api_token": os.environ.get("API_RATE_LIMIT", "600/min")},
+    "DEFAULT_THROTTLE_RATES": {
+        "api_token": os.environ.get("API_RATE_LIMIT", "600/min"),
+        # API de terreno (ADR-011): por persona; una sincronización envía un cambio por petición.
+        "field_user": os.environ.get("FIELD_API_RATE_LIMIT", "600/min"),
+    },
     "DEFAULT_PAGINATION_CLASS": "apps.api.framework.Pagination",
     "DEFAULT_RENDERER_CLASSES": ["rest_framework.renderers.JSONRenderer"],
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
@@ -201,6 +205,8 @@ SPECTACULAR_SETTINGS = {
     "SWAGGER_UI_DIST": "SIDECAR",
     "SWAGGER_UI_FAVICON_HREF": "SIDECAR",
     "COMPONENT_SPLIT_REQUEST": True,
+    # Fijo: con /field/api/ el prefijo común deducido cambiaría los operationId y etiquetas de v1.
+    "SCHEMA_PATH_PREFIX": r"^/api",
     "ENUM_NAME_OVERRIDES": {
         "AssetStatusEnum": "apps.assets.models.Asset.Status",
         "WorkOrderStatusEnum": "apps.work.models.WorkOrder.Status",

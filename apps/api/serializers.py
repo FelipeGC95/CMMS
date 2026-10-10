@@ -194,6 +194,16 @@ class WorkOrderCreateSerializer(serializers.Serializer):
 class TransitionSerializer(serializers.Serializer):
     to_status = serializers.ChoiceField(WorkOrder.Status.choices)
     comment = serializers.CharField(required=False, allow_blank=True, max_length=500, default="")
+    client_uuid = serializers.UUIDField(
+        required=False,
+        allow_null=True,
+        help_text="Reenviarlo devuelve el estado actual sin repetir el cambio.",
+    )
+    at = serializers.DateTimeField(
+        required=False,
+        allow_null=True,
+        help_text="Hora real del cambio (cliente sin conexión); vacía = ahora.",
+    )
 
 
 class WorkRequestSerializer(serializers.ModelSerializer):
@@ -255,6 +265,11 @@ class WorkOrderCompleteSerializer(serializers.Serializer):
         required=False, allow_blank=True, help_text="Firma: data URL PNG en base64 (opcional)."
     )
     client_uuid = serializers.UUIDField(required=False, allow_null=True)
+    at = serializers.DateTimeField(
+        required=False,
+        allow_null=True,
+        help_text="Hora real de término (cliente sin conexión); vacía = ahora.",
+    )
 
 
 class ChecklistItemSerializer(serializers.ModelSerializer):
@@ -276,6 +291,18 @@ class ChecklistItemSerializer(serializers.ModelSerializer):
             "note",
             "answered_at",
         ]
+        read_only_fields = fields
+
+
+class ChecklistAnswerResultSerializer(ChecklistItemSerializer):
+    superseded = serializers.BooleanField(
+        read_only=True,
+        default=False,
+        help_text="La respuesta enviada era más antigua que la vigente (`answered_at`) y no se aplicó.",
+    )
+
+    class Meta(ChecklistItemSerializer.Meta):
+        fields = [*ChecklistItemSerializer.Meta.fields, "superseded"]
         read_only_fields = fields
 
 
@@ -316,6 +343,12 @@ class PhotoUploadSerializer(serializers.Serializer):
 
     file = serializers.FileField()
     client_uuid = serializers.UUIDField(required=False, allow_null=True)
+    taken_at = serializers.DateTimeField(
+        required=False,
+        allow_null=True,
+        help_text="Hora de la foto (cliente sin conexión): con la OT ya completada se acepta "
+        "si es anterior al término.",
+    )
 
 
 class ChecklistAnswerSerializer(serializers.Serializer):
@@ -335,4 +368,9 @@ class ChecklistAnswerSerializer(serializers.Serializer):
     note = serializers.CharField(required=False, allow_blank=True, max_length=500)
     signature = serializers.CharField(
         required=False, allow_blank=True, help_text="Firma: data URL PNG en base64."
+    )
+    answered_at = serializers.DateTimeField(
+        required=False,
+        allow_null=True,
+        help_text="Hora de la respuesta (cliente sin conexión); gana la última. Vacía = ahora.",
     )

@@ -16,15 +16,20 @@ from apps.attachments.models import TargetType as AttachmentTargetType
 from apps.audit import services as audit
 from apps.audit.models import AuditEvent
 from apps.audit.services import API_TOKEN_EMAIL_DOMAIN
-from apps.work.models import WorkOrder
+from apps.work.models import LaborEntry, WorkOrder
 from apps.work.services import (
+    ERROR_CANCELLED,
+    ERROR_CONFLICT,
+    ERROR_LOCKED,
     WorkOrderError,
     add_checklist_photo,
     add_work_order_photo,
     answer_checklist_item,
     complete_work_order,
     create_work_order,
+    log_labor,
     parse_measurement,
+    transition,
 )
 
 from .models import ApiIdempotencyKey, ApiToken
@@ -141,7 +146,62 @@ class Conflict(APIException):
     default_code = "conflict"
 
 
+# Códigos de `WorkOrderError` que la API de terreno responde con 409 (X-06): OT cancelada,
+# OT completada o cerrada, y `client_uuid` ya usado en otra cosa. La API v1 los sigue
+# respondiendo con 400, como siempre.
+CONFLICT_CODES = (ERROR_CANCELLED, ERROR_LOCKED, ERROR_CONFLICT)
+
 COMPLETE_ACTION = "work_order.complete"
+TRANSITION_ACTION = "work_order.transition"
+
+
+def _replayed_key(*, client_uuid, action: str, target_id) -> bool:
+    """¿Esta clave ya hizo esta misma acción sobre este objeto? Usada en otra cosa → 409."""
+    if not client_uuid:
+        return False
+    key = ApiIdempotencyKey.objects.filter(client_uuid=client_uuid).first()
+    if key is None:
+        return False
+    if key.action == action and key.target_id == target_id:
+        return True
+    raise Conflict(_("Este client_uuid ya se usó para otra operación."))
+
+
+@transaction.atomic
+def transition_work_order_idempotent(
+    *, membership, work_order: WorkOrder, to_status: str, comment: str = "", client_uuid=None, at=None
+) -> WorkOrder:
+    """Cambio de estado desde la API (WO-02), idempotente por `client_uuid`.
+
+    Repetir el mismo destino no hace nada. Con `client_uuid`, reenviar el cambio
+    (aunque la OT ya haya avanzado) devuelve su estado actual sin repetirlo. `at` es
+    la hora real del cambio sin conexión (`transition(at=)`, acotada con `client_time`).
+    """
+    require_perm(membership, Perm.WORK_ORDER_EXECUTE)
+    work_order = WorkOrder.objects.select_for_update().get(pk=work_order.pk)
+    if _replayed_key(client_uuid=client_uuid, action=TRANSITION_ACTION, target_id=work_order.pk):
+        return work_order
+    if work_order.status != to_status:
+        work_order = transition(
+            work_order=work_order, to_status=to_status, membership=membership, comment=comment, at=at
+        )
+    if client_uuid:
+        ApiIdempotencyKey.objects.create(
+            client_uuid=client_uuid, action=TRANSITION_ACTION, target_id=work_order.pk
+        )
+    return work_order
+
+
+def log_labor_idempotent(
+    *, membership, work_order: WorkOrder, minutes: int, client_uuid=None
+) -> tuple[LaborEntry, bool]:
+    """Horas de la persona en la OT (WO-04); devuelve (registro, creado).
+
+    Reenviar el mismo `client_uuid` devuelve el registro ya creado (`log_labor`).
+    """
+    replay = bool(client_uuid) and LaborEntry.objects.filter(client_uuid=client_uuid).exists()
+    entry = log_labor(work_order=work_order, membership=membership, minutes=minutes, client_uuid=client_uuid)
+    return entry, not replay
 
 
 @transaction.atomic
@@ -156,12 +216,8 @@ def complete_work_order_idempotent(
     """
     require_perm(membership, Perm.WORK_ORDER_EXECUTE)
     work_order = WorkOrder.objects.select_for_update().get(pk=work_order.pk)
-    if client_uuid:
-        key = ApiIdempotencyKey.objects.filter(client_uuid=client_uuid).first()
-        if key is not None:
-            if key.action == COMPLETE_ACTION and key.target_id == work_order.pk:
-                return work_order
-            raise Conflict(_("Este client_uuid ya se usó para otra operación."))
+    if _replayed_key(client_uuid=client_uuid, action=COMPLETE_ACTION, target_id=work_order.pk):
+        return work_order
     work_order = complete_work_order(work_order=work_order, membership=membership, **data)
     if client_uuid:
         ApiIdempotencyKey.objects.create(
@@ -187,9 +243,21 @@ def _same_answer(item, *, result, value_number, value_text, signature, note) -> 
 
 
 def answer_checklist_item_idempotent(
-    *, membership, item, result="", value_number=None, value_text="", signature=None, note=""
+    *,
+    membership,
+    item,
+    result="",
+    value_number=None,
+    value_text="",
+    signature=None,
+    note="",
+    answered_at=None,
 ):
-    """Respuesta de un ítem desde la API con el servicio de la web; repetirla no cambia nada."""
+    """Respuesta de un ítem desde la API con el servicio de la web; repetirla no cambia nada.
+
+    `answered_at` (hora en que se respondió sin conexión): gana la última; una respuesta
+    más antigua que la vigente vuelve con `superseded=True` sin aplicarse.
+    """
     require_perm(membership, Perm.WORK_ORDER_EXECUTE)
     answer = {
         "result": result,
@@ -200,7 +268,7 @@ def answer_checklist_item_idempotent(
     }
     if _same_answer(item, **answer):
         return item
-    return answer_checklist_item(item=item, membership=membership, **answer)
+    return answer_checklist_item(item=item, membership=membership, answered_at=answered_at, **answer)
 
 
 def _replayed_photo(*, client_uuid, target_type: str, target_id) -> Attachment | None:
@@ -216,7 +284,7 @@ def _replayed_photo(*, client_uuid, target_type: str, target_id) -> Attachment |
 
 
 def upload_work_order_photo_idempotent(
-    *, membership, work_order: WorkOrder, uploaded_file, client_uuid=None
+    *, membership, work_order: WorkOrder, uploaded_file, client_uuid=None, taken_at=None
 ) -> tuple[Attachment, bool]:
     """Foto de la OT desde la API con el servicio de la web; devuelve (foto, creada).
 
@@ -229,13 +297,17 @@ def upload_work_order_photo_idempotent(
     if existing is not None:
         return existing, False
     photo = add_work_order_photo(
-        work_order=work_order, membership=membership, uploaded_file=uploaded_file, client_uuid=client_uuid
+        work_order=work_order,
+        membership=membership,
+        uploaded_file=uploaded_file,
+        client_uuid=client_uuid,
+        taken_at=taken_at,
     )
     return photo, True
 
 
 def upload_checklist_photo_idempotent(
-    *, membership, item, uploaded_file, client_uuid=None
+    *, membership, item, uploaded_file, client_uuid=None, taken_at=None
 ) -> tuple[Attachment, bool]:
     """Foto de un ítem del checklist desde la API (`add_checklist_photo`); devuelve (foto, creada).
 
@@ -248,6 +320,10 @@ def upload_checklist_photo_idempotent(
     if existing is not None:
         return existing, False
     photo = add_checklist_photo(
-        item=item, membership=membership, uploaded_file=uploaded_file, client_uuid=client_uuid
+        item=item,
+        membership=membership,
+        uploaded_file=uploaded_file,
+        client_uuid=client_uuid,
+        taken_at=taken_at,
     )
     return photo, True

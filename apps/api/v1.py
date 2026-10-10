@@ -35,6 +35,7 @@ from .services import (
     answer_checklist_item_idempotent,
     complete_work_order_idempotent,
     create_work_order_idempotent,
+    transition_work_order_idempotent,
     upload_checklist_photo_idempotent,
     upload_work_order_photo_idempotent,
 )
@@ -168,6 +169,18 @@ class MeterViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, BaseViewSet
         return qs.order_by("asset__code", "kind", "name")
 
 
+class ReadingCreateMixin:
+    """Alta de una lectura de medidor (AST-07), idempotente por `client_uuid` (v1 y terreno)."""
+
+    def create(self, request, *args, **kwargs):
+        serializer = s.MeterReadingCreateSerializer(data=request.data, context=self.get_serializer_context())
+        serializer.is_valid(raise_exception=True)
+        reading, _warnings = asset_services.record_meter_reading(
+            membership=self.membership, source=self.reading_source, **serializer.validated_data
+        )
+        return Response(s.MeterReadingSerializer(reading).data, status=status.HTTP_201_CREATED)
+
+
 @extend_schema_view(
     list=extend_schema(
         parameters=[
@@ -177,9 +190,10 @@ class MeterViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, BaseViewSet
     ),
     create=extend_schema(request=s.MeterReadingCreateSerializer, responses={201: s.MeterReadingSerializer}),
 )
-class MeterReadingViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, BaseViewSet):
+class MeterReadingViewSet(ReadingCreateMixin, mixins.ListModelMixin, mixins.RetrieveModelMixin, BaseViewSet):
     """Lecturas de medidor (AST-07). Crear es idempotente por `client_uuid`."""
 
+    reading_source = MeterReading.Source.API
     serializer_class = s.MeterReadingSerializer
 
     def get_queryset(self):
@@ -191,14 +205,6 @@ class MeterReadingViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, Base
         if asset_id := _uuid(self.request, "asset"):
             qs = qs.filter(meter__asset_id=asset_id)
         return qs.order_by("-read_at")
-
-    def create(self, request, *args, **kwargs):
-        serializer = s.MeterReadingCreateSerializer(data=request.data, context=self.get_serializer_context())
-        serializer.is_valid(raise_exception=True)
-        reading, _warnings = asset_services.record_meter_reading(
-            membership=self.membership, source=MeterReading.Source.API, **serializer.validated_data
-        )
-        return Response(s.MeterReadingSerializer(reading).data, status=status.HTTP_201_CREATED)
 
     @extend_schema(request=s.BulkReadingSerializer, responses=s.BulkReadingResultSerializer)
     @action(detail=False, methods=["post"])
@@ -230,64 +236,27 @@ class MeterReadingViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, Base
 WO_STATUSES = [c for c, _l in WorkOrder.Status.choices]
 
 
-@extend_schema_view(
-    list=extend_schema(
-        parameters=[
-            _param(
-                "scope", "open, overdue, done o all (por defecto).", enum=["all", "open", "overdue", "done"]
-            ),
-            _param("status", "Estado.", enum=WO_STATUSES),
-            _param("work_type", "Tipo.", enum=[c for c, _l in WorkOrder.Type.choices]),
-            _param("asset", "Activo.", OpenApiTypes.UUID),
-            _param("location", "Ubicación (incluye sus hijas).", OpenApiTypes.UUID),
-        ]
-    ),
-    create=extend_schema(request=s.WorkOrderCreateSerializer, responses={201: s.WorkOrderSerializer}),
-)
-class WorkOrderViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, BaseViewSet):
-    """Órdenes de trabajo. Crear es idempotente por `client_uuid`."""
+class WorkOrderActionsMixin:
+    """Acciones sobre una OT compartidas por la API v1 y la de terreno (`/field/api/`).
 
-    serializer_class = s.WorkOrderSerializer
+    El queryset (`get_queryset`) ya limita a las OT visibles para la membresía.
+    """
 
-    def get_queryset(self):
-        if self.action != "list":
-            return work_order_list(membership=self.membership, scope="all")
-        params = self.request.query_params
-        asset = location = None
-        if asset_id := _uuid(self.request, "asset"):
-            asset = visible_assets(membership=self.membership).filter(pk=asset_id).first()
-            if asset is None:
-                return WorkOrder.objects.none()
-        if location_id := _uuid(self.request, "location"):
-            location = Location.objects.filter(pk=location_id).first()
-            if location is None:
-                return WorkOrder.objects.none()
-        return work_order_list(
-            membership=self.membership,
-            scope=params.get("scope", "all"),
-            status=params.get("status", ""),
-            work_type=params.get("work_type", ""),
-            asset=asset,
-            location=location,
-        )
-
-    def create(self, request, *args, **kwargs):
-        serializer = s.WorkOrderCreateSerializer(data=request.data, context=self.get_serializer_context())
-        serializer.is_valid(raise_exception=True)
-        work_order = create_work_order_idempotent(membership=self.membership, **serializer.validated_data)
-        return Response(s.WorkOrderSerializer(work_order).data, status=status.HTTP_201_CREATED)
+    transition_serializer_class = s.TransitionSerializer
 
     @extend_schema(request=s.TransitionSerializer, responses=s.WorkOrderSerializer)
     @action(detail=True, methods=["post"])
     def transition(self, request, pk=None):
-        """Cambia el estado (ciclo de vida WO-02). Repetir el mismo destino no hace nada."""
+        """Cambia el estado (ciclo de vida WO-02). Repetir el mismo destino no hace nada.
+
+        Idempotente por `client_uuid`; `at` es la hora real del cambio (cliente sin conexión).
+        """
         work_order = self.get_object()
-        serializer = s.TransitionSerializer(data=request.data)
+        serializer = self.transition_serializer_class(data=request.data)
         serializer.is_valid(raise_exception=True)
-        if work_order.status != serializer.validated_data["to_status"]:
-            work_order = work_services.transition(
-                work_order=work_order, membership=self.membership, **serializer.validated_data
-            )
+        work_order = transition_work_order_idempotent(
+            work_order=work_order, membership=self.membership, **serializer.validated_data
+        )
         return Response(s.WorkOrderSerializer(work_order).data)
 
     @extend_schema(request=s.WorkOrderCompleteSerializer, responses=s.WorkOrderSerializer)
@@ -302,6 +271,7 @@ class WorkOrderViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, BaseVie
         serializer.is_valid(raise_exception=True)
         data = dict(serializer.validated_data)
         client_uuid = data.pop("client_uuid", None)
+        at = data.pop("at", None)
         form = _complete_form(work_order, data)
         if not form.is_valid():
             raise ValidationError(
@@ -310,18 +280,21 @@ class WorkOrderViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, BaseVie
         fields = {name: form.cleaned_data.get(name) for name in COMPLETE_FIELDS}
         fields["notes"] = form.cleaned_data["notes"]
         work_order = complete_work_order_idempotent(
-            membership=self.membership, work_order=work_order, client_uuid=client_uuid, **fields
+            membership=self.membership, work_order=work_order, client_uuid=client_uuid, at=at, **fields
         )
         return Response(s.WorkOrderSerializer(work_order).data)
 
     @extend_schema(
         request=s.ChecklistAnswerSerializer,
-        responses=s.ChecklistItemSerializer,
+        responses=s.ChecklistAnswerResultSerializer,
         parameters=[OpenApiParameter("item_id", OpenApiTypes.UUID, OpenApiParameter.PATH)],
     )
     @action(detail=True, methods=["post"], url_path="checklist-items/<uuid:item_id>/answer")
     def answer(self, request, pk=None, item_id=None):
         """Responde un ítem del checklist (WO-03 CA2); reenviar la misma respuesta no cambia nada.
+
+        Con `answered_at` gana la última: una respuesta más antigua que la vigente no se
+        aplica y vuelve con `superseded: true`.
 
         Un ítem «foto obligatoria» se responde subiendo la foto (`…/photos/`); después,
         responderlo solo guarda la observación. Sin foto → 400.
@@ -334,7 +307,7 @@ class WorkOrderViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, BaseVie
         item = answer_checklist_item_idempotent(
             membership=self.membership, item=item, signature=signature, **data
         )
-        return Response(s.ChecklistItemSerializer(item).data)
+        return Response(s.ChecklistAnswerResultSerializer(item).data)
 
     @extend_schema(responses=s.ChecklistItemListSerializer(many=True))
     @action(detail=True, methods=["get"], url_path="checklist-items")
@@ -399,6 +372,7 @@ class WorkOrderViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, BaseVie
         return {
             "uploaded_file": serializer.validated_data["file"],
             "client_uuid": serializer.validated_data.get("client_uuid"),
+            "taken_at": serializer.validated_data.get("taken_at"),
         }
 
     @staticmethod
@@ -407,6 +381,54 @@ class WorkOrderViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, BaseVie
             s.AttachmentSerializer(photo).data,
             status=status.HTTP_201_CREATED if created else status.HTTP_200_OK,
         )
+
+
+@extend_schema_view(
+    list=extend_schema(
+        parameters=[
+            _param(
+                "scope", "open, overdue, done o all (por defecto).", enum=["all", "open", "overdue", "done"]
+            ),
+            _param("status", "Estado.", enum=WO_STATUSES),
+            _param("work_type", "Tipo.", enum=[c for c, _l in WorkOrder.Type.choices]),
+            _param("asset", "Activo.", OpenApiTypes.UUID),
+            _param("location", "Ubicación (incluye sus hijas).", OpenApiTypes.UUID),
+        ]
+    ),
+    create=extend_schema(request=s.WorkOrderCreateSerializer, responses={201: s.WorkOrderSerializer}),
+)
+class WorkOrderViewSet(WorkOrderActionsMixin, mixins.ListModelMixin, mixins.RetrieveModelMixin, BaseViewSet):
+    """Órdenes de trabajo. Crear es idempotente por `client_uuid`."""
+
+    serializer_class = s.WorkOrderSerializer
+
+    def get_queryset(self):
+        if self.action != "list":
+            return work_order_list(membership=self.membership, scope="all")
+        params = self.request.query_params
+        asset = location = None
+        if asset_id := _uuid(self.request, "asset"):
+            asset = visible_assets(membership=self.membership).filter(pk=asset_id).first()
+            if asset is None:
+                return WorkOrder.objects.none()
+        if location_id := _uuid(self.request, "location"):
+            location = Location.objects.filter(pk=location_id).first()
+            if location is None:
+                return WorkOrder.objects.none()
+        return work_order_list(
+            membership=self.membership,
+            scope=params.get("scope", "all"),
+            status=params.get("status", ""),
+            work_type=params.get("work_type", ""),
+            asset=asset,
+            location=location,
+        )
+
+    def create(self, request, *args, **kwargs):
+        serializer = s.WorkOrderCreateSerializer(data=request.data, context=self.get_serializer_context())
+        serializer.is_valid(raise_exception=True)
+        work_order = create_work_order_idempotent(membership=self.membership, **serializer.validated_data)
+        return Response(s.WorkOrderSerializer(work_order).data, status=status.HTTP_201_CREATED)
 
 
 # Campos del formulario web de cierre que se pasan tal cual al servicio.

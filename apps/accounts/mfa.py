@@ -7,9 +7,10 @@ cumple la de la organización que tiene abierta: al cambiar a otra, se evalúa l
 from allauth.mfa.models import Authenticator
 from allauth.mfa.utils import is_mfa_enabled
 from django.conf import settings
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
 from django.shortcuts import redirect
 from django.urls import reverse
+from django.utils.translation import gettext as _
 
 from apps.organizations.models import Organization
 
@@ -31,6 +32,8 @@ ALLOWED_PREFIXES = (
     "/field/sw.js",
     "/field/manifest.webmanifest",
 )
+# La API de terreno no redirige: el teléfono recibe 403 `mfa_required` y pausa la cola.
+JSON_PREFIXES = ("/field/api/",)
 
 
 def mfa_required(membership) -> bool:
@@ -58,6 +61,10 @@ class MFARequiredMiddleware:
     def __call__(self, request):
         if self._must_set_up(request):
             url = reverse("mfa_activate_totp")
+            if request.path.startswith(JSON_PREFIXES):
+                message = _("Configura la verificación en dos pasos para seguir sincronizando.")
+                error = {"code": "mfa_required", "message": message, "details": {"setup_url": url}}
+                return JsonResponse({"error": error}, status=403)
             if request.headers.get("HX-Request"):
                 response = HttpResponse(status=204)
                 response["HX-Redirect"] = url

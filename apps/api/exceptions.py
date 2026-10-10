@@ -36,5 +36,7 @@ def exception_handler(exc, context):
         detail = response.data.get("detail", "") if isinstance(response.data, dict) else response.data
         code = getattr(detail, "code", None) or getattr(exc, "default_code", "error")
         message, details = str(detail), {}
+        if hasattr(exc, "min_client_version"):  # 409 upgrade_required de la API de terreno
+            details = {"min_client_version": exc.min_client_version}
     response.data = {"error": {"code": code, "message": message, "details": details}}
     return response
