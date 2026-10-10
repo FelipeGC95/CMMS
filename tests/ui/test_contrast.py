@@ -54,6 +54,13 @@ CONTRAST_PAIRS = [
     # enlace (--color-link sobre --color-surface) ya están arriba.
     ("--color-accent-text", "--color-surface", UI),
     ("--color-accent-text", "--color-bg", UI),
+    # Terreno, cola y sincronización (P4): cada fila de la barra y su botón usan el color del
+    # estado sobre su fondo (pares de arriba); "guardado" y los detalles de un rechazo van en
+    # --color-success / --color-error sobre la tarjeta (pares de arriba).
+    ("--color-success", "--color-success-bg", TEXT),
+    ("--color-warning", "--color-warning-bg", TEXT),
+    ("--color-error", "--color-error-bg", TEXT),
+    ("--color-info", "--color-info-bg", TEXT),
 ]
 
 

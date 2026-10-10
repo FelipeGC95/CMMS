@@ -705,3 +705,5 @@ main { max-width: var(--content-max); margin: 0 auto; padding: var(--space-5) va
 .field-problem__details { margin: 0 0 var(--space-3); padding-left: var(--space-5); color: var(--color-error); overflow-wrap: anywhere; }
 .field-form form { max-width: 40rem; }
 .field-form .field--check label { font-size: var(--text-md); }
+/* `hidden` gana a los display de los componentes (.btn, .field, .photo-upload…). */
+.field-app [hidden] { display: none !important; }

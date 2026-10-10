@@ -76,7 +76,7 @@ export function renderComplete(view, { session, wo, timer, reference, entry }) {
   form.elements.notes.value = values.notes || "";
   if (wo.meter) {
     slot(fragment, "meter").hidden = false;
-    slot(fragment, "meter-name").textContent = `· ${wo.meter.name} (${wo.meter.unit})`;
+    slot(fragment, "meter-name").textContent = wo.meter.name ? `· ${wo.meter.name} (${wo.meter.unit})` : `(${wo.meter.unit})`;
     const input = form.elements.meter_value;
     input.required = Boolean(wo.meter_required);
     input.value = editableDecimal(values.meter_value);

@@ -320,3 +320,81 @@ def test_field_js_has_no_visible_spanish_text():
     for path in sorted(FIELD_STATIC.glob("*.js")):
         code = re.sub(r"(^|\s)//.*$", "", path.read_text(encoding="utf-8"), flags=re.M)
         assert not words.search(code), path.name
+
+
+# ---------- P4: API real, cola y flujos ----------
+
+
+def test_shell_points_the_js_to_the_field_api_and_login(client, tenant_a):
+    login(client, tenant_a.tech)
+    html = client.get(reverse("field_shell")).content.decode()
+    api = reverse("field_api_bootstrap").removesuffix("bootstrap/")
+    assert f'data-api-url="{api}"' in html
+    assert f"{reverse('account_login')}?next=%2Ffield%2F" in html
+    assert f'data-mfa-url="{reverse("mfa_activate_totp")}"' in html
+    # El fixture de demostración ya no se ofrece en la vista (solo tests y contrato).
+    assert "load-demo" not in html and reverse("field_demo") not in html
+
+
+def test_shell_has_the_screens_of_the_offline_flows(client, tenant_a):
+    login(client, tenant_a.tech)
+    html = client.get(reverse("field_shell")).content.decode()
+    screens = ("tpl-check-edit", "tpl-complete", "tpl-request", "tpl-reading", "tpl-conflicts", "tpl-problem")
+    for template in screens:
+        assert f'id="{template}"' in html, template
+    # Barra de sincronización anunciada a lectores de pantalla.
+    assert 'id="field-sync-rows" role="status" aria-live="polite"' in html
+    # Firma: el lienzo reutiliza static/js/signature-pad.js (cargado antes que la vista).
+    assert html.index("js/signature-pad.js") < html.index("field/app.js")
+    # Nombres del impacto de la falla para el cierre de correctivas.
+    assert 'data-impact="total_stop"' in html
+
+
+def test_every_field_module_is_precached():
+    modules = {f"field/{path.name}" for path in FIELD_STATIC.glob("*.js")}
+    assert modules == set(pwa.FIELD_SCRIPTS)
+    assert set(pwa.FIELD_SCRIPTS) <= set(pwa.SHELL_STATIC)
+
+
+def test_signature_pad_also_starts_on_field_content():
+    source = (STATIC / "js" / "signature-pad.js").read_text(encoding="utf-8")
+    assert 'addEventListener("cmms:content"' in source
+    assert 'new CustomEvent("cmms:content"' in (FIELD_STATIC / "app.js").read_text(encoding="utf-8")
+
+
+def test_sync_reads_csrf_from_cookie_and_sends_client_version():
+    api = (FIELD_STATIC / "api.js").read_text(encoding="utf-8")
+    assert "document.cookie" in api and '"X-CSRFToken"' in api and '"X-Client-Version"' in api
+    # El token no se guarda en la cola ni en IndexedDB.
+    for name in ("queue.js", "db.js", "sync.js"):
+        assert "csrf" not in (FIELD_STATIC / name).read_text(encoding="utf-8").lower(), name
+
+
+def test_queue_entries_and_records_carry_the_owner():
+    queue = (FIELD_STATIC / "queue.js").read_text(encoding="utf-8")
+    assert "user_id: identity.user_id" in queue and "organization_id: identity.organization_id" in queue
+    db_source = (FIELD_STATIC / "db.js").read_text(encoding="utf-8")
+    assert 'DB_NAME = "galbust-field"' in db_source and "DB_VERSION = 1" in db_source
+    for store in ("meta", "work_orders", "reference", "queue", "blobs"):
+        assert f'"{store}"' in db_source
+
+
+def test_client_version_matches_the_server_minimum():
+    from apps.api.framework import MIN_CLIENT_VERSION
+
+    api = (FIELD_STATIC / "api.js").read_text(encoding="utf-8")
+    version = int(re.search(r"CLIENT_VERSION = (\d+);", api).group(1))
+    assert version >= MIN_CLIENT_VERSION
+
+
+def test_field_styles_use_only_tokens():
+    css = (STATIC / "css" / "components.css").read_text(encoding="utf-8")
+    block = css[css.index("Terreno, P4") :]
+    assert not re.search(r"#[0-9a-fA-F]{3,8}\b|rgb\(", block)
+
+
+def test_design_system_shows_the_field_sync_components(client, tenant_a):
+    login(client, tenant_a.admin)
+    html = client.get(reverse("design_system")).content.decode()
+    for css_class in ("field-sync__row--warning", "field-actions", "field-saved", "field-problem"):
+        assert css_class in html, css_class
