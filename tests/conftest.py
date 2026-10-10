@@ -77,6 +77,17 @@ def in_a(tenant_a):
 
 
 @pytest.fixture
+def reconciled_inventory(db):
+    """Inventario (INV-14): al terminar el test, el saldo y el reservado cuadran con el libro."""
+    yield
+    from apps.inventory.services import reconcile_stock
+
+    for organization in Organization.objects.all():
+        with tenant_context(organization):
+            assert reconcile_stock() == [], organization.slug
+
+
+@pytest.fixture
 def today():
     return datetime.date(2026, 9, 24)
 
