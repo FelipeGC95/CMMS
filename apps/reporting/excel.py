@@ -149,3 +149,181 @@ def backlog_xlsx(work_orders) -> bytes:
         for wo in work_orders.iterator()
     )
     return _workbook(_("Backlog"), headers, rows)
+
+
+def _sheet(workbook, title, headers, rows):
+    sheet = workbook.create_sheet(title=title[:31])
+    sheet.freeze_panes = "A2"
+    bold = Font(bold=True)
+    header_cells = []
+    for header in headers:
+        cell = WriteOnlyCell(sheet, value=str(header))
+        cell.font = bold
+        header_cells.append(cell)
+    sheet.append(header_cells)
+    for row in rows:
+        sheet.append(row)
+
+
+def _round(value, digits=1):
+    return round(float(value), digits) if value is not None else None
+
+
+def extended_kpis_xlsx(*, filter_rows, backlog, mix, costs, pareto) -> bytes:
+    """Indicadores ampliados (KPI-02) a Excel: una hoja con los filtros y una por indicador.
+
+    Recibe los resultados ya calculados por los selectores de `extended` con los
+    filtros y el alcance de la pantalla; los costos por activo van completos (sin tope).
+    """
+    workbook = Workbook(write_only=True)
+    _sheet(workbook, _("Filtros"), [_("Filtro"), _("Valor")], [(str(k), str(v)) for k, v in filter_rows])
+    _sheet(
+        workbook,
+        _("Backlog en semanas"),
+        [
+            _("Al día"),
+            _("OT pendientes"),
+            _("Horas estimadas"),
+            _("OT sin estimación"),
+            _("Capacidad semanal (h)"),
+            _("Backlog (semanas)"),
+        ],
+        (
+            (
+                p.day,
+                p.count,
+                _round(p.estimated_hours),
+                p.unestimated,
+                _round(backlog.weekly_capacity_hours),
+                _round(p.weeks),
+            )
+            for p in backlog.points
+        ),
+    )
+    _sheet(
+        workbook,
+        _("Preventivo-correctivo"),
+        [
+            _("Mes"),
+            _("OT planificadas"),
+            _("OT correctivas"),
+            _("OT de mejora"),
+            _("Horas planificadas"),
+            _("Horas correctivas"),
+            _("Horas de mejora"),
+            _("% planificado (horas)"),
+            _("% planificado (cantidad)"),
+        ],
+        (
+            (
+                row.month.strftime("%Y-%m") if row.month else str(_("Total")),
+                row.planned_count,
+                row.corrective_count,
+                row.other_count,
+                _round(row.planned_hours),
+                _round(row.corrective_hours),
+                _round(row.other_hours),
+                _round(row.planned_pct),
+                _round(row.planned_pct_count),
+            )
+            for row in [*mix.months, mix.total]
+        ),
+    )
+    money = [_("Mano de obra"), _("Repuestos"), _("Otros costos"), _("Costo total")]
+    _sheet(
+        workbook,
+        _("Costos por activo"),
+        [_("Código"), _("Activo"), _("Clase"), _("OT cerradas"), *money],
+        (
+            (
+                r["asset__code"],
+                r["asset__name"],
+                r["asset__asset_class__name"],
+                r["work_orders"],
+                r["labor"],
+                r["parts"],
+                r["other"],
+                r["total"],
+            )
+            for r in costs.by_asset.iterator()
+        ),
+    )
+    loc, totals = costs.location_totals, costs.totals
+    _sheet(
+        workbook,
+        _("Costos por clase"),
+        [_("Clase"), _("Activos"), _("OT cerradas"), *money],
+        [
+            *(
+                (
+                    r["asset__asset_class__name"],
+                    r["assets"],
+                    r["work_orders"],
+                    r["labor"],
+                    r["parts"],
+                    r["other"],
+                    r["total"],
+                )
+                for r in costs.by_class
+            ),
+            (
+                str(_("OT sobre ubicaciones (sin activo)")),
+                None,
+                loc["work_orders"],
+                loc["labor"],
+                loc["parts"],
+                loc["other"],
+                loc["total"],
+            ),
+            (
+                str(_("Total")),
+                None,
+                totals["work_orders"],
+                totals["labor"],
+                totals["parts"],
+                totals["other"],
+                totals["total"],
+            ),
+        ],
+    )
+    code_label = _("Modo de falla") if pareto.code_kind == "mode" else _("Causa")
+    share_label = _("% de fallas") if pareto.metric == "count" else _("% de la detención")
+    _sheet(
+        workbook,
+        _("Pareto de fallas"),
+        [
+            _("Código"),
+            code_label,
+            _("Fallas"),
+            _("Detención (h)"),
+            share_label,
+            _("% acumulado"),
+            _("Dentro del 80 %"),
+        ],
+        [
+            *(
+                (
+                    r.code,
+                    r.name,
+                    r.count,
+                    _round(r.downtime_hours),
+                    _round(r.share_pct),
+                    _round(r.cumulative_pct),
+                    str(_("Sí")) if r.vital else str(_("No")),
+                )
+                for r in pareto.rows
+            ),
+            (
+                None,
+                str(_("Sin código (fuera del Pareto)")),
+                pareto.uncoded_count,
+                _round(pareto.uncoded_downtime_hours),
+                None,
+                None,
+                None,
+            ),
+        ],
+    )
+    buffer = io.BytesIO()
+    workbook.save(buffer)
+    return buffer.getvalue()

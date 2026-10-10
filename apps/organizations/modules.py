@@ -7,7 +7,8 @@ plan: la web por `PlanModuleMiddleware` y la API por el permiso `PlanIncludesMod
 Una organización sin plan, o con un plan sin módulos listados (como un cupo en blanco),
 no tiene restricciones de módulos.
 
-El inicio (`/`, con los KPI) no se bloquea: es la portada de todos los planes.
+El inicio (`/`, con los KPI básicos) no se bloquea: es la portada de todos los planes. Los
+indicadores ampliados (`/reports/`, KPI-02) sí pertenecen al módulo `kpis`.
 """
 
 import re
@@ -32,6 +33,9 @@ MODULE_LABELS = {
 MODULE_ROUTES = [
     (re.compile(r"^/(assets|work-orders|work-orders/backlog|plans/calendar)/export\.xlsx$"), "exports"),
     (re.compile(r"^/(assets|work-orders)/[^/]+/sheet\.pdf$"), "exports"),
+    # Indicadores ampliados (KPI-02): la exportación pide además `kpis` en la vista.
+    (re.compile(r"^/reports/kpis/export\.xlsx$"), "exports"),
+    (re.compile(r"^/reports/"), "kpis"),
     (re.compile(r"^/settings/api-tokens/"), "api"),
     # Vista de terreno (ADR-011); el Service Worker y el manifest no llevan datos y quedan fuera.
     # /field/api/ responde en JSON: su módulo (`work_orders` o `requests`) lo revisa `FieldModule`.

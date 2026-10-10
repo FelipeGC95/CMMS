@@ -1,0 +1,229 @@
+{% extends "base.html" %}{% load i18n l10n ui accounts_tags %}
+{% block title %}{% translate "Indicadores ampliados" %}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>{% translate "Indicadores ampliados" %}</h1>
+    <p class="muted">{{ organization.name }} · {{ period_start|date:"d M Y" }} – {{ period_end|date:"d M Y" }}</p>
+  </div>
+  {% if organization|has_module:"exports" %}
+  <div class="page-actions">
+    <a class="btn btn--secondary" href="{% url 'kpi_report_export_xlsx' %}{% if export_query %}?{{ export_query }}{% endif %}">{% icon 'list' %}{% translate "Exportar a Excel" %}</a>
+  </div>
+  {% endif %}
+</div>
+
+{# Mismos filtros que el tablero (KPI-01); por defecto, las últimas 12 semanas. #}
+<details class="card mb-4 filters"{% if filters_open %} open{% endif %}>
+  <summary class="filters__summary">
+    <h2 id="filters-title">{% translate "Filtros de indicadores" %}</h2>
+    {% if active_filters %}<span class="badge badge--info">{% icon 'info' %}{% blocktranslate count n=active_filters %}{{ n }} activo{% plural %}{{ n }} activos{% endblocktranslate %}</span>{% endif %}
+  </summary>
+  <form method="get" class="form-grid" aria-labelledby="filters-title">
+    {% include "_form_fields.html" with form=filter_form %}
+    <input type="hidden" name="pareto" value="{{ pareto_code }}">
+    <input type="hidden" name="pareto_by" value="{{ pareto_metric }}">
+    <div class="row form-grid__actions">
+      <button class="btn btn--primary" type="submit">{% translate "Aplicar" %}</button>
+      <a class="btn btn--ghost" href="{% url 'kpi_report' %}">{% translate "Limpiar filtros" %}</a>
+    </div>
+  </form>
+</details>
+
+<div class="stack">
+{# --- CA1 · Backlog en semanas en el tiempo --- #}
+<section class="card" aria-labelledby="backlog-title">
+  <div class="card__header"><h2 id="backlog-title">{% translate "Backlog en semanas" %}</h2></div>
+  <div class="kpi mb-4">
+    {% with point=backlog.current %}
+    {% if backlog.by_hours %}
+    <span class="kpi__value">{{ point.estimated_hours|hours }}<span class="kpi__unit">h</span></span>
+    <span class="kpi__hint">{% translate "Sin capacidad de técnicos en el alcance: se muestran horas estimadas, no semanas." %}</span>
+    {% else %}
+    <span class="kpi__value">{{ point.weeks|hours }}<span class="kpi__unit">{% translate "sem" %}</span></span>
+    <span class="kpi__hint">{% blocktranslate with h=point.estimated_hours|hours c=backlog.weekly_capacity_hours|hours n=backlog.technicians %}{{ h }} h estimadas · capacidad {{ c }} h/semana ({{ n }} técnicos){% endblocktranslate %}</span>
+    {% endif %}
+    {% if point.unestimated %}<span class="kpi__hint">{% blocktranslate count n=point.unestimated %}{{ n }} OT sin estimación no suma horas.{% plural %}{{ n }} OT sin estimación no suman horas.{% endblocktranslate %}</span>{% endif %}
+    {% endwith %}
+    <details class="kpi__formula">
+      <summary>{% translate "Fórmula" %}</summary>
+      <p><code>{% translate "horas estimadas de las OT pendientes / capacidad semanal de los técnicos" %}</code></p>
+      <p>{% translate "Pendiente: OT ni completada, ni cerrada, ni cancelada a esa fecha (igual que el backlog priorizado). Cada columna es el backlog al cierre de esa semana, reconstruido con las fechas de creación, término y cancelación." %}</p>
+      <p>{% translate "Capacidad: horas semanales vigentes de los técnicos del alcance (no se guarda su historial)." %}</p>
+      <p>{% translate "Referencia: SMRP Best Practices (Backlog, en semanas de trabajo)." %}</p>
+    </details>
+  </div>
+  {% if backlog.points %}
+  {% localize off %}
+  <svg class="chart-columns" viewBox="0 0 {{ backlog.chart_width }} 100" preserveAspectRatio="none" aria-hidden="true" focusable="false">
+    {% for p in backlog.points %}<rect class="chart__fill" x="{{ p.x }}" y="{{ p.y }}" width="7" height="{{ p.bar_pct }}"></rect>{% endfor %}
+  </svg>
+  {% endlocalize %}
+  <div class="chart-axis" aria-hidden="true"><span>{{ backlog.points.0.day|date:"d M" }}</span><span>{{ backlog.current.day|date:"d M" }}</span></div>
+  <details class="mt-2">
+    <summary class="chart-data">{% translate "Ver datos por semana" %}</summary>
+    <table class="table mt-2">
+      <caption class="visually-hidden">{% translate "Backlog al cierre de cada semana" %}</caption>
+      <thead><tr><th scope="col">{% translate "Al día" %}</th><th scope="col" class="num">{% translate "OT pendientes" %}</th><th scope="col" class="num">{% translate "Horas estimadas" %}</th><th scope="col" class="num">{% translate "Backlog (semanas)" %}</th></tr></thead>
+      <tbody>
+        {% for p in backlog.points %}
+        <tr><td data-label="{% translate 'Al día' %}">{{ p.day|date:"d M Y" }}</td><td class="num" data-label="{% translate 'OT pendientes' %}">{{ p.count }}</td><td class="num" data-label="{% translate 'Horas estimadas' %}">{{ p.estimated_hours|hours }}</td><td class="num" data-label="{% translate 'Backlog (semanas)' %}">{{ p.weeks|hours }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </details>
+  {% endif %}
+</section>
+
+{# --- CA2 · Proporción preventivo/correctivo --- #}
+<section class="card" aria-labelledby="mix-title">
+  <div class="card__header"><h2 id="mix-title">{% translate "Planificado vs. correctivo" %}</h2></div>
+  <div class="kpi mb-4">
+    <span class="kpi__value">{{ mix.total.planned_pct|pct }}<span class="kpi__unit">%</span></span>
+    <span class="kpi__hint">{% blocktranslate with p=mix.total.planned_hours|hours c=mix.total.corrective_hours|hours %}planificado por horas · {{ p }} h planificadas, {{ c }} h correctivas{% endblocktranslate %}</span>
+    <span class="kpi__hint">{% blocktranslate with pct=mix.total.planned_pct_count|pct p=mix.total.planned_count c=mix.total.corrective_count %}{{ pct }} % por cantidad · {{ p }} OT planificadas, {{ c }} correctivas{% endblocktranslate %}</span>
+    <details class="kpi__formula">
+      <summary>{% translate "Fórmula" %}</summary>
+      <p><code>{% translate "horas planificadas / (horas planificadas + horas correctivas) × 100" %}</code></p>
+      <p>{% translate "Planificado: OT preventivas, predictivas o por condición e inspecciones. Correctivo: OT correctivas. Las de mejora se muestran aparte y no entran al porcentaje." %}</p>
+      <p>{% translate "Cuentan las OT completadas en el período (por su fecha de término), con las horas registradas en cada una; las canceladas no cuentan." %}</p>
+      <p>{% translate "Referencia: SMRP Best Practices (Planned Maintenance Percentage) · EN 15341." %}</p>
+    </details>
+  </div>
+  <p class="chart-legend" aria-hidden="true">
+    <span><svg class="chart-swatch" viewBox="0 0 10 10" focusable="false"><rect class="chart__fill" width="10" height="10"></rect></svg>{% translate "Planificado" %}</span>
+    <span><svg class="chart-swatch" viewBox="0 0 10 10" focusable="false"><rect class="chart__fill--alt" width="10" height="10"></rect></svg>{% translate "Correctivo" %}</span>
+  </p>
+  <table class="table">
+    <caption class="visually-hidden">{% translate "OT completadas por mes y tipo" %}</caption>
+    <thead><tr><th scope="col">{% translate "Mes" %}</th><th scope="col" class="num">{% translate "Planificadas" %}</th><th scope="col" class="num">{% translate "Correctivas" %}</th><th scope="col" class="num">{% translate "Mejora" %}</th><th scope="col" class="num">{% translate "% planificado" %}</th><th scope="col" class="chart-cell"><span class="visually-hidden">{% translate "Gráfico" %}</span></th></tr></thead>
+    <tbody>
+      {% for row in mix.months %}
+      <tr>
+        <td data-label="{% translate 'Mes' %}">{{ row.month|date:"F Y"|capfirst }}</td>
+        <td class="num" data-label="{% translate 'Planificadas' %}">{{ row.planned_count }} · {{ row.planned_hours|hours }} h</td>
+        <td class="num" data-label="{% translate 'Correctivas' %}">{{ row.corrective_count }} · {{ row.corrective_hours|hours }} h</td>
+        <td class="num" data-label="{% translate 'Mejora' %}">{{ row.other_count }} · {{ row.other_hours|hours }} h</td>
+        <td class="num" data-label="{% translate '% planificado' %}">{{ row.planned_pct|pct }}</td>
+        <td class="chart-cell" data-label="">{% if row.has_data %}{% localize off %}<svg class="chart-bar" aria-hidden="true" focusable="false"><rect class="chart__fill" width="{{ row.bar_planned }}%" height="100%"></rect><rect class="chart__fill--alt" x="{{ row.bar_planned }}%" width="{{ row.bar_corrective }}%" height="100%"></rect></svg>{% endlocalize %}{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+
+{# --- CA3 · Costos por activo y por clase --- #}
+<section class="card" aria-labelledby="costs-title">
+  <div class="card__header"><h2 id="costs-title">{% translate "Costos de mantenimiento" %}</h2></div>
+  <div class="grid grid--kpi mb-4">
+    <div class="kpi"><span class="kpi__label">{% translate "Costo total" %}</span><span class="kpi__value">$ {{ costs.totals.total|num }}</span><span class="kpi__hint">{% blocktranslate count n=costs.totals.work_orders %}{{ n }} OT cerrada{% plural %}{{ n }} OT cerradas{% endblocktranslate %}</span></div>
+    <div class="kpi"><span class="kpi__label">{% translate "Mano de obra" %}</span><span class="kpi__value">$ {{ costs.totals.labor|num }}</span></div>
+    <div class="kpi"><span class="kpi__label">{% translate "Repuestos" %}</span><span class="kpi__value">$ {{ costs.totals.parts|num }}</span></div>
+    <div class="kpi"><span class="kpi__label">{% translate "Otros costos" %}</span><span class="kpi__value">$ {{ costs.totals.other|num }}</span></div>
+  </div>
+  <details class="kpi__formula mb-4">
+    <summary>{% translate "Fórmula" %}</summary>
+    <p><code>{% translate "Σ mano de obra + Σ repuestos + Σ otros costos de las OT cerradas en el período" %}</code></p>
+    <p>{% translate "Se usan los totales que la OT guardó al cerrarse (horas × costo hora copiado, repuestos y servicios externos). Cada OT suma a su activo; un componente es su propia fila. Las OT sobre una ubicación no tienen activo ni clase y se informan aparte." %}</p>
+    <p>{% translate "Referencia: EN 15341 (costo de mantenimiento) · SMRP Best Practices (Maintenance Cost)." %}</p>
+  </details>
+
+  <h3 id="class-costs-title">{% translate "Por clase de activo" %}</h3>
+  {% if costs.by_class or costs.location_totals.work_orders %}
+  <table class="table mb-4" aria-labelledby="class-costs-title">
+    <thead><tr><th scope="col">{% translate "Clase" %}</th><th scope="col" class="num">{% translate "OT" %}</th><th scope="col" class="num">{% translate "Mano de obra" %}</th><th scope="col" class="num">{% translate "Repuestos" %}</th><th scope="col" class="num">{% translate "Otros" %}</th><th scope="col" class="num">{% translate "Total" %}</th><th scope="col" class="chart-cell"><span class="visually-hidden">{% translate "Gráfico" %}</span></th></tr></thead>
+    <tbody>
+      {% for row in costs.by_class %}
+      <tr>
+        <td data-label="{% translate 'Clase' %}">{{ row.asset__asset_class__name }}</td>
+        <td class="num" data-label="{% translate 'OT' %}">{{ row.work_orders }}</td>
+        <td class="num" data-label="{% translate 'Mano de obra' %}">$ {{ row.labor|num }}</td>
+        <td class="num" data-label="{% translate 'Repuestos' %}">$ {{ row.parts|num }}</td>
+        <td class="num" data-label="{% translate 'Otros' %}">$ {{ row.other|num }}</td>
+        <td class="num" data-label="{% translate 'Total' %}"><strong>$ {{ row.total|num }}</strong></td>
+        <td class="chart-cell" data-label="">{% localize off %}<svg class="chart-bar" aria-hidden="true" focusable="false"><rect class="chart__track" width="100%" height="100%"></rect><rect class="chart__fill" width="{{ row.bar_pct }}%" height="100%"></rect></svg>{% endlocalize %}</td>
+      </tr>
+      {% endfor %}
+      {% if costs.location_totals.work_orders %}
+      <tr>
+        <td data-label="{% translate 'Clase' %}">{% translate "OT sobre ubicaciones (sin activo)" %}</td>
+        <td class="num" data-label="{% translate 'OT' %}">{{ costs.location_totals.work_orders }}</td>
+        <td class="num" data-label="{% translate 'Mano de obra' %}">$ {{ costs.location_totals.labor|num }}</td>
+        <td class="num" data-label="{% translate 'Repuestos' %}">$ {{ costs.location_totals.parts|num }}</td>
+        <td class="num" data-label="{% translate 'Otros' %}">$ {{ costs.location_totals.other|num }}</td>
+        <td class="num" data-label="{% translate 'Total' %}"><strong>$ {{ costs.location_totals.total|num }}</strong></td>
+        <td class="chart-cell" data-label=""></td>
+      </tr>
+      {% endif %}
+    </tbody>
+  </table>
+  {% else %}<p class="empty">{% translate "No hay OT cerradas en el período." %}</p>{% endif %}
+
+  <h3 id="asset-costs-title">{% if all_costs %}{% translate "Todos los activos" %}{% else %}{% blocktranslate %}Activos de mayor costo{% endblocktranslate %}{% endif %}</h3>
+  {% if cost_rows %}
+  <table class="table" aria-labelledby="asset-costs-title">
+    <thead><tr><th scope="col">{% translate "Activo" %}</th><th scope="col" class="num">{% translate "OT" %}</th><th scope="col" class="num">{% translate "Mano de obra" %}</th><th scope="col" class="num">{% translate "Repuestos" %}</th><th scope="col" class="num">{% translate "Otros" %}</th><th scope="col" class="num">{% translate "Total" %}</th><th scope="col" class="chart-cell"><span class="visually-hidden">{% translate "Gráfico" %}</span></th></tr></thead>
+    <tbody>
+      {% for row in cost_rows %}
+      <tr>
+        <td data-label="{% translate 'Activo' %}"><a href="{% url 'asset_detail' row.asset_id %}"><span class="mono">{{ row.asset__code }}</span> {{ row.asset__name }}</a> <span class="muted">· {{ row.asset__asset_class__name }}</span></td>
+        <td class="num" data-label="{% translate 'OT' %}">{{ row.work_orders }}</td>
+        <td class="num" data-label="{% translate 'Mano de obra' %}">$ {{ row.labor|num }}</td>
+        <td class="num" data-label="{% translate 'Repuestos' %}">$ {{ row.parts|num }}</td>
+        <td class="num" data-label="{% translate 'Otros' %}">$ {{ row.other|num }}</td>
+        <td class="num" data-label="{% translate 'Total' %}"><strong>$ {{ row.total|num }}</strong></td>
+        <td class="chart-cell" data-label="">{% localize off %}<svg class="chart-bar" aria-hidden="true" focusable="false"><rect class="chart__track" width="100%" height="100%"></rect><rect class="chart__fill" width="{{ row.bar_pct }}%" height="100%"></rect></svg>{% endlocalize %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% if all_costs %}{% include "_pagination.html" with page=cost_page %}
+  <p class="mt-2"><a href="{{ top_costs_href }}#asset-costs-title">{% translate "Ver solo los de mayor costo" %}</a></p>
+  {% elif more_assets %}<p class="mt-2"><a href="{{ all_costs_href }}#asset-costs-title">{% translate "Ver todos los activos" %}</a></p>{% endif %}
+  {% else %}<p class="empty">{% translate "No hay OT cerradas sobre activos en el período." %}</p>{% endif %}
+</section>
+
+{# --- CA4 · Pareto de fallas --- #}
+<section class="card" aria-labelledby="pareto-title">
+  <div class="card__header"><h2 id="pareto-title">{% translate "Pareto de fallas" %}</h2></div>
+  <nav class="chips" aria-label="{% translate 'Agrupar fallas' %}">
+    {% for label, href, current in pareto_code_links %}<a class="chip" href="{{ href }}#pareto-title" {% if current %}aria-current="true"{% endif %}>{{ label }}</a>{% endfor %}
+  </nav>
+  <nav class="chips" aria-label="{% translate 'Ordenar por' %}">
+    {% for label, href, current in pareto_metric_links %}<a class="chip" href="{{ href }}#pareto-title" {% if current %}aria-current="true"{% endif %}>{{ label }}</a>{% endfor %}
+  </nav>
+  <details class="kpi__formula mb-4">
+    <summary>{% translate "Fórmula" %}</summary>
+    <p><code>{% translate "% acumulado = Σ (fallas o detención de los códigos anteriores y el actual) / total × 100" %}</code></p>
+    <p>{% translate "Fallas iniciadas en el período sobre los activos del alcance, agrupadas por el código elegido y ordenadas de mayor a menor. Detención: horas de las fallas con detención total (hasta su término o el fin del período). Se marcan los códigos que explican el 80 %: el que cruza el 80 % también cuenta." %}</p>
+    <p>{% translate "Referencia: ISO 14224 (modos y causas de falla) · análisis de Pareto 80/20." %}</p>
+  </details>
+  {% if pareto.rows %}
+  <p class="chart-legend" aria-hidden="true">
+    <span><svg class="chart-swatch" viewBox="0 0 10 10" focusable="false"><rect class="chart__prior" width="10" height="10"></rect></svg>{% translate "Acumulado anterior" %}</span>
+    <span><svg class="chart-swatch" viewBox="0 0 10 10" focusable="false"><rect class="chart__fill--alt" width="10" height="10"></rect></svg>{% translate "Este código" %}</span>
+    <span><svg class="chart-swatch" viewBox="0 0 10 10" focusable="false"><rect class="chart__mark-swatch" x="4" width="2" height="10"></rect></svg>80 %</span>
+  </p>
+  <table class="table">
+    <caption class="visually-hidden">{% if pareto_code == "mode" %}{% translate "Fallas por modo de falla" %}{% else %}{% translate "Fallas por causa" %}{% endif %}</caption>
+    <thead><tr><th scope="col">{% if pareto_code == "mode" %}{% translate "Modo de falla" %}{% else %}{% translate "Causa" %}{% endif %}</th><th scope="col" class="num">{% translate "Fallas" %}</th><th scope="col" class="num">{% translate "Detención (h)" %}</th><th scope="col" class="num">{% translate "% acumulado" %}</th><th scope="col" class="chart-cell"><span class="visually-hidden">{% translate "Gráfico" %}</span></th></tr></thead>
+    <tbody>
+      {% for row in pareto.rows %}
+      <tr>
+        <td data-label="{% if pareto_code == 'mode' %}{% translate 'Modo de falla' %}{% else %}{% translate 'Causa' %}{% endif %}"><span class="mono">{{ row.code }}</span> {{ row.name }}{% if row.vital %} <span class="badge badge--warning">{% icon 'alert' %}80 %</span>{% endif %}</td>
+        <td class="num" data-label="{% translate 'Fallas' %}">{{ row.count }}</td>
+        <td class="num" data-label="{% translate 'Detención (h)' %}">{{ row.downtime_hours|hours }}</td>
+        <td class="num" data-label="{% translate '% acumulado' %}">{{ row.cumulative_pct|pct }} %</td>
+        <td class="chart-cell" data-label="">{% localize off %}<svg class="chart-bar" aria-hidden="true" focusable="false"><rect class="chart__track" width="100%" height="100%"></rect><rect class="chart__prior" width="{{ row.before_pct }}%" height="100%"></rect><rect class="chart__fill--alt" x="{{ row.before_pct }}%" width="{{ row.share_bar }}%" height="100%"></rect><rect class="chart__mark" x="80%" width="2" height="100%"></rect></svg>{% endlocalize %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <p class="muted mt-2">{% translate "Códigos que explican el 80 %:" %} {{ pareto.vital_count }}</p>
+  {% else %}<p class="empty">{% translate "No hay fallas con código en el período." %}</p>{% endif %}
+  {% if pareto.uncoded_count %}
+  <p class="muted mt-2">{% blocktranslate count n=pareto.uncoded_count with h=pareto.uncoded_downtime_hours|hours %}{{ n }} falla sin código ({{ h }} h de detención) queda fuera del Pareto.{% plural %}{{ n }} fallas sin código ({{ h }} h de detención) quedan fuera del Pareto.{% endblocktranslate %}</p>
+  {% endif %}
+</section>
+</div>
+{% endblock %}

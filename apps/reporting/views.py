@@ -1,4 +1,7 @@
+import datetime
+
 from django.contrib import messages
+from django.core.paginator import Paginator
 from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -15,6 +18,7 @@ from apps.attachments.selectors import attachments_for
 from apps.core.decorators import membership_required
 from apps.maintenance.selectors import active_assignments_for_asset
 from apps.onboarding.selectors import onboarding_for_dashboard
+from apps.organizations.modules import has_module, plan_message
 from apps.work.models import WorkOrder
 from apps.work.selectors import (
     filter_backlog,
@@ -24,10 +28,27 @@ from apps.work.selectors import (
     work_order_list,
 )
 
-from .excel import MAX_EXPORT_ROWS, XLSX_CONTENT_TYPE, assets_xlsx, backlog_xlsx, work_orders_xlsx
-from .forms import DashboardFilterForm
+from .excel import (
+    MAX_EXPORT_ROWS,
+    XLSX_CONTENT_TYPE,
+    assets_xlsx,
+    backlog_xlsx,
+    extended_kpis_xlsx,
+    work_orders_xlsx,
+)
+from .extended import (
+    PARETO_CODES,
+    PARETO_METRICS,
+    TOP_COST_ASSETS,
+    backlog_trend,
+    cost_report,
+    failure_pareto,
+    with_bars,
+    work_mix,
+)
+from .forms import DashboardFilterForm, ExtendedKpiFilterForm
 from .pdf import asset_sheet_pdf, work_order_pdf
-from .selectors import DOWN_STATUSES, dashboard_kpis
+from .selectors import DOWN_STATUSES, KpiFilters, dashboard_kpis
 
 
 @membership_required
@@ -57,6 +78,150 @@ def dashboard(request):
         "onboarding": onboarding,
     }
     return render(request, "reporting/dashboard.html", context)
+
+
+# --- Indicadores ampliados (KPI-02) ----------------------------------------------
+
+COST_PAGE_SIZE = 25
+
+
+def _extended_inputs(request):
+    """Formulario, filtros y opciones del Pareto desde la URL (pantalla y Excel)."""
+    form = ExtendedKpiFilterForm(request.GET or None, membership=request.membership)
+    filters = KpiFilters(days=84)
+    if form.is_bound:
+        form.is_valid()  # los campos con error se ignoran y se muestran en el formulario
+        filters = form.filters()
+    code_kind = request.GET.get("pareto")
+    metric = request.GET.get("pareto_by")
+    return (
+        form,
+        filters,
+        code_kind if code_kind in PARETO_CODES else "mode",
+        metric if metric in PARETO_METRICS else "count",
+    )
+
+
+def _with_query(request, **changes) -> str:
+    """La URL actual con algunos parámetros cambiados (None los quita); vuelve a la página 1."""
+    query = request.GET.copy()
+    query.pop("page", None)
+    for key, value in changes.items():
+        if value is None:
+            query.pop(key, None)
+        else:
+            query[key] = value
+    return f"?{query.urlencode()}" if query else "?"
+
+
+def _kpis_module_denied(request):
+    organization = request.organization
+    if has_module(organization, "kpis"):
+        return None
+    return render(
+        request,
+        "organizations/plan_module.html",
+        {"message": plan_message(organization, "kpis")},
+        status=403,
+    )
+
+
+@membership_required
+def kpi_report_view(request):
+    """Indicadores ampliados (KPI-02): mismos roles, filtros y alcance que el tablero."""
+    if denied := _kpis_module_denied(request):
+        return denied
+    membership = request.membership
+    form, filters, code_kind, metric = _extended_inputs(request)
+    now = timezone.now()
+    window_start, window_end = filters.window(now)
+    costs = cost_report(membership=membership, filters=filters, now=now)
+    all_costs = request.GET.get("costs") == "all"
+    peak = costs.by_asset.first()
+    peak = peak["total"] if peak else 0
+    if all_costs:
+        cost_page = Paginator(costs.by_asset, COST_PAGE_SIZE).get_page(request.GET.get("page"))
+        cost_rows = with_bars(cost_page.object_list, peak)
+    else:
+        cost_page = None
+        cost_rows = with_bars(costs.by_asset[: TOP_COST_ASSETS + 1], peak)
+    more_assets = not all_costs and len(cost_rows) > TOP_COST_ASSETS
+    context = {
+        "filter_form": form,
+        "active_filters": form.active_count if form.is_bound else 0,
+        "filters_open": form.is_bound and bool(form.active_count or form.errors),
+        "period_start": timezone.localdate(window_start),
+        "period_end": timezone.localdate(window_end - datetime.timedelta(microseconds=1)),
+        "backlog": backlog_trend(membership=membership, filters=filters, now=now),
+        "mix": work_mix(membership=membership, filters=filters, now=now),
+        "costs": costs,
+        "cost_rows": cost_rows[:TOP_COST_ASSETS] if not all_costs else cost_rows,
+        "cost_page": cost_page,
+        "page": cost_page,
+        "all_costs": all_costs,
+        "more_assets": more_assets,
+        "pareto": failure_pareto(
+            membership=membership, filters=filters, code_kind=code_kind, metric=metric, now=now
+        ),
+        "pareto_code_links": [
+            (label, _with_query(request, pareto=value), value == code_kind)
+            for value, label in (("mode", _("Por modo de falla")), ("cause", _("Por causa")))
+        ],
+        "pareto_metric_links": [
+            (label, _with_query(request, pareto_by=value), value == metric)
+            for value, label in (("count", _("Cantidad")), ("downtime", _("Detención")))
+        ],
+        "pareto_code": code_kind,
+        "pareto_metric": metric,
+        "all_costs_href": _with_query(request, costs="all"),
+        "top_costs_href": _with_query(request, costs=None),
+        "export_query": request.GET.urlencode(),
+    }
+    return render(request, "reporting/kpi_report.html", context)
+
+
+@membership_required
+def kpi_report_xlsx_view(request):
+    """Indicadores ampliados a Excel (KPI-03): una hoja por indicador, con los filtros aplicados."""
+    if denied := _kpis_module_denied(request):
+        return denied
+    membership = request.membership
+    _form, filters, code_kind, metric = _extended_inputs(request)
+    now = timezone.now()
+    content = extended_kpis_xlsx(
+        filter_rows=_filter_rows(filters, now),
+        backlog=backlog_trend(membership=membership, filters=filters, now=now),
+        mix=work_mix(membership=membership, filters=filters, now=now),
+        costs=cost_report(membership=membership, filters=filters, now=now),
+        pareto=failure_pareto(
+            membership=membership, filters=filters, code_kind=code_kind, metric=metric, now=now
+        ),
+    )
+    response = HttpResponse(content, content_type=XLSX_CONTENT_TYPE)
+    filename = f"indicadores-{request.organization.slug}-{timezone.localdate():%Y%m%d}.xlsx"
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
+    return response
+
+
+def _filter_rows(filters, now):
+    """Filtros aplicados, legibles, para la primera hoja del Excel."""
+    window_start, window_end = filters.window(now)
+    rows = [
+        (
+            _("Período"),
+            f"{timezone.localdate(window_start):%d-%m-%Y} – "
+            f"{timezone.localdate(window_end - datetime.timedelta(microseconds=1)):%d-%m-%Y}",
+        )
+    ]
+    if filters.location is not None:
+        rows.append((_("Sitio o ubicación"), f"{filters.location.name} ({filters.location.code})"))
+    if filters.asset_class is not None:
+        rows.append((_("Clase de activo"), filters.asset_class.name))
+    if filters.criticality:
+        rows.append((_("Criticidad"), filters.criticality))
+    if filters.asset is not None:
+        rows.append((_("Activo"), f"{filters.asset.code} · {filters.asset.name}"))
+    return rows
 
 
 # --- Exportación a Excel (KPI-03) ------------------------------------------------

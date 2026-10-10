@@ -9,12 +9,14 @@ from apps.organizations.selectors import visible_locations
 
 from .selectors import KpiFilters
 
-PERIODS = {"30": 30, "90": 90, "365": 365}
+PERIODS = {"30": 30, "84": 84, "90": 90, "365": 365}
 CUSTOM = "custom"
 
 
 class DashboardFilterForm(forms.Form):
     """Filtros del tablero (KPI-01 CA1); todos opcionales y dentro del alcance de la membresía."""
+
+    default_period = "30"
 
     period = forms.ChoiceField(
         label=_("Período"),
@@ -95,7 +97,7 @@ class DashboardFilterForm(forms.Form):
         data = {key: value for key, value in self.cleaned_data.items() if key not in self.errors}
         custom = data.get("period") == CUSTOM and not {"date_from", "date_to"} & set(self.errors)
         return KpiFilters(
-            days=PERIODS.get(data.get("period") or "30", 30),
+            days=PERIODS.get(data.get("period") or self.default_period, PERIODS[self.default_period]),
             date_from=data.get("date_from") if custom else None,
             date_to=(data.get("date_to") or None) if custom else None,
             location=data.get("location"),
@@ -108,4 +110,16 @@ class DashboardFilterForm(forms.Form):
     def active_count(self) -> int:
         data = getattr(self, "cleaned_data", {})
         count = sum(1 for key in ("location", "asset_class", "criticality", "asset") if data.get(key))
-        return count + (1 if data.get("period") not in ("", "30", None) else 0)
+        return count + (1 if data.get("period") not in ("", self.default_period, None) else 0)
+
+
+class ExtendedKpiFilterForm(DashboardFilterForm):
+    """Filtros de los indicadores ampliados (KPI-02): los del tablero, por defecto 12 semanas."""
+
+    default_period = "84"
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        period = self.fields["period"]
+        period.initial = self.default_period
+        period.choices = [("84", _("Últimas 12 semanas")), *period.choices]

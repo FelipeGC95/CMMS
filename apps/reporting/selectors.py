@@ -194,6 +194,37 @@ def filtered_assets(*, membership, filters: KpiFilters, location_ids=None):
     return qs
 
 
+@dataclass(frozen=True)
+class KpiScope:
+    """Conjuntos que miden los indicadores con los filtros y el alcance de la membresía."""
+
+    assets: object  # activos vigentes que cumplen los filtros
+    failures: object  # fallas de esos activos (sin filtros: las del alcance)
+    work_orders: object  # OT visibles de esos activos o, con solo sitio, de esas ubicaciones
+
+
+def kpi_scope(*, membership, filters: KpiFilters) -> KpiScope:
+    """Alcance común del tablero (KPI-01) y de los indicadores ampliados (KPI-02).
+
+    Sin filtros: todo lo visible para la membresía (ORG-06). Con filtros de activo
+    (clase, criticidad, activo), las OT y fallas de esos activos; con solo sitio,
+    las OT de esa ubicación y sus descendientes (incluidas las OT sobre ubicaciones).
+    """
+    filter_location_ids = (
+        {filters.location.pk, *descendant_ids(filters.location)} if filters.location is not None else None
+    )
+    assets = filtered_assets(membership=membership, filters=filters, location_ids=filter_location_ids)
+    failures = _by_asset_scope(FailureEvent.objects, allowed_location_ids(membership))
+    work_orders = visible_work_orders(membership=membership)
+    if filters.any:
+        failures = FailureEvent.objects.filter(asset__in=assets)
+        if filters.narrows_assets:
+            work_orders = work_orders.filter(asset__in=assets)
+        else:
+            work_orders = work_orders.filter(in_locations(filter_location_ids))
+    return KpiScope(assets=assets, failures=failures, work_orders=work_orders)
+
+
 def _compliance_outcome(work_order, now) -> bool | None:
     """¿La OT preventiva vencida cuenta como cumplida (True), incumplida (False) o no cuenta (None)?
 
@@ -229,22 +260,11 @@ def dashboard_kpis(*, membership, days: int = 30, now=None, filters: KpiFilters 
     filters = filters or KpiFilters(days=days)
     window_start, window_end = filters.window(now)
     today = timezone.localdate(now)
-    location_ids = allowed_location_ids(membership)
-    filter_location_ids = (
-        {filters.location.pk, *descendant_ids(filters.location)} if filters.location is not None else None
-    )
-
-    assets = filtered_assets(membership=membership, filters=filters, location_ids=filter_location_ids)
-    failures = _by_asset_scope(FailureEvent.objects, location_ids)
-    assignments = _by_asset_scope(PlanAssignment.objects, location_ids)
-    work_orders = visible_work_orders(membership=membership)
+    scope = kpi_scope(membership=membership, filters=filters)
+    assets, failures, work_orders = scope.assets, scope.failures, scope.work_orders
+    assignments = _by_asset_scope(PlanAssignment.objects, allowed_location_ids(membership))
     if filters.any:
-        failures = FailureEvent.objects.filter(asset__in=assets)
         assignments = PlanAssignment.objects.filter(asset__in=assets)
-        if filters.narrows_assets:
-            work_orders = work_orders.filter(asset__in=assets)
-        else:
-            work_orders = work_orders.filter(in_locations(filter_location_ids))
     reliability = _reliability(assets=assets, failures=failures, window_start=window_start, now=window_end)
 
     # Preventivas vencidas en la ventana: fecha límite ya pasada (antes de hoy) y dentro del período.

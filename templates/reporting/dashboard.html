@@ -1,4 +1,4 @@
-{% extends "base.html" %}{% load i18n ui %}
+{% extends "base.html" %}{% load i18n ui accounts_tags %}
 {% block title %}{% translate "Inicio" %}{% endblock %}
 {% block content %}
 <div class="page-header">
@@ -96,6 +96,9 @@
     <span class="kpi__hint">{% blocktranslate with n=kpis.open_work_orders %}de {{ n }} abiertas{% endblocktranslate %}</span>
   </a>
 </section>
+{% if organization|has_module:"kpis" %}
+<p class="mt-2"><a href="{% url 'kpi_report' %}">{% icon 'list' %}{% translate "Ver indicadores ampliados: backlog, costos y Pareto de fallas" %}</a></p>
+{% endif %}
 
 <div class="grid grid--2 mt-4">
   <section class="card" aria-labelledby="prio-title">

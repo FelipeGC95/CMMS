@@ -13,6 +13,7 @@
   <section class="card">
     <h2>{% translate "Secciones" %}</h2>
     <ul class="list list--nav">
+      {% if organization|has_module:"kpis" %}<li><a href="{% url 'kpi_report' %}">{% icon 'list' %}{% translate "Indicadores ampliados" %}</a></li>{% endif %}
       {% if organization|has_module:"work_orders" %}<li><a href="{% url 'work_order_list' %}">{% icon 'wrench' %}{% translate "Órdenes de trabajo" %}</a></li>{% endif %}
       {% if membership|can:"work_order.manage" and organization|has_module:"work_orders" %}<li><a href="{% url 'work_order_backlog' %}">{% icon 'list' %}{% translate "Backlog priorizado" %}</a></li><li><a href="{% url 'work_order_board' %}">{% icon 'calendar' %}{% translate "Programación semanal" %}</a></li>{% endif %}
       {% if membership|can:"work_order.execute" and organization|has_module:"work_orders" %}<li><a href="{% url 'work_order_my_week' %}">{% icon 'user' %}{% translate "Mi semana" %}</a></li>

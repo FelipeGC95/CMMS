@@ -740,3 +740,24 @@ main { max-width: var(--content-max); margin: 0 auto; padding: var(--space-5) va
 @media (min-width: 720px) {
   .dialog__actions { flex-direction: row; flex-wrap: wrap; }
 }
+
+/* ---------- Gráficos de indicadores (KPI-02) ----------
+   SVG generado en el servidor, sin JS ni estilos en línea: el tamaño va en atributos
+   (porcentajes o viewBox) y los colores aquí, con tokens. Siempre decorativos
+   (aria-hidden): los datos están en la tabla junto al gráfico. */
+svg.chart-columns { display: block; width: 100%; height: 160px; background: var(--color-surface-sunken); border-radius: var(--radius-sm); }
+.chart-axis { display: flex; justify-content: space-between; gap: var(--space-2); margin-top: var(--space-1); font-size: var(--text-xs); color: var(--color-text-muted); }
+svg.chart-bar { display: block; width: 100%; height: 14px; border-radius: var(--radius-sm); }
+svg.chart-swatch { width: 12px; height: 12px; vertical-align: -1px; margin-right: var(--space-1); }
+.chart__fill { fill: var(--color-accent-text); }
+.chart__fill--alt { fill: var(--color-warning); }
+.chart__prior { fill: var(--color-border-strong); }
+.chart__track { fill: var(--color-surface-sunken); }
+.chart__mark, .chart__mark-swatch { fill: var(--color-text); }
+.chart-legend { display: flex; flex-wrap: wrap; gap: var(--space-4); margin: 0 0 var(--space-3); font-size: var(--text-sm); color: var(--color-text-muted); }
+.chart-data { display: flex; align-items: center; min-height: var(--touch-target); cursor: pointer; color: var(--color-accent-text); font-weight: 500; }
+.table th.chart-cell, .table td.chart-cell { width: 28%; min-width: 120px; }
+@media (max-width: 720px) {
+  .table td.chart-cell { width: 100%; min-width: 0; padding-top: var(--space-1); }
+  .table td.chart-cell:empty { display: none; }
+}
