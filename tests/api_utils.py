@@ -16,3 +16,13 @@ def api_client(tenant, scope="write", **kwargs):
     client = APIClient()
     client.credentials(HTTP_AUTHORIZATION=f"Bearer {raw}")
     return client
+
+
+FIELD_API = "/field/api"
+
+
+def field_client(membership, **kwargs):
+    """Cliente de la API de terreno (`/field/api/`): la sesión de la web, sin token."""
+    client = APIClient(**kwargs)
+    client.force_login(membership.user)
+    return client

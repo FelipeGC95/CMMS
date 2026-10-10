@@ -5,12 +5,23 @@ está en `apps/field/fixtures/demo.json` (los tests comparan las claves). Los de
 van como texto; las horas en UTC (ISO 8601 con `Z`).
 """
 
+import datetime
+
 from rest_framework import serializers
 
 from apps.work.models import LaborEntry, WorkOrder, WorkOrderChecklistItem
 from apps.work.services import EXECUTION_TARGETS, allowed_transitions
 
 from . import serializers as s
+
+
+class UTCDateTimeField(serializers.DateTimeField):
+    """Hora en UTC con `Z` (la v1 responde en la zona de la organización): el teléfono la
+    muestra con `Intl` en la zona que trae `bootstrap`."""
+
+    def __init__(self, **kwargs):
+        super().__init__(default_timezone=datetime.UTC, **kwargs)
+
 
 # --- bootstrap -------------------------------------------------------------------
 
@@ -55,7 +66,7 @@ class FieldBootstrapSerializer(serializers.Serializer):
         help_text="Nombre visible de cada estado de OT (la organización puede cambiarlos).",
     )
     execution_transitions = serializers.DictField(child=FieldTransitionRuleSerializer())
-    server_time = serializers.DateTimeField()
+    server_time = UTCDateTimeField()
     min_client_version = serializers.IntegerField(
         help_text="Versión mínima del cliente; uno anterior recibe 409 `upgrade_required`."
     )
@@ -86,6 +97,7 @@ class FieldMeterRefSerializer(serializers.Serializer):
 
 class FieldChecklistItemSerializer(serializers.ModelSerializer):
     position = serializers.IntegerField(source="order")
+    answered_at = UTCDateTimeField(allow_null=True)
     photo_count = serializers.IntegerField(help_text="Fotos subidas al ítem.")
 
     class Meta:
@@ -124,6 +136,7 @@ class FieldWorkOrderSerializer(serializers.ModelSerializer):
         help_text="Estados de ejecución a los que la persona puede llevar la OT."
     )
     checklist = FieldChecklistItemSerializer(source="field_checklist", many=True)
+    updated_at = UTCDateTimeField()
 
     class Meta:
         model = WorkOrder
@@ -156,7 +169,7 @@ class FieldWorkOrderSerializer(serializers.ModelSerializer):
 
 
 class FieldSnapshotSerializer(serializers.Serializer):
-    generated_at = serializers.DateTimeField()
+    generated_at = UTCDateTimeField()
     days = serializers.IntegerField()
     truncated = serializers.BooleanField(help_text="Había más OT que el tope (200).")
     work_orders = FieldWorkOrderSerializer(many=True)
@@ -188,7 +201,7 @@ class FieldReferenceMeterSerializer(serializers.Serializer):
     unit = serializers.CharField()
     is_cumulative = serializers.BooleanField()
     current_value = serializers.DecimalField(max_digits=14, decimal_places=3, allow_null=True)
-    current_read_at = serializers.DateTimeField(allow_null=True)
+    current_read_at = UTCDateTimeField(allow_null=True)
 
 
 class FieldReferenceSerializer(serializers.Serializer):

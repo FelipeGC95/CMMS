@@ -21,7 +21,7 @@
       "cancelled": "Cancelada"
     },
     "execution_transitions": {
-      "start": {"from": ["planned", "scheduled"], "to": "in_progress"},
+      "start": {"from": ["requested", "planned", "scheduled"], "to": "in_progress"},
       "pause": {"from": ["in_progress"], "to": "on_hold"},
       "resume": {"from": ["on_hold"], "to": "in_progress"},
       "complete": {"from": ["in_progress"], "to": "completed"}
