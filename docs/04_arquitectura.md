@@ -398,6 +398,11 @@ tener ingresos).
   Mi semana y "Más") e instalable; tras el piloto se decide si es la vista por
   defecto. Fuera de v1: QR, repuestos, ver fotos o manuales, Background Sync,
   push, crear/aprobar/cerrar OT y varias organizaciones a la vez.
+- **Estado (2026-10):** implementado en cinco paquetes: P1 servicios en
+  `apps/work` (horas del teléfono, regla de checklist, `LaborEntry.client_uuid`),
+  P2 `/field/api/`, P3 shell/SW/manifest, P4 cola, sincronización, flujos y e2e,
+  P5 borrado al salir o cambiar de organización, enlaces de entrada, horas de
+  apoyo, job e2e manual en CI y revisión de seguridad.
 - **Autenticación:** la sesión de Django (mismo origen, CSRF con la cookie
   `csrftoken`) bajo `/field/api/`, con `MembershipSessionAuthentication` y el
   módulo `work_orders` o `requests` del plan (sin exigir `api`). `/field/api/`
@@ -408,13 +413,22 @@ tener ingresos).
   (`templates/field/shell.html`, no hereda de `base.html`) **sin datos de la
   organización ni de la persona**, porque lo guarda el Service Worker; exige
   sesión, membresía y el módulo `work_orders`. Carga `static/field/app.js`
-  (módulos ES `app.js`, `db.js`, `ui.js`, sin build), enruta por hash
-  (`#/`, `#/wo/<id>`), lleva el foco al `<h1>` al navegar y escribe solo con
-  `textContent` y nodos clonados de `<template>` (un test prohíbe `innerHTML`).
-  Los textos llegan traducidos en `data-msg-*` y `<template>`; fechas con
-  `Intl` es-CL en la zona de la organización; nombres de estado desde
-  `bootstrap`. Sin datos muestra "Sin conexión · sin datos descargados"; con
-  `DEBUG`, `/field/demo.json` carga un fixture con el contrato de abajo.
+  (módulos ES sin build: `app.js` entrada y rutas, `api.js` cliente,
+  `db.js` IndexedDB, `queue.js` cola, `sync.js` envío, `local.js` reglas
+  locales, `forms.js` formularios, `photos.js` reducción de fotos, `ui.js`
+  pantallas) y además `static/js/app.js` (el mismo "Salir" que la web), enruta
+  por hash (`#/`, `#/wo/<id>`, `#/wo/<id>/complete`, `#/request`, `#/reading`,
+  `#/conflicts`, `#/fix/<client_uuid>`), lleva el foco al `<h1>` al navegar y
+  escribe solo con `textContent` y nodos clonados de `<template>` (un test
+  prohíbe `innerHTML`, también en `static/js/app.js`). Los textos llegan
+  traducidos en `data-msg-*` y `<template>`; fechas con `Intl` es-CL en la zona
+  de la organización; nombres de estado desde `bootstrap`. Sin datos muestra
+  "Sin conexión · sin datos descargados"; con `DEBUG`, `/field/demo.json`
+  entrega el fixture del contrato (solo tests y demostraciones; la vista ya no
+  lo carga). Barra con "Salir" (en móvil solo el ícono, con nombre accesible).
+- **Entrada:** enlaces "Modo sin conexión" a `/field/` en Mis OT
+  (`?scope=mine`), Mi semana y "Más", solo para quien puede ejecutar OT
+  (`work_order.execute`) con el módulo `work_orders`.
 - **Módulos ES con hash:** `config.storage.ModuleManifestStaticFilesStorage`
   (whitenoise + `support_js_module_import_aggregation`) reescribe en
   `collectstatic` los `import` relativos a los nombres con hash (probado en
@@ -422,8 +436,10 @@ tener ingresos).
 - **Service Worker (`/field/sw.js`, alcance `/field/`):** vista sin sesión,
   `application/javascript`, `Cache-Control: no-cache`, exenta de MFA, del
   bloqueo por módulo y de `no-store`. Precarga solo el shell: `/field/`, el
-  manifest, `field/*.js`, tokens.css, components.css, theme.js,
-  signature-pad.js, fuentes, isotipo e íconos. `CACHE_VERSION` = sha1 de las
+  manifest, `field/*.js`, tokens.css, components.css, theme.js, `js/app.js`,
+  signature-pad.js, fuentes, isotipo e íconos; la precarga usa
+  `redirect: "error"`, así que con la sesión vencida la instalación falla y se
+  reintenta en vez de guardar el login como shell. `CACHE_VERSION` = sha1 de las
   URL con hash + `RENDER_GIT_COMMIT` (en desarrollo, del contenido): cada
   despliegue instala una caché `field-<versión>`, `activate` borra las
   anteriores y la página ofrece "Hay una versión nueva · Actualizar"
@@ -440,8 +456,24 @@ tener ingresos).
   (checklist incrustado), `reference`, `queue` (índices `wo_id`, `status`;
   cada entrada con user_id y organization_id) y `blobs` (fotos). Un snapshot
   de más de 14 días se borra. Si `bootstrap` trae otra persona u organización
-  se borran OT, catálogos y `meta` (la cola ajena se retiene sin mostrarla);
-  "Salir" con la cola vacía borra la base y con pendientes pide confirmación.
+  se borran OT, catálogos y `meta` (la cola ajena se retiene sin mostrar su
+  contenido: misma persona → "Cambia a «org»"; otra → solo conteo y
+  "Descartar"). Con conexión, `/field/` no muestra nada guardado hasta que
+  `bootstrap` confirma la identidad; sin conexión muestra lo guardado.
+- **Borrado (`static/js/app.js`, sin `Clear-Site-Data`):** "Salir" (barra de
+  la web, "Más" y la barra de `/field/`) y el
+  cambio de organización se interceptan. Salir: cola vacía → se borra la base
+  `galbust-field` completa y se sale; con pendientes → `<dialog>` modal que
+  dice cuántos cambios se pierden, con "Ir a sincronizar" (foco inicial),
+  "Salir y descartar" y "Cancelar". Cambiar de organización: cola vacía → se
+  borra la base; con pendientes → mismo diálogo, y al confirmar se borran solo
+  los datos descargados (la cola espera a volver a esa organización). Además,
+  toda página de la web lleva `data-user-id` y `data-organization-id` en
+  `<body>` y borra los datos descargados de otra persona u organización (p. ej.
+  sesión vencida y entra otra persona). Las pestañas de `/field/` sueltan la
+  base en `versionchange` y se recargan vacías. Cache Storage solo guarda la
+  estructura (sin datos), por eso no se borra. El shell guardado no lleva
+  token CSRF: "Salir" envía el valor de la cookie `csrftoken`.
 - **Escrituras y conflictos:** cada cambio se encola con `client_uuid` y se
   envía desde la página (no desde el SW), de a uno y en orden por OT; el
   servidor es **idempotente por `client_uuid`** y los correlativos llegan al
@@ -455,7 +487,13 @@ tener ingresos).
   `completed_at`, reducidas en el teléfono a ≤ 2000 px). 401 o `mfa_required`
   pausan la cola ("Inicia sesión para enviar N cambios"); 409/404 bloquean esa
   OT hasta "Descartar"; 400 permite "Corregir y reenviar" con el mismo
-  `client_uuid`; red o 5xx reintentan con espera exponencial.
+  `client_uuid`; red o 5xx reintentan con espera exponencial. Horas de
+  apoyo: formulario de minutos en la OT (hasta que se cierra o cancela) que se
+  encola y va a `labor/` con `client_uuid`. Cada envío lleva
+  `X-Field-Organization` (la organización donde se hizo el cambio): si la
+  sesión ya es de otra, 409 `organization_changed`; el teléfono pausa, repite
+  `bootstrap` y deja esos cambios en cola (nunca se aplican en otra
+  organización ni quedan como conflicto).
 
 #### Contrato de `/field/api/` (referencia para la implementación)
 Subclases de los viewsets de v1 con `FieldAPIMixin`: `readings/` POST,
@@ -467,8 +505,9 @@ Nuevos: `work-orders/{id}/transition/` (+ `client_uuid`, `at`),
 `work-orders/{id}/labor/` (`minutes`, `client_uuid`), `bootstrap/`,
 `snapshot/?days=N` (7 por defecto, máx. 14) y `reference/` (códigos de falla
 activos por tipo, activos visibles compactos con tope 2000 y `truncated`,
-medidores activos). Errores 409 con código `cancelled`, `locked`, `conflict`
-o `upgrade_required` (el cliente envía su versión en `X-Client-Version`; menor
+medidores activos). Errores 409 con código `cancelled`, `locked`, `conflict`,
+`organization_changed` (encabezado `X-Field-Organization` distinto de la
+organización de la sesión) o `upgrade_required` (el cliente envía su versión en `X-Client-Version`; menor
 que `min_client_version` → 409 con `details.min_client_version`; `bootstrap/`
 nunca lo rechaza). La v1 recibe lo aditivo (`at`, `answered_at`, `superseded`,
 `taken_at`, `client_uuid` en `transition/`) pero sigue respondiendo 400 en los
