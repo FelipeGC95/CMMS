@@ -216,6 +216,29 @@
   <div class="card kpi kpi--alert"><span class="kpi__label">{% translate "OT vencidas" %}</span><span class="kpi__value">4</span><span class="kpi__hint">{% translate "de 18 abiertas" %}</span></div>
 </section>
 
+<section class="card mb-4" aria-labelledby="ds-charts">
+  <h2 id="ds-charts">{% translate "Gráficos de indicadores" %}</h2>
+  <p class="muted">{% translate "SVG generado en el servidor, sin JS ni estilos en línea: los tamaños van en atributos y los colores en clases con tokens. Son decorativos: los datos siempre están en la tabla junto al gráfico." %}</p>
+  <h3>{% translate "Columnas en el tiempo (backlog en semanas)" %}</h3>
+  <svg class="chart-columns" viewBox="0 0 40 100" preserveAspectRatio="none" aria-hidden="true" focusable="false"><rect class="chart__fill" x="1.5" y="33.3" width="7" height="66.7"></rect><rect class="chart__fill" x="11.5" y="0" width="7" height="100"></rect><rect class="chart__fill" x="21.5" y="83.3" width="7" height="16.7"></rect><rect class="chart__fill" x="31.5" y="75" width="7" height="25"></rect></svg>
+  <div class="chart-axis" aria-hidden="true"><span>07 sep</span><span>28 sep</span></div>
+  <h3 class="mt-4">{% translate "Barras en una tabla (proporción, costos y Pareto)" %}</h3>
+  <p class="chart-legend" aria-hidden="true">
+    <span><svg class="chart-swatch" viewBox="0 0 10 10" focusable="false"><rect class="chart__fill" width="10" height="10"></rect></svg>{% translate "Planificado" %}</span>
+    <span><svg class="chart-swatch" viewBox="0 0 10 10" focusable="false"><rect class="chart__fill--alt" width="10" height="10"></rect></svg>{% translate "Correctivo" %}</span>
+    <span><svg class="chart-swatch" viewBox="0 0 10 10" focusable="false"><rect class="chart__prior" width="10" height="10"></rect></svg>{% translate "Acumulado anterior" %}</span>
+    <span><svg class="chart-swatch" viewBox="0 0 10 10" focusable="false"><rect class="chart__mark-swatch" x="4" width="2" height="10"></rect></svg>80 %</span>
+  </p>
+  <table class="table">
+    <thead><tr><th scope="col">{% translate "Fila" %}</th><th scope="col" class="num">{% translate "Valor" %}</th><th scope="col" class="chart-cell"><span class="visually-hidden">{% translate "Gráfico" %}</span></th></tr></thead>
+    <tbody>
+      <tr><td data-label="{% translate 'Fila' %}">{% translate "Septiembre 2026" %}</td><td class="num" data-label="{% translate 'Valor' %}">60,0 %</td><td class="chart-cell" data-label=""><svg class="chart-bar" aria-hidden="true" focusable="false"><rect class="chart__fill" width="60%" height="100%"></rect><rect class="chart__fill--alt" x="60%" width="40%" height="100%"></rect></svg></td></tr>
+      <tr><td data-label="{% translate 'Fila' %}">{% translate "Bomba" %}</td><td class="num" data-label="{% translate 'Valor' %}">$ 300</td><td class="chart-cell" data-label=""><svg class="chart-bar" aria-hidden="true" focusable="false"><rect class="chart__track" width="100%" height="100%"></rect><rect class="chart__fill" width="66.7%" height="100%"></rect></svg></td></tr>
+      <tr><td data-label="{% translate 'Fila' %}"><span class="mono">ZB</span> {% translate "Rotura" %} <span class="badge badge--warning">{% icon 'alert' %}80 %</span></td><td class="num" data-label="{% translate 'Valor' %}">83,3 %</td><td class="chart-cell" data-label=""><svg class="chart-bar" aria-hidden="true" focusable="false"><rect class="chart__track" width="100%" height="100%"></rect><rect class="chart__prior" width="50%" height="100%"></rect><rect class="chart__fill--alt" x="50%" width="33.3%" height="100%"></rect><rect class="chart__mark" x="80%" width="2" height="100%"></rect></svg></td></tr>
+    </tbody>
+  </table>
+</section>
+
 <section class="card mb-4" aria-labelledby="ds-layout">
   <h2 id="ds-layout">{% translate "Acciones de cabecera, filtros y formularios en línea" %}</h2>
   <h3>{% translate "Acción principal del estado (detalle de OT)" %}</h3>

@@ -7568,3 +7568,281 @@ msgstr ""
 
 msgid "Hay 3 cambios de terreno sin enviar en este teléfono. Si sales ahora, se pierden."
 msgstr ""
+
+msgid "% acumulado"
+msgstr ""
+
+msgid "% de fallas"
+msgstr ""
+
+msgid "% de la detención"
+msgstr ""
+
+msgid "% planificado (cantidad)"
+msgstr ""
+
+msgid "% planificado (horas)"
+msgstr ""
+
+#, python-format
+msgid "%% acumulado"
+msgstr ""
+
+#, python-format
+msgid "%% acumulado = Σ (fallas o detención de los códigos anteriores y el actual) / total × 100"
+msgstr ""
+
+#, python-format
+msgid "%% planificado"
+msgstr ""
+
+#, python-format
+msgid "%(h)s h estimadas · capacidad %(c)s h/semana (%(n)s técnicos)"
+msgstr ""
+
+#, python-format
+msgid "%(n)s OT cerrada"
+msgid_plural "%(n)s OT cerradas"
+msgstr[0] ""
+msgstr[1] ""
+
+#, python-format
+msgid "%(n)s OT sin estimación no suma horas."
+msgid_plural "%(n)s OT sin estimación no suman horas."
+msgstr[0] ""
+msgstr[1] ""
+
+#, python-format
+msgid "%(n)s falla sin código (%(h)s h de detención) queda fuera del Pareto."
+msgid_plural "%(n)s fallas sin código (%(h)s h de detención) quedan fuera del Pareto."
+msgstr[0] ""
+msgstr[1] ""
+
+#, python-format
+msgid "%(pct)s %% por cantidad · %(p)s OT planificadas, %(c)s correctivas"
+msgstr ""
+
+msgid "Activos de mayor costo"
+msgstr ""
+
+msgid "Acumulado anterior"
+msgstr ""
+
+msgid "Agrupar fallas"
+msgstr ""
+
+msgid "Al día"
+msgstr ""
+
+msgid "Backlog (semanas)"
+msgstr ""
+
+msgid "Backlog al cierre de cada semana"
+msgstr ""
+
+msgid "Capacidad semanal (h)"
+msgstr ""
+
+msgid "Capacidad: horas semanales vigentes de los técnicos del alcance (no se guarda su historial)."
+msgstr ""
+
+msgid "Correctivas"
+msgstr ""
+
+msgid "Correctivo"
+msgstr ""
+
+msgid "Costos de mantenimiento"
+msgstr ""
+
+msgid "Costos por activo"
+msgstr ""
+
+msgid "Costos por clase"
+msgstr ""
+
+msgid "Cuentan las OT completadas en el período (por su fecha de término), con las horas registradas en cada una; las canceladas no cuentan."
+msgstr ""
+
+#, python-format
+msgid "Códigos que explican el 80 %%:"
+msgstr ""
+
+msgid "Dentro del 80 %"
+msgstr ""
+
+msgid "Detención"
+msgstr ""
+
+msgid "Detención (h)"
+msgstr ""
+
+msgid "Este código"
+msgstr ""
+
+msgid "Exportar a Excel"
+msgstr ""
+
+#, python-format
+msgid "Fallas iniciadas en el período sobre los activos del alcance, agrupadas por el código elegido y ordenadas de mayor a menor. Detención: horas de las fallas con detención total (hasta su término o el fin del período). Se marcan los códigos que explican el 80 %%: el que cruza el 80 %% también cuenta."
+msgstr ""
+
+msgid "Fallas por causa"
+msgstr ""
+
+msgid "Fallas por modo de falla"
+msgstr ""
+
+msgid "Gráfico"
+msgstr ""
+
+msgid "Horas correctivas"
+msgstr ""
+
+msgid "Horas de mejora"
+msgstr ""
+
+msgid "Horas planificadas"
+msgstr ""
+
+msgid "Indicadores ampliados"
+msgstr ""
+
+msgid "No hay OT cerradas en el período."
+msgstr ""
+
+msgid "No hay OT cerradas sobre activos en el período."
+msgstr ""
+
+msgid "No hay fallas con código en el período."
+msgstr ""
+
+msgid "OT cerradas"
+msgstr ""
+
+msgid "OT completadas por mes y tipo"
+msgstr ""
+
+msgid "OT correctivas"
+msgstr ""
+
+msgid "OT de mejora"
+msgstr ""
+
+msgid "OT planificadas"
+msgstr ""
+
+msgid "OT sin estimación"
+msgstr ""
+
+msgid "OT sobre ubicaciones (sin activo)"
+msgstr ""
+
+msgid "Ordenar por"
+msgstr ""
+
+msgid "Otros"
+msgstr ""
+
+msgid "Pareto de fallas"
+msgstr ""
+
+msgid "Pendiente: OT ni completada, ni cerrada, ni cancelada a esa fecha (igual que el backlog priorizado). Cada columna es el backlog al cierre de esa semana, reconstruido con las fechas de creación, término y cancelación."
+msgstr ""
+
+msgid "Planificadas"
+msgstr ""
+
+msgid "Planificado"
+msgstr ""
+
+msgid "Planificado vs. correctivo"
+msgstr ""
+
+msgid "Planificado: OT preventivas, predictivas o por condición e inspecciones. Correctivo: OT correctivas. Las de mejora se muestran aparte y no entran al porcentaje."
+msgstr ""
+
+msgid "Por causa"
+msgstr ""
+
+msgid "Por clase de activo"
+msgstr ""
+
+msgid "Por modo de falla"
+msgstr ""
+
+msgid "Preventivo-correctivo"
+msgstr ""
+
+msgid "Referencia: EN 15341 (costo de mantenimiento) · SMRP Best Practices (Maintenance Cost)."
+msgstr ""
+
+msgid "Referencia: ISO 14224 (modos y causas de falla) · análisis de Pareto 80/20."
+msgstr ""
+
+msgid "Referencia: SMRP Best Practices (Backlog, en semanas de trabajo)."
+msgstr ""
+
+msgid "Referencia: SMRP Best Practices (Planned Maintenance Percentage) · EN 15341."
+msgstr ""
+
+msgid "Se usan los totales que la OT guardó al cerrarse (horas × costo hora copiado, repuestos y servicios externos). Cada OT suma a su activo; un componente es su propia fila. Las OT sobre una ubicación no tienen activo ni clase y se informan aparte."
+msgstr ""
+
+msgid "Sin capacidad de técnicos en el alcance: se muestran horas estimadas, no semanas."
+msgstr ""
+
+msgid "Sin código (fuera del Pareto)"
+msgstr ""
+
+msgid "Todos los activos"
+msgstr ""
+
+msgid "Ver datos por semana"
+msgstr ""
+
+msgid "Ver indicadores ampliados: backlog, costos y Pareto de fallas"
+msgstr ""
+
+msgid "Ver solo los de mayor costo"
+msgstr ""
+
+msgid "horas estimadas de las OT pendientes / capacidad semanal de los técnicos"
+msgstr ""
+
+msgid "horas planificadas / (horas planificadas + horas correctivas) × 100"
+msgstr ""
+
+#, python-format
+msgid "planificado por horas · %(p)s h planificadas, %(c)s h correctivas"
+msgstr ""
+
+msgid "sem"
+msgstr ""
+
+msgid "Últimas 12 semanas"
+msgstr ""
+
+msgid "Σ mano de obra + Σ repuestos + Σ otros costos de las OT cerradas en el período"
+msgstr ""
+
+msgid "Barras en una tabla (proporción, costos y Pareto)"
+msgstr ""
+
+msgid "Bomba"
+msgstr ""
+
+msgid "Columnas en el tiempo (backlog en semanas)"
+msgstr ""
+
+msgid "Gráficos de indicadores"
+msgstr ""
+
+msgid "Rotura"
+msgstr ""
+
+msgid "SVG generado en el servidor, sin JS ni estilos en línea: los tamaños van en atributos y los colores en clases con tokens. Son decorativos: los datos siempre están en la tabla junto al gráfico."
+msgstr ""
+
+msgid "Septiembre 2026"
+msgstr ""
