@@ -601,7 +601,7 @@ main { max-width: var(--content-max); margin: 0 auto; padding: var(--space-5) va
 .field-bar { background: var(--color-nav-bg); color: var(--color-nav-text); position: sticky; top: 0; z-index: 20; }
 .field-bar__inner {
   max-width: var(--content-max); margin: 0 auto; min-height: var(--navbar-height);
-  display: flex; align-items: center; justify-content: space-between; gap: var(--space-3);
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-3);
   padding: var(--space-2) var(--space-4);
 }
 /* Área de resguardo del isotipo: la mitad de su alto. */
@@ -611,6 +611,10 @@ main { max-width: var(--content-max); margin: 0 auto; padding: var(--space-5) va
   font-family: var(--font-brand); font-weight: 500; font-size: var(--text-md); letter-spacing: 0.04em;
 }
 .field-bar--sample { position: static; }
+/* En anchos estrechos (o en la muestra del sistema de diseño) el título se recorta antes
+   que el estado de conexión o "Salir": nunca scroll horizontal (ADR-017). */
+.field-bar__brand { min-width: 0; }
+.field-bar__title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .field-bar__brand img { height: var(--logo-height); width: auto; display: block; }
 .field-bar__status {
   margin: 0; display: inline-flex; align-items: center; gap: var(--space-1); min-height: 32px;
@@ -725,7 +729,7 @@ main { max-width: var(--content-max); margin: 0 auto; padding: var(--space-5) va
 .field-labor { max-width: 40rem; }
 .field-labor input[type="number"] { max-width: 12rem; }
 .dialog {
-  width: min(32rem, calc(100vw - 2 * var(--space-4))); max-height: calc(100vh - 2 * var(--space-4));
+  width: min(32rem, calc(100vw - 2 * var(--space-4))); max-width: 100%; max-height: calc(100vh - 2 * var(--space-4));
   padding: 0; border: 1px solid var(--color-border); border-radius: var(--radius-lg);
   background: var(--color-surface); color: var(--color-text); box-shadow: var(--shadow-md);
 }
