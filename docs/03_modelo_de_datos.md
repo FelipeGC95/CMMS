@@ -26,6 +26,7 @@ Los nombres de tablas y campos están en inglés (convención de código, ver
 
 **`plan`** (catálogo de plataforma, sin tenant)
 `code` (basic, pro, enterprise, trial) · `name` · `max_assets` · `max_users` (null = ilimitado) · `max_storage_mb` · `features JSONB` (lista de códigos de módulo) · `is_active`.
+Inventario (F2): una migración de datos agrega el módulo `inventory` a los planes Prueba, Profesional y Empresa (y a `plans.DEFAULT_PLANS`); Básico no lo incluye.
 
 **`organization`** (tenant raíz)
 `name` · `slug` (único) · `plan_id` · `status` (trial, active, suspended, pending_deletion, deleted) · `trial_ends_at` · `timezone` (IANA, ej. `America/Santiago`) · `locale` (`es-CL`) · `currency` · `primary_color` (#RRGGBB o vacío, ORG-09) · `mfa_policy` (admins_only, everyone, optional; ORG-08) · `logo` (clave de objeto) · `allow_anonymous_reports` (aviso por QR sin cuenta, REQ-02; columna propia, apagado por defecto) · `limits_override JSONB` · `settings JSONB` (ej. `require_close_approval`, `planning_horizon_days`, `status_labels`) · `storage_used_bytes BIGINT` · `deletion_requested_at` · `deletion_scheduled_for` · `deletion_requested_by_id` · `deleted_at` · `purge_summary JSONB` (borrado X-04: tras la purga la fila queda como lápida anonimizada, ADR-027).
@@ -112,6 +113,7 @@ Los disparadores son campos de la versión y no una tabla `plan_trigger`: un pla
 
 **`plan_resource`** — repuestos y herramientas previstos (solo editables en borrador).
 `organization_id` · `version_id` · `kind` (part, tool) · `description` · `quantity` · `unit`. `part_id` se agrega con inventario (F2).
+Inventario (F2, §2.10): `part_id` FK a `part` null, PROTECT; `RESOURCE_FIELDS` incluye `part` (un borrador nuevo lo copia). Excepción acotada al ADR-016: en una versión publicada, un recurso con `part_id` vacío se puede enlazar una sola vez (vacío → repuesto; nunca cambiar ni quitar), INV-11.
 
 **`plan_absorption`** — «el plan mayor absorbe al menor» (PM‑05 CA3); dato del plan, no de la versión.
 `organization_id` · `plan_id` (mayor) · `absorbed_plan_id` (menor). `UNIQUE (organization_id, plan_id, absorbed_plan_id)`; CHECK `plan_id <> absorbed_plan_id`; el servicio rechaza ciclos.
@@ -160,6 +162,7 @@ servicio exige que cada usuario tenga membresía activa en la organización.
 
 **`part_usage`**
 `organization_id` · `work_order_id` · `description` · `quantity` · `unit` · `unit_cost` · `part_id` (F2) · `stock_movement_id` (F2) · `client_uuid`.
+Inventario (F2, §2.10, INV-09): `part_id` FK a `part` null, PROTECT; `stock_movement_id` OneToOne a `stock_movement` null, PROTECT (la salida `issue`); índice `(organization_id, part_id) WHERE part_id IS NOT NULL`. Sin migración de datos: las líneas de texto libre previas quedan con `part_id` vacío. Con repuesto del catálogo, `description` = «código · nombre», `unit` del repuesto y `unit_cost` = promedio vigente al consumir; `client_uuid` se copia al movimiento.
 
 **`other_cost`**
 `organization_id` · `work_order_id` · `description` · `amount` · `supplier`.
@@ -216,10 +219,13 @@ MTBF/MTTR; si el problema resulta ser de un equipo, la OT se crea sobre él.
 > `cost_remove`, `complete`, `close` (OT); `invite`, `invite_revoke`,
 > `invite_accept`, `role_change`, `deactivate`, `reactivate` (equipo);
 > `revoke` (tokens de API). Las decisiones sobre solicitudes son `transition`.
+> Inventario (F2, INV-14) agrega `stock_receive`, `stock_adjust`,
+> `stock_transfer`, `stock_issue`, `stock_return`, `reserve` y `release`.
 
 **`notification`** (X-02)
 `organization_id` · `recipient_id` · `kind` (wo_assigned, wo_scheduled, wo_due_soon, wo_overdue, request_new, request_resolved) · `title` · `body` · `url` · `work_order_id` · `work_request_id` · `in_app` · `dedupe_key` · `read_at`.
 Índices `(organization_id, recipient_id, read_at)` (contador de la campana) y `(organization_id, recipient_id, created_at DESC)` (bandeja). `UNIQUE (organization_id, recipient_id, dedupe_key)` si `dedupe_key` no es vacío: el aviso diario de vencimiento usa `<kind>:<work_order_id>:<fecha>`, así que se envía una vez por OT, persona y día.
+Inventario (F2, INV-12) agrega `kind = stock_low` (`dedupe_key` `stock_low:<stock_item_id>:<fecha>`).
 > Implementado como `notifications.Notification`. Diferencias: no hay
 > `emailed_at`; una fila con `in_app = false` registra un aviso que solo salió
 > por correo (no aparece en la bandeja, pero evita repetir el envío). El
@@ -240,14 +246,53 @@ Se **copian** a la organización al adoptarlas; nunca se referencian en vivo (un
 
 | Módulo | Tablas | Punto de enganche en el MVP |
 |---|---|---|
-| Inventario (F2) | `part`, `warehouse`, `stock_item`, `stock_movement`, `reservation` | `part_usage.part_id`, `plan_resource.part_id` se agregará (hoy solo `part_usage.part_id`). |
 | Condición (F2) | `measurement_point` (variable de un activo), `measurement` (serie de tiempo, particionada), `condition_rule`, `alert` | `meter` y `meter_reading` son un caso particular; las reglas pueden apuntar a `meter_id` o a `measurement_point_id`. |
 | Asistente IA (F2, ADR-018) | `assistant_conversation` (`asset_id`, `work_order_id`, `started_by_id`, `helpful`: yes/partial/no), `assistant_message` (`role`, `content JSONB`, `sources JSONB`, `model`, `input_tokens`, `output_tokens`, `cache_read_tokens`) | `failure_event.description` (síntoma) y `work_order.completion_notes` (acción) capturados desde el MVP; `document_page` desde M1; índices de texto completo sobre OT y fallas cuando se construya. |
 | Offline (F2) | `sync_batch` (registro de lotes recibidos) | `client_uuid` en todas las tablas que escribe el técnico. |
 | SSO (F3) | tablas de allauth (`socialaccount`, config SAML por organización) | `user` global + `membership`. |
 | Facturación (F3) | `subscription`, `invoice` | `organization.plan_id`, cupos. |
 
-## 3. Diagrama ER (núcleo MVP)
+El inventario (F2) dejó esta tabla: está en construcción y su modelo está en §2.10.
+
+### 2.10 Inventario y repuestos (F2, en construcción)
+
+App nueva `apps/inventory` (ADR-028); todas las tablas heredan de
+`TenantModel`. Requisitos INV-01..INV-17 en [02_requisitos.md](02_requisitos.md) §6.
+Cantidades `NUMERIC(14,3)`; montos `NUMERIC(14,2)`; costos unitarios y
+promedio `NUMERIC(18,4)`.
+
+**`part`** (INV-01) — repuesto del catálogo.
+`organization_id` · `code` (40) · `name` (200) · `description` · `unit` (20, por defecto "un") · `category` (80, texto con sugerencias) · `manufacturer` (120) · `manufacturer_ref` (80) · `supplier` (150) · `notes` · `avg_cost` (18,4, por defecto 0; costo promedio ponderado por repuesto en la organización, INV-08) · `last_cost` (18,4, null) · `last_received_at` · `is_active` · `created_by_id`.
+`UNIQUE (organization_id, UPPER(code))` (`uniq_part_code_ci`; el servicio además compara con `code__iexact`); CHECK `avg_cost >= 0`. Índices `(organization_id, is_active, name)`, `(organization_id, category)`. No se borra: se desactiva.
+
+**`warehouse`** (INV-03) — bodega.
+`organization_id` · `code` (20) · `name` (120) · `location_id` (null, PROTECT; cualquier nodo) · `is_default` · `is_active` · `notes`.
+`UNIQUE (organization_id, UPPER(code))`; único parcial `(organization_id) WHERE is_default`; CHECK `NOT (is_default AND NOT is_active)`. Índice `(organization_id, location_id)`. "Bodega principal" (`BOD`) se crea sola al primer uso (`ensure_default_warehouse`).
+
+**`stock_item`** (INV-04) — saldo materializado por repuesto y bodega.
+`organization_id` · `part_id` (PROTECT) · `warehouse_id` (PROTECT) · `on_hand` (14,3; puede ser negativo) · `reserved` (14,3, ≥ 0) · `min_quantity` (14,3, por defecto 0) · `target_quantity` (14,3, null) · `bin_location` (40) · `last_movement_at`.
+`UNIQUE (organization_id, part_id, warehouse_id)`; CHECK `reserved >= 0`, `min_quantity >= 0`, `target_quantity IS NULL OR target_quantity >= min_quantity`. Índices `(organization_id, warehouse_id)`, `(organization_id, part_id)`. Se crea al primer movimiento, reserva o mínimo (`get_or_create` bajo el bloqueo del repuesto). Disponible = `on_hand − reserved`. Es un caché transaccional: el libro manda.
+
+**`stock_movement`** (INV-05..INV-09, INV-14) — libro inmutable.
+`organization_id` · `part_id` · `warehouse_id` (PROTECT) · `kind` (receipt, issue, return, adjustment, transfer_out, transfer_in) · `reason` ("", count, import, initial, reconcile) · `quantity` (14,3, con signo) · `unit_cost` (18,4, costo aplicado) · `total_cost` (14,2 = round(q × c)) · `avg_cost_after` (18,4) · `on_hand_after` (14,3, de esa bodega) · `work_order_id` (null, PROTECT) · `reverses_id` (FK a sí misma, null; devolución → salida) · `transfer_group` (uuid, null) · `reference` (60, documento) · `supplier` (150) · `note` (500) · `occurred_at` (fecha real, acotada con `work.services.client_time`) · `created_by_id` · `client_uuid`.
+CHECK `quantity <> 0`; signo según `kind` (receipt, return, transfer_in > 0; issue, transfer_out < 0; adjustment cualquiera); CHECK `kind <> 'issue' OR work_order_id IS NOT NULL`; `UNIQUE (organization_id, client_uuid)`. Índices `(organization_id, part_id, occurred_at DESC)`, `(organization_id, warehouse_id, occurred_at DESC)`, `(organization_id, work_order_id) WHERE work_order_id IS NOT NULL`, `(organization_id, kind, occurred_at)`.
+Inmutable: `save()` lanza `ImmutableMovementError` si no es alta y `delete()` siempre; admin solo lectura; los errores se corrigen con un movimiento contrario. La purga (ADR-027) usa `_raw_delete`. Sin trigger SQL. En una transferencia, `client_uuid` va solo en `transfer_out`.
+
+**`reservation`** (INV-10) — repuesto previsto para una OT.
+`organization_id` · `work_order_id` (PROTECT) · `part_id` · `warehouse_id` · `quantity` (14,3, > 0) · `consumed_quantity` (14,3, por defecto 0) · `status` (active, fulfilled, released) · `source` (plan, manual) · `plan_resource_id` (null, SET_NULL) · `release_reason` ("", closed, cancelled, manual) · `released_at` · `created_by_id` (null = sistema).
+Único parcial `(organization_id, work_order_id, part_id) WHERE status = 'active'`. Índices `(organization_id, work_order_id)`, `(organization_id, part_id, status)`. Pendiente = max(`quantity − consumed_quantity`, 0). Invariante: `stock_item.reserved` = Σ pendientes de las reservas activas de ese repuesto y bodega.
+
+**Cambios en tablas existentes:** `part_usage.part_id` y `part_usage.stock_movement_id` (§2.5), `plan_resource.part_id` (§2.4), `notification.kind = stock_low` (§2.7), módulo `inventory` en `plan.features` (§2.1) y acciones de auditoría nuevas (§2.7).
+
+**Orden de migraciones:** `inventory/0001` (part, warehouse, stock_item; depende de organizations) → `inventory/0002` (stock_movement, reservation; depende de la última de work y de maintenance) → `work/00NN` (`part_usage.part`, `stock_movement`; depende de `inventory/0002`) → `maintenance/00NN` (`plan_resource.part`; depende de `inventory/0001`).
+
+**Concurrencia** (todo en `transaction.atomic`): 1) `_lock_parts(part_ids)` con `select_for_update` en orden de pk (primero el repuesto); 2) `select_for_update` de `stock_item` en orden de `warehouse_id`; 3) con el repuesto bloqueado se calcula Q (Σ `on_hand` del repuesto en todas las bodegas), el nuevo promedio, se crea el movimiento con `on_hand_after`/`avg_cost_after` y se actualiza el saldo con `F()`; 4) notificaciones con `on_commit`.
+
+**Idempotencia:** `client_uuid` en el movimiento (el reenvío de una transferencia devuelve el par por `transfer_group`; la misma clave con otro repuesto o tipo es conflicto). En consumos, el `client_uuid` de `part_usage` se copia al movimiento. La clave se revisa siempre **antes** de las validaciones de estado.
+
+**Consistencia:** `manage.py inventory_reconcile` verifica `on_hand` = Σ movimientos por ítem, `reserved` = Σ pendientes de reservas activas y que cada `part_usage` enlazado tenga su movimiento con cantidad opuesta (INV-14 CA4).
+
+## 3. Diagrama ER (núcleo MVP + inventario F2)
 
 ```mermaid
 erDiagram
@@ -288,6 +333,19 @@ erDiagram
     WORK_ORDER ||--o{ LABOR_ENTRY : "mano de obra"
     WORK_ORDER ||--o{ PART_USAGE : "repuestos"
     WORK_ORDER ||--o{ OTHER_COST : "otros costos"
+
+    PART ||--o{ STOCK_ITEM : "saldo"
+    WAREHOUSE ||--o{ STOCK_ITEM : "guarda"
+    LOCATION |o--o{ WAREHOUSE : "ubica"
+    PART ||--o{ STOCK_MOVEMENT : "libro"
+    WAREHOUSE ||--o{ STOCK_MOVEMENT : ""
+    WORK_ORDER |o--o{ STOCK_MOVEMENT : "salidas"
+    STOCK_MOVEMENT |o--o| PART_USAGE : "enlaza"
+    PART |o--o{ PART_USAGE : "catalogo"
+    PART |o--o{ PLAN_RESOURCE : "previsto"
+    WORK_ORDER ||--o{ RESERVATION : "reserva"
+    PART ||--o{ RESERVATION : ""
+    WAREHOUSE ||--o{ RESERVATION : ""
 
     ASSET ||--o{ WORK_REQUEST : "reportado en"
     WORK_REQUEST |o--o| WORK_ORDER : "se convierte"
