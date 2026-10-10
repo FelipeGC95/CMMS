@@ -18,7 +18,7 @@
   <script src="{% static 'js/app.js' %}" defer></script>
   {% block extra_head %}{% endblock %}
 </head>
-<body hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
+<body hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'{% if membership %} data-user-id="{{ user.pk }}" data-organization-id="{{ organization.pk }}"{% endif %}>
   <a class="skip-link" href="#main">{% translate "Saltar al contenido" %}</a>
   {% if user.is_authenticated %}
   <header class="navbar">
@@ -38,7 +38,7 @@
       </nav>
       <div class="navbar__right">
         {% if memberships|length > 1 %}
-        <form method="post" action="{% url 'switch_organization' %}" class="org-switch">
+        <form method="post" action="{% url 'switch_organization' %}" class="org-switch" data-field-switch>
           {% csrf_token %}
           <label class="visually-hidden" for="org-select">{% translate "Organización" %}</label>
           <select id="org-select" name="organization">
@@ -58,7 +58,7 @@
         {# Solo el nombre: el rol, el correo y "Cambiar contraseña" están en "Mi cuenta" de /menu/. #}
         <a class="navbar__user" href="{% url 'menu' %}#account"><span class="visually-hidden">{% translate "Mi cuenta" %}: </span>{{ user.short_name }}</a>
         {% include "_theme_button.html" %}
-        <form method="post" action="{% url 'account_logout' %}">
+        <form method="post" action="{% url 'account_logout' %}" data-field-exit>
           {% csrf_token %}
           <button class="btn-nav" type="submit">{% icon 'logout' %}{% translate "Salir" %}</button>
         </form>
@@ -74,6 +74,7 @@
     <p class="footer">GALBUST CMMS · {% translate "con tecnología de" %} GALBUST{% if user.is_staff %} · <a href="{% url 'design_system' %}">{% translate "Sistema de diseño" %}</a>{% endif %}</p>
   </main>
 
+  {% include "_field_exit_dialog.html" %}
   {% if user.is_authenticated %}
   <nav class="bottom-nav" aria-label="{% translate 'Navegación móvil' %}">
     <a href="{% url 'dashboard' %}" {% nav_current '/' %}>{% icon 'home' %}{% translate "Inicio" %}</a>

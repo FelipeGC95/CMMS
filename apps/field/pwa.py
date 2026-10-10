@@ -46,6 +46,7 @@ SHELL_STATIC = [
     "css/tokens.css",
     "css/components.css",
     "js/theme.js",
+    "js/app.js",
     "js/signature-pad.js",
     "brand/galbust-isotipo-blanco.svg",
     "brand/galbust-favicon.ico",

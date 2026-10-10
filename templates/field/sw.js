@@ -10,9 +10,13 @@ const NETWORK_TIMEOUT_MS = 3000;
 
 self.addEventListener("install", (event) => {
   // La versión nueva queda en espera: la página ofrece "Actualizar" (sin cortar un envío en curso).
+  // redirect "error": si la sesión terminó, /field/ redirige al login y la instalación falla
+  // (se reintenta luego) en vez de guardar la página de login como estructura de la vista.
   event.waitUntil(
     caches.open(CACHE).then((cache) =>
-      cache.addAll(PRECACHE.map((url) => new Request(url, { cache: "reload", credentials: "same-origin" }))),
+      cache.addAll(
+        PRECACHE.map((url) => new Request(url, { cache: "reload", credentials: "same-origin", redirect: "error" })),
+      ),
     ),
   );
 });

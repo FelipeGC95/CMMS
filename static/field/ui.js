@@ -2,7 +2,14 @@
 // escribiendo con textContent: nunca se interpreta HTML (los datos vienen del servidor o del
 // teléfono y podrían traer marcas).
 
-import { LOCKED_STATUSES, canAnswer, editableDecimal, executionActions, workedMinutes } from "./local.js";
+import {
+  LABOR_LOCKED_STATUSES,
+  LOCKED_STATUSES,
+  canAnswer,
+  editableDecimal,
+  executionActions,
+  workedMinutes,
+} from "./local.js";
 
 const STATUS_TONES = {
   requested: "warning",
@@ -381,6 +388,8 @@ export function renderDetail(view, { session, workOrder: wo, summary, timer, fla
   if (!actions.length && slot(fragment, "exec-note").hidden && slot(fragment, "worked").hidden) {
     slot(fragment, "exec").hidden = true;
   }
+  // Horas de apoyo: hasta que la OT se cierra o se cancela (como en la web).
+  slot(fragment, "labor").hidden = !(bootstrap.permissions.execute && !LABOR_LOCKED_STATUSES.has(wo.status));
 
   const facts = slot(fragment, "facts");
   addFact(facts, msg("target"), targetText(wo), "box");

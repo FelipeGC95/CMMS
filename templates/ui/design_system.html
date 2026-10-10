@@ -462,7 +462,24 @@
   <div class="field-bar field-bar--sample mb-4">
     <div class="field-bar__inner">
       <span class="field-bar__brand"><img src="{% static 'brand/galbust-isotipo-blanco.svg' %}" alt="" width="28" height="28"><span class="field-bar__title">{% translate "Terreno" %}</span></span>
-      <p class="field-bar__status" data-online="false">{% icon 'x' %}{% translate "Sin conexión" %}</p>
+      <div class="field-bar__end">
+        <p class="field-bar__status" data-online="false">{% icon 'x' %}{% translate "Sin conexión" %}</p>
+        <button class="btn-nav field-bar__exit" type="button">{% icon 'logout' %}<span class="field-bar__exit-text">{% translate "Salir" %}</span></button>
+      </div>
+    </div>
+  </div>
+  <p class="row mb-4"><a class="btn btn--ghost" href="#ds-field">{% icon 'phone' %}{% translate "Modo sin conexión" %}</a></p>
+  <h3>{% translate "Confirmación al salir con cambios sin enviar" %}</h3>
+  <p class="muted">{% translate "Diálogo modal al salir o cambiar de organización si la vista de terreno tiene cambios sin enviar en el teléfono." %}</p>
+  <div class="dialog mb-4">
+    <div class="dialog__body">
+      <h4 class="dialog__title">{% icon 'alert' %}{% translate "Cambios sin enviar" %}</h4>
+      <p>{% translate "Hay 3 cambios de terreno sin enviar en este teléfono. Si sales ahora, se pierden." %}</p>
+      <div class="dialog__actions">
+        <a class="btn btn--primary btn--lg" href="#ds-field">{% icon 'sync' %}{% translate "Ir a sincronizar" %}</a>
+        <button class="btn btn--danger btn--lg" type="button">{% icon 'logout' %}{% translate "Salir y descartar" %}</button>
+        <button class="btn btn--ghost btn--lg" type="button">{% icon 'x' %}{% translate "Cancelar" %}</button>
+      </div>
     </div>
   </div>
   <section class="card field-day mb-4">
@@ -513,6 +530,18 @@
       <a class="btn btn--primary btn--lg" href="#ds-field">{% icon 'check' %}{% translate "Completar" %}</a>
     </div>
     <p class="field-exec__worked">{% translate "Trabajado en este teléfono: 35 min" %}</p>
+  </section>
+  <section class="card mb-4" aria-labelledby="ds-field-labor">
+    <h4 id="ds-field-labor">{% translate "Registrar horas" %}</h4>
+    <form class="field-labor">
+      <div class="field">
+        <label for="ds-fl-minutes">{% translate "Minutos trabajados" %}</label>
+        <input id="ds-fl-minutes" type="number" inputmode="numeric" min="1" max="1440" value="45">
+        <span class="help">{% translate "Para quien apoya o trabajó tiempo extra. Quien completa la OT registra su tiempo al completarla." %}</span>
+      </div>
+      <button class="btn btn--secondary btn--lg" type="button">{% icon 'clock' %}{% translate "Guardar horas" %}</button>
+      <p class="field-saved">{% icon 'check' %}{% translate "Horas guardadas en el teléfono: se envían al tener conexión." %}</p>
+    </form>
   </section>
   <ol class="checklist mb-4">
     <li class="check-item check-item--ok">

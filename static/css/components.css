@@ -707,3 +707,34 @@ main { max-width: var(--content-max); margin: 0 auto; padding: var(--space-5) va
 .field-form .field--check label { font-size: var(--text-md); }
 /* `hidden` gana a los display de los componentes (.btn, .field, .photo-upload…). */
 .field-app [hidden] { display: none !important; }
+
+/* Terreno, P5: "Salir" en la barra de /field/ (en móvil solo el ícono, con su nombre para
+   lectores de pantalla) y confirmación modal al salir o cambiar de organización con
+   cambios sin enviar (<dialog>, web y /field/). */
+.field-bar__end { display: flex; align-items: center; gap: var(--space-2); min-width: 0; }
+.field-bar__end form { margin: 0; }
+.field-bar .btn-nav {
+  background: transparent; color: var(--color-nav-text); border: 1px solid var(--color-nav-control-border);
+  border-radius: var(--radius-md); padding: 0 var(--space-3); font: inherit; font-size: var(--text-md);
+  min-height: var(--touch-target); min-width: var(--touch-target); justify-content: center;
+}
+.field-bar .btn-nav svg { width: 20px; height: 20px; }
+@media (max-width: 720px) {
+  .field-bar__exit-text { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+}
+.dialog {
+  width: min(32rem, calc(100vw - 2 * var(--space-4))); max-height: calc(100vh - 2 * var(--space-4));
+  padding: 0; border: 1px solid var(--color-border); border-radius: var(--radius-lg);
+  background: var(--color-surface); color: var(--color-text); box-shadow: var(--shadow-md);
+}
+.dialog::backdrop { background: var(--color-overlay); }
+.dialog__body { padding: var(--space-5); display: flex; flex-direction: column; gap: var(--space-4); }
+.dialog__title { display: flex; align-items: center; gap: var(--space-2); margin: 0; font-size: var(--text-lg); overflow-wrap: anywhere; }
+.dialog__title svg { width: 24px; height: 24px; flex: none; color: var(--color-warning); }
+.dialog__body p { margin: 0; font-size: var(--text-md); overflow-wrap: anywhere; }
+.dialog__actions { display: flex; flex-direction: column; gap: var(--space-2); }
+.dialog__actions .btn { justify-content: center; }
+.dialog [hidden] { display: none !important; }
+@media (min-width: 720px) {
+  .dialog__actions { flex-direction: row; flex-wrap: wrap; }
+}

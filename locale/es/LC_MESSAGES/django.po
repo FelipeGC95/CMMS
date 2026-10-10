@@ -7515,3 +7515,51 @@ msgstr ""
 
 msgid "Este campo es obligatorio."
 msgstr ""
+
+msgid "Hay 1 cambio de terreno sin enviar en este teléfono. Si sales ahora, se pierde."
+msgstr ""
+
+msgid "Hay {n} cambios de terreno sin enviar en este teléfono. Si sales ahora, se pierden."
+msgstr ""
+
+msgid "Hay 1 cambio de terreno sin enviar. Queda guardado en el teléfono y se envía cuando vuelvas a esta organización."
+msgstr ""
+
+msgid "Hay {n} cambios de terreno sin enviar. Quedan guardados en el teléfono y se envían cuando vuelvas a esta organización."
+msgstr ""
+
+msgid "Cambios sin enviar"
+msgstr ""
+
+msgid "Ir a sincronizar"
+msgstr ""
+
+msgid "Salir y descartar"
+msgstr ""
+
+msgid "Horas trabajadas"
+msgstr ""
+
+msgid "Horas guardadas en el teléfono: se envían al tener conexión."
+msgstr ""
+
+msgid "Escribe los minutos: un número entero entre 1 y 1440."
+msgstr ""
+
+msgid "Para quien apoya o trabajó tiempo extra. Quien completa la OT registra su tiempo al completarla."
+msgstr ""
+
+msgid "Guardar horas"
+msgstr ""
+
+msgid "Modo sin conexión"
+msgstr ""
+
+msgid "Confirmación al salir con cambios sin enviar"
+msgstr ""
+
+msgid "Diálogo modal al salir o cambiar de organización si la vista de terreno tiene cambios sin enviar en el teléfono."
+msgstr ""
+
+msgid "Hay 3 cambios de terreno sin enviar en este teléfono. Si sales ahora, se pierden."
+msgstr ""

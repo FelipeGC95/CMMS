@@ -16,6 +16,8 @@
   <link rel="stylesheet" href="{% static 'css/tokens.css' %}">
   <link rel="stylesheet" href="{% static 'css/components.css' %}">
   <script src="{% static 'js/signature-pad.js' %}" defer></script>
+  {# "Salir" borra los datos del teléfono (ADR-011 §1e): la misma lógica que la web. #}
+  <script src="{% static 'js/app.js' %}" defer></script>
   <script type="module" src="{% static 'field/app.js' %}"></script>
 </head>
 <body class="field-app" data-sw-url="{% url 'field_sw' %}" data-scope="{% url 'field_shell' %}" data-api-url="{{ api_url }}" data-login-url="{{ login_url }}" data-mfa-url="{% url 'mfa_activate_totp' %}">
@@ -26,7 +28,14 @@
         <img src="{% static 'brand/galbust-isotipo-blanco.svg' %}" alt="" width="28" height="28">
         <span class="field-bar__title">{% translate "Terreno" %}</span>
       </a>
-      <p class="field-bar__status" id="field-status" role="status" aria-live="polite"></p>
+      <div class="field-bar__end">
+        <p class="field-bar__status" id="field-status" role="status" aria-live="polite"></p>
+        {# Sin csrf_token en el HTML: la página queda guardada en el teléfono; app.js toma el token de la cookie. #}
+        <form method="post" action="{% url 'account_logout' %}" data-field-exit>
+          <input type="hidden" name="csrfmiddlewaretoken" value="" data-csrf-cookie>
+          <button class="btn-nav field-bar__exit" type="submit">{% icon 'logout' %}<span class="field-bar__exit-text">{% translate "Salir" %}</span></button>
+        </form>
+      </div>
     </div>
   </header>
 
@@ -131,6 +140,9 @@
     data-msg-kind-complete="{% translate 'Cierre de la OT' %}"
     data-msg-kind-reading="{% translate 'Lectura de medidor' %}"
     data-msg-kind-request="{% translate 'Solicitud' %}"
+    data-msg-kind-labor="{% translate 'Horas trabajadas' %}"
+    data-msg-saved-labor="{% translate 'Horas guardadas en el teléfono: se envían al tener conexión.' %}"
+    data-msg-invalid-minutes="{% translate 'Escribe los minutos: un número entero entre 1 y 1440.' %}"
     data-msg-made-at="{% translate 'Hecho el' %}"
     data-msg-locked="{% translate 'Esta OT ya no se modifica desde terreno.' %}"
     data-msg-read-only="{% translate 'Tu rol puede ver esta OT, pero no ejecutarla.' %}"
@@ -218,6 +230,20 @@
           <a class="btn btn--primary btn--lg" data-slot="complete" hidden>{% icon 'check' %}{% translate "Completar" %}</a>
         </div>
         <p class="field-exec__worked" data-slot="worked" hidden></p>
+      </section>
+      {# Horas de apoyos (o tiempo extra): se encolan y se envían a work-orders/{id}/labor/. #}
+      <section class="card mb-4" aria-labelledby="field-labor-title" data-slot="labor" hidden>
+        <h2 id="field-labor-title">{% translate "Registrar horas" %}</h2>
+        <form class="field-labor" novalidate data-form="labor">
+          <div class="field" data-field="minutes">
+            <label for="fl-minutes">{% translate "Minutos trabajados" %}</label>
+            <input id="fl-minutes" name="minutes" type="number" inputmode="numeric" min="1" max="1440" step="1" required aria-describedby="fl-minutes-help">
+            <span class="help" id="fl-minutes-help">{% translate "Para quien apoya o trabajó tiempo extra. Quien completa la OT registra su tiempo al completarla." %}</span>
+            <span class="error" data-error hidden></span>
+          </div>
+          <button class="btn btn--secondary btn--lg" type="submit">{% icon 'clock' %}{% translate "Guardar horas" %}</button>
+          <p class="field-saved" data-slot="labor-saved" role="status"></p>
+        </form>
       </section>
       <section class="card mb-4" aria-labelledby="field-facts-title">
         <h2 class="visually-hidden" id="field-facts-title">{% translate "Datos de la OT" %}</h2>
@@ -514,6 +540,8 @@
       <a class="btn btn--ghost btn--lg" href="#/">{% icon 'list' %}{% translate "Volver a la lista" %}</a>
     </section>
   </template>
+
+  {% include "_field_exit_dialog.html" %}
 
   {# Íconos de estado y de datos: el JS clona el SVG (nunca arma HTML). #}
   <template id="icon-check">{% icon 'check' %}</template>

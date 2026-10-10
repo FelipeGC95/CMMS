@@ -264,6 +264,16 @@ export function readReading(form) {
   return { payload: { meter, value, is_reset: form.elements.is_reset.checked }, errors };
 }
 
+// ---------- Horas de apoyo ----------
+
+export function readLabor(form) {
+  const errors = {};
+  const raw = form.elements.minutes.value.trim();
+  const minutes = Number(raw);
+  if (!/^\d+$/.test(raw) || minutes < 1 || minutes > 1440) errors.minutes = [msg("invalidMinutes")];
+  return { payload: { minutes }, errors };
+}
+
 // ---------- Conflictos o rechazados ----------
 
 const FIXABLE = new Set(["complete", "request", "reading", "answer"]);

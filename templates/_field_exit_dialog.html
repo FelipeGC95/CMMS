@@ -1,0 +1,19 @@
+{% load i18n ui %}
+{# Confirmación al salir o cambiar de organización con cambios de terreno sin enviar (ADR-011 §1e). #}
+{# static/js/app.js la abre con showModal() y escribe el texto con textContent. #}
+<dialog class="dialog" id="field-exit-dialog" aria-labelledby="field-exit-title" aria-describedby="field-exit-text"
+  data-msg-exit-one="{% translate 'Hay 1 cambio de terreno sin enviar en este teléfono. Si sales ahora, se pierde.' %}"
+  data-msg-exit-other="{% translate 'Hay {n} cambios de terreno sin enviar en este teléfono. Si sales ahora, se pierden.' %}"
+  data-msg-switch-one="{% translate 'Hay 1 cambio de terreno sin enviar. Queda guardado en el teléfono y se envía cuando vuelvas a esta organización.' %}"
+  data-msg-switch-other="{% translate 'Hay {n} cambios de terreno sin enviar. Quedan guardados en el teléfono y se envían cuando vuelvas a esta organización.' %}">
+  <form method="dialog" class="dialog__body">
+    <h2 class="dialog__title" id="field-exit-title">{% icon 'alert' %}{% translate "Cambios sin enviar" %}</h2>
+    <p id="field-exit-text" data-slot="text"></p>
+    <div class="dialog__actions">
+      <a class="btn btn--primary btn--lg" href="{% url 'field_shell' %}" autofocus>{% icon 'sync' %}{% translate "Ir a sincronizar" %}</a>
+      <button class="btn btn--danger btn--lg" type="submit" value="confirm" data-mode="exit">{% icon 'logout' %}{% translate "Salir y descartar" %}</button>
+      <button class="btn btn--secondary btn--lg" type="submit" value="confirm" data-mode="switch" hidden>{% icon 'sync' %}{% translate "Cambiar de organización" %}</button>
+      <button class="btn btn--ghost btn--lg" type="submit" value="cancel">{% icon 'x' %}{% translate "Cancelar" %}</button>
+    </div>
+  </form>
+</dialog>

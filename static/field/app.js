@@ -98,7 +98,9 @@ async function render({ focus = true } = {}) {
   const flash = takeFlash();
   let match;
   view.dataset.dirty = "";
-  if (!session || !app.identity) {
+  // Con conexión no se muestra nada guardado hasta que `bootstrap` confirma quién es la persona:
+  // en un teléfono compartido, los datos de otra persona u organización se borran antes (§1e).
+  if (!session || !app.identity || (app.refreshing && !app.verified)) {
     app.rendered = app.refreshing ? "loading" : "empty";
     ui.renderTemplate(view, app.refreshing ? "tpl-loading" : "tpl-empty");
   } else if ((match = path.match(/^\/wo\/([^/]+)(\/complete)?$/))) {
@@ -200,7 +202,7 @@ async function refreshData() {
 async function refresh() {
   if (app.refreshing || !navigator.onLine) return;
   app.refreshing = true;
-  if (!app.session) await render({ focus: false });
+  if (!app.verified) await render({ focus: false });
   try {
     const bootstrap = await api.get("bootstrap/");
     if (bootstrap.min_client_version > CLIENT_VERSION) {
@@ -423,8 +425,27 @@ async function onPhoto(input) {
 
 // ---------- Formularios ----------
 
+// Horas de apoyo: se quedan en la OT (no cambian su estado) y se envían a `labor/`.
+async function onLabor(form) {
+  const wo = await currentWorkOrder();
+  if (!wo) return;
+  const result = forms.readLabor(form);
+  forms.showErrors(form, result.errors);
+  if (Object.keys(result.errors).length) return;
+  const label = `${wo.code} · ${result.payload.minutes} ${ui.msg("minutes")}`;
+  await enqueue({ kind: "labor", wo, payload: result.payload, label });
+  form.reset();
+  view.dataset.dirty = "";
+  form.querySelector("[data-slot='labor-saved']").replaceChildren(ui.icon("check"), document.createTextNode(ui.msg("savedLabor")));
+  await updateSyncBar();
+}
+
 async function onSubmit(form) {
   const kind = form.dataset.form;
+  if (kind === "labor") {
+    await onLabor(form);
+    return;
+  }
   const fixUuid = form.dataset.fix;
   const fixEntry = fixUuid ? await db.getEntry(fixUuid) : null;
   let result;
@@ -594,5 +615,6 @@ window.addEventListener("offline", showConnection);
 api.configure(body.dataset.apiUrl);
 sync.start();
 showConnection();
-render().then(() => refresh());
+if (navigator.onLine) refresh();
+else render();
 registerServiceWorker();

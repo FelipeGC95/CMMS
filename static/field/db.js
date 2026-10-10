@@ -53,7 +53,17 @@ export function openDb() {
     dbPromise = new Promise((resolve, reject) => {
       const request = indexedDB.open(DB_NAME, DB_VERSION);
       request.onupgradeneeded = () => upgrade(request.result);
-      request.onsuccess = () => resolve(request.result);
+      request.onsuccess = () => {
+        const db = request.result;
+        // "Salir" o un cambio de organización (static/js/app.js, en esta u otra pestaña)
+        // borra la base: se cierra la conexión para no bloquearlo y la vista se recarga vacía.
+        db.onversionchange = (event) => {
+          db.close();
+          dbPromise = null;
+          if (event.newVersion === null && !document.documentElement.dataset.fieldExiting) location.reload();
+        };
+        resolve(db);
+      };
       request.onerror = () => reject(request.error);
     });
   }

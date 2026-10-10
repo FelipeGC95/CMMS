@@ -15,7 +15,8 @@
     <ul class="list list--nav">
       {% if organization|has_module:"work_orders" %}<li><a href="{% url 'work_order_list' %}">{% icon 'wrench' %}{% translate "Órdenes de trabajo" %}</a></li>{% endif %}
       {% if membership|can:"work_order.manage" and organization|has_module:"work_orders" %}<li><a href="{% url 'work_order_backlog' %}">{% icon 'list' %}{% translate "Backlog priorizado" %}</a></li><li><a href="{% url 'work_order_board' %}">{% icon 'calendar' %}{% translate "Programación semanal" %}</a></li>{% endif %}
-      {% if membership|can:"work_order.execute" and organization|has_module:"work_orders" %}<li><a href="{% url 'work_order_my_week' %}">{% icon 'user' %}{% translate "Mi semana" %}</a></li>{% endif %}
+      {% if membership|can:"work_order.execute" and organization|has_module:"work_orders" %}<li><a href="{% url 'work_order_my_week' %}">{% icon 'user' %}{% translate "Mi semana" %}</a></li>
+      <li><a href="{% url 'field_shell' %}" data-field-link>{% icon 'phone' %}{% translate "Modo sin conexión" %}</a></li>{% endif %}
       {% if organization|has_module:"assets" %}<li><a href="{% url 'manual_search' %}">{% icon 'list' %}{% translate "Buscar en manuales" %}</a></li>{% endif %}
       {% if membership|can:"request.create" and organization|has_module:"requests" %}<li><a href="{% url 'location_report' %}">{% icon 'megaphone' %}{% translate "Avisar problema en una ubicación" %}</a></li>{% endif %}
       {% if membership|can:"work_order.manage" and organization|has_module:"requests" %}<li><a href="{% url 'request_list' %}">{% icon 'megaphone' %}{% translate "Solicitudes" %}</a></li>{% endif %}
@@ -44,7 +45,7 @@
   {% if memberships|length > 1 %}
   <section class="card" id="organization" aria-labelledby="menu-org-title">
     <h2 id="menu-org-title">{% translate "Organización" %}</h2>
-    <form method="post" action="{% url 'switch_organization' %}">
+    <form method="post" action="{% url 'switch_organization' %}" data-field-switch>
       {% csrf_token %}
       <div class="field">
         <label for="menu-org-select">{% translate "Organización activa" %}</label>
@@ -76,7 +77,7 @@
     </ul>
     <div class="row mt-2">
       {% include "_theme_button.html" with extra_class="btn btn--secondary" %}
-      <form method="post" action="{% url 'account_logout' %}">
+      <form method="post" action="{% url 'account_logout' %}" data-field-exit>
         {% csrf_token %}
         <button class="btn btn--secondary" type="submit">{% icon 'logout' %}{% translate "Salir" %}</button>
       </form>

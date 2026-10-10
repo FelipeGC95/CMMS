@@ -3,6 +3,8 @@
 // (apps/work/services.py); si difieren, al volver a descargar gana la respuesta del servidor.
 
 export const LOCKED_STATUSES = new Set(["completed", "closed", "cancelled"]);
+// Las horas se registran hasta que la OT se cierra o se cancela (COST_LOCKED_STATUSES del servidor).
+export const LABOR_LOCKED_STATUSES = new Set(["closed", "cancelled"]);
 // Cambios que la persona aún quiere enviar (los en conflicto ya no se aplican).
 export const LIVE_STATUSES = new Set(["pending", "sending", "rejected"]);
 const ACTIONS = ["start", "resume", "pause", "complete"];
