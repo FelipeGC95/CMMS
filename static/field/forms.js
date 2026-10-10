@@ -43,7 +43,7 @@ export function showErrors(root, errors) {
   for (const [field, messages] of Object.entries(errors || {})) {
     const list = Array.isArray(messages) ? messages : [String(messages)];
     const target = root.querySelector(`[data-field="${CSS.escape(field)}"] [data-error]`);
-    if (target) {
+    if (target && !target.closest("[hidden]")) {
       target.replaceChildren(icon("stop"), document.createTextNode(list.join(" ")));
       target.hidden = false;
     } else {

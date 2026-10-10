@@ -213,6 +213,46 @@ def test_offline_execution_reaches_the_server_once(browser, tmp_path):
     context.close()
 
 
+def test_offline_request_with_photo_and_reading_are_sent(browser, tmp_path):
+    photo_file = tmp_path / "foto.png"
+    photo_file.write_bytes(PNG)
+    context, page, errors = field_page(browser)
+    context.set_offline(True)
+    description = f"Fuga de aceite e2e {os.getpid()}"
+    page.evaluate("() => { location.hash = '#/request'; }")
+    page.wait_for_selector("form[data-form='request']")
+    page.select_option("#fr-asset", index=1)
+    page.fill("#fr-description", description)
+    page.set_input_files("#fr-photo", photo_file)
+    page.wait_for_selector("[data-slot='photo-status']:not(:empty)")
+    page.click("form[data-form='request'] button[type=submit]")
+    page.wait_for_selector(".field-days")
+
+    page.evaluate("() => { location.hash = '#/reading'; }")
+    page.wait_for_selector("form[data-form='reading']")
+    page.select_option("#fm-meter", index=1)
+    page.fill("#fm-value", "999999")
+    page.click("form[data-form='reading'] button[type=submit]")
+    page.wait_for_selector(".field-days")
+    assert "Sin conexión" in page.inner_text("#field-sync-rows")
+
+    context.set_offline(False)
+    page.wait_for_selector(".field-sync__row--success", timeout=60000)
+    page.wait_for_selector("[data-slot='recent']:not([hidden])", timeout=10000)
+    state = manage(
+        "import json\nfrom apps.attachments.models import Attachment\n"
+        "from apps.work.models import WorkRequest\n"
+        f"r = WorkRequest.all_tenants.filter(description={description!r})\n"
+        "wo = r.first().work_order_id if r.exists() else None\n"
+        "photos = Attachment.all_tenants.filter(target_id=wo, purpose='photo').count() if wo else 0\n"
+        "print(json.dumps({'requests': r.count(), 'photos': photos}))"
+    )
+    assert state["requests"] == 1
+    assert state["photos"] == 1
+    assert errors == []
+    context.close()
+
+
 def test_cancelled_work_order_is_a_conflict_that_can_be_discarded(browser):
     context, page, errors = field_page(browser)
     wo = pick(page, need_items=False)

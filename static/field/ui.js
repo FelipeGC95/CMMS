@@ -390,7 +390,7 @@ export function renderDetail(view, { session, workOrder: wo, summary, timer, fla
   addFact(facts, msg("estimate"), wo.estimated_minutes && `${wo.estimated_minutes} ${msg("minutes")}`, "clock");
   if (wo.meter) {
     const required = wo.meter_required ? ` · ${msg("meterRequired")}` : "";
-    addFact(facts, msg("meter"), `${wo.meter.name} (${wo.meter.unit})${required}`, "clock");
+    addFact(facts, msg("meter"), `${wo.meter.name || msg("meter")} (${wo.meter.unit})${required}`, "clock");
   }
   show(slot(fragment, "description"), wo.description);
   if (wo.asset && bootstrap.permissions.request_create) {
