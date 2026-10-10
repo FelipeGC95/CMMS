@@ -243,6 +243,8 @@ class WorkOrderActionsMixin:
     """
 
     transition_serializer_class = s.TransitionSerializer
+    # La v1 deja reabrir una OT completada (como la web); la API de terreno no.
+    allow_reopen = True
 
     @extend_schema(request=s.TransitionSerializer, responses=s.WorkOrderSerializer)
     @action(detail=True, methods=["post"])
@@ -255,7 +257,10 @@ class WorkOrderActionsMixin:
         serializer = self.transition_serializer_class(data=request.data)
         serializer.is_valid(raise_exception=True)
         work_order = transition_work_order_idempotent(
-            work_order=work_order, membership=self.membership, **serializer.validated_data
+            work_order=work_order,
+            membership=self.membership,
+            reopen=self.allow_reopen,
+            **serializer.validated_data,
         )
         return Response(s.WorkOrderSerializer(work_order).data)
 
@@ -280,7 +285,12 @@ class WorkOrderActionsMixin:
         fields = {name: form.cleaned_data.get(name) for name in COMPLETE_FIELDS}
         fields["notes"] = form.cleaned_data["notes"]
         work_order = complete_work_order_idempotent(
-            membership=self.membership, work_order=work_order, client_uuid=client_uuid, at=at, **fields
+            membership=self.membership,
+            work_order=work_order,
+            client_uuid=client_uuid,
+            at=at,
+            reopen=self.allow_reopen,
+            **fields,
         )
         return Response(s.WorkOrderSerializer(work_order).data)
 

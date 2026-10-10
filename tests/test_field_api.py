@@ -305,6 +305,21 @@ def test_complete_uses_the_phone_time_and_is_idempotent(tenant_a):
         assert LaborEntry.objects.filter(work_order=wo).count() == 1
 
 
+def test_field_does_not_reopen_a_work_order_completed_by_someone_else(tenant_a):
+    tenant_a.org.require_close_approval = True
+    tenant_a.org.save(update_fields=["require_close_approval"])
+    wo = _wo(tenant_a, work_type="improvement")
+    _set_status(tenant_a, wo, S.COMPLETED, completed_at=timezone.now())
+    client = field_client(tenant_a.tech)
+    for suffix, body in (("transition", {"to_status": "in_progress"}), ("complete", {"labor_minutes": 10})):
+        response = client.post(_url(wo, suffix), body, format="json")
+        assert response.status_code == 409, suffix
+        assert response.json()["error"]["code"] == "locked"
+    with tenant_context(tenant_a.org):
+        assert WorkOrder.objects.get(pk=wo.pk).status == S.COMPLETED
+        assert not LaborEntry.objects.exists()
+
+
 def test_complete_on_a_cancelled_work_order_is_a_409(tenant_a):
     wo = _wo(tenant_a, work_type="improvement")
     _set_status(tenant_a, wo, S.CANCELLED)

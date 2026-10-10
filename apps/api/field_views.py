@@ -71,6 +71,7 @@ class FieldWorkOrderViewSet(FieldAPIMixin, v1.WorkOrderActionsMixin, v1.BaseView
 
     serializer_class = s.WorkOrderSerializer
     transition_serializer_class = fs.FieldTransitionSerializer
+    allow_reopen = False  # una OT terminada por otra persona es un conflicto (409), no se reabre
 
     def get_queryset(self):
         return visible_work_orders(membership=self.membership)

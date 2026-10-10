@@ -155,6 +155,14 @@ COMPLETE_ACTION = "work_order.complete"
 TRANSITION_ACTION = "work_order.transition"
 
 
+def _require_not_finished(work_order: WorkOrder) -> None:
+    """Sin conexión no se reabre: una OT completada, cerrada o cancelada es un conflicto (409)."""
+    if work_order.status == WorkOrder.Status.CANCELLED:
+        raise WorkOrderError(_("La OT fue cancelada."), code=ERROR_CANCELLED)
+    if work_order.status in (WorkOrder.Status.COMPLETED, WorkOrder.Status.CLOSED):
+        raise WorkOrderError(_("La OT ya está completada."), code=ERROR_LOCKED)
+
+
 def _replayed_key(*, client_uuid, action: str, target_id) -> bool:
     """¿Esta clave ya hizo esta misma acción sobre este objeto? Usada en otra cosa → 409."""
     if not client_uuid:
@@ -169,18 +177,28 @@ def _replayed_key(*, client_uuid, action: str, target_id) -> bool:
 
 @transaction.atomic
 def transition_work_order_idempotent(
-    *, membership, work_order: WorkOrder, to_status: str, comment: str = "", client_uuid=None, at=None
+    *,
+    membership,
+    work_order: WorkOrder,
+    to_status: str,
+    comment: str = "",
+    client_uuid=None,
+    at=None,
+    reopen: bool = True,
 ) -> WorkOrder:
     """Cambio de estado desde la API (WO-02), idempotente por `client_uuid`.
 
     Repetir el mismo destino no hace nada. Con `client_uuid`, reenviar el cambio
     (aunque la OT ya haya avanzado) devuelve su estado actual sin repetirlo. `at` es
     la hora real del cambio sin conexión (`transition(at=)`, acotada con `client_time`).
+    `reopen=False` (terreno): una OT ya completada, cerrada o cancelada no se toca → 409.
     """
     require_perm(membership, Perm.WORK_ORDER_EXECUTE)
     work_order = WorkOrder.objects.select_for_update().get(pk=work_order.pk)
     if _replayed_key(client_uuid=client_uuid, action=TRANSITION_ACTION, target_id=work_order.pk):
         return work_order
+    if not reopen:
+        _require_not_finished(work_order)
     if work_order.status != to_status:
         work_order = transition(
             work_order=work_order, to_status=to_status, membership=membership, comment=comment, at=at
@@ -206,18 +224,21 @@ def log_labor_idempotent(
 
 @transaction.atomic
 def complete_work_order_idempotent(
-    *, membership, work_order: WorkOrder, client_uuid=None, **data
+    *, membership, work_order: WorkOrder, client_uuid=None, reopen: bool = True, **data
 ) -> WorkOrder:
     """Cierre de OT desde la API (WO-03): el mismo servicio que la web, idempotente por `client_uuid`.
 
     La OT se bloquea mientras se decide: dos envíos simultáneos con la misma clave
     no la completan dos veces. Si la clave ya completó esta OT, devuelve su
-    estado actual sin repetir nada.
+    estado actual sin repetir nada. `reopen=False` (terreno): una OT ya completada por
+    otra persona no se reabre para completarla de nuevo → 409.
     """
     require_perm(membership, Perm.WORK_ORDER_EXECUTE)
     work_order = WorkOrder.objects.select_for_update().get(pk=work_order.pk)
     if _replayed_key(client_uuid=client_uuid, action=COMPLETE_ACTION, target_id=work_order.pk):
         return work_order
+    if not reopen:
+        _require_not_finished(work_order)
     work_order = complete_work_order(work_order=work_order, membership=membership, **data)
     if client_uuid:
         ApiIdempotencyKey.objects.create(

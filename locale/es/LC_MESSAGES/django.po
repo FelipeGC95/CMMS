@@ -292,6 +292,12 @@ msgstr ""
 msgid "Indica un número de días entre 0 y 14."
 msgstr ""
 
+msgid "La OT fue cancelada."
+msgstr ""
+
+msgid "La OT ya está completada."
+msgstr ""
+
 msgid "Configura la verificación en dos pasos para seguir sincronizando."
 msgstr ""
 
