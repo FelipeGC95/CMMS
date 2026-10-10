@@ -17,12 +17,12 @@ const LOCK_NAME = "galbust-field-sync";
 
 const state = {
   identity: null,
-  pause: null, // null | "auth" | "mfa" | "upgrade"
+  pause: null, // null | "auth" | "mfa" | "upgrade" | "identity"
   running: false,
   sentThisRun: 0,
   lastDrained: false,
 };
-let listeners = { onChange: () => {}, onSent: () => {}, onDrained: () => {} };
+let listeners = { onChange: () => {}, onSent: () => {}, onDrained: () => {}, onIdentityChanged: () => {} };
 let retryTimer = null;
 
 export function status() {
@@ -80,32 +80,35 @@ async function send(entry) {
   const wo = entry.wo_id ? `work-orders/${entry.wo_id}/` : "";
   const item = entry.item_id ? `checklist-items/${entry.item_id}/` : "";
   const { payload } = entry;
+  const org = entry.organization_id; // el servidor rechaza el envío si la sesión es de otra organización
   switch (entry.kind) {
     case "transition":
-      return api.postJson(`${wo}transition/`, { ...payload, client_uuid: entry.client_uuid });
+      return api.postJson(`${wo}transition/`, { ...payload, client_uuid: entry.client_uuid }, org);
     case "answer":
-      return api.postJson(`${wo}${item}answer/`, payload);
+      return api.postJson(`${wo}${item}answer/`, payload, org);
     case "item_photo":
       return api.postForm(
         `${wo}${item}photos/`,
         await formWithBlob(entry, { client_uuid: entry.client_uuid, taken_at: payload.taken_at }, "file"),
+        org,
       );
     case "wo_photo":
       return api.postForm(
         `${wo}photos/`,
         await formWithBlob(entry, { client_uuid: entry.client_uuid, taken_at: payload.taken_at }, "file"),
+        org,
       );
     case "complete":
-      return api.postJson(`${wo}complete/`, { ...payload, client_uuid: entry.client_uuid });
+      return api.postJson(`${wo}complete/`, { ...payload, client_uuid: entry.client_uuid }, org);
     case "labor":
-      return api.postJson(`${wo}labor/`, { ...payload, client_uuid: entry.client_uuid });
+      return api.postJson(`${wo}labor/`, { ...payload, client_uuid: entry.client_uuid }, org);
     case "reading":
-      return api.postJson("readings/", { ...payload, client_uuid: entry.client_uuid });
+      return api.postJson("readings/", { ...payload, client_uuid: entry.client_uuid }, org);
     case "request":
       if ((entry.blob_ids || []).length) {
-        return api.postForm("requests/", await formWithBlob(entry, { ...payload, client_uuid: entry.client_uuid }, "photo"));
+        return api.postForm("requests/", await formWithBlob(entry, { ...payload, client_uuid: entry.client_uuid }, "photo"), org);
       }
-      return api.postJson("requests/", { ...payload, client_uuid: entry.client_uuid });
+      return api.postJson("requests/", { ...payload, client_uuid: entry.client_uuid }, org);
     default:
       throw new Error(`unknown kind ${entry.kind}`);
   }
@@ -139,8 +142,9 @@ async function drain() {
         continue;
       }
       await db.putEntry({ ...entry, status: kind === "rejected" ? "rejected" : kind === "conflict" ? "conflict" : "pending", error: failure });
-      if (kind === "auth" || kind === "mfa" || kind === "upgrade") {
+      if (kind === "auth" || kind === "mfa" || kind === "upgrade" || kind === "identity") {
         state.pause = kind;
+        if (kind === "identity") listeners.onIdentityChanged();
         return;
       }
     } finally {

@@ -185,6 +185,17 @@ class UpgradeRequired(exceptions.APIException):
     default_code = "upgrade_required"
 
 
+# Organización con la que el teléfono hizo el cambio en cola. Si la sesión cambió de
+# organización (en otra pestaña), el envío se rechaza con 409 `organization_changed` en vez
+# de aplicarse en la organización equivocada o terminar como conflicto (ADR-011 §1a).
+FIELD_ORGANIZATION_HEADER = "X-Field-Organization"
+
+
+class OrganizationChanged(exceptions.APIException):
+    status_code = 409
+    default_code = "organization_changed"
+
+
 class FieldAPIMixin:
     """Vistas de /field/api/: sesión + membresía real, módulo del plan y límite por persona.
 
@@ -204,11 +215,23 @@ class FieldAPIMixin:
         super().initial(request, *args, **kwargs)
         if self.check_client_version:
             require_client_version(request)
+        require_same_organization(request)
 
     def handle_exception(self, exc):
         if isinstance(exc, WorkOrderError) and exc.code in CONFLICT_CODES:
             exc = Conflict(exc.messages[0], code=exc.code)
         return super().handle_exception(exc)
+
+
+def require_same_organization(request) -> None:
+    expected = request.headers.get(FIELD_ORGANIZATION_HEADER, "").strip()
+    if expected and expected != str(request.auth.organization_id):
+        raise OrganizationChanged(
+            _(
+                "Cambiaste de organización: este cambio se envía cuando vuelvas a la "
+                "organización donde lo hiciste."
+            )
+        )
 
 
 def require_client_version(request) -> None:

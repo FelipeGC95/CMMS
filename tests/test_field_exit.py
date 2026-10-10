@@ -66,6 +66,27 @@ def test_shell_has_an_exit_button_and_loads_the_web_js(client, tenant_a):
     assert "js/app.js" in pwa.SHELL_STATIC
 
 
+def test_exit_from_the_saved_shell_logs_out_with_the_cookie_token(tenant_a):
+    """El shell guardado no lleva token: app.js envía el valor de la cookie csrftoken."""
+    from django.test import Client
+
+    client = Client(enforce_csrf_checks=True)
+    login(client, tenant_a.tech)
+    client.get(reverse("field_shell"))
+    token = client.cookies["csrftoken"].value
+    assert client.post(reverse("account_logout")).status_code == 403  # sin token no sale
+    response = client.post(reverse("account_logout"), {"csrfmiddlewaretoken": token})
+    assert response.status_code == 302
+    assert client.get(reverse("field_shell")).status_code == 302  # ya no hay sesión
+
+
+def test_queued_changes_carry_their_organization_to_the_server():
+    assert 'headers["X-Field-Organization"]' in FIELD_JS["api.js"]
+    assert "const org = entry.organization_id;" in FIELD_JS["sync.js"]
+    assert FIELD_JS["sync.js"].count(", org)") + FIELD_JS["sync.js"].count("org,\n") >= 9
+    assert '"organization_changed") return "identity"' in FIELD_JS["api.js"]
+
+
 def test_shell_has_the_labor_form(client, tenant_a):
     login(client, tenant_a.tech)
     html = client.get(reverse("field_shell")).content.decode()

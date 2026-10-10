@@ -33,13 +33,17 @@ export class ApiError extends Error {
     // Un CSRF rechazado es una sesión cambiada: se pide entrar de nuevo, no es un conflicto.
     if (this.status === 403 && /CSRF/i.test(this.message)) return "auth";
     if (this.status === 409 && this.code === "upgrade_required") return "upgrade";
+    // La sesión cambió de organización en otra pestaña: se vuelve a confirmar quién es.
+    if (this.status === 409 && this.code === "organization_changed") return "identity";
     if (this.status === 400 || this.status === 413) return "rejected";
     return "conflict"; // 404, 409 y 403 de permisos: no se reintenta
   }
 }
 
-async function request(method, path, { json, form, signal } = {}) {
+async function request(method, path, { json, form, signal, organization } = {}) {
   const headers = { "X-Client-Version": String(CLIENT_VERSION), Accept: "application/json" };
+  // Organización en la que se hizo el cambio: el servidor rechaza el envío si la sesión ya es de otra.
+  if (organization) headers["X-Field-Organization"] = String(organization);
   let body;
   if (json !== undefined) {
     headers["Content-Type"] = "application/json";
@@ -76,5 +80,5 @@ async function request(method, path, { json, form, signal } = {}) {
 }
 
 export const get = (path) => request("GET", path).then((result) => result.data);
-export const postJson = (path, json) => request("POST", path, { json });
-export const postForm = (path, form) => request("POST", path, { form });
+export const postJson = (path, json, organization) => request("POST", path, { json, organization });
+export const postForm = (path, form, organization) => request("POST", path, { form, organization });

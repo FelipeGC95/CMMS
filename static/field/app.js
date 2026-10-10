@@ -603,6 +603,12 @@ sync.configure({
   onChange: () => updateSyncBar(),
   onSent,
   onDrained: afterDrain,
+  // La sesión cambió de organización (otra pestaña): se confirma de nuevo quién es antes de
+  // seguir enviando; los cambios de la organización anterior esperan en la cola.
+  onIdentityChanged: () => {
+    app.verified = false;
+    setTimeout(refresh, 0);
+  },
 });
 
 window.addEventListener("hashchange", () => render());

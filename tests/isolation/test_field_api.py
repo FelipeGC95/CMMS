@@ -125,3 +125,27 @@ def test_session_uses_the_active_organization_of_a_person_in_both(tenant_a, tena
         f"{FIELD_API}/work-orders/{wo_a.pk}/transition/", {"to_status": "in_progress"}, format="json"
     )
     assert response.status_code == 404
+
+
+def test_changes_made_in_another_organization_are_refused_after_a_switch(tenant_a, tenant_b):
+    """La cola guarda la organización de cada cambio (X-Field-Organization). Si la sesión ya es
+    de otra, el envío no se aplica ni se marca como conflicto: 409 `organization_changed`."""
+    wo_b, _i, meter_b = _wo(tenant_b)
+    Membership.objects.create(user=tenant_a.tech.user, organization=tenant_b.org, role="technician")
+    api = field_client(tenant_a.tech)
+    session = api.session
+    session[SESSION_KEY] = str(tenant_b.org.pk)
+    session.save()
+    stale = {"HTTP_X_FIELD_ORGANIZATION": str(tenant_a.org.pk)}
+    labor = api.post(f"{FIELD_API}/work-orders/{wo_b.pk}/labor/", {"minutes": 5}, format="json", **stale)
+    assert labor.status_code == 409
+    assert labor.json()["error"]["code"] == "organization_changed"
+    reading = api.post(
+        f"{FIELD_API}/readings/", {"meter": str(meter_b.pk), "value": "10"}, format="json", **stale
+    )
+    assert reading.status_code == 409
+    with tenant_context(tenant_b.org):
+        assert not LaborEntry.objects.exists()
+    current = {"HTTP_X_FIELD_ORGANIZATION": str(tenant_b.org.pk)}
+    labor = api.post(f"{FIELD_API}/work-orders/{wo_b.pk}/labor/", {"minutes": 5}, format="json", **current)
+    assert labor.status_code == 201
