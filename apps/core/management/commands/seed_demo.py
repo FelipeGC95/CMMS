@@ -23,7 +23,7 @@ from apps.maintenance.models import ItemType
 from apps.maintenance.services import assign_plan, create_plan, generate_due_work_orders
 from apps.organizations.models import Location, Organization, Plan
 from apps.organizations.plans import ensure_default_plans
-from apps.work.models import FailureCode, FailureEvent, WorkOrder
+from apps.work.models import FailureCode, FailureEvent, LaborRate, WorkOrder
 from apps.work.selectors import OPEN_STATUSES
 from apps.work.services import answer_checklist_item, complete_work_order, create_work_order
 
@@ -212,16 +212,42 @@ METER_PLANS = [
     ),
 ]
 
+# Historial simulado: 12 semanas, lo que miden por defecto los indicadores ampliados (KPI-02).
+HISTORY_DAYS = 84
+
+# Tarifas de mano de obra (WO-04 CA1): general y una personal; se copian a cada registro de horas.
+LABOR_RATE = Decimal("18000")
+LABOR_RATE_TECH2 = Decimal("22000")
+
 HISTORY_FAILURES = [
-    # activo, hace N días, horas detenido, descripción, modo, causa
-    ("ENV-01", 26, 5.5, "Mordaza vertical no sella, bolsas abiertas", "ERO", "DES"),
-    ("CMP-01", 21, 3.0, "Compresor se detiene por alta temperatura", "OHE", "SUC"),
-    ("FRI-02", 17, 7.0, "Cámara 2 no baja de -12 °C", "BRD", "ELE"),
-    ("ENV-02", 12, 2.0, "Film se corta en el formador", "ERO", "OPE"),
-    ("GRH-02", 9, 4.5, "Fuga de aceite hidráulico en cilindro de elevación", "ELP", "MAT"),
-    ("ENV-01", 6, 3.5, "Ruido fuerte en motor de arrastre", "NOI", "LUB"),
-    ("CAL-01", 3, 2.5, "Quemador no enciende en la mañana", "BRD", "ELE"),
-]
+    # activo, hace N días, horas detenido, descripción, modo, causa,
+    # repuestos [(descripción, cantidad, costo unitario)], otro costo (descripción, monto) o None
+    ("FRI-01", 78, 9.0, "Cámara 1 sin frío por falla de contactor", "BRD", "ELE",
+     [("Contactor 3 polos 40 A", 1, 64000)], ("Técnico de frío externo", 180000)),
+    ("ENV-01", 66, 4.0, "Mordaza no corta el film", "ERO", "DES",
+     [("Cuchilla de corte", 1, 92000)], None),
+    ("CMP-01", 57, 6.5, "Fuga de aceite en enfriador del compresor", "ELP", "MAT",
+     [("Juego de sellos enfriador", 1, 145000), ("Aceite Roto-Inject 5 L", 2, 48000)], None),
+    ("GRH-01", 49, 3.0, "Grúa no levanta carga completa", "ERO", "ELE",
+     [("Relé de control hidráulico", 1, 38000)], None),
+    ("ENV-02", 41, 2.5, "Mordaza vertical no sella", "ERO", "DES",
+     [("Resistencia de mordaza", 2, 41000)], None),
+    ("CAL-01", 35, 5.0, "Caldera se apaga por bajo nivel de agua", "BRD", "SUC",
+     [("Electrodo de nivel", 1, 56000)], ("Limpieza química de serpentín", 240000)),
+    ("ENV-01", 26, 5.5, "Mordaza vertical no sella, bolsas abiertas", "ERO", "DES",
+     [("Resistencia de mordaza", 2, 41000), ("Teflón de mordaza", 3, 12500)], None),
+    ("CMP-01", 21, 3.0, "Compresor se detiene por alta temperatura", "OHE", "SUC",
+     [("Filtro de aire", 1, 32000)], None),
+    ("FRI-02", 17, 7.0, "Cámara 2 no baja de -12 °C", "BRD", "ELE",
+     [("Presostato de alta", 1, 87000)], ("Carga de refrigerante R404A", 210000)),
+    ("ENV-02", 12, 2.0, "Film se corta en el formador", "ERO", "OPE", [], None),
+    ("GRH-02", 9, 4.5, "Fuga de aceite hidráulico en cilindro de elevación", "ELP", "MAT",
+     [("Kit de sellos de cilindro", 1, 76000), ("Aceite hidráulico 20 L", 1, 89000)], None),
+    ("ENV-01", 6, 3.5, "Ruido fuerte en motor de arrastre", "NOI", "LUB",
+     [("Rodamiento 6205-2RS", 2, 9500)], None),
+    ("CAL-01", 3, 2.5, "Quemador no enciende en la mañana", "BRD", "ELE",
+     [("Electrodo de ignición", 1, 28000)], None),
+]  # fmt: skip
 
 
 class Command(BaseCommand):
@@ -371,7 +397,7 @@ class Command(BaseCommand):
     def _seed_main(self, org, members):
         now = timezone.now()
         today = timezone.localdate()
-        history_start = today - datetime.timedelta(days=35)
+        history_start = today - datetime.timedelta(days=HISTORY_DAYS)
         admin, tech = members["admin"], members["tech"]
 
         locations = {}
@@ -394,7 +420,9 @@ class Command(BaseCommand):
                 serial_number=f"{maker[:3].upper()}-{random.randint(100000, 999999)}",
             )
             AssetStatusPeriod.objects.create(
-                asset=assets[code], status="operational", started_at=now - datetime.timedelta(days=60)
+                asset=assets[code],
+                status="operational",
+                started_at=now - datetime.timedelta(days=HISTORY_DAYS + 30),
             )
         # El catálogo base de falla (REQ-03 CA1) ya se cargó al crear `org` (señal en apps.work).
         codes = {c.code: c for c in FailureCode.objects.all()}
@@ -413,17 +441,30 @@ class Command(BaseCommand):
                 first_due = history_start + datetime.timedelta(days=random.randint(0, min(interval, 60) - 1))
                 assign_plan(plan=plan, asset=asset, starts_on=first_due)
 
+        # Costos de mano de obra (WO-04): toda hora registrada copia la tarifa vigente.
+        LaborRate.objects.create(hourly_cost=LABOR_RATE)
+        LaborRate.objects.create(membership=members["tech2"], hourly_cost=LABOR_RATE_TECH2)
+
         self._seed_meters(assets, now)
         self._simulate_preventive_history(history_start, today, tech)
         self._seed_meter_plans(assets, classes)
         self._seed_pm_engine(assets, classes, today)
 
         # Fallas históricas reparadas.
-        for asset_code, days_ago, hours_down, text, mode, cause in HISTORY_FAILURES:
+        for asset_code, days_ago, hours_down, text, mode, cause, parts, other in HISTORY_FAILURES:
             started = now - datetime.timedelta(days=days_ago, hours=random.randint(1, 8))
             self._historic_failure(
-                assets[asset_code], started, hours_down, text, codes[mode], codes[cause], members
+                assets[asset_code],
+                started,
+                hours_down,
+                text,
+                codes[mode],
+                codes[cause],
+                members,
+                parts=parts,
+                other=other,
             )
+        self._cancelled_history(assets, members, now)
 
         # Situación actual: un equipo crítico detenido y una solicitud nueva.
         from apps.work.services import report_failure, transition
@@ -618,13 +659,44 @@ class Command(BaseCommand):
             wo.plan_assignment.refresh_from_db()
             register_completion(assignment=wo.plan_assignment, completed_on=done_on)
 
-    def _historic_failure(self, asset, started, hours_down, text, mode, cause, members):
-        from apps.work.services import report_failure
+    def _cancelled_history(self, assets, members, now):
+        """OT anuladas en el historial: salen del backlog en la fecha de su cancelación (KPI-02)."""
+        from apps.work.services import transition
+
+        for asset_code, days_ago, title in [
+            ("VEH-01", 30, "Revisar ruido en suspensión (duplicada)"),
+            ("GEN-01", 55, "Cambiar baterías de partida (se hizo en la preventiva)"),
+        ]:
+            wo = create_work_order(
+                work_type=WorkOrder.Type.CORRECTIVE,
+                title=title,
+                asset=assets[asset_code],
+                estimated_minutes=120,
+                by=members["admin"].user,
+            )
+            transition(work_order=wo, to_status="cancelled", membership=members["admin"])
+            created = now - datetime.timedelta(days=days_ago)
+            WorkOrder.objects.filter(pk=wo.pk).update(created_at=created)
+            wo.transitions.update(created_at=created + datetime.timedelta(days=4))
+
+    def _historic_failure(self, asset, started, hours_down, text, mode, cause, members, *, parts, other):
+        from apps.work.services import add_other_cost, add_part_usage, report_failure
 
         request = report_failure(
             membership=members["operator"], asset=asset, description=text, asset_stopped=True
         )
         wo = request.work_order
+        for description, quantity, unit_cost in parts:
+            add_part_usage(
+                work_order=wo,
+                membership=members["tech"],
+                description=description,
+                quantity=quantity,
+                unit_cost=unit_cost,
+                unit="un",
+            )
+        if other:
+            add_other_cost(work_order=wo, membership=members["admin"], description=other[0], amount=other[1])
         complete_work_order(
             work_order=wo,
             membership=members["tech"],
