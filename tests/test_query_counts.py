@@ -1039,3 +1039,74 @@ def test_field_api_queries_do_not_grow_with_rows(
     assert many == few, f"{url}: {few} → {many} consultas"
     with django_assert_max_num_queries(16):
         client.get(url)
+
+
+def _add_kpi_rows(tenant, n):
+    """Por fila: activo de otra clase en un sitio con técnico limitado, OT pendiente, OT cerrada con
+    costos y horas, OT cancelada con su cambio de estado y fallas con y sin código (KPI-02)."""
+    from apps.assets.models import AssetClass
+    from apps.work.models import FailureEvent, LaborEntry, WorkOrder, WorkOrderTransition
+
+    yesterday = timezone.now() - datetime.timedelta(days=1)
+    with tenant_context(tenant.org):
+        for _i in range(n):
+            k = Asset.objects.count()
+            site = Location.objects.create(code=f"K-{k:03d}", name=f"Sitio {k}")
+            cls = AssetClass.objects.create(code=f"K{k:03d}", name=f"Clase {k}")
+            asset = Asset.objects.create(
+                code=f"K-{k:03d}", name=f"Equipo {k}", asset_class=cls, location=site
+            )
+            create_work_order(work_type="corrective", title="p", asset=asset, estimated_minutes=60)
+            done = create_work_order(work_type="preventive", title="c", asset=asset)
+            LaborEntry.objects.create(work_order=done, user=tenant.tech.user, minutes=30)
+            WorkOrder.objects.filter(pk=done.pk).update(
+                status="closed", completed_at=yesterday, closed_at=yesterday, total_cost=k, parts_cost=k
+            )
+            cancelled = create_work_order(
+                work_type="corrective", title="x", asset=asset, estimated_minutes=30
+            )
+            WorkOrder.objects.filter(pk=cancelled.pk).update(status="cancelled")
+            WorkOrderTransition.objects.create(
+                work_order=cancelled, from_status="planned", to_status="cancelled"
+            )
+            mode = create_failure_code(
+                kind=FailureCode.Kind.MODE, code=f"K{k:03d}", name=f"Modo {k}", membership=tenant.admin
+            )
+            FailureEvent.objects.create(
+                asset=asset,
+                impact="total_stop",
+                failure_mode=mode,
+                started_at=yesterday,
+                ended_at=timezone.now(),
+            )
+            FailureEvent.objects.create(asset=asset, impact="partial", started_at=yesterday)
+            user = User.objects.create_user(f"k{k}@{tenant.org.slug}.cl")
+            member = Membership.objects.create(
+                user=user, organization=tenant.org, role="technician", restricted_to_locations=True
+            )
+            MembershipLocation.objects.create(membership=member, location=site)
+
+
+@pytest.mark.parametrize(
+    "url_name, params",
+    [
+        ("kpi_report", {}),
+        ("kpi_report", {"costs": "all", "pareto": "cause", "pareto_by": "downtime", "period": "365"}),
+        ("kpi_report", {"criticality": "B", "period": "90"}),
+        ("kpi_report_export_xlsx", {"period": "365"}),
+    ],
+)
+def test_extended_kpis_do_not_grow_with_rows(
+    client, tenant_a, url_name, params, django_assert_max_num_queries
+):
+    """KPI-02 CA7: cada indicador en un número fijo de consultas agregadas (sin consultas por OT,
+    activo, falla o técnico)."""
+    login(client, tenant_a.admin)
+    url = f"{reverse(url_name)}?{urlencode(params)}"
+    _add_kpi_rows(tenant_a, 2)
+    few = _count(client, url)
+    _add_kpi_rows(tenant_a, 10)
+    many = _count(client, url)
+    assert many == few, f"{url}: {few} → {many} consultas"
+    with django_assert_max_num_queries(30):
+        client.get(url)

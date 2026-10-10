@@ -61,6 +61,12 @@ CONTRAST_PAIRS = [
     ("--color-warning", "--color-warning-bg", TEXT),
     ("--color-error", "--color-error-bg", TEXT),
     ("--color-info", "--color-info-bg", TEXT),
+    # Gráficos de indicadores (KPI-02): barras y columnas sobre el riel (fondo hundido) y las
+    # muestras de la leyenda sobre la tarjeta (--color-accent-text, --color-warning y
+    # --color-border-strong sobre --color-surface ya están arriba).
+    ("--color-accent-text", "--color-surface-sunken", UI),
+    ("--color-warning", "--color-surface-sunken", UI),
+    ("--color-border-strong", "--color-surface-sunken", UI),
 ]
 
 
