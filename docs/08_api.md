@@ -379,7 +379,7 @@ El planificador ve la OT correctiva con prioridad urgente (si el activo es crít
 - Límite por persona: `FIELD_API_RATE_LIMIT` (`600/min` por defecto).
 - Las horas de `bootstrap`, `snapshot` y `reference` van en UTC con `Z`; los decimales como texto.
 - Encabezado opcional `X-Client-Version`: menor que `min_client_version` → 409 `upgrade_required` (`details.min_client_version`); `bootstrap/` responde igual.
-- Errores de estado de la OT → **409** (no 400): `cancelled` (OT cancelada), `locked` (completada o cerrada), `conflict` (`client_uuid` usado en otra cosa). El teléfono no reintenta un 409: lo muestra como conflicto.
+- Errores de estado de la OT → **409** (no 400): `cancelled` (OT cancelada), `locked` (completada o cerrada), `conflict` (`client_uuid` usado en otra cosa). A diferencia de la v1, `transition/` y `complete/` nunca reabren una OT ya completada (→ 409 `locked`). El teléfono no reintenta un 409: lo muestra como conflicto.
 
 | Método y ruta | Qué resuelve |
 | --- | --- |
