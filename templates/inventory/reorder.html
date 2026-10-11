@@ -1,0 +1,64 @@
+{% extends "base.html" %}{% load i18n ui inventory_tags %}
+{% block title %}{% translate "Reposición" %}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <p class="muted"><a href="{% url 'inventory_home' %}">{% translate "Inventario" %}</a></p>
+    <h1>{% translate "Reposición" %}</h1>
+    <p class="muted">{% blocktranslate count n=page.paginator.count %}{{ n }} repuesto por reponer{% plural %}{{ n }} repuestos por reponer{% endblocktranslate %}</p>
+  </div>
+  <div class="page-actions">
+    {% if can_export %}<a class="btn btn--primary page-actions__primary" href="{% url 'inventory_reorder_export_xlsx' %}?{{ request.GET.urlencode }}">{% icon 'list' %}{% translate "Exportar Excel para comprar" %}</a>{% endif %}
+    {% if can_move %}<a class="btn btn--secondary" href="{% url 'inventory_receive' %}">{% icon 'arrow-down' %}{% translate "Registrar entrada" %}</a>{% endif %}
+    <a class="btn btn--ghost" href="{% url 'inventory_movements' %}">{% translate "Movimientos" %}</a>
+  </div>
+</div>
+
+<nav class="chips" aria-label="{% translate 'Estado del stock' %}">
+  <a class="chip chip--counter chip--warning" href="{% url 'inventory_home' %}?status=below_min{% if warehouse %}&warehouse={{ warehouse.pk }}{% endif %}">{% icon 'alert' %}{% translate "Bajo mínimo" %}<span class="chip__count">{{ counters.below_min }}</span></a>
+  <a class="chip chip--counter chip--error" href="{% url 'inventory_home' %}?status=negative{% if warehouse %}&warehouse={{ warehouse.pk }}{% endif %}">{% icon 'stop' %}{% translate "Negativo" %}<span class="chip__count">{{ counters.negative }}</span></a>
+</nav>
+
+{% if warehouses|length > 1 %}
+<form class="search-bar" method="get" aria-label="{% translate 'Bodega' %}">
+  <label class="visually-hidden" for="warehouse">{% translate "Bodega" %}</label>
+  <select class="input" id="warehouse" name="warehouse">
+    <option value="">{% translate "Todas las bodegas" %}</option>
+    {% for item in warehouses %}<option value="{{ item.pk }}"{% if item == warehouse %} selected{% endif %}>{{ item.name }}</option>{% endfor %}
+  </select>
+  <button class="btn btn--secondary" type="submit">{% translate "Ver" %}</button>
+</form>
+{% endif %}
+
+<p class="muted mb-4">{% translate "Sugerido = el mayor entre objetivo y mínimo, menos lo disponible (existencia − reservado), redondeado hacia arriba." %}</p>
+
+{% if page.object_list %}
+<div class="stack">
+{% regroup page.object_list by warehouse as groups %}
+{% for group in groups %}
+<section class="card card--flush" aria-labelledby="reorder-{{ group.grouper.pk }}">
+  <div class="card__header"><h2 id="reorder-{{ group.grouper.pk }}">{{ group.grouper.name }}</h2></div>
+  <table class="table">
+    <thead><tr><th>{% translate "Repuesto" %}</th><th>{% translate "Estado" %}</th><th class="num">{% translate "Disponible" %}</th><th class="num">{% translate "Mínimo" %}</th><th class="num">{% translate "Objetivo" %}</th><th class="num">{% translate "Faltan para reservas" %}</th><th class="num">{% translate "Sugerido" %}</th></tr></thead>
+    <tbody>
+      {% for item in group.list %}
+      <tr>
+        <td data-label=""><a href="{% url 'inventory_part_detail' item.part.pk %}"><span class="mono">{{ item.part.code }}</span> · {{ item.part.name }}</a>{% if item.part.supplier %}<span class="muted"> · {{ item.part.supplier }}</span>{% endif %}</td>
+        <td data-label="">{% reorder_mark item.priority %}</td>
+        <td class="num" data-label="{% translate 'Disponible' %}">{{ item.available|num }} {{ item.part.unit }}</td>
+        <td class="num" data-label="{% translate 'Mínimo' %}">{{ item.min_quantity|num }}</td>
+        <td class="num" data-label="{% translate 'Objetivo' %}">{% if item.target_quantity is not None %}{{ item.target_quantity|num }}{% else %}—{% endif %}</td>
+        <td class="num" data-label="{% translate 'Faltan para reservas' %}">{% if item.reservation_gap %}{{ item.reservation_gap|num }}{% else %}—{% endif %}</td>
+        <td class="num" data-label="{% translate 'Sugerido' %}"><strong>{{ item.suggested|num }} {{ item.part.unit }}</strong></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endfor %}
+</div>
+{% include "_pagination.html" %}
+{% else %}
+<div class="card"><p class="empty">{% icon 'check' %}{% translate "Nada que reponer: ningún repuesto está bajo su mínimo, en negativo ni con reservas sin cubrir." %}</p></div>
+{% endif %}
+{% endblock %}

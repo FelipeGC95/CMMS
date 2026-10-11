@@ -1,10 +1,25 @@
 """Lecturas de inventario (INV-01/03/04): alcance por sitio y sin N+1."""
 
+import datetime
+import re
 from dataclasses import dataclass, field
 from decimal import Decimal
 
-from django.db.models import DecimalField, Exists, F, OuterRef, Q, Sum, Value
-from django.db.models.functions import Coalesce
+from django.db.models import (
+    Case,
+    DecimalField,
+    Exists,
+    ExpressionWrapper,
+    F,
+    IntegerField,
+    OuterRef,
+    Q,
+    Sum,
+    Value,
+    When,
+)
+from django.db.models.functions import Ceil, Coalesce, Greatest
+from django.utils import timezone
 
 from apps.accounts.permissions import Perm, has_perm, require_perm
 from apps.accounts.scoping import allowed_location_ids
@@ -239,4 +254,112 @@ def part_detail(pk, *, membership) -> PartDetail:
         show_costs=has_perm(membership, Perm.INVENTORY_COST_VIEW),
         on_hand_total=sum((item.on_hand for item in stock_items), Decimal(0)),
         reserved_total=sum((item.reserved for item in stock_items), Decimal(0)),
+    )
+
+
+# --- Movimientos (INV-14) y reposición (INV-12) -------------------------------
+
+WORK_ORDER_REF = re.compile(r"^(?:OT-)?(?:([A-Z])-)?0*(\d{1,9})$", re.IGNORECASE)
+
+
+def _work_order_filter(text: str) -> Q | None:
+    """«OT-C-00012», «C-12» o «12» → filtro por número (y tipo, si viene); None si no se entiende."""
+    match = WORK_ORDER_REF.match(text.strip())
+    if match is None:
+        return None
+    from apps.work.models import WorkOrder
+
+    condition = Q(work_order__number=int(match.group(2)))
+    if prefix := (match.group(1) or "").upper():
+        types = [kind for kind, value in WorkOrder.TYPE_PREFIX.items() if value == prefix]
+        condition &= Q(work_order__work_type__in=types)
+    return condition
+
+
+def movement_list(
+    *,
+    membership,
+    part: str = "",
+    warehouse=None,
+    kind: str = "",
+    date_from=None,
+    date_to=None,
+    work_order: str = "",
+):
+    """Libro de movimientos de las bodegas visibles, del más reciente al más antiguo (INV-14 CA1).
+
+    `part`: código exacto del repuesto (sin mayúsculas) o, si no hay uno, parte del código o
+    del nombre. `work_order`: código de la OT («OT-C-00012», «12»). Fechas locales inclusivas
+    sobre la fecha real (`occurred_at`). Sin N+1: repuesto, bodega, OT y autor en la misma consulta.
+    """
+    require_perm(membership, Perm.INVENTORY_VIEW)
+    qs = StockMovement.objects.filter(warehouse__in=Warehouse.objects.filter(warehouse_scope(membership)))
+    if warehouse is not None:
+        qs = qs.filter(warehouse=warehouse)
+    if text := part.strip():
+        exact = Part.objects.filter(code__iexact=text).values_list("pk", flat=True).first()
+        if exact is not None:
+            qs = qs.filter(part_id=exact)
+        else:
+            qs = qs.filter(Q(part__code__icontains=text) | Q(part__name__icontains=text))
+    if kind:
+        qs = qs.filter(kind=kind)
+    if date_from is not None:
+        qs = qs.filter(occurred_at__gte=_day_start(date_from))
+    if date_to is not None:
+        qs = qs.filter(occurred_at__lt=_day_start(date_to + datetime.timedelta(days=1)))
+    if text := work_order.strip():
+        condition = _work_order_filter(text)
+        qs = qs.filter(condition) if condition is not None else qs.none()
+    return qs.select_related("part", "warehouse", "work_order", "created_by").order_by(
+        "-occurred_at", "-created_at"
+    )
+
+
+def _day_start(day):
+    return timezone.make_aware(datetime.datetime.combine(day, datetime.time.min))
+
+
+REORDER_NEGATIVE = 0
+REORDER_UNCOVERED = 1
+REORDER_BELOW_MIN = 2
+
+
+def reorder_list(*, membership, warehouse=None):
+    """Lista de reposición por bodega (INV-12 CA4): repuestos activos en negativo, con reservas sin
+    cubrir o bajo mínimo, en las bodegas activas visibles (o en una).
+
+    Anota `available`, `reservation_gap` (reservado que la existencia no cubre),
+    `suggested` = max(objetivo, mínimo) − disponible redondeado hacia arriba y `priority`
+    (0 negativo, 1 reservas sin cubrir, 2 bajo mínimo). Orden: bodega (la por defecto
+    primero), prioridad y código. Una consulta, sin importar el volumen.
+    """
+    require_perm(membership, Perm.INVENTORY_VIEW)
+    warehouses = Warehouse.objects.filter(warehouse_scope(membership), is_active=True)
+    if warehouse is not None:
+        warehouses = warehouses.filter(pk=warehouse.pk)
+    quantity = DecimalField(max_digits=14, decimal_places=3)
+    available = ExpressionWrapper(F("on_hand") - F("reserved"), output_field=quantity)
+    covered = Greatest(F("on_hand"), ZERO, output_field=quantity)
+    goal = Coalesce(F("target_quantity"), F("min_quantity"), output_field=quantity)
+    return (
+        StockItem.objects.filter(warehouse__in=warehouses, part__is_active=True)
+        .annotate(available=available)
+        .filter(
+            Q(on_hand__lt=0) | Q(available__lt=0) | Q(min_quantity__gt=0, available__lt=F("min_quantity"))
+        )
+        .annotate(
+            reservation_gap=Greatest(
+                ExpressionWrapper(F("reserved") - covered, output_field=quantity), ZERO, output_field=quantity
+            ),
+            suggested=Ceil(ExpressionWrapper(goal - F("available"), output_field=quantity)),
+            priority=Case(
+                When(on_hand__lt=0, then=Value(REORDER_NEGATIVE)),
+                When(reserved__gt=covered, then=Value(REORDER_UNCOVERED)),
+                default=Value(REORDER_BELOW_MIN),
+                output_field=IntegerField(),
+            ),
+        )
+        .select_related("part", "warehouse")
+        .order_by("-warehouse__is_default", "warehouse__name", "warehouse_id", "priority", "part__code")
     )

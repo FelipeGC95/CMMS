@@ -40,6 +40,16 @@ def no_cost_mark(on_hand, avg_cost):
 
 
 @register.simple_tag
+def reorder_mark(priority):
+    """Por qué un repuesto está en la reposición (INV-12 CA4), en el orden en que se atiende."""
+    if priority == 0:
+        return _badge("error", "stop", _("Negativo · regularizar"))
+    if priority == 1:
+        return _badge("warning", "alert", _("Reservas sin cubrir"))
+    return _badge("warning", "alert", _("Bajo mínimo"))
+
+
+@register.simple_tag
 def optional_url(name, *args):
     """URL si la ruta existe (pantallas de otros paquetes, P4/P5); si no, vacío y la plantilla la oculta."""
     try:

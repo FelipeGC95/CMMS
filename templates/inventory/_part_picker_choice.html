@@ -1,0 +1,13 @@
+{% load i18n ui %}{# Dentro del formulario del movimiento: el repuesto ya elegido (campo oculto + "Cambiar") o los resultados del buscador como radios. Uso: include con picked, results, query, keep y part_error. #}
+{% if picked %}
+<input type="hidden" name="part" value="{{ picked.pk }}">
+<div class="picked-part">
+  <span class="picked-part__label">{% translate "Repuesto" %}</span>
+  <span class="picked-part__name"><span class="mono">{{ picked.code }}</span> · {{ picked.name }}</span>
+  <a class="picked-part__change" href="?{{ keep.urlencode }}">{% translate "Cambiar" %}</a>
+</div>
+{% else %}
+<div id="part-results">{% include "inventory/_part_search_results.html" with results=results query=query pick="part" %}</div>
+{% if not results and not query %}<p class="help muted">{% translate "Busca el repuesto por código, nombre o n° de parte y elígelo." %}</p>{% endif %}
+{% endif %}
+{% if part_error %}<span class="error">{% icon 'stop' %}{{ part_error }}</span>{% endif %}

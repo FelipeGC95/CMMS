@@ -1,0 +1,56 @@
+{% extends "base.html" %}{% load i18n ui %}
+{% block title %}{% translate "Movimientos de stock" %}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <p class="muted"><a href="{% url 'inventory_home' %}">{% translate "Inventario" %}</a></p>
+    <h1>{% translate "Movimientos de stock" %}</h1>
+    <p class="muted">{% blocktranslate count n=page.paginator.count %}{{ n }} movimiento{% plural %}{{ n }} movimientos{% endblocktranslate %}</p>
+  </div>
+  <div class="page-actions">
+    {% if can_export %}<a class="btn btn--ghost" href="{% url 'inventory_movements_export_xlsx' %}?{{ request.GET.urlencode }}">{% icon 'list' %}{% translate "Exportar Excel" %}</a>{% endif %}
+    <a class="btn btn--ghost" href="{% url 'inventory_reorder' %}">{% translate "Reposición" %}</a>
+  </div>
+</div>
+
+{# Filtros plegables en el teléfono (se abren solos si hay alguno activo); desde tablet, en grilla. #}
+<details class="card mb-4 filters"{% if filters_open %} open{% endif %}>
+  <summary class="filters__summary">
+    <h2 id="filters-title">{% translate "Filtros" %}</h2>
+    {% if active_filters %}<span class="badge badge--info">{% icon 'info' %}{% blocktranslate count n=active_filters %}{{ n }} activo{% plural %}{{ n }} activos{% endblocktranslate %}</span>{% endif %}
+  </summary>
+  <form method="get" class="form-grid" aria-labelledby="filters-title">
+    {% include "_form_fields.html" with form=filter_form %}
+    <div class="row form-grid__actions">
+      <button class="btn btn--primary" type="submit">{% translate "Filtrar" %}</button>
+      <a class="btn btn--ghost" href="{% url 'inventory_movements' %}">{% translate "Limpiar filtros" %}</a>
+    </div>
+  </form>
+</details>
+
+<div class="card card--flush">
+  {% if page.object_list %}
+  <table class="table">
+    <thead><tr><th>{% translate "Fecha" %}</th><th>{% translate "Repuesto" %}</th><th>{% translate "Tipo" %}</th>{% if multi_warehouse %}<th>{% translate "Bodega" %}</th>{% endif %}<th class="num">{% translate "Cantidad" %}</th><th class="num">{% translate "Saldo" %}</th>{% if show_costs %}<th class="num">{% translate "Costo unitario" %}</th>{% endif %}<th>{% translate "Detalle" %}</th><th>{% translate "Registrado" %}</th></tr></thead>
+    <tbody>
+      {% for movement in page.object_list %}
+      <tr>
+        <td class="num" data-label="">{{ movement.occurred_at|date:"d-m-Y H:i" }}</td>
+        <td data-label=""><a href="{% url 'inventory_part_detail' movement.part.pk %}"><span class="mono">{{ movement.part.code }}</span> · {{ movement.part.name }}</a></td>
+        <td data-label="{% translate 'Tipo' %}">{{ movement.get_kind_display }}{% if movement.reason %} · {{ movement.get_reason_display }}{% endif %}</td>
+        {% if multi_warehouse %}<td data-label="{% translate 'Bodega' %}">{{ movement.warehouse.name }}</td>{% endif %}
+        <td class="num" data-label="{% translate 'Cantidad' %}"><span class="qty {% if movement.quantity > 0 %}qty--in{% else %}qty--out{% endif %}">{% if movement.quantity > 0 %}{% icon 'arrow-down' %}+{% else %}{% icon 'arrow-up' %}{% endif %}{{ movement.quantity|num }} {{ movement.part.unit }}</span></td>
+        <td class="num" data-label="{% translate 'Saldo' %}">{{ movement.on_hand_after|num }}</td>
+        {% if show_costs %}<td class="num" data-label="{% translate 'Costo unitario' %}">$ {{ movement.unit_cost|num }}</td>{% endif %}
+        <td data-label="{% translate 'Detalle' %}">{% if movement.work_order %}<a href="{% url 'work_order_detail' movement.work_order.pk %}">{{ movement.work_order.code }}</a>{% endif %}{% if movement.reference %}{% if movement.work_order %} · {% endif %}{% translate "Doc." %} {{ movement.reference }}{% endif %}{% if movement.note %}{% if movement.work_order or movement.reference %} · {% endif %}{{ movement.note }}{% endif %}{% if not movement.work_order and not movement.reference and not movement.note %}—{% endif %}</td>
+        <td data-label="{% translate 'Registrado' %}">{% if movement.created_by %}{{ movement.created_by.short_name }}{% else %}{% translate "Sistema" %}{% endif %} <span class="muted">· {{ movement.created_at|date:"d-m-Y H:i" }}</span></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="empty">{% if active_filters %}{% translate "No hay movimientos que coincidan." %}{% else %}{% translate "Sin movimientos todavía." %}{% endif %}</p>
+  {% endif %}
+</div>
+{% include "_pagination.html" %}
+{% endblock %}

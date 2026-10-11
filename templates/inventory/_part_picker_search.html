@@ -1,0 +1,8 @@
+{% load i18n %}{# Buscador del repuesto de un movimiento (entrada, conteo, transferencia). Sin JS: GET a la misma página; con htmx: refresca #part-results al escribir. Uso: include con query y keep. #}
+<form class="search-bar" method="get" role="search" aria-labelledby="part-pick-title">
+  {% for name, value in keep.items %}<input type="hidden" name="{{ name }}" value="{{ value }}">{% endfor %}
+  <label class="visually-hidden" for="part-q">{% translate "Buscar repuesto" %}</label>
+  <input class="input" type="search" id="part-q" name="q" value="{{ query }}" placeholder="{% translate 'Código, nombre o n° de parte' %}" autocomplete="off"
+    hx-get="{% url 'inventory_part_search' %}" hx-vals='{"pick": "part"}' hx-trigger="input changed delay:300ms, search" hx-target="#part-results">
+  <button class="btn btn--secondary" type="submit" formnovalidate>{% translate "Buscar" %}</button>
+</form>

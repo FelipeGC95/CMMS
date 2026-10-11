@@ -259,6 +259,14 @@ main { max-width: var(--content-max); margin: 0 auto; padding: var(--space-5) va
 .chip--error svg { color: var(--color-error); }
 .chip--info svg { color: var(--color-info); }
 .chip--counter[aria-current="true"] svg { color: inherit; }
+/* Repuesto ya elegido en un movimiento (entrada, transferencia): nombre y "Cambiar" (≥ 48 px). */
+.picked-part { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-3); padding: var(--space-3); margin-bottom: var(--space-4); border: 1px solid var(--color-border-strong); border-radius: var(--radius-md); background: var(--color-surface); color: var(--color-text); }
+.picked-part__label { flex-basis: 100%; font-size: var(--text-sm); color: var(--color-text-muted); }
+.picked-part__name { flex: 1 1 12rem; min-width: 0; font-weight: 600; overflow-wrap: anywhere; }
+.picked-part__change { display: inline-flex; align-items: center; min-height: var(--touch-target); }
+/* Cantidad con signo en el libro de movimientos: flecha + signo, nunca solo color. */
+.qty { display: inline-flex; align-items: center; gap: var(--space-1); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.qty svg { width: 16px; height: 16px; flex: none; }
 .chip__count { min-width: 1.75em; padding: 0 var(--space-2); border-radius: var(--radius-pill); background: var(--color-surface-sunken); color: var(--color-text); text-align: center; font-variant-numeric: tabular-nums; font-weight: 600; }
 
 .pagination { display: flex; gap: var(--space-2); align-items: center; justify-content: center; margin-top: var(--space-4); }

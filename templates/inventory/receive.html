@@ -1,0 +1,24 @@
+{% extends "base.html" %}{% load i18n ui %}
+{% block title %}{% translate "Registrar entrada" %}{% endblock %}
+{% block content %}
+<div class="narrow">
+  <div class="page-header">
+    <div>
+      <p class="muted"><a href="{% url 'inventory_home' %}">{% translate "Inventario" %}</a></p>
+      <h1 id="part-pick-title">{% translate "Registrar entrada" %}</h1>
+      <p class="muted">{% translate "Lo que llegó a bodega: una línea por repuesto." %}</p>
+    </div>
+  </div>
+  {% if not picked %}{% include "inventory/_part_picker_search.html" %}{% endif %}
+  <form class="card" method="post" novalidate>
+    {% csrf_token %}
+    {% include "inventory/_part_picker_choice.html" %}
+    {% include "_form_fields.html" with form=form %}
+    <div class="row">
+      <button class="btn btn--primary btn--lg" type="submit" name="action" value="save">{% icon 'check' %}{% translate "Guardar" %}</button>
+      <button class="btn btn--secondary btn--lg" type="submit" name="action" value="another">{% icon 'arrow-down' %}{% translate "Guardar y registrar otra" %}</button>
+      <a class="btn btn--ghost" href="{% if picked %}{% url 'inventory_part_detail' picked.pk %}{% else %}{% url 'inventory_home' %}{% endif %}">{% translate "Cancelar" %}</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

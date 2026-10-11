@@ -327,3 +327,150 @@ def extended_kpis_xlsx(*, filter_rows, backlog, mix, costs, pareto) -> bytes:
     buffer = io.BytesIO()
     workbook.save(buffer)
     return buffer.getvalue()
+
+
+# --- Inventario (INV-14 CA5) ------------------------------------------------------
+# Los costos van solo con `inventory.cost_view` (Q3): sin él, las columnas no existen.
+
+
+def _stock_state(part) -> str:
+    if not part.is_active:
+        return str(_("Inactivo"))
+    if part.negative:
+        return str(_("Negativo · regularizar"))
+    if part.below_min:
+        return str(_("Bajo mínimo"))
+    if part.on_hand_total == 0:
+        return str(_("Sin stock"))
+    return str(_("Con stock"))
+
+
+def stock_xlsx(parts, *, show_costs: bool) -> bytes:
+    """`parts`: consulta de `inventory.selectors.stock_list` (filtros y alcance de la pantalla)."""
+    headers = [
+        _("Código"),
+        _("Nombre"),
+        _("Unidad"),
+        _("Categoría"),
+        _("N° de parte"),
+        _("Fabricante"),
+        _("Proveedor"),
+        _("En existencia"),
+        _("Reservado"),
+        _("Disponible"),
+        _("Estado"),
+    ]
+    if show_costs:
+        headers += [_("Costo promedio"), _("Valor en existencia")]
+
+    def row(part):
+        values = [
+            part.code,
+            part.name,
+            part.unit,
+            part.category,
+            part.manufacturer_ref,
+            part.manufacturer,
+            part.supplier,
+            part.on_hand_total,
+            part.reserved_total,
+            part.available_total,
+            _stock_state(part),
+        ]
+        if show_costs:
+            values += [part.avg_cost, round(max(part.on_hand_total, 0) * part.avg_cost, 2)]
+        return values
+
+    return _workbook(_("Stock"), headers, (row(part) for part in parts.iterator()))
+
+
+def movements_xlsx(movements, *, show_costs: bool) -> bytes:
+    """`movements`: consulta de `inventory.selectors.movement_list` con los filtros aplicados."""
+    headers = [
+        _("Fecha"),
+        _("Código"),
+        _("Repuesto"),
+        _("Tipo"),
+        _("Motivo"),
+        _("Bodega"),
+        _("Cantidad"),
+        _("Unidad"),
+        _("Saldo resultante"),
+    ]
+    if show_costs:
+        headers += [_("Costo unitario"), _("Costo total")]
+    headers += [_("OT"), _("Documento"), _("Proveedor"), _("Nota"), _("Registrado por"), _("Registrado el")]
+
+    def row(m):
+        values = [
+            _local(m.occurred_at),
+            m.part.code,
+            m.part.name,
+            m.get_kind_display(),
+            m.get_reason_display() if m.reason else "",
+            m.warehouse.name,
+            m.quantity,
+            m.part.unit,
+            m.on_hand_after,
+        ]
+        if show_costs:
+            values += [m.unit_cost, m.total_cost]
+        values += [
+            m.work_order.code if m.work_order_id else "",
+            m.reference,
+            m.supplier,
+            m.note,
+            (m.created_by.full_name or m.created_by.email) if m.created_by_id else "",
+            _local(m.created_at),
+        ]
+        return values
+
+    return _workbook(_("Movimientos"), headers, (row(m) for m in movements.iterator()))
+
+
+def reorder_xlsx(items, *, show_costs: bool) -> bytes:
+    """`items`: consulta de `inventory.selectors.reorder_list` (por bodega, prioridad y código)."""
+    headers = [
+        _("Bodega"),
+        _("Código"),
+        _("Repuesto"),
+        _("Unidad"),
+        _("Proveedor"),
+        _("N° de parte"),
+        _("En existencia"),
+        _("Reservado"),
+        _("Disponible"),
+        _("Stock mínimo"),
+        _("Stock objetivo"),
+        _("Faltante de reservas"),
+        _("Sugerido"),
+        _("Estado"),
+    ]
+    if show_costs:
+        headers += [_("Último costo"), _("Costo estimado")]
+    states = {0: _("Negativo · regularizar"), 1: _("Reservas sin cubrir"), 2: _("Bajo mínimo")}
+
+    def row(item):
+        part = item.part
+        values = [
+            item.warehouse.name,
+            part.code,
+            part.name,
+            part.unit,
+            part.supplier,
+            part.manufacturer_ref,
+            item.on_hand,
+            item.reserved,
+            item.available,
+            item.min_quantity,
+            item.target_quantity,
+            item.reservation_gap,
+            item.suggested,
+            str(states[item.priority]),
+        ]
+        if show_costs:
+            cost = part.last_cost if part.last_cost is not None else part.avg_cost
+            values += [cost, round(item.suggested * cost, 2)]
+        return values
+
+    return _workbook(_("Reposición"), headers, (row(item) for item in items.iterator()))
