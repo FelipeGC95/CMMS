@@ -19,6 +19,7 @@ from rest_framework.throttling import SimpleRateThrottle, UserRateThrottle
 
 from apps.accounts.models import Membership
 from apps.core.tenancy import tenant_context
+from apps.inventory.services import InventoryError
 from apps.organizations.modules import has_module, plan_message
 from apps.work.services import WorkOrderError
 
@@ -199,7 +200,7 @@ class OrganizationChanged(exceptions.APIException):
 class FieldAPIMixin:
     """Vistas de /field/api/: sesión + membresía real, módulo del plan y límite por persona.
 
-    Los errores de estado de la OT (`WorkOrderError` con código `cancelled`, `locked` o
+    Los errores de estado de la OT (`WorkOrderError` o `InventoryError` con código `cancelled`, `locked` o
     `conflict`) responden 409 con ese código en vez de 400: el teléfono los muestra como
     conflicto y deja de reintentar. Un cliente con `X-Client-Version` menor que
     `MIN_CLIENT_VERSION` recibe 409 `upgrade_required`.
@@ -218,7 +219,7 @@ class FieldAPIMixin:
         require_same_organization(request)
 
     def handle_exception(self, exc):
-        if isinstance(exc, WorkOrderError) and exc.code in CONFLICT_CODES:
+        if isinstance(exc, WorkOrderError | InventoryError) and exc.code in CONFLICT_CODES:
             exc = Conflict(exc.messages[0], code=exc.code)
         return super().handle_exception(exc)
 

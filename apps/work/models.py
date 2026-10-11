@@ -409,7 +409,25 @@ class PartUsage(TenantModel):
     description = models.CharField(_("repuesto o material"), max_length=200)
     quantity = models.DecimalField(_("cantidad"), max_digits=12, decimal_places=3)
     unit = models.CharField(_("unidad"), max_length=20, blank=True)
-    unit_cost = models.DecimalField(_("costo unitario"), **MONEY)
+    # 4 decimales: con repuesto del catálogo es el costo promedio vigente al consumir (INV-09).
+    unit_cost = models.DecimalField(_("costo unitario"), max_digits=18, decimal_places=4)
+    # Repuesto del catálogo (INV-09) y su salida de stock; vacíos en el texto libre.
+    part = models.ForeignKey(
+        "inventory.Part",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="usages",
+        verbose_name=_("repuesto del catálogo"),
+    )
+    stock_movement = models.OneToOneField(
+        "inventory.StockMovement",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="part_usage",
+        verbose_name=_("movimiento de stock"),
+    )
     created_by = models.ForeignKey(
         "accounts.User",
         on_delete=models.SET_NULL,
@@ -427,6 +445,13 @@ class PartUsage(TenantModel):
         constraints = [
             models.UniqueConstraint(
                 fields=["organization", "client_uuid"], name="uniq_part_usage_client_uuid"
+            ),
+        ]
+        indexes = [
+            models.Index(
+                fields=["organization", "part"],
+                condition=models.Q(part__isnull=False),
+                name="part_usage_org_part_idx",
             ),
         ]
 
