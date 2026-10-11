@@ -8213,3 +8213,110 @@ msgstr ""
 
 msgid "Rodamiento 6205"
 msgstr ""
+
+msgid "Solo un repuesto se enlaza al catálogo."
+msgstr ""
+
+msgid "Este recurso ya está enlazado al catálogo."
+msgstr ""
+
+msgid "Con un repuesto del catálogo puedes dejarla vacía: se usa su nombre."
+msgstr ""
+
+msgid "Elige un repuesto del catálogo."
+msgstr ""
+
+msgid "Repuesto enlazado al catálogo."
+msgstr ""
+
+msgid "No había repuestos de planes sin enlazar."
+msgstr ""
+
+msgid "Código de repuesto"
+msgstr ""
+
+msgid "Opcional: código de un repuesto del catálogo de inventario."
+msgstr ""
+
+#, python-format
+msgid "%(where)s: el repuesto «%(value)s» no existe en el catálogo."
+msgstr ""
+
+#, python-format
+msgid "%(where)s: solo un repuesto se enlaza al catálogo."
+msgstr ""
+
+msgid "Sin repuesto del catálogo"
+msgstr ""
+
+msgid "Ningún repuesto del catálogo coincide."
+msgstr ""
+
+msgid "Escribe para buscar en el catálogo."
+msgstr ""
+
+msgid "Repuesto del catálogo"
+msgstr ""
+
+msgid "Buscar por código, nombre o n° de parte"
+msgstr ""
+
+msgid "sin enlace al catálogo"
+msgstr ""
+
+msgid "Enlazar al catálogo"
+msgstr ""
+
+msgid "Repuesto del plan"
+msgstr ""
+
+msgid "La versión publicada no cambia: el enlace solo identifica el repuesto para reservarlo en las próximas OT. Se hace una sola vez y no se puede cambiar ni quitar."
+msgstr ""
+
+msgid "Enlazar"
+msgstr ""
+
+msgid "Crear catálogo desde los planes"
+msgstr ""
+
+msgid "Agrupamos los repuestos que tus planes ya piden y que aún no están en el catálogo. Revisa y confirma: todavía no se ha guardado nada."
+msgstr ""
+
+msgid "Repuestos nuevos"
+msgstr ""
+
+msgid "Ya en el catálogo"
+msgstr ""
+
+msgid "Recursos de plan a enlazar"
+msgstr ""
+
+msgid "Se enlaza al existente"
+msgstr ""
+
+msgid "Se enlazan también los recursos de las versiones publicadas: lo que el plan pide no cambia y las próximas preventivas reservan estos repuestos solas."
+msgstr ""
+
+msgid "Todos los repuestos de tus planes ya están enlazados al catálogo."
+msgstr ""
+
+msgid "Crear catálogo de repuestos desde los planes"
+msgstr ""
+
+#, python-format
+msgid "%(created)s repuesto creado; "
+msgid_plural "%(created)s repuestos creados; "
+msgstr[0] ""
+msgstr[1] ""
+
+#, python-format
+msgid "%(linked)s recurso de plan enlazado al catálogo."
+msgid_plural "%(linked)s recursos de plan enlazados al catálogo."
+msgstr[0] ""
+msgstr[1] ""
+
+#, python-format
+msgid "Crear %(n)s repuesto y enlazar"
+msgid_plural "Crear %(n)s repuestos y enlazar"
+msgstr[0] ""
+msgstr[1] ""

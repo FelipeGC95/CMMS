@@ -459,7 +459,7 @@ elegir bodega ni escribir costos.
   `description`, mismo servicio que la web.
 
 **INV-10 · Reservas por OT (F2)**
-- CA1: Automática: al generar una preventiva, cada recurso de tipo repuesto
+- CA1 ✔ Automática: al generar una preventiva, cada recurso de tipo repuesto
   con `part` (de la versión principal y de los planes absorbidos) crea una
   reserva por su cantidad (bodega según INV-09 CA3; repetidos se suman). Nunca
   bloquea: si no alcanza, la OT y la reposición muestran "Faltan N".
@@ -475,16 +475,16 @@ elegir bodega ni escribir costos.
   con botón "Usar" (consume el pendiente; cantidad editable).
 
 **INV-11 · Repuestos del catálogo en planes (F2)**
-- CA1: En borrador, cada recurso de tipo repuesto se puede enlazar al
+- CA1 ✔ En borrador, cada recurso de tipo repuesto se puede enlazar al
   catálogo (buscador; la descripción se llena con el nombre y es editable).
-- CA2: En una versión publicada, un recurso sin `part` se puede enlazar una
+- CA2 ✔ En una versión publicada, un recurso sin `part` se puede enlazar una
   sola vez (vacío → repuesto; nunca cambiar ni quitar): excepción acotada al
   ADR-016.
-- CA3: "Crear catálogo desde los planes": agrupa las descripciones de
+- CA3 ✔ "Crear catálogo desde los planes": agrupa las descripciones de
   recursos tipo repuesto sin enlace (sin distinguir mayúsculas ni espacios),
   propone código `REP-0001`… y unidad; al confirmar crea los repuestos y
   enlaza todos los recursos.
-- CA4: Al publicar se conservan los enlaces; un borrador nuevo copia `part`.
+- CA4 ✔ Al publicar se conservan los enlaces; un borrador nuevo copia `part`.
 
 **INV-12 · Mínimo, alerta y reposición (F2)**
 - CA1: Mínimo y objetivo por repuesto y bodega (con una sola bodega, en la
