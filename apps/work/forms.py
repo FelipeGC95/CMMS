@@ -312,7 +312,7 @@ class PlannedPartsForm(forms.Form):
                 min_value=Decimal("0.001"),
                 max_digits=12,
                 decimal_places=3,
-                initial=planned_part.pending.normalize(),
+                initial=planned_part.pending_input,
                 widget=forms.NumberInput(
                     attrs={"class": "input part-row__qty num", "step": "any", "inputmode": "decimal"}
                 ),

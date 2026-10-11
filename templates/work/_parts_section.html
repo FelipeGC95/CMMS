@@ -23,7 +23,7 @@
           <input type="hidden" name="part" value="{{ r.part_id }}">
           <input type="hidden" name="client_uuid" value="{{ pp.form_uuid }}">
           <label class="visually-hidden" for="use-{{ r.pk }}">{% blocktranslate with part=r.part.code %}Cantidad de {{ part }}{% endblocktranslate %}</label>
-          <input class="input part-row__qty num" type="number" id="use-{{ r.pk }}" name="quantity" value="{{ pp.pending|stringformat:'s' }}" min="0.001" step="any" inputmode="decimal" required>
+          <input class="input part-row__qty num" type="number" id="use-{{ r.pk }}" name="quantity" value="{{ pp.pending_input }}" min="0.001" step="any" inputmode="decimal" required>
           <button class="btn btn--secondary" type="submit">{% icon 'box' %}{% translate "Usar" %}</button>
         </form>
         {% endif %}

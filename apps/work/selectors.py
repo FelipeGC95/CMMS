@@ -801,6 +801,11 @@ class PlannedPart:
     def pending(self) -> Decimal:
         return self.reservation.pending
 
+    @property
+    def pending_input(self) -> str:
+        """El pendiente para un `<input type="number">`: sin ceros de más ni notación científica."""
+        return f"{self.pending.normalize():f}"
+
 
 def planned_parts(*, work_order) -> list[PlannedPart]:
     """Repuestos previstos (reservas activas y cubiertas) con su faltante (INV-10), en dos consultas.

@@ -347,6 +347,8 @@ def test_detail_shows_planned_parts_with_shortfall_and_use(client, tenant_a):
         inventory.reserve_for_work_order(work_order=wo, part=part, quantity=3, source="manual")
         [planned] = planned_parts(work_order=wo)
         assert planned.shortfall == D("2") and planned.pending == D("3")
+        planned.reservation.quantity = D("10.000")
+        assert planned.pending_input == "10"  # sin "1E+1" ni "10,000" en el campo
     login(client, tenant_a.tech)
     page = client.get(reverse("work_order_detail", args=[wo.pk])).content.decode()
     assert "Repuestos previstos" in page and "Faltan 2" in page
