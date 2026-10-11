@@ -39,6 +39,11 @@ urlpatterns = [
         name="plan_resource_edit",
     ),
     path(
+        "plans/<uuid:pk>/resources/<uuid:resource_pk>/link/",
+        views.plan_resource_link_view,
+        name="plan_resource_link",
+    ),
+    path(
         "plans/<uuid:pk>/draft/resources/<uuid:resource_pk>/remove/",
         views.plan_resource_remove_view,
         name="plan_resource_remove",

@@ -149,11 +149,28 @@ class PlanItemForm(forms.Form):
 
 class PlanResourceForm(forms.Form):
     kind = forms.ChoiceField(label=_("Tipo"), choices=PlanResource.Kind.choices)
-    description = forms.CharField(label=_("Descripción"), max_length=200)
+    description = forms.CharField(
+        label=_("Descripción"),
+        max_length=200,
+        required=False,
+        help_text=_("Con un repuesto del catálogo puedes dejarla vacía: se usa su nombre."),
+    )
     quantity = forms.DecimalField(
         label=_("Cantidad"), max_digits=12, decimal_places=3, min_value=0.001, initial=1
     )
     unit = forms.CharField(label=_("Unidad"), max_length=20, required=False)
+    # Repuesto del catálogo (INV-11): lo elige el buscador; el servicio valida que sea de la organización.
+    part = forms.UUIDField(required=False)
+
+    def clean(self):
+        cleaned = super().clean()
+        if not cleaned.get("part") and not (cleaned.get("description") or "").strip():
+            self.add_error("description", _("Este campo es obligatorio."))
+        return cleaned
+
+
+class PartLinkForm(forms.Form):
+    part = forms.UUIDField(error_messages={"required": _("Elige un repuesto del catálogo.")})
 
 
 class PublishForm(forms.Form):

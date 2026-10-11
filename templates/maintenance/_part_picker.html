@@ -1,0 +1,10 @@
+{% load i18n ui %}{# Buscador de repuesto del catálogo (INV-11). Uso: include con name, picker_id, selected_part, allow_empty y errors. #}
+<fieldset class="fieldset">
+  <legend>{% translate "Repuesto del catálogo" %}{% if allow_empty %} ({% translate "opcional" %}){% endif %}</legend>
+  <div class="field">
+    <label for="{{ picker_id }}-q">{% translate "Buscar por código, nombre o n° de parte" %}</label>
+    <input type="search" id="{{ picker_id }}-q" name="part_q" autocomplete="off" hx-get="{% url 'inventory_plan_part_search' %}" hx-trigger="input changed delay:300ms, search" hx-target="#{{ picker_id }}-results" hx-vals='{"name": "{{ name }}", "empty": "{% if allow_empty %}1{% endif %}", "selected": "{{ selected_part.pk|default:'' }}"}'>
+  </div>
+  <div id="{{ picker_id }}-results" aria-live="polite">{% include "inventory/_plan_part_options.html" with name=name selected=selected_part parts=None searched=False allow_empty=allow_empty %}</div>
+  {% for error in errors %}<span class="error">{% icon 'stop' %}{{ error }}</span>{% endfor %}
+</fieldset>

@@ -79,6 +79,12 @@ RESOURCE_COLUMNS = [
     ("description", gettext_lazy("Descripción"), True, ""),
     ("quantity", gettext_lazy("Cantidad"), False, gettext_lazy("Por defecto 1.")),
     ("unit", gettext_lazy("Unidad"), False, ""),
+    (
+        "part",
+        gettext_lazy("Código de repuesto"),
+        False,
+        gettext_lazy("Opcional: código de un repuesto del catálogo de inventario."),
+    ),
 ]
 SHEETS = [
     ("plans", PLANS_SHEET, PLAN_COLUMNS),
@@ -136,7 +142,11 @@ def export_rows(*, membership):
     items, resources = {}, {}
     for item in PlanTaskItem.objects.filter(version_id__in=version_ids).order_by("order"):
         items.setdefault(item.version_id, []).append(item)
-    for resource in PlanResource.objects.filter(version_id__in=version_ids).order_by("kind", "description"):
+    for resource in (
+        PlanResource.objects.filter(version_id__in=version_ids)
+        .select_related("part")
+        .order_by("kind", "description")
+    ):
         resources.setdefault(resource.version_id, []).append(resource)
     plan_rows, item_rows, resource_rows = [], [], []
     for plan in plans:
@@ -178,6 +188,7 @@ def export_rows(*, membership):
                     resource.description,
                     _number_cell(resource.quantity),
                     resource.unit,
+                    resource.part.code if resource.part_id else "",
                 ]
             )
     return {"plans": plan_rows, "items": item_rows, "resources": resource_rows}
@@ -439,7 +450,7 @@ def _parse_item(raw, aliases, errors) -> dict | None:
     return {"_order": order, **item}
 
 
-def _parse_resource(raw, aliases, errors) -> dict | None:
+def _parse_resource(raw, aliases, errors, parts=None) -> dict | None:
     where = gettext("Recursos fila %(row)s") % {"row": raw["_row"]}
     kind = aliases["kind"].get(_normalize(raw.get("kind") or "part"))
     if kind is None:
@@ -454,11 +465,25 @@ def _parse_resource(raw, aliases, errors) -> dict | None:
     except ValueError:
         errors.append(gettext("%(where)s: la cantidad debe ser un número mayor que 0.") % {"where": where})
         return None
+    part_id = None
+    if raw.get("part"):  # repuesto del catálogo (INV-11), opcional
+        part = (parts or {}).get(raw["part"].strip().lower())
+        if part is None:
+            errors.append(
+                gettext("%(where)s: el repuesto «%(value)s» no existe en el catálogo.")
+                % {"where": where, "value": raw["part"]}
+            )
+            return None
+        if kind != PlanResource.Kind.PART:
+            errors.append(gettext("%(where)s: solo un repuesto se enlaza al catálogo.") % {"where": where})
+            return None
+        part_id = str(part.pk)
     return {
         "kind": kind,
         "description": raw["description"][:200],
         "quantity": quantity,
         "unit": raw.get("unit", "")[:20],
+        "part_id": part_id,
     }
 
 
@@ -473,7 +498,10 @@ def _content_key(fields, items, resources):
         for i in items
     )
     resource_key = tuple(
-        sorted((r["kind"], r["description"], Decimal(r["quantity"]), r["unit"]) for r in resources)
+        sorted(
+            (r["kind"], r["description"], Decimal(r["quantity"]), r["unit"], str(r.get("part_id") or ""))
+            for r in resources
+        )
     )
     return normalized, item_key, resource_key
 
@@ -503,7 +531,13 @@ def _version_key(version, items, resources):
             for i in items
         ],
         [
-            {"kind": r.kind, "description": r.description, "quantity": r.quantity, "unit": r.unit}
+            {
+                "kind": r.kind,
+                "description": r.description,
+                "quantity": r.quantity,
+                "unit": r.unit,
+                "part_id": r.part_id,
+            }
             for r in resources
         ],
     )
@@ -532,6 +566,7 @@ def build_plan_preview(raw: dict, *, membership) -> PlanPreview:
     for resource in PlanResource.objects.filter(version_id__in=current_ids):
         current_resources.setdefault(resource.version_id, []).append(resource)
 
+    parts = _catalog_parts() if any(r.get("part") for r in raw["resources"]) else {}
     codes_in_file = {r.get("code", "").lower() for r in raw["plans"] if r.get("code")}
     orphans, items_by_plan, resources_by_plan = [], {}, {}
     sheet_names = {"items": ITEMS_SHEET, "resources": RESOURCES_SHEET}
@@ -550,7 +585,8 @@ def build_plan_preview(raw: dict, *, membership) -> PlanPreview:
                 continue
             if not line.get("text" if sheet == "items" else "description"):
                 continue
-            parsed = parser(line, aliases, errors.setdefault(code, []))
+            extra = {"parts": parts} if sheet == "resources" else {}
+            parsed = parser(line, aliases, errors.setdefault(code, []), **extra)
             if parsed is not None:
                 target.setdefault(code, []).append(parsed)
 
@@ -634,6 +670,30 @@ def build_plan_preview(raw: dict, *, membership) -> PlanPreview:
 # --- Guardar ---------------------------------------------------------------------
 
 
+def _catalog_parts() -> dict:
+    """Repuestos activos de la organización por código en minúsculas (una consulta)."""
+    from apps.inventory.models import Part
+
+    return {p.code.lower(): p for p in Part.objects.filter(is_active=True)}
+
+
+def _catalog_parts_ids(session_data) -> list[str]:
+    """IDs de repuesto de la sesión que siguen siendo de la organización (una consulta)."""
+    from apps.inventory.models import Part
+
+    ids = {r.get("part_id") for row in session_data["rows"] for r in row["data"]["resources"]} - {None}
+    if not ids:
+        return []
+    return [str(pk) for pk in Part.objects.filter(pk__in=ids).values_list("pk", flat=True)]
+
+
+def _with_part(resource: dict, valid_parts: set) -> dict:
+    """El repuesto se conserva solo si sigue en el catálogo de la organización."""
+    part_id = resource.pop("part_id", None)
+    resource["part_id"] = part_id if part_id in valid_parts else None
+    return resource
+
+
 @dataclass
 class PlanImportResult:
     created: int = 0
@@ -652,12 +712,13 @@ def apply_plan_import(session_data: dict, *, membership) -> PlanImportResult:
     result = PlanImportResult()
     existing = {p.code.lower(): p for p in MaintenancePlan.objects.all()}
     classes = {str(c.pk): c for c in AssetClass.objects.all()}
+    valid_parts = set(_catalog_parts_ids(session_data))
     new_plans = []
     for row in session_data["rows"]:
         data = row["data"]
         fields = _decimals(data["fields"], {"meter_interval"})
         items = [_decimals(i, {"min_value", "max_value"}) for i in data["items"]]
-        resources = [_decimals(r, {"quantity"}) for r in data["resources"]]
+        resources = [_with_part(_decimals(r, {"quantity"}), valid_parts) for r in data["resources"]]
         if row["action"] == "create":
             if data["code"].lower() in existing:  # se creó entre la vista previa y la confirmación
                 result.skipped.append(data["code"])

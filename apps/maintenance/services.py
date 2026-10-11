@@ -864,7 +864,7 @@ def move_draft_item(*, membership, item, direction: str) -> None:
     neighbour.save(update_fields=["order", "updated_at"])
 
 
-def _clean_resource(kind, description, quantity, part=None, unit=""):
+def _clean_resource(kind, description, quantity, part=None, unit="", keep=None):
     """Valida un recurso y devuelve (descripción, unidad, repuesto).
 
     Con repuesto del catálogo (INV-11 CA1): solo para tipo repuesto, de la
@@ -877,7 +877,7 @@ def _clean_resource(kind, description, quantity, part=None, unit=""):
         raise ValidationError({"quantity": _("La cantidad debe ser mayor que cero.")})
     description, unit = (description or "").strip(), (unit or "").strip()
     if part is not None:
-        part = _catalog_part(part)
+        part = _catalog_part(part, keep=keep)
         if kind != PlanResource.Kind.PART:
             raise ValidationError({"part": _("Solo un repuesto se enlaza al catálogo.")})
         description = description or part.name[:200]
@@ -887,12 +887,16 @@ def _clean_resource(kind, description, quantity, part=None, unit=""):
     return description, unit, part
 
 
-def _catalog_part(part):
-    """Repuesto activo de la organización del contexto (el manager filtra por organización)."""
+def _catalog_part(part, keep=None):
+    """Repuesto activo de la organización del contexto (el manager filtra por organización).
+
+    `keep`: el repuesto ya enlazado, que se conserva aunque se haya desactivado.
+    """
     from apps.inventory.models import Part
 
-    found = Part.objects.filter(pk=getattr(part, "pk", part), is_active=True).first()
-    if found is None:
+    pk = getattr(part, "pk", part)
+    found = Part.objects.filter(pk=pk).first()
+    if found is None or not (found.is_active or str(pk) == str(keep)):
         raise ValidationError({"part": _("Repuesto no encontrado.")})
     return found
 
@@ -924,7 +928,7 @@ def update_draft_resource(
     _require_plan_manager(membership)
     _check_draft_version(resource.version)
     before = audit.snapshot(resource, RESOURCE_FIELDS)
-    description, unit, part = _clean_resource(kind, description, quantity, part, unit)
+    description, unit, part = _clean_resource(kind, description, quantity, part, unit, keep=resource.part_id)
     resource.kind, resource.description, resource.part = kind, description, part
     resource.quantity, resource.unit = quantity, unit
     resource.save(update_fields=[*RESOURCE_FIELDS, "updated_at"])

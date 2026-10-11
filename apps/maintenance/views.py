@@ -4,6 +4,8 @@ Todas exigen `plan.manage` (planificador y administrador). Las vistas validan
 la entrada y llaman a servicios; el alcance por sitio se aplica al elegir activos.
 """
 
+import uuid
+
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.paginator import Paginator
@@ -18,6 +20,7 @@ from apps.accounts.permissions import Perm, PermissionDeniedError
 from apps.assets.models import Meter
 from apps.assets.selectors import visible_assets
 from apps.core.decorators import membership_required
+from apps.organizations.modules import has_module
 from apps.organizations.selectors import descendant_ids
 
 from . import services
@@ -25,6 +28,7 @@ from .forms import (
     AssetPlanForm,
     AssignFilterForm,
     MaintenanceSettingsForm,
+    PartLinkForm,
     PlanFilterForm,
     PlanForm,
     PlanItemForm,
@@ -60,6 +64,22 @@ def _draft(plan):
     if draft is None:
         raise Http404  # sin borrador no hay nada que editar
     return draft
+
+
+def _inventory_on(request) -> bool:
+    """¿El plan de la organización incluye inventario? Sin él no hay buscador de catálogo (INV-11)."""
+    return has_module(request.organization, "inventory")
+
+
+def _selected_part(part_id):
+    """Repuesto elegido en el buscador, para volver a mostrarlo marcado (o None)."""
+    from apps.inventory.models import Part
+
+    try:
+        pk = uuid.UUID(str(part_id)) if part_id else None
+    except ValueError:
+        return None
+    return Part.objects.filter(pk=pk).first() if pk else None
 
 
 def _report_assignment(request, assigned, warnings):
@@ -138,6 +158,7 @@ def plan_detail_view(request, pk):
             "items": items,
             "resources": resources,
             "page": page,
+            "link_parts": _inventory_on(request),
             **_absorption_context(plan),
         },
     )
@@ -193,7 +214,10 @@ def plan_draft_view(request, pk):
             messages.success(request, _("Ítem agregado."))
             return redirect(f"{request.path}#items")
         if action == "resource" and resource_form.is_valid():
-            services.add_draft_resource(membership=membership, version=draft, **resource_form.cleaned_data)
+            data = resource_form.cleaned_data
+            if not _inventory_on(request):
+                data["part"] = None
+            services.add_draft_resource(membership=membership, version=draft, **data)
             messages.success(request, _("Repuesto o herramienta agregado."))
             return redirect(f"{request.path}#resources")
     except ValidationError as error:
@@ -212,6 +236,8 @@ def plan_draft_view(request, pk):
             "trigger_form": trigger_form,
             "item_form": item_form,
             "resource_form": resource_form,
+            "parts_on": _inventory_on(request),
+            "selected_part": _selected_part(resource_form["part"].value() if action == "resource" else None),
             **_absorption_context(plan),
         },
     )
@@ -258,13 +284,18 @@ def plan_resource_edit_view(request, pk, resource_pk):
     resource = _draft_resource(plan, resource_pk)
     form = PlanResourceForm(
         request.POST or None,
-        initial={f: getattr(resource, f) for f in ("kind", "description", "quantity", "unit")},
+        initial={
+            **{f: getattr(resource, f) for f in ("kind", "description", "quantity", "unit")},
+            "part": resource.part_id,
+        },
     )
+    parts_on = _inventory_on(request)
     if request.method == "POST" and form.is_valid():
+        data = form.cleaned_data
+        if not parts_on:  # sin el módulo no se ve el buscador: el enlace queda como estaba
+            data["part"] = resource.part_id
         try:
-            services.update_draft_resource(
-                membership=request.membership, resource=resource, **form.cleaned_data
-            )
+            services.update_draft_resource(membership=request.membership, resource=resource, **data)
         except ValidationError as error:
             form.add_error(None, error)
         else:
@@ -273,7 +304,50 @@ def plan_resource_edit_view(request, pk, resource_pk):
     return render(
         request,
         "maintenance/draft_entry_form.html",
-        {"plan": plan, "form": form, "title": _("Editar repuesto o herramienta"), "anchor": "resources"},
+        {
+            "plan": plan,
+            "form": form,
+            "title": _("Editar repuesto o herramienta"),
+            "anchor": "resources",
+            "parts_on": parts_on,
+            "selected_part": _selected_part(form["part"].value()) if parts_on else None,
+        },
+    )
+
+
+@manager_required
+def plan_resource_link_view(request, pk, resource_pk):
+    """Enlaza al catálogo un repuesto de la versión vigente (INV-11 CA2, excepción al ADR-016)."""
+    plan = _plan(pk)
+    if not _inventory_on(request) or plan.current_version_id is None:
+        raise Http404
+    resource = get_object_or_404(
+        PlanResource.objects.select_related("version"),
+        pk=resource_pk,
+        version_id=plan.current_version_id,
+        kind=PlanResource.Kind.PART,
+        part__isnull=True,
+    )
+    form = PartLinkForm(request.POST or None)
+    if request.method == "POST" and form.is_valid():
+        try:
+            services.link_published_resource(
+                membership=request.membership, resource=resource, part=form.cleaned_data["part"]
+            )
+        except ValidationError as error:
+            form.add_error(None, error)
+        else:
+            messages.success(request, _("Repuesto enlazado al catálogo."))
+            return redirect(f"{reverse('plan_detail', args=[plan.pk])}#content-title")
+    return render(
+        request,
+        "maintenance/plan_resource_link.html",
+        {
+            "plan": plan,
+            "resource": resource,
+            "form": form,
+            "selected_part": _selected_part(form["part"].value() if request.method == "POST" else None),
+        },
     )
 
 

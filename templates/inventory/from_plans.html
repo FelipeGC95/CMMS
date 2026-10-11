@@ -1,0 +1,52 @@
+{% extends "base.html" %}{% load i18n ui %}
+{% block title %}{% translate "Crear catálogo desde los planes" %}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <p class="muted"><a href="{% url 'plan_list' %}">{% translate "Planes preventivos" %}</a></p>
+    <h1>{% translate "Crear catálogo desde los planes" %}</h1>
+    <p class="muted">{% translate "Agrupamos los repuestos que tus planes ya piden y que aún no están en el catálogo. Revisa y confirma: todavía no se ha guardado nada." %}</p>
+  </div>
+</div>
+
+{% if page.paginator.count %}
+<section class="grid grid--kpi mb-4" aria-label="{% translate 'Resumen' %}">
+  <div class="card kpi"><span class="kpi__label">{% translate "Repuestos nuevos" %}</span><span class="kpi__value">{{ new_count }}</span></div>
+  <div class="card kpi"><span class="kpi__label">{% translate "Ya en el catálogo" %}</span><span class="kpi__value">{{ existing_count }}</span></div>
+  <div class="card kpi"><span class="kpi__label">{% translate "Recursos de plan a enlazar" %}</span><span class="kpi__value">{{ resource_count }}</span></div>
+</section>
+
+<div class="card card--flush mb-4">
+  <table class="table">
+    <thead><tr><th>{% translate "Código" %}</th><th>{% translate "Nombre" %}</th><th>{% translate "Unidad" %}</th><th>{% translate "Planes" %}</th><th>{% translate "Recursos" %}</th><th>{% translate "Resultado" %}</th></tr></thead>
+    <tbody>
+      {% for p in page %}
+      <tr>
+        <td class="mono" data-label="{% translate 'Código' %}">{{ p.code }}</td>
+        <td data-label="{% translate 'Nombre' %}">{{ p.description }}</td>
+        <td data-label="{% translate 'Unidad' %}">{{ p.unit }}</td>
+        <td data-label="{% translate 'Planes' %}"><span class="mono">{{ p.plans|join:", " }}</span></td>
+        <td class="num" data-label="{% translate 'Recursos' %}">{{ p.resource_count }}</td>
+        <td data-label="">{% if p.existing %}<span class="badge badge--info">{% icon 'info' %}{% translate "Se enlaza al existente" %}</span>{% else %}<span class="badge badge--success">{% icon 'check' %}{% translate "Nuevo" %}</span>{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% include "_pagination.html" %}
+
+<form class="card" method="post" action="{% url 'inventory_from_plans_confirm' %}">
+  {% csrf_token %}
+  <p class="muted">{% translate "Se enlazan también los recursos de las versiones publicadas: lo que el plan pide no cambia y las próximas preventivas reservan estos repuestos solas." %}</p>
+  <div class="row">
+    <button class="btn btn--primary btn--lg" type="submit">{% icon 'check' %}{% blocktranslate count n=new_count %}Crear {{ n }} repuesto y enlazar{% plural %}Crear {{ n }} repuestos y enlazar{% endblocktranslate %}</button>
+    <a class="btn btn--ghost btn--lg" href="{% url 'plan_list' %}">{% translate "Cancelar" %}</a>
+  </div>
+</form>
+{% else %}
+<div class="card">
+  <p class="empty">{% icon 'check' %} {% translate "Todos los repuestos de tus planes ya están enlazados al catálogo." %}</p>
+  <a class="btn btn--secondary btn--lg" href="{% url 'plan_list' %}">{% translate "Volver a planes" %}</a>
+</div>
+{% endif %}
+{% endblock %}

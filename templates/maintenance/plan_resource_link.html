@@ -1,0 +1,26 @@
+{% extends "base.html" %}{% load i18n ui %}
+{% block title %}{% translate "Enlazar al catálogo" %} · {{ plan.name }}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <p class="muted mono"><a href="{% url 'plan_detail' plan.pk %}">{{ plan.code }}</a> · {% blocktranslate with n=resource.version.number %}Versión {{ n }} vigente{% endblocktranslate %}</p>
+    <h1>{% translate "Enlazar al catálogo" %}</h1>
+  </div>
+</div>
+<section class="card narrow">
+  <dl class="dl">
+    <dt>{% translate "Repuesto del plan" %}</dt><dd>{{ resource.description }}</dd>
+    <dt>{% translate "Cantidad" %}</dt><dd class="num">{{ resource.quantity|measure }}{% if resource.unit %} {{ resource.unit }}{% endif %}</dd>
+  </dl>
+  <div class="alert alert--info mt-2" role="note">{% icon 'info' %}<span>{% translate "La versión publicada no cambia: el enlace solo identifica el repuesto para reservarlo en las próximas OT. Se hace una sola vez y no se puede cambiar ni quitar." %}</span></div>
+  <form method="post" class="mt-4">
+    {% csrf_token %}
+    {% for error in form.non_field_errors %}<div class="alert alert--error" role="alert">{% icon 'stop' %}<span>{{ error }}</span></div>{% endfor %}
+    {% include "maintenance/_part_picker.html" with name=form.part.html_name picker_id=form.part.auto_id selected_part=selected_part allow_empty=False errors=form.part.errors %}
+    <div class="row">
+      <button class="btn btn--primary btn--lg" type="submit">{% icon 'check' %}{% translate "Enlazar" %}</button>
+      <a class="btn btn--ghost btn--lg" href="{% url 'plan_detail' plan.pk %}">{% translate "Cancelar" %}</a>
+    </div>
+  </form>
+</section>
+{% endblock %}
