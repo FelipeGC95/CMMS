@@ -271,7 +271,7 @@ def build_preview(raw_rows: list[dict], *, membership) -> Preview:
         (item.part_id, item.warehouse_id): item
         for item in StockItem.objects.filter(part__in=list(existing.values()))
     }
-    seen = set()
+    seen, named = set(), set()
     results = []
     for raw in raw_rows:
         code, name = raw.get("code", ""), raw.get("name", "")
@@ -283,8 +283,11 @@ def build_preview(raw_rows: list[dict], *, membership) -> Preview:
             result.name = name or part.name
         if not code:
             errors.append(gettext("Falta el código."))
-        if not name and part is None:
+        # Un repuesto nuevo puede repetirse en otra bodega: basta el nombre en su primera fila.
+        if not name and part is None and code.lower() not in named:
             errors.append(gettext("Falta el nombre."))
+        if name and code:
+            named.add(code.lower())
         for key, limit in TEXT_LIMITS.items():
             if len(raw.get(key, "")) > limit:
                 errors.append(

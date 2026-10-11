@@ -8094,3 +8094,404 @@ msgstr ""
 
 msgid "Liberación de reserva"
 msgstr ""
+
+#, python-format
+msgid "%(code)s es ahora la bodega por defecto."
+msgstr ""
+
+#, python-format
+msgid "%(column)s: debe ser un número mayor o igual a cero."
+msgstr ""
+
+#, python-format
+msgid "%(column)s: máximo %(n)s caracteres."
+msgstr ""
+
+#, python-format
+msgid "%(n)s ajuste de stock"
+msgid_plural "%(n)s ajustes de stock"
+msgstr[0] ""
+msgstr[1] ""
+
+#, python-format
+msgid "%(n)s conteo sin cambios"
+msgid_plural "%(n)s conteos sin cambios"
+msgstr[0] ""
+msgstr[1] ""
+
+#, python-format
+msgid "%(n)s repuesto"
+msgid_plural "%(n)s repuestos"
+msgstr[0] ""
+msgstr[1] ""
+
+#, python-format
+msgid "%(n)s repuesto creado"
+msgid_plural "%(n)s repuestos creados"
+msgstr[0] ""
+msgstr[1] ""
+
+msgid "Agregar repuesto"
+msgstr ""
+
+msgid "Agregar un repuesto"
+msgstr ""
+
+msgid "Archivo Excel (.xlsx) o CSV"
+msgstr ""
+
+msgid "Aún no hay bodegas. La «Bodega principal» se crea sola con la primera entrada, conteo o importación."
+msgstr ""
+
+msgid "Aún no hay repuestos en el catálogo."
+msgstr ""
+
+msgid "Bajo esta cantidad se avisa."
+msgstr ""
+
+msgid "Bajo mínimo"
+msgstr ""
+
+#, python-format
+msgid "Bodega %(code)s creada."
+msgstr ""
+
+#, python-format
+msgid "Bodega %(code)s desactivada."
+msgstr ""
+
+#, python-format
+msgid "Bodega %(code)s reactivada."
+msgstr ""
+
+msgid "Bodegas"
+msgstr ""
+
+msgid "Con stock"
+msgstr ""
+
+msgid "Contar"
+msgstr ""
+
+#, python-format
+msgid "Conteo: %(before)s → %(after)s."
+msgstr ""
+
+msgid "Costo promedio"
+msgstr ""
+
+msgid "Crear bodega"
+msgstr ""
+
+msgid "Crear desde los planes"
+msgstr ""
+
+msgid "Crear desde los repuestos de tus planes"
+msgstr ""
+
+msgid "Crear repuesto"
+msgstr ""
+
+msgid "Código o nombre de la bodega. Vacío: la bodega por defecto."
+msgstr ""
+
+msgid "Código repetido en el archivo para la misma bodega."
+msgstr ""
+
+msgid "Código, nombre o n° de parte"
+msgstr ""
+
+msgid "Cómo empezar"
+msgstr ""
+
+msgid "Datos del repuesto"
+msgstr ""
+
+msgid "Disponible"
+msgstr ""
+
+msgid "Editar bodega"
+msgstr ""
+
+msgid "Editar repuesto"
+msgstr ""
+
+msgid "Ej.: BOD, BOD-NORTE."
+msgstr ""
+
+msgid "Ej.: Estante A-3."
+msgstr ""
+
+msgid "Ej.: Rodamientos, Filtros, Correas."
+msgstr ""
+
+msgid "Ej.: un, l, kg, m. Por defecto «un»."
+msgstr ""
+
+msgid "El archivo tiene filas con errores: corrígelas y vuelve a subirlo."
+msgstr ""
+
+msgid "El stock objetivo no puede ser menor que el mínimo."
+msgstr ""
+
+msgid "Elige el repuesto"
+msgstr ""
+
+msgid "Elige una existente o escribe una nueva."
+msgstr ""
+
+msgid "En existencia"
+msgstr ""
+
+msgid "Estado del stock"
+msgstr ""
+
+msgid "Fichas contador"
+msgstr ""
+
+msgid "Fija el costo promedio si el repuesto no tenía stock."
+msgstr ""
+
+msgid "Filas con cantidad (conteo)"
+msgstr ""
+
+msgid "Filas con errores"
+msgstr ""
+
+msgid "Guardado"
+msgstr ""
+
+msgid "Hasta dónde reponer."
+msgstr ""
+
+msgid "Hay filas con errores y la importación es todo o nada: corrige el archivo y vuelve a subirlo."
+msgstr ""
+
+#, python-format
+msgid "Importación, fila %(row)s"
+msgstr ""
+
+msgid "Importar Excel"
+msgstr ""
+
+msgid "Importar repuestos"
+msgstr ""
+
+msgid "Importar repuestos (Excel)"
+msgstr ""
+
+msgid "Importar repuestos y stock"
+msgstr ""
+
+msgid "Indica una bodega de los sitios a los que tienes acceso."
+msgstr ""
+
+msgid "Inventario"
+msgstr ""
+
+msgid "Inventario: marcas de stock y fichas contador"
+msgstr ""
+
+msgid "Las cantidades se registran como conteo: el stock de esa bodega queda en la cantidad del archivo."
+msgstr ""
+
+msgid "Las entradas y conteos van a la bodega por defecto cuando no eliges otra."
+msgstr ""
+
+msgid "Llénala con tus repuestos"
+msgstr ""
+
+msgid "Lo que contaste hoy en esa bodega. Se ajusta el stock a esta cantidad."
+msgstr ""
+
+msgid "Marcar por defecto"
+msgstr ""
+
+msgid "Marcas de stock"
+msgstr ""
+
+msgid "Marcas de stock (badges con ícono + texto) y fichas contador que filtran la lista; mínimo 48 px de alto."
+msgstr ""
+
+#, python-format
+msgid "Máximo %(max)s filas por archivo. También se acepta CSV con las mismas columnas."
+msgstr ""
+
+msgid "Mínimo y ubicación en bodega"
+msgstr ""
+
+msgid "Mínimo y ubicación guardados."
+msgstr ""
+
+msgid "Nada se guarda hasta que confirmes. Si una fila tiene un error no se importa ninguna: corrige y vuelve a subir."
+msgstr ""
+
+msgid "Negativo"
+msgstr ""
+
+msgid "Negativo · regularizar"
+msgstr ""
+
+#, python-format
+msgid "No existe la bodega «%(name)s»."
+msgstr ""
+
+msgid "No hay bodegas activas."
+msgstr ""
+
+#, python-format
+msgid "No hay repuestos activos que coincidan con «%(query)s»."
+msgstr ""
+
+msgid "No hay repuestos activos."
+msgstr ""
+
+msgid "No hay repuestos que coincidan."
+msgstr ""
+
+#, python-format
+msgid "No se importó nada: %(reason)s"
+msgstr ""
+
+msgid "No se pudo leer el archivo. Usa un Excel .xlsx o un CSV (idealmente la plantilla)."
+msgstr ""
+
+msgid "Notas"
+msgstr ""
+
+msgid "Nueva bodega"
+msgstr ""
+
+msgid "Nuevo repuesto"
+msgstr ""
+
+msgid "N° de parte"
+msgstr ""
+
+msgid "Número de parte del fabricante."
+msgstr ""
+
+msgid "Objetivo"
+msgstr ""
+
+msgid "Obligatorio solo para repuestos nuevos."
+msgstr ""
+
+msgid "Opcional: el sitio o área donde está la bodega."
+msgstr ""
+
+msgid "Por defecto"
+msgstr ""
+
+msgid "Registrar entrada"
+msgstr ""
+
+#, python-format
+msgid "Repuesto %(code)s creado."
+msgstr ""
+
+#, python-format
+msgid "Repuesto %(code)s desactivado: ya no aparece en los buscadores."
+msgstr ""
+
+#, python-format
+msgid "Repuesto %(code)s reactivado."
+msgstr ""
+
+msgid "Repuesto desactivado: no aparece en los buscadores. Su historial sigue visible."
+msgstr ""
+
+msgid "Repuestos nuevos"
+msgstr ""
+
+msgid "Repuestos, stock por bodega y mínimos."
+msgstr ""
+
+msgid "Reservado"
+msgstr ""
+
+msgid "Rodamiento 6205 2RS"
+msgstr ""
+
+msgid "Rodamientos"
+msgstr ""
+
+msgid "Saldo"
+msgstr ""
+
+msgid "Si hay un error en cualquier fila no se importa nada: la vista previa te dice qué corregir."
+msgstr ""
+
+msgid "Sin cantidad: el costo unitario no se usa."
+msgstr ""
+
+msgid "Sin costo"
+msgstr ""
+
+msgid "Sin movimientos todavía."
+msgstr ""
+
+msgid "Sin stock"
+msgstr ""
+
+#, python-format
+msgid "Solo código y nombre son obligatorios. Si el código ya existe, se actualiza ese repuesto. La cantidad es lo que contaste hoy: el stock queda en esa cantidad. Máximo %(max_rows)s filas; también sirve un CSV."
+msgstr ""
+
+msgid "Solo el código y el nombre son obligatorios."
+msgstr ""
+
+msgid "Solo el código y el nombre son obligatorios; el resto se puede completar después."
+msgstr ""
+
+msgid "Stock"
+msgstr ""
+
+msgid "Stock mínimo"
+msgstr ""
+
+msgid "Stock objetivo"
+msgstr ""
+
+#, python-format
+msgid "Stock sin cambios (%(n)s)."
+msgstr ""
+
+msgid "Sube tu lista de repuestos con la cantidad que tienes hoy en bodega. Verás una vista previa antes de guardar."
+msgstr ""
+
+msgid "Todas las bodegas"
+msgstr ""
+
+msgid "Todas las categorías"
+msgstr ""
+
+msgid "Toma los repuestos que ya escribiste en tus planes preventivos y los convierte en catálogo, sin digitar de nuevo."
+msgstr ""
+
+msgid "Trae las columnas, un ejemplo, instrucciones y tus bodegas."
+msgstr ""
+
+msgid "Transferir"
+msgstr ""
+
+msgid "Ubicación en bodega"
+msgstr ""
+
+msgid "inactiva"
+msgstr ""
+
+msgid "Última entrada"
+msgstr ""
+
+msgid "Último costo"
+msgstr ""
+
+msgid "Últimos movimientos"
+msgstr ""
+
+msgid "Único en la organización. Ej.: ROD-6205."
+msgstr ""
+
+msgid "Único por repuesto. Si ya existe, la fila actualiza ese repuesto."
+msgstr ""

@@ -1,4 +1,4 @@
-{% extends "base.html" %}{% load static i18n ui %}
+{% extends "base.html" %}{% load static i18n ui inventory_tags %}
 {% block title %}{% translate "Sistema de diseño" %}{% endblock %}
 {% block extra_head %}<link rel="stylesheet" href="{% url 'design_system_css' %}"><script src="{% static 'js/signature-pad.js' %}" defer></script>{% endblock %}
 {% block content %}
@@ -66,6 +66,20 @@
   <div class="alert alert--error" role="alert">{% icon 'stop' %}<span>{% translate "Transición no permitida." %}</span></div>
   <div class="alert alert--info" role="status">{% icon 'info' %}<span>{% translate "La OT se generó automáticamente desde el plan." %}</span></div>
   <div class="alert alert--warning deletion-banner" role="status">{% icon 'alert' %}<span>{% translate "Esta organización se eliminará el 27 oct 2026, con todos sus datos y archivos." %}</span><button class="btn btn--secondary" type="button">{% translate "Cancelar eliminación" %}</button></div>
+</section>
+
+<section class="card mb-4" aria-labelledby="ds-inventory">
+  <h2 id="ds-inventory">{% translate "Inventario: marcas de stock y fichas contador" %}</h2>
+  <p class="muted">{% translate "Marcas de stock (badges con ícono + texto) y fichas contador que filtran la lista; mínimo 48 px de alto." %}</p>
+  <h3>{% translate "Marcas de stock" %}</h3>
+  <div class="row mb-4">{% stock_mark 5 %}{% stock_mark 1 True %}{% stock_mark 0 %}{% stock_mark -2 False True %}{% stock_mark 0 False False False %}{% no_cost_mark 3 0 %}</div>
+  <h3>{% translate "Fichas contador" %}</h3>
+  <nav class="chips" aria-label="{% translate 'Estado del stock' %}">
+    <a class="chip chip--counter" href="#ds-inventory">{% translate "Todos" %}</a>
+    <a class="chip chip--counter chip--warning" href="#ds-inventory" aria-current="true">{% icon 'alert' %}{% translate "Bajo mínimo" %}<span class="chip__count">3</span></a>
+    <a class="chip chip--counter chip--error" href="#ds-inventory">{% icon 'stop' %}{% translate "Negativo" %}<span class="chip__count">1</span></a>
+    <a class="chip chip--counter chip--info" href="#ds-inventory">{% icon 'info' %}{% translate "Sin costo" %}<span class="chip__count">2</span></a>
+  </nav>
 </section>
 
 <section class="card mb-4" aria-labelledby="ds-wizard">

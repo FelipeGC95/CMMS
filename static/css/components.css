@@ -140,6 +140,8 @@ main { max-width: var(--content-max); margin: 0 auto; padding: var(--space-5) va
   border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); padding: var(--space-4);
 }
 .card--flush { padding: 0; overflow: hidden; }
+/* Título de una tarjeta sin relleno (tabla a todo el ancho): el título sí lleva margen interior. */
+.card--flush > .card__header { padding: var(--space-4) var(--space-4) 0; }
 .card__header { display: flex; justify-content: space-between; align-items: center; gap: var(--space-2); margin-bottom: var(--space-3); }
 .card__header h2 { margin: 0; }
 
@@ -243,6 +245,15 @@ main { max-width: var(--content-max); margin: 0 auto; padding: var(--space-5) va
   background: var(--color-surface);
 }
 .chip[aria-current="true"] { background: var(--color-secondary-bg); color: var(--color-secondary-text); border-color: var(--color-secondary-border); }
+/* Fichas contador (inicio de inventario, INV-12): filtran la lista, con ícono del estado, texto y
+   contador; ≥ 48 px porque también las usan los técnicos. */
+.chip--counter { min-height: var(--touch-target); gap: var(--space-2); }
+.chip--counter svg { width: 18px; height: 18px; flex: none; }
+.chip--warning svg { color: var(--color-warning); }
+.chip--error svg { color: var(--color-error); }
+.chip--info svg { color: var(--color-info); }
+.chip--counter[aria-current="true"] svg { color: inherit; }
+.chip__count { min-width: 1.75em; padding: 0 var(--space-2); border-radius: var(--radius-pill); background: var(--color-surface-sunken); color: var(--color-text); text-align: center; font-variant-numeric: tabular-nums; font-weight: 600; }
 
 .pagination { display: flex; gap: var(--space-2); align-items: center; justify-content: center; margin-top: var(--space-4); }
 

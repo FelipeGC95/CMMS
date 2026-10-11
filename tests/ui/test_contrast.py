@@ -67,6 +67,14 @@ CONTRAST_PAIRS = [
     ("--color-accent-text", "--color-surface-sunken", UI),
     ("--color-warning", "--color-surface-sunken", UI),
     ("--color-border-strong", "--color-surface-sunken", UI),
+    # Inventario (INV-12): fichas contador del inicio. Ícono del estado sobre la ficha; en la ficha
+    # elegida el ícono toma el texto (blanco sobre azul); el número va sobre su pastilla hundida.
+    # Las marcas de stock son badges (pares de arriba).
+    ("--color-warning", "--color-surface", UI),
+    ("--color-error", "--color-surface", UI),
+    ("--color-info", "--color-surface", UI),
+    ("--color-text", "--color-surface-sunken", TEXT),
+    ("--color-secondary-text", "--color-secondary-bg", TEXT),
 ]
 
 

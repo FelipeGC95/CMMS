@@ -1136,3 +1136,41 @@ def test_inventory_stock_list_and_part_detail_are_bounded(tenant_a, django_asser
         with django_assert_max_num_queries(3):
             detail = part_detail(parts[0].pk, membership=tenant_a.admin)
             [(m.warehouse.code, m.created_by) for m in detail.movements]
+
+
+def _add_inventory_rows(tenant, n):
+    """Repuestos con stock en dos bodegas, movimientos, mínimos y una bodega más por llamada."""
+    from apps.inventory import services as inventory
+    from apps.inventory.models import Part, Warehouse
+
+    with tenant_context(tenant.org):
+        main = inventory.ensure_default_warehouse()
+        other = inventory.create_warehouse(
+            membership=tenant.admin, code=f"B{Warehouse.objects.count()}", name="Bodega extra"
+        )
+        first = Part.objects.order_by("created_at").first()
+        for _ in range(n):
+            code = f"P{Part.objects.count():03d}"
+            part = inventory.create_part(membership=tenant.admin, code=code, name=code, category=f"C{code}")
+            inventory.receive_stock(membership=tenant.admin, part=part, quantity=3, unit_cost="5")
+            inventory.transfer_stock(
+                membership=tenant.admin, part=part, from_warehouse=main, to_warehouse=other, quantity=1
+            )
+            inventory.set_stock_levels(membership=tenant.admin, part=part, warehouse=other, min_quantity=2)
+            if first is not None:
+                inventory.receive_stock(membership=tenant.admin, part=first, quantity=1, warehouse=other)
+        return first or Part.objects.order_by("created_at").first()
+
+
+@pytest.mark.parametrize("url_name", ["inventory_home", "inventory_warehouse_list", "inventory_part_detail"])
+def test_inventory_screens_do_not_grow_with_rows(client, tenant_a, url_name, django_assert_max_num_queries):
+    """INV-01/03/04: la lista de stock, las bodegas y la ficha en un número fijo de consultas."""
+    login(client, tenant_a.admin)
+    part = _add_inventory_rows(tenant_a, 2)
+    url = reverse(url_name, args=[part.pk]) if url_name == "inventory_part_detail" else reverse(url_name)
+    few = _count(client, url)
+    _add_inventory_rows(tenant_a, 8)
+    many = _count(client, url)
+    assert many == few, f"{url}: {few} → {many} consultas"
+    with django_assert_max_num_queries(25):
+        client.get(url)
