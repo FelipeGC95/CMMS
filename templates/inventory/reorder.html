@@ -22,7 +22,7 @@
 {% if warehouses|length > 1 %}
 <form class="search-bar" method="get" aria-label="{% translate 'Bodega' %}">
   <label class="visually-hidden" for="warehouse">{% translate "Bodega" %}</label>
-  <select class="input" id="warehouse" name="warehouse">
+  <select class="input input--narrow" id="warehouse" name="warehouse">
     <option value="">{% translate "Todas las bodegas" %}</option>
     {% for item in warehouses %}<option value="{{ item.pk }}"{% if item == warehouse %} selected{% endif %}>{{ item.name }}</option>{% endfor %}
   </select>

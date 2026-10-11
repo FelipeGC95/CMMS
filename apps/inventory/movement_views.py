@@ -137,6 +137,8 @@ def receive_view(request):
     else:
         part = _part_or_none(request.GET.get("part"))
         initial = {"reference": request.GET.get("reference", "")[:60]}
+        if part is not None and part.supplier:
+            initial["supplier"] = part.supplier  # el proveedor habitual del repuesto, editable
         if warehouse := _pick_warehouse(warehouses, request.GET.get("warehouse")):
             initial["warehouse"] = warehouse.pk
         form = ReceiveForm(initial=initial, warehouses=warehouses, show_costs=show_costs)

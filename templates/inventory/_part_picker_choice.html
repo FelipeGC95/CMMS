@@ -7,7 +7,6 @@
   <a class="picked-part__change" href="?{{ keep.urlencode }}">{% translate "Cambiar" %}</a>
 </div>
 {% else %}
-<div id="part-results">{% include "inventory/_part_search_results.html" with results=results query=query pick="part" %}</div>
-{% if not results and not query %}<p class="help muted">{% translate "Busca el repuesto por código, nombre o n° de parte y elígelo." %}</p>{% endif %}
+<div id="part-results">{% if results or query %}{% include "inventory/_part_search_results.html" with results=results query=query pick="part" %}{% else %}<p class="help muted">{% translate "Busca el repuesto por código, nombre o n° de parte y elígelo." %}</p>{% endif %}</div>
 {% endif %}
 {% if part_error %}<span class="error">{% icon 'stop' %}{{ part_error }}</span>{% endif %}
