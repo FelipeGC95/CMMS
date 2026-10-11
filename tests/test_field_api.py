@@ -3,6 +3,7 @@
 import datetime
 import json
 import uuid
+from decimal import Decimal
 
 import pytest
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -17,19 +18,28 @@ from apps.assets.models import Meter, MeterKind, MeterReading
 from apps.attachments.models import Attachment, TargetType
 from apps.core.tenancy import tenant_context
 from apps.field.views import DEMO_FIXTURE
-from apps.organizations.models import Location
+from apps.inventory import services as inventory
+from apps.inventory.models import Reservation, StockItem, StockMovement
+from apps.organizations.models import Location, Plan
 from apps.work.models import (
     FailureCode,
     LaborEntry,
+    PartUsage,
     WorkOrder,
     WorkOrderChecklistItem,
     WorkOrderTransition,
     WorkRequest,
 )
-from apps.work.services import EXECUTION_TARGETS, TRANSITIONS, create_work_order
+from apps.work.services import EXECUTION_TARGETS, TRANSITIONS, add_part_usage, create_work_order
 from tests.api_utils import FIELD_API, api_client, field_client
 from tests.conftest import tiny_jpeg_bytes
-from tests.test_field import BOOTSTRAP_KEYS, ITEM_KEYS, WORK_ORDER_KEYS
+from tests.test_field import (
+    BOOTSTRAP_KEYS,
+    ITEM_KEYS,
+    PART_USAGE_KEYS,
+    PLANNED_PART_KEYS,
+    WORK_ORDER_KEYS,
+)
 
 pytestmark = pytest.mark.django_db
 
@@ -525,3 +535,173 @@ def test_rate_limit_is_per_person(tenant_a):
         assert field_client(tenant_a.admin).get(f"{FIELD_API}/bootstrap/").status_code == 200
     finally:
         SimpleRateThrottle.THROTTLE_RATES = api_settings.DEFAULT_THROTTLE_RATES
+
+
+# --- repuestos sin conexión (INV-13) --------------------------------------------------------
+
+
+@pytest.fixture
+def parts(tenant_a, reconciled_inventory):
+    """Catálogo con un repuesto con stock a $1.000, uno sin stock y uno desactivado (y, al final
+    de cada test, el saldo cuadra con el libro)."""
+    with tenant_context(tenant_a.org):
+        bearing = inventory.create_part(membership=tenant_a.admin, code="ROD-6204", name="Rodamiento")
+        grease = inventory.create_part(
+            membership=tenant_a.admin, code="GRA-01", name="Grasa", unit="kg", category="Lubricantes"
+        )
+        old = inventory.create_part(membership=tenant_a.admin, code="OLD-01", name="Descontinuado")
+        inventory.set_part_active(membership=tenant_a.admin, part=old, is_active=False)
+        inventory.receive_stock(membership=tenant_a.admin, part=bearing, quantity=5, unit_cost=1000)
+    return bearing, grease
+
+
+def _parts_plan(tenant, features):
+    tenant.org.plan = Plan.objects.create(code="p-" + "-".join(features), name="Plan", features=features)
+    tenant.org.save(update_fields=["plan"])
+
+
+def test_reference_brings_the_parts_catalog_without_costs(tenant_a, parts, monkeypatch):
+    data = field_client(tenant_a.tech).get(f"{FIELD_API}/reference/").json()
+    assert [p["code"] for p in data["parts"]] == ["GRA-01", "ROD-6204"]  # sin desactivados
+    assert set(data["parts"][0]) == {"id", "code", "name", "unit", "category"}
+    assert data["parts"][0]["unit"] == "kg" and data["parts_truncated"] is False
+    monkeypatch.setattr("apps.inventory.selectors.FIELD_PART_LIMIT", 1)
+    data = field_client(tenant_a.tech).get(f"{FIELD_API}/reference/").json()
+    assert len(data["parts"]) == 1 and data["parts_truncated"] is True
+
+
+def test_reference_has_no_parts_without_the_inventory_module(tenant_a, parts):
+    _parts_plan(tenant_a, ["assets", "work_orders", "requests"])
+    data = field_client(tenant_a.tech).get(f"{FIELD_API}/reference/").json()
+    assert data["parts"] == [] and data["parts_truncated"] is False
+
+
+def test_snapshot_brings_planned_and_used_parts(tenant_a, parts):
+    bearing, grease = parts
+    wo = _wo(tenant_a, assigned_to=tenant_a.tech.user)
+    with tenant_context(tenant_a.org):
+        inventory.reserve_for_work_order(work_order=wo, part=bearing, quantity=2, source="manual")
+        inventory.reserve_for_work_order(work_order=wo, part=grease, quantity="0.5", source="manual")
+        add_part_usage(work_order=wo, membership=tenant_a.tech, part=grease, quantity="0.5")
+        add_part_usage(work_order=wo, membership=tenant_a.tech, description="Huaipe", quantity=1, unit_cost=0)
+    (row,) = field_client(tenant_a.tech).get(f"{FIELD_API}/snapshot/").json()["work_orders"]
+    # La grasa ya se usó entera: solo queda prevista la que tiene pendiente.
+    (planned,) = row["planned_parts"]
+    assert set(planned) == PLANNED_PART_KEYS
+    assert planned["part"] == str(bearing.pk) and planned["code"] == "ROD-6204"
+    assert (planned["quantity"], planned["consumed_quantity"], planned["pending"]) == (
+        "2.000",
+        "0.000",
+        "2.000",
+    )
+    assert [p["description"] for p in row["parts"]] == ["GRA-01 · Grasa", "Huaipe"]
+    assert set(row["parts"][0]) == PART_USAGE_KEYS and row["parts"][1]["part"] is None
+
+
+def test_snapshot_without_the_inventory_module_has_no_planned_parts(tenant_a, parts):
+    bearing, _grease = parts
+    wo = _wo(tenant_a)
+    with tenant_context(tenant_a.org):
+        inventory.reserve_for_work_order(work_order=wo, part=bearing, quantity=1, source="manual")
+    _parts_plan(tenant_a, ["assets", "work_orders", "requests"])
+    (row,) = field_client(tenant_a.tech).get(f"{FIELD_API}/snapshot/").json()["work_orders"]
+    assert row["planned_parts"] == []
+
+
+def test_offline_part_usage_consumes_the_reservation_once(tenant_a, parts):
+    bearing, _grease = parts
+    wo = _wo(tenant_a, assigned_to=tenant_a.tech.user)
+    with tenant_context(tenant_a.org):
+        inventory.reserve_for_work_order(work_order=wo, part=bearing, quantity=2, source="manual")
+    client = field_client(tenant_a.tech)
+    used_at = timezone.now() - datetime.timedelta(hours=2)
+    body = {
+        "part": str(bearing.pk),
+        "quantity": "2",
+        "client_uuid": str(uuid.uuid4()),
+        "used_at": _iso(used_at),
+    }
+    response = client.post(_url(wo, "parts"), body, format="json")
+    assert response.status_code == 201
+    usage = response.json()
+    assert usage["description"] == "ROD-6204 · Rodamiento"
+    assert usage["unit_cost"] is None and usage["cost"] is None  # el técnico no ve costos (Q3)
+    again = client.post(_url(wo, "parts"), body, format="json")
+    assert again.status_code == 200 and again.json()["id"] == usage["id"]
+    with tenant_context(tenant_a.org):
+        assert PartUsage.objects.filter(work_order=wo).count() == 1
+        movement = StockMovement.objects.get(work_order=wo)
+        assert movement.occurred_at == used_at.replace(microsecond=movement.occurred_at.microsecond)
+        assert StockItem.objects.get(part=bearing).on_hand == 3
+        assert Reservation.objects.get(work_order=wo).status == Reservation.Status.FULFILLED
+        assert WorkOrder.objects.get(pk=wo.pk).total_cost == Decimal("2000.00")
+    # El jefe sí ve el costo de la línea.
+    listed = field_client(tenant_a.admin).get(_url(wo, "parts")).json()["results"]
+    assert listed[0]["unit_cost"] == "1000.0000"
+
+
+def test_offline_part_usage_never_conflicts_on_stock(tenant_a, parts):
+    _bearing, grease = parts  # sin stock
+    wo = _wo(tenant_a)
+    body = {"part": str(grease.pk), "quantity": "3", "client_uuid": str(uuid.uuid4())}
+    assert field_client(tenant_a.tech).post(_url(wo, "parts"), body, format="json").status_code == 201
+    with tenant_context(tenant_a.org):
+        assert StockItem.objects.get(part=grease).on_hand == -3
+
+
+def test_offline_free_text_part_without_cost(tenant_a):
+    wo = _wo(tenant_a)
+    body = {"description": "Huaipe", "quantity": "2", "unit": "kg", "client_uuid": str(uuid.uuid4())}
+    response = field_client(tenant_a.tech).post(_url(wo, "parts"), body, format="json")
+    assert response.status_code == 201
+    with tenant_context(tenant_a.org):
+        usage = PartUsage.objects.get(work_order=wo)
+        assert usage.part_id is None and usage.unit_cost == 0 and usage.unit == "kg"
+    missing = field_client(tenant_a.tech).post(_url(wo, "parts"), {"quantity": "1"}, format="json")
+    assert missing.status_code == 400 and "description" in missing.json()["error"]["details"]
+
+
+@pytest.mark.parametrize(("status", "code"), [(S.CANCELLED, "cancelled"), (S.CLOSED, "locked")])
+def test_offline_part_usage_on_a_finished_work_order_is_a_409(tenant_a, parts, status, code):
+    bearing, _grease = parts
+    wo = _wo(tenant_a)
+    _set_status(tenant_a, wo, status)
+    body = {"part": str(bearing.pk), "quantity": "1", "client_uuid": str(uuid.uuid4())}
+    response = field_client(tenant_a.tech).post(_url(wo, "parts"), body, format="json")
+    assert response.status_code == 409 and response.json()["error"]["code"] == code
+    with tenant_context(tenant_a.org):
+        assert not StockMovement.objects.filter(kind="issue").exists()
+
+
+def test_offline_part_usage_can_be_sent_after_completing(tenant_a, parts):
+    """Una OT completada (sin cerrar) aún admite costos, como en la web."""
+    bearing, _grease = parts
+    wo = _wo(tenant_a)
+    _set_status(tenant_a, wo, S.COMPLETED)
+    body = {"part": str(bearing.pk), "quantity": "1", "client_uuid": str(uuid.uuid4())}
+    assert field_client(tenant_a.tech).post(_url(wo, "parts"), body, format="json").status_code == 201
+
+
+def test_offline_part_usage_key_resent_after_close_and_used_elsewhere(tenant_a, parts):
+    bearing, _grease = parts
+    first, second = _wo(tenant_a), _wo(tenant_a)
+    client = field_client(tenant_a.tech)
+    body = {"part": str(bearing.pk), "quantity": "1", "client_uuid": str(uuid.uuid4())}
+    created = client.post(_url(first, "parts"), body, format="json").json()
+    _set_status(tenant_a, first, S.CLOSED)
+    again = client.post(_url(first, "parts"), body, format="json")
+    assert again.status_code == 200 and again.json()["id"] == created["id"]
+    other = client.post(_url(second, "parts"), body, format="json")
+    assert other.status_code == 409 and other.json()["error"]["code"] == "conflict"
+
+
+def test_offline_catalog_part_needs_the_inventory_module(tenant_a, parts):
+    bearing, _grease = parts
+    wo = _wo(tenant_a)
+    _parts_plan(tenant_a, ["assets", "work_orders", "requests"])
+    client = field_client(tenant_a.tech)
+    response = client.post(_url(wo, "parts"), {"part": str(bearing.pk), "quantity": "1"}, format="json")
+    assert response.status_code == 403
+    assert "Inventario y repuestos" in response.json()["error"]["message"]
+    free = client.post(_url(wo, "parts"), {"description": "Huaipe", "quantity": "1"}, format="json")
+    assert free.status_code == 201

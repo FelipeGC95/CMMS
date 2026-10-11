@@ -66,6 +66,7 @@ def test_b_cannot_touch_work_orders_of_a(tenant_a, tenant_b):
         (f"{base}/checklist-items/{item_a.pk}/answer/", {"result": "ok"}, "json"),
         (f"{base}/checklist-items/{item_a.pk}/photos/", {"file": jpeg}, "multipart"),
         (f"{base}/photos/", {"file": jpeg}, "multipart"),
+        (f"{base}/parts/", {"description": "Huaipe", "quantity": "1"}, "json"),
     ]
     for url, body, fmt in writes:
         assert client.post(url, body, format=fmt).status_code == 404, url

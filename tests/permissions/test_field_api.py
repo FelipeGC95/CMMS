@@ -46,6 +46,7 @@ def _writes(tenant, wo, item):
         (f"{base}/labor/", {"minutes": 10}, "json"),
         (f"{base}/checklist-items/{item.pk}/answer/", {"result": "ok"}, "json"),
         (f"{base}/photos/", {"file": jpeg}, "multipart"),
+        (f"{base}/parts/", {"description": "Huaipe", "quantity": "1"}, "json"),
     ]
 
 

@@ -500,6 +500,77 @@ def test_api_lists_do_not_grow_with_rows(tenant_a, resource):
     assert many == few, f"{resource}: {few} → {many} consultas"
 
 
+def _add_inventory_rows(tenant, n, *, work_orders=()):
+    """Por fila: repuesto con entrada, bodega con ubicación, transferencia, y en cada OT una
+    reserva y un consumo (INV-13, INV-17)."""
+    from apps.inventory import services as inventory
+    from apps.inventory.models import Part
+    from apps.work.services import add_part_usage
+
+    with tenant_context(tenant.org):
+        main = inventory.ensure_default_warehouse()
+        for _ in range(n):
+            k = Part.objects.count()
+            part = inventory.create_part(membership=tenant.admin, code=f"R-{k:03d}", name=f"Repuesto {k}")
+            site = Location.objects.create(code=f"BQ-{k:03d}", name=f"Sitio {k}")
+            warehouse = inventory.create_warehouse(
+                membership=tenant.admin, code=f"B{k:03d}", name=f"Bodega {k}", location=site
+            )
+            inventory.receive_stock(membership=tenant.admin, part=part, quantity=10, unit_cost=100)
+            inventory.transfer_stock(
+                membership=tenant.admin,
+                part=part,
+                from_warehouse=main,
+                to_warehouse=warehouse,
+                quantity=1,
+            )
+            inventory.set_stock_levels(membership=tenant.admin, part=part, min_quantity=50)
+            for wo in work_orders:
+                inventory.reserve_for_work_order(work_order=wo, part=part, quantity=2, source="manual")
+                add_part_usage(work_order=wo, membership=tenant.tech, part=part, quantity=1)
+
+
+@pytest.mark.parametrize(
+    "path", ["parts/", "warehouses/", "stock/", "stock/?below_min=true", "stock-movements/", "wo-parts"]
+)
+def test_api_inventory_lists_do_not_grow_with_rows(tenant_a, path):
+    """Listas de inventario de la API v1 (INV-17) y repuestos de una OT: consultas acotadas."""
+    from tests.api_utils import api_client
+
+    with tenant_context(tenant_a.org):
+        wo = create_work_order(work_type="corrective", title="x", asset=tenant_a.asset)
+    client = api_client(tenant_a)
+    url = f"/api/v1/work-orders/{wo.pk}/parts/" if path == "wo-parts" else f"/api/v1/{path}"
+    _add_inventory_rows(tenant_a, 2, work_orders=[wo])
+    few = _api_count(client, url)
+    _add_inventory_rows(tenant_a, 6, work_orders=[wo])
+    many = _api_count(client, url)
+    assert many == few, f"{url}: {few} → {many} consultas"
+
+
+@pytest.mark.parametrize("path", ["snapshot/?days=14", "reference/"])
+def test_field_api_with_inventory_does_not_grow_with_rows(tenant_a, path, django_assert_max_num_queries):
+    """Snapshot y catálogos sin conexión con repuestos previstos y usados (INV-13)."""
+    from tests.api_utils import FIELD_API, field_client
+
+    with tenant_context(tenant_a.org):
+        orders = [
+            create_work_order(work_type="corrective", title=f"c{i}", asset=tenant_a.asset) for i in range(2)
+        ]
+    client = field_client(tenant_a.tech)
+    url = f"{FIELD_API}/{path}"
+    _add_inventory_rows(tenant_a, 1, work_orders=orders)
+    few = _field_api_queries(client, url)
+    _add_inventory_rows(tenant_a, 5, work_orders=orders)
+    with tenant_context(tenant_a.org):
+        orders.append(create_work_order(work_type="corrective", title="c", asset=tenant_a.asset))
+    _add_inventory_rows(tenant_a, 1, work_orders=orders)
+    many = _field_api_queries(client, url)
+    assert many == few, f"{url}: {few} → {many} consultas"
+    with django_assert_max_num_queries(18):
+        client.get(url)
+
+
 def test_reading_import_preview_does_not_grow_with_rows(client, tenant_a):
     """Vista previa del CSV de lecturas (AST-09): medidores y duplicados en consultas fijas."""
     import io
