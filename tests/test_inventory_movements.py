@@ -487,3 +487,10 @@ def test_inactive_part_is_not_offered_for_receipt(client, tenant_a, part):
         reverse("inventory_receive"), {"part": part.pk, "quantity": "1", "client_uuid": uuid.uuid4()}
     )
     assert "Repuesto no encontrado." in response.content.decode()
+
+
+def test_design_system_shows_the_movement_components(client, tenant_a):
+    login(client, tenant_a.admin)
+    html = client.get(reverse("design_system")).content.decode()
+    for text in ("picked-part__change", 'class="qty"', "Reservas sin cubrir", "Negativo · regularizar"):
+        assert text in html, text

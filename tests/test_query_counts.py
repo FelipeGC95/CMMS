@@ -1176,6 +1176,46 @@ def test_inventory_screens_do_not_grow_with_rows(client, tenant_a, url_name, dja
         client.get(url)
 
 
+def _add_issues(tenant, n):
+    """Salidas a OT (con enlace a la OT y autor) y reservas sin cubrir (INV-10, INV-14)."""
+    from apps.inventory import services as inventory
+    from apps.inventory.models import Part
+    from tests.inventory_utils import make_work_order
+
+    with tenant_context(tenant.org):
+        for part in Part.objects.order_by("-created_at")[:n]:
+            wo = make_work_order(tenant)
+            inventory.issue_to_work_order(work_order=wo, part=part, quantity=1, by=tenant.tech.user)
+            inventory.reserve_for_work_order(work_order=wo, part=part, quantity=5, source="manual")
+
+
+@pytest.mark.parametrize(
+    "url_name",
+    [
+        "inventory_movements",
+        "inventory_reorder",
+        "inventory_export_xlsx",
+        "inventory_movements_export_xlsx",
+        "inventory_reorder_export_xlsx",
+    ],
+)
+def test_inventory_movement_screens_and_excel_do_not_grow(
+    client, tenant_a, url_name, django_assert_max_num_queries
+):
+    """INV-12/14: libro de movimientos, reposición y sus Excel en un número fijo de consultas."""
+    login(client, tenant_a.admin)
+    _add_inventory_rows(tenant_a, 2)
+    _add_issues(tenant_a, 2)
+    url = reverse(url_name)
+    few = _count(client, url)
+    _add_inventory_rows(tenant_a, 8)
+    _add_issues(tenant_a, 8)
+    many = _count(client, url)
+    assert many == few, f"{url}: {few} → {many} consultas"
+    with django_assert_max_num_queries(20):
+        client.get(url)
+
+
 def _inventory_rows(tenant, wo, n):
     """Repuestos reservados y usados en la OT, y usados antes en el activo (INV-09/10)."""
     from apps.inventory import services as inventory

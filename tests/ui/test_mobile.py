@@ -89,3 +89,13 @@ def test_desktop_nav_keeps_few_links_and_groups_the_rest_in_more(client, tenant_
     # Seis como máximo (Inicio, OT, Activos, Solicitudes, Inventario y Más): la barra solo se
     # muestra desde 1100 px y cabe con el nombre de la organización (capturas de INV P2).
     assert len(desktop) <= 6, f"Demasiados enlaces en la barra de escritorio: {desktop}"
+
+
+def test_inventory_movements_and_reorder_live_in_more_not_in_the_desktop_bar(client, tenant_a):
+    """INV P5: "Movimientos" y "Reposición" van en "Más" (y en el inicio de inventario), no en la barra."""
+    login(client, tenant_a.admin)
+    page = client.get(reverse("dashboard")).content.decode()
+    desktop = set(HREF.findall(NAV_LINKS.search(page).group(1)))
+    menu = set(HREF.findall(client.get(reverse("menu")).content.decode()))
+    for name in ("inventory_movements", "inventory_reorder"):
+        assert reverse(name) in menu and reverse(name) not in desktop
