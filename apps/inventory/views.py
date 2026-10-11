@@ -149,6 +149,13 @@ def part_edit_view(request, pk):
     return render(request, "inventory/part_form.html", _part_form_context(form, part))
 
 
+def _plain(value):
+    """Cantidad sin ceros sobrantes para el campo: 4.000 se ve «4» (no «4,000», que se lee cuatro mil)."""
+    if value is None:
+        return None
+    return value.quantize(1) if value == value.to_integral() else value.normalize()
+
+
 def _levels_forms(rows, *, bound=None):
     """Un formulario de mínimo/objetivo/ubicación por bodega activa (IDs únicos por bodega).
 
@@ -163,8 +170,8 @@ def _levels_forms(rows, *, bound=None):
             continue
         item = row.item
         initial = {
-            "min_quantity": item.min_quantity if item else 0,
-            "target_quantity": item.target_quantity if item else None,
+            "min_quantity": _plain(item.min_quantity) if item else 0,
+            "target_quantity": _plain(item.target_quantity) if item else None,
             "bin_location": item.bin_location if item else "",
         }
         form = StockLevelsForm(initial=initial, auto_id=f"levels-{row.warehouse.pk}-%s")

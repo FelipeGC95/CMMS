@@ -308,7 +308,7 @@ def build_preview(raw_rows: list[dict], *, membership) -> Preview:
         if warehouse is not None:
             result.warehouse, result.warehouse_id = warehouse.code, str(warehouse.pk)
         else:
-            result.warehouse = services.DEFAULT_WAREHOUSE_CODE
+            result.warehouse = warehouse_value or services.DEFAULT_WAREHOUSE_CODE
         key = (code.lower(), result.warehouse_id or "default")
         if code and key in seen:
             errors.append(gettext("Código repetido en el archivo para la misma bodega."))

@@ -1,4 +1,7 @@
 // Comportamientos mínimos sin JS en línea (CSP estricta).
+
+// Con JS el selector de organización cambia solo al elegir: el botón "Cambiar" queda para sin JS.
+document.documentElement.classList.add("js");
 document.addEventListener("change", (event) => {
   // Cambiar de organización al elegirla (en móvil no se muestra el botón "Cambiar").
   if (event.target.matches(".org-switch select")) {

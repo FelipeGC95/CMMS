@@ -60,7 +60,7 @@
           <td class="num" data-label="{% translate 'Cantidad' %}">{% if movement.quantity > 0 %}+{% endif %}{{ movement.quantity|num }} {{ part.unit }}</td>
           <td class="num" data-label="{% translate 'Saldo' %}">{{ movement.on_hand_after|num }}</td>
           {% if show_costs %}<td class="num" data-label="{% translate 'Costo unitario' %}">$ {{ movement.unit_cost|num }}</td>{% endif %}
-          <td data-label="{% translate 'Detalle' %}">{% if movement.work_order %}<a href="{% url 'work_order_detail' movement.work_order.pk %}">{{ movement.work_order.code }}</a>{% elif movement.reference %}{{ movement.reference }}{% elif movement.note %}{{ movement.note }}{% else %}—{% endif %}{% if movement.created_by %}<span class="muted"> · {{ movement.created_by.short_name }}</span>{% endif %}</td>
+          <td data-label="{% translate 'Detalle' %}">{% if movement.work_order %}<a href="{% url 'work_order_detail' movement.work_order.pk %}">{{ movement.work_order.code }}</a>{% elif movement.reference %}{{ movement.reference }}{% elif movement.note %}{{ movement.note }}{% endif %}{% if movement.created_by %}<span class="muted">{% if movement.work_order or movement.reference or movement.note %} · {% endif %}{{ movement.created_by.short_name }}</span>{% elif not movement.work_order and not movement.reference and not movement.note %}—{% endif %}</td>
         </tr>
         {% endfor %}
       </tbody>
