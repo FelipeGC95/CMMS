@@ -23,15 +23,15 @@
 {# Estado vacío: el camino más corto para cargar el catálogo (flujo por defecto, docs §4). #}
 {% if can_manage %}
 <section class="grid grid--2" aria-label="{% translate 'Cómo empezar' %}">
-  {% if from_plans_url %}<div class="card">
-    <h2>{% translate "Crear desde los repuestos de tus planes" %}</h2>
+  {% if from_plans_url and from_plans %}<div class="card">
+    <h2>{% translate "Crear desde los repuestos de tus planes" %} <span class="muted num">({{ from_plans }})</span></h2>
     <p class="muted">{% translate "Toma los repuestos que ya escribiste en tus planes preventivos y los convierte en catálogo, sin digitar de nuevo." %}</p>
     <a class="btn btn--primary" href="{{ from_plans_url }}">{% icon 'calendar' %}{% translate "Crear desde los planes" %}</a>
   </div>{% endif %}
   <div class="card">
     <h2>{% translate "Importar Excel" %}</h2>
     <p class="muted">{% translate "Sube tu lista de repuestos con la cantidad que tienes hoy en bodega. Verás una vista previa antes de guardar." %}</p>
-    <a class="btn {% if from_plans_url %}btn--secondary{% else %}btn--primary{% endif %}" href="{% url 'inventory_import' %}">{% icon 'list' %}{% translate "Importar Excel" %}</a>
+    <a class="btn {% if from_plans_url and from_plans %}btn--secondary{% else %}btn--primary{% endif %}" href="{% url 'inventory_import' %}">{% icon 'list' %}{% translate "Importar Excel" %}</a>
   </div>
   <div class="card">
     <h2>{% translate "Agregar un repuesto" %}</h2>

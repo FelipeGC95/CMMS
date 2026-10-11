@@ -1,0 +1,9 @@
+{% load i18n %}{# Opciones del buscador de repuestos (INV-11): radios con el repuesto elegido primero. Uso: name, parts, selected, allow_empty. #}
+<div class="check-group check-group--rich">
+  <div class="check-group__options">
+    {% if allow_empty %}<label class="check-group__option"><input type="radio" name="{{ name }}" value=""{% if not selected %} checked{% endif %}><span>{% translate "Sin repuesto del catálogo" %}</span></label>{% endif %}
+    {% if selected %}<label class="check-group__option"><input type="radio" name="{{ name }}" value="{{ selected.pk }}" checked><span><span class="mono">{{ selected.code }}</span> · {{ selected.name }} <span class="muted">({{ selected.unit }})</span></span></label>{% endif %}
+    {% for part in parts %}{% if part.pk != selected.pk %}<label class="check-group__option"><input type="radio" name="{{ name }}" value="{{ part.pk }}"><span><span class="mono">{{ part.code }}</span> · {{ part.name }} <span class="muted">({{ part.unit }})</span></span></label>{% endif %}{% endfor %}
+  </div>
+  {% if searched and not parts %}<p class="help">{% translate "Ningún repuesto del catálogo coincide." %}</p>{% elif not searched and not selected %}<p class="help">{% translate "Escribe para buscar en el catálogo." %}</p>{% endif %}
+</div>

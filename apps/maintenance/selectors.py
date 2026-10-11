@@ -67,7 +67,7 @@ def version_content(version):
     """Checklist y recursos de una versión (dos consultas)."""
     if version is None:
         return [], []
-    return list(version.items.order_by("order")), list(version.resources.all())
+    return list(version.items.order_by("order")), list(version.resources.select_related("part"))
 
 
 def plan_assignments(*, membership, plan):

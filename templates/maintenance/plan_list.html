@@ -11,6 +11,7 @@
     <a class="btn btn--secondary" href="{% url 'plan_calendar' %}">{% icon 'calendar' %}{% translate "Calendario" %}</a>
     <a class="btn btn--secondary" href="{% url 'industry_templates' %}">{% icon 'list' %}{% translate "Cargar plantilla de rubro" %}</a>
     <a class="btn btn--ghost" href="{% url 'plan_import' %}">{% icon 'list' %}{% translate "Importar o exportar (Excel)" %}</a>
+    {% if organization|has_module:"inventory" and membership|can:"inventory.manage" %}<a class="btn btn--ghost" href="{% url 'inventory_from_plans' %}">{% icon 'box' %}{% translate "Crear catálogo de repuestos desde los planes" %}</a>{% endif %}
     {% if membership|can:"organization.manage" %}<a class="btn btn--ghost" href="{% url 'maintenance_settings' %}">{% icon 'wrench' %}{% translate "Ajustes de preventivos" %}</a>{% endif %}
   </div>
 </div>

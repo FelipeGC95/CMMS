@@ -435,56 +435,56 @@ mismo repuesto como texto en cada OT y plan.
 **INV-09 · Consumo desde la OT (F2)**
 Como técnico quiero registrar el repuesto que usé tocando el catálogo, sin
 elegir bodega ni escribir costos.
-- CA1: "Agregar repuesto" busca en el catálogo con sugeridos primero
+- CA1 ✔ "Agregar repuesto" busca en el catálogo con sugeridos primero
   (reservados para la OT, usados antes en el activo, previstos en planes de su
   clase). El texto libre sigue posible ("No está en el catálogo": sin `part`,
   sin stock).
-- CA2: Con un repuesto del catálogo, el servidor llena descripción
+- CA2 ✔ Con un repuesto del catálogo, el servidor llena descripción
   («código · nombre»), unidad y costo unitario = **promedio vigente al
   consumir** (si el cliente envía costo, se ignora), crea el movimiento
   `issue` y lo enlaza en `part_usage.stock_movement`.
-- CA3: Bodega automática: (1) la de la reserva de ese repuesto en la OT;
+- CA3 ✔ Bodega automática: (1) la de la reserva de ese repuesto en la OT;
   (2) la bodega activa cuya ubicación es el ancestro más cercano de la
   ubicación del activo (o de la OT); (3) la por defecto. Solo con más de una
   bodega se ofrece cambiarla.
-- CA4: Los registros de texto libre previos siguen válidos, sin migrar;
+- CA4 ✔ Los registros de texto libre previos siguen válidos, sin migrar;
   KPI-02, PDF y Excel no cambian.
-- CA5: Quitar una línea enlazada (OT no cerrada) crea una devolución
+- CA5 ✔ Quitar una línea enlazada (OT no cerrada) crea una devolución
   (`return`) al costo de la salida (recalcula el promedio) y borra la línea
   como hoy. Al cerrar, el costo queda congelado como hoy (WO-04 CA3).
-- CA6: Idempotente por `client_uuid`: el reenvío devuelve la misma línea aunque
+- CA6 ✔ Idempotente por `client_uuid`: el reenvío devuelve la misma línea aunque
   la OT ya esté cerrada; el mismo `client_uuid` en otra OT es conflicto (la
   clave se revisa antes que el estado de la OT).
 - CA7: API v1 `POST /api/v1/work-orders/{id}/parts/` con `part` o
   `description`, mismo servicio que la web.
 
 **INV-10 · Reservas por OT (F2)**
-- CA1: Automática: al generar una preventiva, cada recurso de tipo repuesto
+- CA1 ✔ Automática: al generar una preventiva, cada recurso de tipo repuesto
   con `part` (de la versión principal y de los planes absorbidos) crea una
   reserva por su cantidad (bodega según INV-09 CA3; repetidos se suman). Nunca
   bloquea: si no alcanza, la OT y la reposición muestran "Faltan N".
-- CA2: Manual: con `work_order.manage` se agregan o quitan reservas en una OT
+- CA2 ✔ Manual: con `work_order.manage` se agregan o quitan reservas en una OT
   abierta.
-- CA3: Consumir descuenta de la reserva (`consumed_quantity`); al cubrirla
+- CA3 ✔ Consumir descuenta de la reserva (`consumed_quantity`); al cubrirla
   queda `fulfilled`; consumir de más no crea otra reserva.
-- CA4: Liberación al cerrar (`closed`), al cancelar (`cancelled`) o manual
+- CA4 ✔ Liberación al cerrar (`closed`), al cancelar (`cancelled`) o manual
   (`manual`); quitar una línea consumida no reabre la reserva.
-- CA5: Invariante: `stock_item.reserved` = Σ pendientes de las reservas
+- CA5 ✔ Invariante: `stock_item.reserved` = Σ pendientes de las reservas
   activas.
-- CA6: La OT muestra "Repuestos previstos" (reservado, consumido, faltante)
+- CA6 ✔ La OT muestra "Repuestos previstos" (reservado, consumido, faltante)
   con botón "Usar" (consume el pendiente; cantidad editable).
 
 **INV-11 · Repuestos del catálogo en planes (F2)**
-- CA1: En borrador, cada recurso de tipo repuesto se puede enlazar al
+- CA1 ✔ En borrador, cada recurso de tipo repuesto se puede enlazar al
   catálogo (buscador; la descripción se llena con el nombre y es editable).
-- CA2: En una versión publicada, un recurso sin `part` se puede enlazar una
+- CA2 ✔ En una versión publicada, un recurso sin `part` se puede enlazar una
   sola vez (vacío → repuesto; nunca cambiar ni quitar): excepción acotada al
   ADR-016.
-- CA3: "Crear catálogo desde los planes": agrupa las descripciones de
+- CA3 ✔ "Crear catálogo desde los planes": agrupa las descripciones de
   recursos tipo repuesto sin enlace (sin distinguir mayúsculas ni espacios),
   propone código `REP-0001`… y unidad; al confirmar crea los repuestos y
   enlaza todos los recursos.
-- CA4: Al publicar se conservan los enlaces; un borrador nuevo copia `part`.
+- CA4 ✔ Al publicar se conservan los enlaces; un borrador nuevo copia `part`.
 
 **INV-12 · Mínimo, alerta y reposición (F2)**
 - CA1: Mínimo y objetivo por repuesto y bodega (con una sola bodega, en la

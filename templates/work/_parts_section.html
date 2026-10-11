@@ -1,0 +1,56 @@
+{% load i18n ui %}
+{# Repuestos del catálogo en la OT (INV-09, INV-10): previstos con "Usar" y buscador. #}
+<section class="card mt-4" id="parts" aria-labelledby="parts-title">
+  <h2 id="parts-title">{% translate "Repuestos previstos" %}</h2>
+  {% if planned_parts %}
+  <ul class="list part-list">
+    {% for pp in planned_parts %}{% with r=pp.reservation %}
+    <li class="part-row">
+      <div class="list__main">
+        <span class="list__title"><span class="mono">{{ r.part.code }}</span> {{ r.part.name }}</span>
+        <span class="list__meta">{% translate "Reservado" %} <span class="num">{{ r.quantity|num }}</span> · {% translate "Usado" %} <span class="num">{{ r.consumed_quantity|num }}</span> {{ r.part.unit }}{% if warehouse_choices %} · {{ r.warehouse.name }}{% endif %}</span>
+        <span class="row">
+          {% if r.status == "fulfilled" %}<span class="badge badge--success">{% icon 'check' %}{% translate "Cubierto" %}</span>
+          {% elif pp.shortfall %}<span class="badge badge--warning">{% icon 'alert' %}{% blocktranslate with n=pp.shortfall|num %}Faltan {{ n }}{% endblocktranslate %}</span>
+          {% else %}<span class="badge badge--info">{% icon 'box' %}{% blocktranslate with n=pp.pending|num %}Pendiente {{ n }}{% endblocktranslate %}</span>{% endif %}
+        </span>
+      </div>
+      {% if r.status == "active" and can_use_parts or r.status == "active" and can_reserve %}
+      <div class="part-row__actions">
+        {% if can_use_parts and pp.pending %}
+        <form class="part-row__form" method="post" action="{% url 'work_order_part_add' wo.pk %}">
+          {% csrf_token %}
+          <input type="hidden" name="part" value="{{ r.part_id }}">
+          <input type="hidden" name="client_uuid" value="{{ pp.form_uuid }}">
+          <label class="visually-hidden" for="use-{{ r.pk }}">{% blocktranslate with part=r.part.code %}Cantidad de {{ part }}{% endblocktranslate %}</label>
+          <input class="input part-row__qty num" type="number" id="use-{{ r.pk }}" name="quantity" value="{{ pp.pending_input }}" min="0.001" step="any" inputmode="decimal" required>
+          <button class="btn btn--secondary" type="submit">{% icon 'box' %}{% translate "Usar" %}</button>
+        </form>
+        {% endif %}
+        {% if can_reserve %}
+        <form method="post" action="{% url 'inventory_wo_release' wo.pk r.pk %}">
+          {% csrf_token %}
+          <button class="btn btn--ghost" type="submit" aria-label="{% translate 'Quitar reserva' %} {{ r.part.code }}">{% icon 'x' %}{% translate "Quitar" %}</button>
+        </form>
+        {% endif %}
+      </div>
+      {% endif %}
+    </li>
+    {% endwith %}{% endfor %}
+  </ul>
+  {% else %}
+  <p class="muted">{% translate "Esta OT no tiene repuestos reservados." %}</p>
+  {% endif %}
+
+  {% if can_use_parts or can_reserve %}
+  <h3 class="mt-4" id="part-search-title">{% if can_use_parts %}{% translate "Agregar repuesto" %}{% else %}{% translate "Reservar repuesto" %}{% endif %}</h3>
+  <form class="search-bar" method="get" action="{% url 'work_order_detail' wo.pk %}#parts" role="search" aria-labelledby="part-search-title">
+    <label class="visually-hidden" for="part-q">{% translate "Buscar en el catálogo" %}</label>
+    <input class="input" type="search" id="part-q" name="part_q" value="{{ part_query }}" placeholder="{% translate 'Código, nombre o n° de parte' %}" autocomplete="off"
+      hx-get="{% url 'inventory_wo_part_search' wo.pk %}" hx-trigger="input changed delay:300ms, search" hx-target="#part-results" hx-swap="outerHTML">
+    <button class="btn btn--secondary" type="submit">{% translate "Buscar" %}</button>
+  </form>
+  {% include "work/_part_results.html" %}
+  {% if can_use_parts %}<p class="mt-2"><a href="#part-add-title">{% translate "No está en el catálogo: agregar como texto" %}</a></p>{% endif %}
+  {% endif %}
+</section>

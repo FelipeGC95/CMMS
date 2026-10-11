@@ -74,6 +74,16 @@ def inventory_home_view(request):
     category = request.GET.get("category", "").strip()
     parts = stock_list(membership=membership, q=search, category=category, warehouse=warehouse, status=status)
     page = Paginator(parts, PAGE_SIZE).get_page(request.GET.get("page"))
+    has_parts = Part.objects.exists()
+    perms = _perms(membership)
+    # Estado vacío (flujo por defecto): cuántos repuestos se pueden crear desde los planes (INV-11).
+    from_plans = 0
+    if not has_parts and perms["can_manage"]:
+        from .from_plans import plan_part_proposals
+
+        from_plans = sum(
+            1 for proposal in plan_part_proposals(membership=membership) if not proposal.existing
+        )
     return render(
         request,
         "inventory/home.html",
@@ -86,9 +96,10 @@ def inventory_home_view(request):
             "warehouses": warehouses,
             "categories": part_categories(),
             "counters": stock_counters(membership=membership, warehouse=warehouse),
-            "has_parts": Part.objects.exists(),
+            "has_parts": has_parts,
+            "from_plans": from_plans,
             "filtered": bool(search or category or status or warehouse),
-            **_perms(membership),
+            **perms,
         },
     )
 

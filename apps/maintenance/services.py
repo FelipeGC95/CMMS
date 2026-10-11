@@ -1,6 +1,7 @@
 """Planes preventivos: versiones, asignaciones y programador (PM-01..05, ADR-016)."""
 
 import datetime
+import logging
 from decimal import Decimal
 
 from django.core.exceptions import ValidationError
@@ -28,12 +29,14 @@ from .models import (
 from .scheduling import absorbs, estimated_meter_date, next_schedule
 from .selectors import busy_assignment_ids
 
+logger = logging.getLogger(__name__)
+
 # Aviso mínimo para planes por uso: generar la OT al 90 % del intervalo.
 METER_MIN_LEAD = Decimal("0.10")
 # Campos de la versión que cambian cuándo vence un plan.
 TRIGGER_FIELDS = ("calendar_interval", "calendar_unit", "meter_kind", "meter_interval")
 ITEM_FIELDS = ("order", "text", "item_type", "unit", "min_value", "max_value", "required")
-RESOURCE_FIELDS = ("kind", "description", "quantity", "unit")
+RESOURCE_FIELDS = ("kind", "description", "quantity", "unit", "part")
 
 
 class PlanVersionError(ValidationError):
@@ -197,7 +200,9 @@ def start_draft(*, plan: MaintenancePlan) -> PlanVersion:
         _add_content(
             draft,
             items=[{f: getattr(i, f) for f in ITEM_FIELDS if f != "order"} for i in source.items.all()],
-            resources=[{f: getattr(r, f) for f in RESOURCE_FIELDS} for r in source.resources.all()],
+            resources=[
+                {f: getattr(r, f) for f in RESOURCE_FIELDS} for r in source.resources.select_related("part")
+            ],
         )
     return draft
 
@@ -503,6 +508,7 @@ def generate_due_work_orders(*, today: datetime.date | None = None, horizon_days
         for other in others:
             minors.setdefault(other.asset_id, []).append(other)
     due.sort(key=lambda row: row[0].plan_id not in absorbs)  # primero los que absorben
+    planned_parts = _planned_parts(due, minors)
 
     created = []
     for assignment, due_on in due:
@@ -551,10 +557,69 @@ def generate_due_work_orders(*, today: datetime.date | None = None, horizon_days
                     for other in absorbed
                 ]
             )
+            if planned_parts is not None:
+                _reserve_planned_parts(
+                    work_order,
+                    [version.pk] + [other.plan.current_version_id for other in absorbed],
+                    planned_parts,
+                )
         busy.add(assignment.id)
         busy.update(other.id for other in absorbed)
         created.append(work_order)
     return created
+
+
+def _planned_parts(due, minors) -> dict | None:
+    """Repuestos del catálogo previstos por versión vigente, en una consulta (INV-10 CA1).
+
+    `None` si el plan de la organización no incluye inventario (no se reserva).
+    """
+    from apps.core.tenancy import get_current_organization
+    from apps.organizations.modules import has_module
+
+    if not due or not has_module(get_current_organization(), "inventory"):
+        return None
+    version_ids = {a.plan.current_version_id for a, _due in due}
+    version_ids |= {o.plan.current_version_id for others in minors.values() for o in others}
+    planned = {}
+    for resource in PlanResource.objects.filter(
+        version_id__in=version_ids, kind=PlanResource.Kind.PART, part__isnull=False, part__is_active=True
+    ).order_by("created_at"):
+        planned.setdefault(resource.version_id, []).append(resource)
+    return planned
+
+
+def _reserve_planned_parts(work_order, version_ids, planned: dict) -> None:
+    """Reserva para la OT los repuestos previstos por sus versiones (principal y absorbidas).
+
+    Repetidos se suman en una sola reserva por repuesto (enlazada al primer
+    recurso). Nunca bloquea: la reserva no exige stock, y si algo falla (ej.
+    bodega desactivada) la OT se crea igual sin esa reserva.
+    """
+    from apps.inventory.selectors import warehouse_for
+    from apps.inventory.services import reserve_for_work_order
+
+    totals = {}
+    for version_id in version_ids:
+        for resource in planned.get(version_id, ()):
+            first, quantity = totals.get(resource.part_id, (resource, Decimal(0)))
+            totals[resource.part_id] = (first, quantity + resource.quantity)
+    if not totals:
+        return
+    warehouse = warehouse_for(work_order=work_order)
+    for part_id, (resource, quantity) in totals.items():
+        try:
+            with transaction.atomic():
+                reserve_for_work_order(
+                    work_order=work_order,
+                    part=part_id,
+                    quantity=quantity,
+                    warehouse=warehouse,
+                    source="plan",
+                    plan_resource=resource,
+                )
+        except ValidationError:
+            logger.warning("No se pudo reservar el repuesto %s para la OT %s", part_id, work_order.pk)
 
 
 def register_completion(
@@ -799,21 +864,52 @@ def move_draft_item(*, membership, item, direction: str) -> None:
     neighbour.save(update_fields=["order", "updated_at"])
 
 
-def _clean_resource(kind, description, quantity):
+def _clean_resource(kind, description, quantity, part=None, unit="", keep=None):
+    """Valida un recurso y devuelve (descripción, unidad, repuesto).
+
+    Con repuesto del catálogo (INV-11 CA1): solo para tipo repuesto, de la
+    organización del contexto y activo; la descripción vacía se llena con su
+    nombre (es editable) y la unidad vacía con la del repuesto.
+    """
     if kind not in PlanResource.Kind.values:
         raise ValidationError(_("Tipo no válido."))
     if quantity is None or quantity <= 0:
         raise ValidationError({"quantity": _("La cantidad debe ser mayor que cero.")})
-    return description.strip()
+    description, unit = (description or "").strip(), (unit or "").strip()
+    if part is not None:
+        part = _catalog_part(part, keep=keep)
+        if kind != PlanResource.Kind.PART:
+            raise ValidationError({"part": _("Solo un repuesto se enlaza al catálogo.")})
+        description = description or part.name[:200]
+        unit = unit or part.unit
+    if not description:
+        raise ValidationError({"description": _("Este campo es obligatorio.")})
+    return description, unit, part
+
+
+def _catalog_part(part, keep=None):
+    """Repuesto activo de la organización del contexto (el manager filtra por organización).
+
+    `keep`: el repuesto ya enlazado, que se conserva aunque se haya desactivado.
+    """
+    from apps.inventory.models import Part
+
+    pk = getattr(part, "pk", part)
+    found = Part.objects.filter(pk=pk).first()
+    if found is None or not (found.is_active or str(pk) == str(keep)):
+        raise ValidationError({"part": _("Repuesto no encontrado.")})
+    return found
 
 
 @transaction.atomic
-def add_draft_resource(*, membership, version, kind, description, quantity, unit="") -> PlanResource:
+def add_draft_resource(
+    *, membership, version, kind, description, quantity, unit="", part=None
+) -> PlanResource:
     _require_plan_manager(membership)
     _check_draft_version(version)
-    description = _clean_resource(kind, description, quantity)
+    description, unit, part = _clean_resource(kind, description, quantity, part, unit)
     resource = PlanResource.objects.create(
-        version=version, kind=kind, description=description, quantity=quantity, unit=unit.strip()
+        version=version, kind=kind, description=description, quantity=quantity, unit=unit, part=part
     )
     audit.record(
         action=AuditEvent.Action.CREATE,
@@ -825,17 +921,69 @@ def add_draft_resource(*, membership, version, kind, description, quantity, unit
 
 
 @transaction.atomic
-def update_draft_resource(*, membership, resource, kind, description, quantity, unit="") -> PlanResource:
+def update_draft_resource(
+    *, membership, resource, kind, description, quantity, unit="", part=None
+) -> PlanResource:
+    """Edita un recurso del borrador; `part=None` quita el enlace (en borrador se puede)."""
     _require_plan_manager(membership)
     _check_draft_version(resource.version)
     before = audit.snapshot(resource, RESOURCE_FIELDS)
-    resource.kind, resource.description = kind, _clean_resource(kind, description, quantity)
-    resource.quantity, resource.unit = quantity, unit.strip()
+    description, unit, part = _clean_resource(kind, description, quantity, part, unit, keep=resource.part_id)
+    resource.kind, resource.description, resource.part = kind, description, part
+    resource.quantity, resource.unit = quantity, unit
     resource.save(update_fields=[*RESOURCE_FIELDS, "updated_at"])
     changes = audit.diff(before, audit.snapshot(resource, RESOURCE_FIELDS))
     if changes:
         audit.record(action=AuditEvent.Action.UPDATE, target=resource, membership=membership, changes=changes)
     return resource
+
+
+@transaction.atomic
+def link_published_resource(*, membership, resource, part) -> PlanResource:
+    """Enlaza al catálogo un repuesto de una versión publicada (INV-11 CA2).
+
+    Excepción acotada al ADR-016: solo vacío → repuesto, una vez; nunca cambia
+    ni quita un enlace, y la descripción, cantidad y unidad quedan iguales (lo
+    que el plan pide no cambia). En un borrador se usa `update_draft_resource`.
+    """
+    _require_plan_manager(membership)
+    part = _catalog_part(part)
+    resource = PlanResource.objects.select_for_update().select_related("version").get(pk=resource.pk)
+    return link_resources([resource], part=part, membership=membership)[0]
+
+
+def link_resources(resources, *, part, membership) -> list[PlanResource]:
+    """Enlaza recursos tipo repuesto sin `part` (borradores o publicados), auditando cada uno.
+
+    Primitiva sin permisos: la llaman `link_published_resource` (plan.manage) y
+    «Crear catálogo desde los planes» (inventory.manage).
+
+    `DraftContentMixin.save()` rechaza cualquier cambio en una versión
+    publicada; para este único campo, y solo si sigue vacío, se escribe con
+    `QuerySet.update()` (el filtro `part__isnull=True` evita cambiar un enlace
+    aunque otra transacción se adelante). Es la única escritura sobre contenido
+    publicado (excepción documentada en el ADR-016).
+    """
+    for resource in resources:
+        if resource.kind != PlanResource.Kind.PART:
+            raise ValidationError({"part": _("Solo un repuesto se enlaza al catálogo.")})
+        if resource.part_id is not None:
+            raise ValidationError(_("Este recurso ya está enlazado al catálogo."))
+    linked = PlanResource.objects.filter(
+        pk__in=[r.pk for r in resources], kind=PlanResource.Kind.PART, part__isnull=True
+    ).update(part=part, updated_at=timezone.now())
+    if linked != len(resources):
+        raise ValidationError(_("Este recurso ya está enlazado al catálogo."))
+    for resource in resources:
+        audit.record(
+            action=AuditEvent.Action.UPDATE,
+            target=resource,
+            membership=membership,
+            changes={"part": [None, str(part.pk)], "published": not resource.version.is_draft},
+        )
+    for resource in resources:
+        resource.part = part
+    return resources
 
 
 @transaction.atomic

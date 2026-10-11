@@ -1174,3 +1174,160 @@ def test_inventory_screens_do_not_grow_with_rows(client, tenant_a, url_name, dja
     assert many == few, f"{url}: {few} → {many} consultas"
     with django_assert_max_num_queries(25):
         client.get(url)
+
+
+def _inventory_rows(tenant, wo, n):
+    """Repuestos reservados y usados en la OT, y usados antes en el activo (INV-09/10)."""
+    from apps.inventory import services as inventory
+    from apps.work.services import add_part_usage
+
+    with tenant_context(tenant.org):
+        start = wo.reservations.count()
+        before = create_work_order(work_type="corrective", title="antes", asset=tenant.asset)
+        for i in range(start, start + n):
+            part = inventory.create_part(membership=tenant.admin, code=f"R-{i:03d}", name=f"Repuesto {i}")
+            inventory.receive_stock(membership=tenant.admin, part=part, quantity=5, unit_cost="10")
+            inventory.reserve_for_work_order(work_order=wo, part=part, quantity=2, source="manual")
+            add_part_usage(work_order=wo, membership=tenant.tech, part=part, quantity=1)
+            add_part_usage(work_order=before, membership=tenant.tech, part=part, quantity=1)
+
+
+@pytest.mark.parametrize("who", ["admin", "tech"])
+def test_work_order_detail_with_inventory_does_not_grow(client, tenant_a, who, django_assert_max_num_queries):
+    """INV-09/10: previstos, sugeridos del buscador y bodegas en consultas fijas."""
+    from apps.inventory import services as inventory
+
+    with tenant_context(tenant_a.org):
+        wo = create_work_order(work_type="corrective", title="x", asset=tenant_a.asset)
+        inventory.ensure_default_warehouse()
+        inventory.create_warehouse(membership=tenant_a.admin, code="B2", name="Bodega 2")
+    login(client, getattr(tenant_a, who))
+    url = reverse("work_order_detail", args=[wo.pk])
+    _inventory_rows(tenant_a, wo, 2)
+    few = _count(client, url)
+    _inventory_rows(tenant_a, wo, 8)
+    many = _count(client, url)
+    assert many == few, f"work_order_detail con inventario: {few} → {many} consultas"
+    assert _count(client, f"{url}?part_q=R-") == few
+    with django_assert_max_num_queries(12):
+        client.get(reverse("inventory_wo_part_search", args=[wo.pk]), {"part_q": "R-"})
+    with django_assert_max_num_queries(35):
+        client.get(url)
+
+
+def _plans_with_parts(tenant, n, *, prefix):
+    """`n` planes con 2 repuestos del catálogo y 1 de texto libre, asignados a activos nuevos."""
+    from decimal import Decimal
+
+    from apps.inventory import services as inventory
+    from apps.maintenance.services import assign_plan, create_plan
+
+    with tenant_context(tenant.org):
+        for i in range(n):
+            parts = [
+                inventory.create_part(
+                    membership=tenant.admin, code=f"{prefix}{i}-{k}", name=f"Rep {prefix}{i}-{k}"
+                )
+                for k in range(2)
+            ]
+            resources = [
+                {"kind": "part", "description": p.name, "quantity": Decimal(1), "unit": "", "part": p}
+                for p in parts
+            ]
+            resources.append(
+                {"kind": "part", "description": f"Libre {prefix}{i}", "quantity": Decimal(1), "unit": ""}
+            )
+            plan = create_plan(
+                code=f"{prefix}{i}",
+                name=f"Plan {prefix}{i}",
+                calendar_interval=30,
+                items=[{"text": "x", "item_type": "check"}],
+                resources=resources,
+            )
+            asset = Asset.objects.create(
+                code=f"{prefix}-A{i}", name=f"Equipo {i}", asset_class=tenant.asset.asset_class
+            )
+            assign_plan(plan=plan, asset=asset, starts_on=timezone.localdate())
+
+
+def test_preventive_generation_with_plan_parts_is_bounded(tenant_a):
+    """INV-10 CA1: los repuestos previstos se leen en una sola consulta y cada OT cuesta lo mismo."""
+    from apps.inventory.models import Reservation
+    from apps.maintenance.services import generate_due_work_orders
+
+    def generate():
+        with tenant_context(tenant_a.org), CaptureQueriesContext(connection) as ctx:
+            created = generate_due_work_orders(horizon_days=14)
+        reads = [q for q in ctx.captured_queries if 'FROM "maintenance_planresource"' in q["sql"]]
+        return len(created), len(ctx.captured_queries), len(reads)
+
+    _plans_with_parts(tenant_a, 2, prefix="F")
+    few_created, few, few_reads = generate()
+    _plans_with_parts(tenant_a, 6, prefix="M")
+    many_created, many, many_reads = generate()
+
+    assert (few_created, many_created) == (2, 6)
+    assert few_reads == many_reads == 1
+    assert many <= few * 3, f"{few} → {many} consultas"  # lineal en las OT, no en los recursos leídos
+    with tenant_context(tenant_a.org):
+        assert Reservation.objects.count() == 16
+
+
+@pytest.mark.parametrize("which", ["from_plans", "draft", "detail"])
+def test_inventory_plan_screens_do_not_grow_with_rows(client, tenant_a, which):
+    """INV-11: «Crear desde los planes», el borrador y la ficha con repuestos enlazados."""
+    from decimal import Decimal
+
+    from apps.inventory import services as inventory
+    from apps.maintenance.services import add_draft_resource, create_draft, create_plan, publish_draft
+
+    with tenant_context(tenant_a.org):
+        plan = create_plan(
+            code="QX", name="QX", calendar_interval=30, items=[{"text": "x", "item_type": "check"}]
+        )
+    counter = iter(range(1000))
+
+    def add(n):
+        with tenant_context(tenant_a.org):
+            draft = create_draft(membership=tenant_a.admin, plan=plan)
+            for _ in range(n):
+                i = next(counter)
+                part = inventory.create_part(membership=tenant_a.admin, code=f"R{i}", name=f"Rep {i}")
+                add_draft_resource(
+                    membership=tenant_a.admin,
+                    version=draft,
+                    kind="part",
+                    description="",
+                    quantity=1,
+                    part=part,
+                )
+                add_draft_resource(
+                    membership=tenant_a.admin,
+                    version=draft,
+                    kind="part",
+                    description=f"Libre {i}",
+                    quantity=1,
+                )
+                create_plan(
+                    code=f"QL{i}",
+                    name=f"QL{i}",
+                    calendar_interval=30,
+                    items=[{"text": "x", "item_type": "check"}],
+                    resources=[
+                        {"kind": "part", "description": f"Otro {i}", "quantity": Decimal(1), "unit": ""}
+                    ],
+                )
+            publish_draft(membership=tenant_a.admin, version=draft)
+            create_draft(membership=tenant_a.admin, plan=plan)  # el borrador copia los enlaces
+
+    url = {
+        "from_plans": reverse("inventory_from_plans"),
+        "draft": reverse("plan_draft", args=[plan.pk]),
+        "detail": reverse("plan_detail", args=[plan.pk]),
+    }[which]
+    login(client, tenant_a.admin)
+    add(2)
+    few = _count(client, url)
+    add(8)
+    many = _count(client, url)
+    assert many == few, f"{which}: {few} → {many} consultas"

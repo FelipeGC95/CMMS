@@ -22,11 +22,15 @@ from apps.attachments.services import AttachmentError, QuotaExceededError
 from apps.audit import services as audit
 from apps.audit.models import AuditEvent
 from apps.core.tenancy import require_current_organization, tenant_context
+from apps.inventory import services as inventory
+from apps.inventory.models import Part, Reservation, Warehouse
+from apps.inventory.selectors import can_see_warehouse
 from apps.maintenance.models import ItemType, PlanVersion, format_number
 from apps.notifications.services import notify_request_created, notify_request_resolved
 from apps.notifications.services import notify_work_order_assigned as notify_assignment
 from apps.notifications.services import notify_work_order_scheduled as notify_scheduled
 from apps.organizations.models import Location
+from apps.organizations.modules import ModuleNotIncludedError, has_module
 from apps.ui.templatetags.ui import work_order_status_label
 
 from .models import (
@@ -642,6 +646,11 @@ def transition(*, work_order: WorkOrder, to_status: str, membership, comment: st
         },
     )
 
+    if to_status == S.CANCELLED:
+        # Lo reservado y no usado vuelve a quedar disponible (INV-10; llamada explícita, ADR-028 §11).
+        inventory.release_work_order_reservations(
+            work_order=work_order, reason=Reservation.ReleaseReason.CANCELLED, by=user
+        )
     if to_status == S.COMPLETED:
         # Quien avisó la falla se entera de que su solicitud fue atendida (X-02).
         for work_request in WorkRequest.objects.filter(
@@ -676,6 +685,10 @@ def _close(*, work_order: WorkOrder, user, at, record=True):
     work_order.status = S.CLOSED
     work_order.closed_at = at
     work_order.save(update_fields=["status", "closed_at", "updated_at"])
+    # Lo reservado y no usado vuelve a quedar disponible (INV-10; llamada explícita, ADR-028 §11).
+    inventory.release_work_order_reservations(
+        work_order=work_order, reason=Reservation.ReleaseReason.CLOSED, by=user
+    )
 
     # La falla de esta OT (si la hay): se cierra aquí si nadie informó su fin al completar.
     failure = FailureEvent.objects.filter(work_order=work_order).first()
@@ -1362,6 +1375,7 @@ def complete_work_order(
     meter_value=None,
     signature=None,
     at=None,
+    parts_used=(),
 ) -> WorkOrder:
     """Completa la OT; si se informa la lectura del medidor, la registra y reprograma desde ella.
 
@@ -1381,6 +1395,10 @@ def complete_work_order(
     adjunto de la OT con propósito "firma". Si no cabe en el cupo de
     almacenamiento, la OT se completa igual sin ella y
     `work_order.signature_warning` explica por qué (como la foto del aviso).
+    `parts_used` (solo la web, decisión Q2 de INV): repuestos del catálogo que se
+    consumen en la misma transacción, como `{"part", "quantity"}`; típicamente los
+    previstos pendientes que el formulario de cierre muestra pre-marcados. La API v1
+    y terreno no lo usan: allí el consumo es explícito ("Usar").
     """
     is_corrective = work_order.work_type == WorkOrder.Type.CORRECTIVE and work_order.asset_id is not None
     if (
@@ -1418,6 +1436,14 @@ def complete_work_order(
             work_order.save(update_fields=["meter_value_at_completion", "updated_at"])
     if labor_minutes:
         log_labor(work_order=work_order, membership=membership, minutes=labor_minutes)
+    for used in parts_used:
+        add_part_usage(
+            work_order=work_order,
+            membership=membership,
+            part=used["part"],
+            quantity=used["quantity"],
+            used_at=completed_at if at is not None else None,
+        )
     signature_warning = ""
     if signature is not None:
         try:
@@ -1520,33 +1546,111 @@ def log_labor(*, work_order: WorkOrder, membership, minutes: int, client_uuid=No
     return entry
 
 
+QUANTITY_STEP = Decimal("0.001")
+
+
+def _part_quantity(quantity) -> Decimal:
+    try:
+        number = Decimal(str(quantity).strip().replace(",", "."))
+    except (InvalidOperation, ValueError, TypeError):
+        number = None
+    if number is None or not number.is_finite() or number <= 0:
+        raise WorkOrderError(_("La cantidad debe ser mayor que cero y el costo no puede ser negativo."))
+    return number.quantize(QUANTITY_STEP)
+
+
+def _part_warehouse(warehouse, membership):
+    """Bodega elegida a mano: de la organización y visible para la membresía (INV-03 CA6)."""
+    found = Warehouse.objects.filter(pk=getattr(warehouse, "pk", warehouse)).first()
+    if found is None or not can_see_warehouse(membership, found):
+        raise inventory.InventoryError({"warehouse": _("Bodega no encontrada.")})
+    return found
+
+
 @transaction.atomic
 def add_part_usage(
-    *, work_order: WorkOrder, membership, description: str, quantity, unit_cost, unit: str = "",
+    *,
+    work_order: WorkOrder,
+    membership,
+    quantity,
+    description: str = "",
+    unit_cost=None,
+    unit: str = "",
+    part=None,
+    warehouse=None,
+    used_at=None,
     client_uuid=None,
-) -> PartUsage:  # fmt: skip
-    """Repuesto o material consumido. Idempotente por client_uuid (móvil)."""
+) -> PartUsage:
+    """Repuesto o material consumido en la OT (WO-04 CA2, INV-09).
+
+    Con `part` (catálogo, módulo `inventory`) el servidor fija la descripción
+    («código · nombre»), la unidad y el costo unitario = promedio vigente al
+    consumir (el `unit_cost` del cliente se ignora) y crea la salida de stock con
+    `inventory.services.issue_to_work_order`, que en la misma transacción descuenta
+    la reserva del repuesto en la OT. La bodega sale sola (`warehouse_for`: reserva →
+    ancestro más cercano → por defecto) salvo que se elija una. Sin `part` es texto
+    libre, como siempre (sin stock).
+
+    Idempotente por `client_uuid` (móvil sin conexión): se revisa antes que el
+    estado de la OT; reenviarlo devuelve la misma línea aunque la OT ya esté
+    cerrada y usarlo en otra OT es un conflicto.
+    """
     require_perm(membership, Perm.WORK_ORDER_EXECUTE)
-    _require_cost_editable(work_order)
     if client_uuid:
         existing = PartUsage.objects.filter(client_uuid=client_uuid).first()
-        if existing:
+        if existing is not None:
+            if existing.work_order_id != work_order.pk:
+                raise WorkOrderError(
+                    _("Este client_uuid ya se usó para otra operación."), code=ERROR_CONFLICT
+                )
             return existing
-    quantity, unit_cost = Decimal(str(quantity)), Decimal(str(unit_cost))
-    if quantity <= 0 or unit_cost < 0:
-        raise WorkOrderError(_("La cantidad debe ser mayor que cero y el costo no puede ser negativo."))
-    part = PartUsage.objects.create(
+    _require_cost_editable(work_order)
+    quantity = _part_quantity(quantity)
+    movement = None
+    if part is not None:
+        organization = work_order.organization
+        if not has_module(organization, "inventory"):
+            raise ModuleNotIncludedError(organization, "inventory")
+        part = Part.objects.filter(pk=getattr(part, "pk", part)).first()  # de la organización del contexto
+        if part is None:
+            raise inventory.InventoryError({"part": _("Repuesto no encontrado.")})
+        if warehouse is not None:
+            warehouse = _part_warehouse(warehouse, membership)
+        movement = inventory.issue_to_work_order(
+            work_order=work_order,
+            part=part,
+            quantity=quantity,
+            by=membership.user,
+            warehouse=warehouse,
+            occurred_at=used_at,
+            client_uuid=client_uuid,
+        )
+        part = movement.part
+        description, unit, unit_cost = str(part), part.unit, movement.unit_cost
+    else:
+        description = (description or "").strip()
+        if not description:
+            raise WorkOrderError(_("Indica el repuesto o material."))
+        try:
+            unit_cost = Decimal(str(unit_cost))
+        except (InvalidOperation, ValueError, TypeError):
+            unit_cost = None
+        if unit_cost is None or not unit_cost.is_finite() or unit_cost < 0:
+            raise WorkOrderError(_("La cantidad debe ser mayor que cero y el costo no puede ser negativo."))
+    usage = PartUsage.objects.create(
         work_order=work_order,
-        description=description.strip()[:200],
+        description=description[:200],
         quantity=quantity,
-        unit=unit.strip()[:20],
+        unit=(unit or "").strip()[:20],
         unit_cost=unit_cost,
+        part=part,
+        stock_movement=movement,
         created_by=membership.user,
         client_uuid=client_uuid,
     )
     recalculate_costs(work_order=work_order)
-    _audit_cost(AuditEvent.Action.COST_ADD, work_order, membership, "part", part.description, part.cost)
-    return part
+    _audit_cost(AuditEvent.Action.COST_ADD, work_order, membership, "part", usage.description, usage.cost)
+    return usage
 
 
 @transaction.atomic
@@ -1581,6 +1685,10 @@ def remove_cost_line(*, line, membership) -> None:
     kind = "other" if isinstance(line, OtherCost) else "labor" if isinstance(line, LaborEntry) else "part"
     label = f"{line.minutes} min" if isinstance(line, LaborEntry) else line.description
     cost = line.cost
+    if isinstance(line, PartUsage) and line.stock_movement_id:
+        # Repuesto del catálogo: vuelve a su bodega al costo de la salida (INV-09 CA6); la reserva
+        # no se reabre (INV-10).
+        inventory.return_from_work_order(movement=line.stock_movement_id, by=membership.user)
     line.delete()
     recalculate_costs(work_order=work_order)
     _audit_cost(AuditEvent.Action.COST_REMOVE, work_order, membership, kind, label, cost)

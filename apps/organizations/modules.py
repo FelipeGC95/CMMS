@@ -18,6 +18,8 @@ from django.utils.translation import gettext as _
 from django.utils.translation import gettext_lazy
 from rest_framework import permissions
 
+from apps.accounts.permissions import PermissionDeniedError
+
 MODULE_LABELS = {
     "assets": gettext_lazy("Activos"),
     "work_orders": gettext_lazy("Órdenes de trabajo"),
@@ -84,6 +86,18 @@ def plan_message(organization, module: str) -> str:
         "%(module)s no está incluido en tu plan %(plan)s. "
         "Escríbenos a soporte para cambiar de plan y activarlo."
     ) % {"module": MODULE_LABELS.get(module, module), "plan": plan}
+
+
+class ModuleNotIncludedError(PermissionDeniedError):
+    """Un servicio pidió algo de un módulo que el plan no incluye (p. ej. `part` sin `inventory`).
+
+    `message` es el mensaje de plan: la web lo muestra y la API responde 403 con él.
+    """
+
+    def __init__(self, organization, module: str):
+        self.module = module
+        self.message = plan_message(organization, module)
+        super().__init__(self.message)
 
 
 class PlanModuleMiddleware:

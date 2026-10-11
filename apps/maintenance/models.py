@@ -359,11 +359,28 @@ class PlanResource(DraftContentMixin, TenantModel):
     description = models.CharField(_("descripción"), max_length=200)
     quantity = models.DecimalField(_("cantidad"), max_digits=12, decimal_places=3, default=1)
     unit = models.CharField(_("unidad"), max_length=20, blank=True)
+    # Repuesto del catálogo (INV-11). En una versión publicada solo puede pasar
+    # de vacío a un repuesto, una vez (`link_published_resource`, excepción al ADR-016).
+    part = models.ForeignKey(
+        "inventory.Part",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="plan_resources",
+        verbose_name=_("repuesto del catálogo"),
+    )
 
     class Meta:
         verbose_name = _("repuesto o herramienta")
         verbose_name_plural = _("repuestos y herramientas")
         ordering = ["kind", "description"]
+        indexes = [
+            models.Index(
+                fields=["organization", "part"],
+                condition=models.Q(part__isnull=False),
+                name="planresource_org_part_idx",
+            )
+        ]
 
     def __str__(self):
         return self.description

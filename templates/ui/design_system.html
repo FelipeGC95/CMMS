@@ -291,6 +291,32 @@
       <button class="btn btn--secondary btn--lg inline-form__submit" type="button">{% icon 'clock' %}{% translate "Registrar" %}</button>
     </div>
   </div>
+  <h3>{% translate "Repuestos previstos" %}</h3>
+  <p class="muted">{% translate "Datos del repuesto con un formulario corto (cantidad + acción): en el teléfono el formulario baja bajo los datos." %}</p>
+  <ul class="list part-list">
+    <li class="part-row">
+      <div class="list__main">
+        <span class="list__title"><span class="mono">ROD-6205</span> {% translate "Rodamiento 6205" %}</span>
+        <span class="list__meta">{% translate "Reservado" %} <span class="num">3</span> · {% translate "Usado" %} <span class="num">1</span> un</span>
+        <span class="row"><span class="badge badge--warning">{% icon 'alert' %}{% blocktranslate with n=1 %}Faltan {{ n }}{% endblocktranslate %}</span></span>
+      </div>
+      <div class="part-row__actions">
+        <div class="part-row__form">
+          <label class="visually-hidden" for="ds-use-qty">{% translate "Cantidad" %}</label>
+          <input class="input part-row__qty num" type="number" id="ds-use-qty" value="2">
+          <button class="btn btn--secondary" type="button">{% icon 'box' %}{% translate "Usar" %}</button>
+        </div>
+        <button class="btn btn--ghost" type="button">{% icon 'x' %}{% translate "Quitar" %}</button>
+      </div>
+    </li>
+    <li class="part-row">
+      <label class="check-group__option" for="ds-planned-use"><input type="checkbox" id="ds-planned-use" checked><span><span class="mono">FIL-01</span> {% translate "Filtro de aire" %}</span></label>
+      <div class="part-row__form">
+        <label class="visually-hidden" for="ds-planned-qty">{% translate "Cantidad" %}</label>
+        <input class="input part-row__qty num" type="number" id="ds-planned-qty" value="1"><span class="muted">un</span>
+      </div>
+    </li>
+  </ul>
 </section>
 
 <section class="card mb-4" aria-labelledby="ds-lists">

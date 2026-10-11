@@ -38,12 +38,28 @@ def stock(tenant_a):
 # --- Inicio y stock -------------------------------------------------------------
 
 
-def test_empty_state_offers_import_and_add_but_no_plans_card_without_its_route(client, tenant_a):
+def test_empty_state_offers_import_and_add_and_plans_card_only_with_plan_parts(client, tenant_a):
     login(client, tenant_a.admin)
     body = client.get(reverse("inventory_home")).content.decode()
     assert reverse("inventory_import") in body
     assert reverse("inventory_part_create") in body
-    assert "Crear desde los repuestos de tus planes" not in body  # la ruta la crea P4
+    assert reverse("inventory_from_plans") not in body  # sin repuestos en los planes: nada que crear
+    with tenant_context(tenant_a.org):
+        from apps.maintenance import services as plans
+
+        plans.create_plan(
+            code="PMR",
+            name="Con repuestos",
+            calendar_interval=30,
+            items=[{"text": "Revisar", "item_type": "check"}],
+            resources=[
+                {"kind": "part", "description": "Filtro de aceite", "quantity": 1, "unit": "un"},
+                {"kind": "part", "description": "Correa B42", "quantity": 2, "unit": "un"},
+            ],
+        )
+    body = client.get(reverse("inventory_home")).content.decode()
+    assert reverse("inventory_from_plans") in body
+    assert "Crear desde los repuestos de tus planes" in body and "(2)" in body
 
 
 def test_empty_state_for_viewers_has_no_management_actions(client, tenant_a):

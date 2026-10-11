@@ -285,6 +285,7 @@ curl -X POST "$API/work-orders/$OT/photos/" -H "Authorization: Bearer $T" \
 - **Correctiva sobre un activo:** `impact` (`total_stop`, `partial`, `none`), `symptom`, `failure_started_at` y `failure_ended_at`; y si la organización lo exige, `failure_mode` y `failure_cause` (ids del catálogo de fallas). Opcionales `failure_mechanism`, `detection_method` y `component` (activo hijo).
 - **Todos los ítems obligatorios** del checklist deben estar respondidos.
 - `client_uuid` evita cerrar dos veces; en otra OT → 409.
+- Repuestos (módulo `inventory`): completar por la API **no consume** los repuestos previstos (en la web sí se ofrecen pre-marcados); se registran antes, uno a uno. Al cerrar o cancelar la OT, sus reservas pendientes se liberan solas.
 - `at` opcional: hora real de término si se completó sin conexión (fija término, cierre, fin de la falla y la fecha que reprograma el plan).
 
 ```json
@@ -380,7 +381,7 @@ El planificador ve la OT correctiva con prioridad urgente (si el activo es crít
 - Las horas de `bootstrap`, `snapshot` y `reference` van en UTC con `Z`; los decimales como texto.
 - Encabezado opcional `X-Client-Version`: menor que `min_client_version` → 409 `upgrade_required` (`details.min_client_version`); `bootstrap/` responde igual.
 - Encabezado opcional `X-Field-Organization` en las escrituras: la organización donde se hizo el cambio en el teléfono. Si la sesión ya es de otra (cambio de organización en otra pestaña) → 409 `organization_changed` y no se aplica nada; el teléfono repite `bootstrap/` y deja el cambio en cola.
-- Errores de estado de la OT → **409** (no 400): `cancelled` (OT cancelada), `locked` (completada o cerrada), `conflict` (`client_uuid` usado en otra cosa). A diferencia de la v1, `transition/` y `complete/` nunca reabren una OT ya completada (→ 409 `locked`). El teléfono no reintenta un 409: lo muestra como conflicto.
+- Errores de estado de la OT → **409** (no 400): `cancelled` (OT cancelada), `locked` (completada o cerrada), `conflict` (`client_uuid` usado en otra cosa). Los errores de inventario con esos mismos códigos (consumir o devolver repuestos de una OT cerrada o cancelada) también son 409. A diferencia de la v1, `transition/` y `complete/` nunca reabren una OT ya completada (→ 409 `locked`). El teléfono no reintenta un 409: lo muestra como conflicto.
 
 | Método y ruta | Qué resuelve |
 | --- | --- |

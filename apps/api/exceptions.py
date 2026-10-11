@@ -8,6 +8,7 @@ from rest_framework import exceptions
 from rest_framework.views import exception_handler as drf_exception_handler
 
 from apps.accounts.permissions import PermissionDeniedError
+from apps.organizations.modules import ModuleNotIncludedError
 
 
 def _messages(error: DjangoValidationError):
@@ -23,6 +24,8 @@ def exception_handler(exc, context):
     """Errores con forma única: {"error": {"code", "message", "details"}} y textos en español."""
     if isinstance(exc, DjangoValidationError):
         exc = exceptions.ValidationError(_messages(exc))
+    elif isinstance(exc, ModuleNotIncludedError):
+        exc = exceptions.PermissionDenied(exc.message)  # mensaje de plan (ORG-10 CA2)
     elif isinstance(exc, PermissionDeniedError | DjangoPermissionDenied):
         exc = exceptions.PermissionDenied()
     elif isinstance(exc, Http404):

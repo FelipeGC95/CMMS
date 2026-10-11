@@ -10,7 +10,7 @@
 <section class="card narrow">
   <form method="post">
     {% csrf_token %}
-    {% if anchor == "items" %}{% include "maintenance/_item_fields.html" with form=form %}{% else %}{% include "_form_fields.html" with form=form %}{% endif %}
+    {% if anchor == "items" %}{% include "maintenance/_item_fields.html" with form=form %}{% else %}{% include "maintenance/_resource_fields.html" with form=form %}{% endif %}
     <div class="row">
       <button class="btn btn--primary btn--lg" type="submit">{% icon 'check' %}{% translate "Guardar" %}</button>
       <a class="btn btn--ghost btn--lg" href="{% url 'plan_draft' plan.pk %}#{{ anchor }}">{% translate "Cancelar" %}</a>

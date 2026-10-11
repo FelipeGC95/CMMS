@@ -1,6 +1,7 @@
 import base64
 import binascii
 import uuid
+from decimal import Decimal
 
 from django import forms
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -273,6 +274,82 @@ class PartUsageForm(forms.Form):
     unit_cost = forms.DecimalField(label=_("Costo unitario"), min_value=0, max_digits=14, decimal_places=2)
     # Generado al mostrar el formulario: un doble envío no duplica la línea.
     client_uuid = forms.UUIDField(widget=forms.HiddenInput, required=False, initial=uuid.uuid4)
+
+
+class CatalogPartUsageForm(forms.Form):
+    """Repuesto del catálogo usado en la OT (INV-09): el costo lo fija el servidor (promedio vigente)."""
+
+    part = forms.UUIDField()
+    quantity = forms.DecimalField(
+        label=_("Cantidad"), min_value=Decimal("0.001"), max_digits=12, decimal_places=3
+    )
+    # Vacía: la bodega sale sola (reserva → la más cercana al activo → por defecto).
+    warehouse = forms.UUIDField(required=False)
+    client_uuid = forms.UUIDField(required=False)
+
+
+class PlannedPartsForm(forms.Form):
+    """Repuestos previstos pendientes al completar en la web (INV, decisión Q2).
+
+    Cada reserva activa con pendiente aparece pre-marcada con su pendiente como
+    cantidad; se desmarca o se edita con un toque. `parts_used()` entrega lo marcado
+    para `complete_work_order(parts_used=...)`.
+    """
+
+    prefix = "planned"
+
+    def __init__(self, data=None, *, planned=(), **kwargs):
+        super().__init__(data, **kwargs)
+        self.planned = [p for p in planned if p.reservation.status == "active" and p.pending > 0]
+        for planned_part in self.planned:
+            key = planned_part.reservation.pk.hex
+            self.fields[f"use_{key}"] = forms.BooleanField(
+                label=str(planned_part.part), required=False, initial=True
+            )
+            self.fields[f"qty_{key}"] = forms.DecimalField(
+                label=_("Cantidad"),
+                required=False,
+                min_value=Decimal("0.001"),
+                max_digits=12,
+                decimal_places=3,
+                initial=planned_part.pending_input,
+                widget=forms.NumberInput(
+                    attrs={"class": "input part-row__qty num", "step": "any", "inputmode": "decimal"}
+                ),
+            )
+
+    def rows(self):
+        for planned_part in self.planned:
+            key = planned_part.reservation.pk.hex
+            yield planned_part, self[f"use_{key}"], self[f"qty_{key}"]
+
+    def clean(self):
+        cleaned = super().clean()
+        for planned_part in self.planned:
+            key = planned_part.reservation.pk.hex
+            if cleaned.get(f"use_{key}") and cleaned.get(f"qty_{key}") is None:
+                self.add_error(f"qty_{key}", _("Indica la cantidad usada o desmarca el repuesto."))
+        return cleaned
+
+    def parts_used(self) -> list[dict]:
+        return [
+            {
+                "part": planned_part.part,
+                "quantity": self.cleaned_data[f"qty_{planned_part.reservation.pk.hex}"],
+            }
+            for planned_part in self.planned
+            if self.cleaned_data.get(f"use_{planned_part.reservation.pk.hex}")
+        ]
+
+
+class ReservationForm(forms.Form):
+    """Reserva manual de un repuesto para la OT (INV-10, `work_order.manage`)."""
+
+    part = forms.UUIDField()
+    quantity = forms.DecimalField(
+        label=_("Cantidad"), min_value=Decimal("0.001"), max_digits=12, decimal_places=3
+    )
+    warehouse = forms.UUIDField(required=False)
 
 
 class OtherCostForm(forms.Form):
