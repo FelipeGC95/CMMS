@@ -34,6 +34,7 @@ FIELD_SCRIPTS = [
     "field/db.js",
     "field/forms.js",
     "field/local.js",
+    "field/parts.js",
     "field/photos.js",
     "field/queue.js",
     "field/sync.js",

@@ -740,6 +740,25 @@ main { max-width: var(--content-max); margin: 0 auto; padding: var(--space-5) va
 }
 .field-labor { max-width: 40rem; }
 .field-labor input[type="number"] { max-width: 12rem; }
+
+/* Terreno, INV-13: repuestos en la ejecución de la OT (previstos con "Usar" y "Agregar repuesto"). */
+.field-parts h2 { margin-bottom: var(--space-3); }
+.field-parts__subtitle { font-size: var(--text-md); margin: 0 0 var(--space-2); color: var(--color-text-muted); }
+.field-parts__list { list-style: none; margin: 0 0 var(--space-4); padding: 0; }
+.field-part { padding: var(--space-3) 0; display: flex; flex-direction: column; gap: var(--space-2); }
+.field-part + .field-part { border-top: 1px solid var(--color-border); }
+.field-part__name { margin: 0; font-weight: 500; overflow-wrap: anywhere; }
+.field-part__name .mono { color: var(--color-text-muted); }
+.field-part__pending { margin: 0; }
+.field-part__use { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; }
+.field-part__use .input { flex: 1 1 6rem; max-width: 10rem; }
+.field-part__use .btn { flex: 0 0 auto; }
+.field-part--used { flex-direction: row; flex-wrap: wrap; align-items: center; justify-content: space-between; }
+.field-part__used { display: inline-flex; gap: var(--space-2); align-items: flex-start; min-width: 0; overflow-wrap: anywhere; }
+.field-part__used svg { flex: none; margin-top: 0.2em; color: var(--color-text-muted); }
+.field-parts__add { margin-top: var(--space-2); }
+.field-part-form { max-width: 40rem; margin-top: var(--space-2); }
+.field-part-form .field-pair .field input { max-width: 14rem; }
 .dialog {
   width: min(32rem, calc(100vw - 2 * var(--space-4))); max-width: 100%; max-height: calc(100vh - 2 * var(--space-4));
   padding: 0; border: 1px solid var(--color-border); border-radius: var(--radius-lg);

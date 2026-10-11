@@ -408,3 +408,19 @@ def test_design_system_shows_the_field_sync_components(client, tenant_a):
     html = client.get(reverse("design_system")).content.decode()
     for css_class in ("field-sync__row--warning", "field-actions", "field-saved", "field-problem"):
         assert css_class in html, css_class
+    # Repuestos en la ejecución de la OT (INV-13).
+    for css_class in ("field-parts__list", "field-part__use", "field-part--used", "field-parts__add"):
+        assert css_class in html, css_class
+
+
+def test_shell_has_the_parts_section_and_its_templates(client, tenant_a):
+    login(client, tenant_a.tech)
+    html = client.get(reverse("field_shell")).content.decode()
+    for template in ("tpl-planned-part", "tpl-used-part", "tpl-part-form", "tpl-part-fix"):
+        assert f'id="{template}"' in html, template
+    assert 'data-slot="parts"' in html and 'data-action="part-use"' in html
+    for key in ("kind-part", "saved-part", "invalid-quantity", "choose-part", "required-part-description"):
+        assert f"data-msg-{key}=" in html, key
+    # El repuesto se encola y se envía a work-orders/{id}/parts/ con su client_uuid.
+    sync = (FIELD_STATIC / "sync.js").read_text(encoding="utf-8")
+    assert 'case "part":' in sync and "parts/" in sync

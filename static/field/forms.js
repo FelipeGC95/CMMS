@@ -276,7 +276,7 @@ export function readLabor(form) {
 
 // ---------- Conflictos o rechazados ----------
 
-const FIXABLE = new Set(["complete", "request", "reading", "answer"]);
+const FIXABLE = new Set(["complete", "request", "reading", "answer", "part"]);
 
 function detailLines(details) {
   const lines = [];

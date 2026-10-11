@@ -78,6 +78,36 @@ function applyAnswer(item, body) {
   item.answered_at = body.answered_at;
 }
 
+// Repuesto usado (INV-13): la línea queda en la OT ("por enviar") y, si era un previsto, se
+// descuenta de lo que falta usar. Idempotente por client_uuid: volver a aplicar el mismo
+// cambio (corregido o tras descargar de nuevo) reemplaza la línea en vez de duplicarla.
+function applyPart(wo, entry) {
+  const { payload } = entry;
+  const line = {
+    id: null,
+    part: payload.part || null,
+    description: payload.description || "",
+    quantity: payload.quantity,
+    unit: payload.unit || "",
+    client_uuid: entry.client_uuid,
+    created_at: payload.used_at,
+    _pending: true,
+  };
+  const parts = (wo.parts || []).filter((row) => row.client_uuid !== entry.client_uuid);
+  wo.parts = [...parts, line];
+  for (const planned of wo.planned_parts || []) {
+    if (planned._used) delete planned._used[entry.client_uuid];
+  }
+  const planned = payload.part && (wo.planned_parts || []).find((row) => row.part === payload.part);
+  if (planned) planned._used = { ...(planned._used || {}), [entry.client_uuid]: decimal(payload.quantity) || 0 };
+}
+
+// Lo que falta usar de un previsto, descontando lo usado en el teléfono y aún no descargado.
+export function plannedPending(planned) {
+  const used = Object.values(planned._used || {}).reduce((total, value) => total + value, 0);
+  return Math.max(0, Math.round(((decimal(planned.pending) || 0) - used) * 1000) / 1000);
+}
+
 // Aplica un cambio de la cola a una OT (la modifica y la devuelve).
 export function applyEntry(wo, entry, bootstrap) {
   const item = entry.item_id ? (wo.checklist || []).find((row) => row.id === entry.item_id) : null;
@@ -106,6 +136,9 @@ export function applyEntry(wo, entry, bootstrap) {
     case "complete":
       wo.status = "completed";
       wo.allowed_transitions = [];
+      break;
+    case "part":
+      applyPart(wo, entry);
       break;
     default:
       break;

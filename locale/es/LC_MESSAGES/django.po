@@ -8320,3 +8320,60 @@ msgid "Crear %(n)s repuesto y enlazar"
 msgid_plural "Crear %(n)s repuestos y enlazar"
 msgstr[0] ""
 msgstr[1] ""
+
+msgid "Repuesto usado"
+msgstr ""
+
+msgid "Falta usar"
+msgstr ""
+
+msgid "Repuesto guardado en el teléfono: se envía al tener conexión."
+msgstr ""
+
+msgid "Escribe una cantidad mayor que cero (coma o punto para los decimales)."
+msgstr ""
+
+msgid "Escribe qué repuesto o material usaste."
+msgstr ""
+
+msgid "Previstos para esta OT"
+msgstr ""
+
+msgid "Usados"
+msgstr ""
+
+msgid "Sin repuestos previstos ni usados."
+msgstr ""
+
+msgid "Cantidad a usar"
+msgstr ""
+
+msgid "No está en el catálogo (escribir qué es)"
+msgstr ""
+
+msgid "Unidad (opcional)"
+msgstr ""
+
+msgid "Guardar repuesto"
+msgstr ""
+
+msgid "Corregir repuesto"
+msgstr ""
+
+msgid "Repuestos de la OT"
+msgstr ""
+
+msgid "Previstos con «Usar» (cantidad editable) y repuestos usados; los que esperan conexión llevan «Por enviar»."
+msgstr ""
+
+msgid "Filtro de aire compresor"
+msgstr ""
+
+msgid "Aceite compresor ISO 46"
+msgstr ""
+
+msgid "Indica el repuesto del catálogo o su descripción."
+msgstr ""
+
+msgid "Indica el costo unitario."
+msgstr ""

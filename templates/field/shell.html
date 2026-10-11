@@ -141,6 +141,12 @@
     data-msg-kind-reading="{% translate 'Lectura de medidor' %}"
     data-msg-kind-request="{% translate 'Solicitud' %}"
     data-msg-kind-labor="{% translate 'Horas trabajadas' %}"
+    data-msg-kind-part="{% translate 'Repuesto usado' %}"
+    data-msg-part-pending="{% translate 'Falta usar' %}"
+    data-msg-saved-part="{% translate 'Repuesto guardado en el teléfono: se envía al tener conexión.' %}"
+    data-msg-invalid-quantity="{% translate 'Escribe una cantidad mayor que cero (coma o punto para los decimales).' %}"
+    data-msg-required-part-description="{% translate 'Escribe qué repuesto o material usaste.' %}"
+    data-msg-choose-part="{% translate 'Elige un repuesto del catálogo.' %}"
     data-msg-saved-labor="{% translate 'Horas guardadas en el teléfono: se envían al tener conexión.' %}"
     data-msg-invalid-minutes="{% translate 'Escribe los minutos: un número entero entre 1 y 1440.' %}"
     data-msg-made-at="{% translate 'Hecho el' %}"
@@ -248,6 +254,22 @@
         <ol class="checklist" data-slot="checklist"></ol>
         <p class="card empty" data-slot="checklist-empty" hidden>{% translate "Esta OT no tiene checklist." %}</p>
       </section>
+      {# Repuestos (INV-13): previstos con "Usar" y "Agregar repuesto"; se encolan antes de "Completar". #}
+      <section class="card mb-4 field-parts" aria-labelledby="field-parts-title" data-slot="parts">
+        <h2 id="field-parts-title">{% translate "Repuestos" %}</h2>
+        <div data-slot="planned-block" hidden>
+          <h3 class="field-parts__subtitle">{% translate "Previstos para esta OT" %}</h3>
+          <ul class="field-parts__list" data-slot="planned"></ul>
+        </div>
+        <div data-slot="used-block" hidden>
+          <h3 class="field-parts__subtitle">{% translate "Usados" %}</h3>
+          <ul class="field-parts__list" data-slot="used"></ul>
+        </div>
+        <p class="muted" data-slot="parts-empty" hidden>{% translate "Sin repuestos previstos ni usados." %}</p>
+        <p class="field-saved" data-slot="parts-saved" role="status"></p>
+        <button class="btn btn--secondary btn--lg field-parts__add" type="button" data-action="part-add" data-slot="part-add-open" aria-expanded="false">{% icon 'box' %}{% translate "Agregar repuesto" %}</button>
+        <div data-slot="part-form"></div>
+      </section>
       <section class="card mb-4" aria-labelledby="field-wo-photos-title" data-slot="wo-photos" hidden>
         <h2 id="field-wo-photos-title">{% translate "Fotos de la OT" %}</h2>
         <p class="muted" data-slot="wo-photo-count" hidden></p>
@@ -341,6 +363,83 @@
       </div>
       <p class="field-saved" data-slot="saved" role="status"></p>
     </li>
+  </template>
+
+  <template id="tpl-planned-part">
+    <li class="field-part">
+      <p class="field-part__name"><span class="mono" data-slot="code"></span> <span data-slot="name"></span></p>
+      <p class="muted field-part__pending" data-slot="pending"></p>
+      <div class="field-part__use" data-slot="use">
+        <label class="visually-hidden" data-slot="qty-label">{% translate "Cantidad a usar" %}</label>
+        <input class="input num" type="text" inputmode="decimal" autocomplete="off" data-slot="qty">
+        <span class="muted" data-slot="unit"></span>
+        <button class="btn btn--primary btn--lg" type="button" data-action="part-use">{% icon 'check' %}{% translate "Usar" %}</button>
+      </div>
+      <p class="field-saved" data-slot="saved" role="status"></p>
+    </li>
+  </template>
+
+  <template id="tpl-used-part">
+    <li class="field-part field-part--used">
+      <span class="field-part__used">{% icon 'box' %}<span data-slot="text"></span></span>
+      <span class="row" data-slot="badges"></span>
+    </li>
+  </template>
+
+  {# Un solo formulario de repuesto: en el detalle de la OT y al corregir un envío rechazado. #}
+  <template id="tpl-part-form">
+    <form class="field-part-form" novalidate data-form="part">
+      <div class="field field--check" data-slot="free-toggle">
+        <input id="fp-free" name="free" type="checkbox">
+        <label for="fp-free">{% translate "No está en el catálogo (escribir qué es)" %}</label>
+      </div>
+      <div data-mode="catalog">
+        <div class="field">
+          <label for="fp-search">{% translate "Buscar en el catálogo" %}</label>
+          <input id="fp-search" type="search" autocomplete="off" data-filter="fp-part">
+        </div>
+        <div class="field" data-field="part">
+          <label for="fp-part">{% translate "Repuesto" %}</label>
+          <select id="fp-part" name="part"></select>
+          <span class="error" data-error hidden></span>
+        </div>
+      </div>
+      <div class="field" data-field="description" data-mode="free" hidden>
+        <label for="fp-description">{% translate "Repuesto o material" %}</label>
+        <input id="fp-description" name="description" type="text" maxlength="200" autocapitalize="sentences" autocomplete="off">
+        <span class="error" data-error hidden></span>
+      </div>
+      <div class="field-pair">
+        <div class="field" data-field="quantity">
+          <label for="fp-qty">{% translate "Cantidad" %} <span class="muted" data-slot="part-unit"></span></label>
+          <input id="fp-qty" name="quantity" type="text" inputmode="decimal" autocomplete="off">
+          <span class="error" data-error hidden></span>
+        </div>
+        <div class="field" data-field="unit" data-mode="free" hidden>
+          <label for="fp-unit">{% translate "Unidad (opcional)" %}</label>
+          <input id="fp-unit" name="unit" type="text" maxlength="20" autocomplete="off">
+        </div>
+      </div>
+      <div class="field-actions">
+        <button class="btn btn--primary btn--lg" type="submit">{% icon 'check' %}{% translate "Guardar repuesto" %}</button>
+        <button class="btn btn--ghost btn--lg" type="button" data-action="part-cancel" data-slot="cancel">{% icon 'x' %}{% translate "Cancelar" %}</button>
+      </div>
+    </form>
+  </template>
+
+  <template id="tpl-part-fix">
+    <article class="field-form">
+      <a class="btn btn--ghost btn--lg field-back" data-slot="back">{% icon 'list' %}{% translate "Volver a la OT" %}</a>
+      <div class="page-header">
+        <div>
+          <p class="mono muted field-detail__code" data-slot="code"></p>
+          <h1 tabindex="-1">{% translate "Corregir repuesto" %}</h1>
+          <p class="muted" data-slot="title"></p>
+        </div>
+      </div>
+      <div class="alert alert--error" data-slot="errors" role="alert" hidden>{% icon 'stop' %}<span data-slot="errors-text"></span></div>
+      <div class="card" data-slot="part-form"></div>
+    </article>
   </template>
 
   <template id="tpl-complete">

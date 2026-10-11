@@ -600,6 +600,33 @@
       <p class="field-saved field-saved--error">{% icon 'stop' %}{% translate "Escribe un número (coma o punto para los decimales)." %}</p>
     </li>
   </ol>
+  <h3>{% translate "Repuestos de la OT" %}</h3>
+  <p class="muted">{% translate "Previstos con «Usar» (cantidad editable) y repuestos usados; los que esperan conexión llevan «Por enviar»." %}</p>
+  <section class="card mb-4 field-parts" aria-labelledby="ds-field-parts">
+    <h4 id="ds-field-parts">{% translate "Repuestos" %}</h4>
+    <h5 class="field-parts__subtitle">{% translate "Previstos para esta OT" %}</h5>
+    <ul class="field-parts__list">
+      <li class="field-part">
+        <p class="field-part__name"><span class="mono">FIL-AIRE-01</span> {% translate "Filtro de aire compresor" %}</p>
+        <p class="muted field-part__pending">{% translate "Falta usar" %}: 1 un</p>
+        <div class="field-part__use">
+          <label class="visually-hidden" for="ds-part-qty">{% translate "Cantidad a usar" %}</label>
+          <input class="input num" id="ds-part-qty" type="text" inputmode="decimal" value="1">
+          <span class="muted">un</span>
+          <button class="btn btn--primary btn--lg" type="button">{% icon 'check' %}{% translate "Usar" %}</button>
+        </div>
+      </li>
+    </ul>
+    <h5 class="field-parts__subtitle">{% translate "Usados" %}</h5>
+    <ul class="field-parts__list">
+      <li class="field-part field-part--used">
+        <span class="field-part__used">{% icon 'box' %}<span>ACE-COMP-46 · {% translate "Aceite compresor ISO 46" %} · 1 L</span></span>
+        <span class="row"><span class="badge badge--warning">{% icon 'clock' %}{% translate "Por enviar" %}</span></span>
+      </li>
+    </ul>
+    <p class="field-saved">{% icon 'check' %}{% translate "Repuesto guardado en el teléfono: se envía al tener conexión." %}</p>
+    <button class="btn btn--secondary btn--lg field-parts__add" type="button">{% icon 'box' %}{% translate "Agregar repuesto" %}</button>
+  </section>
   <h3>{% translate "Conflictos o rechazados" %}</h3>
   <ul class="field-problems">
     <li class="card field-problem">

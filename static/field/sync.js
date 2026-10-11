@@ -102,6 +102,8 @@ async function send(entry) {
       return api.postJson(`${wo}complete/`, { ...payload, client_uuid: entry.client_uuid }, org);
     case "labor":
       return api.postJson(`${wo}labor/`, { ...payload, client_uuid: entry.client_uuid }, org);
+    case "part":
+      return api.postJson(`${wo}parts/`, { ...payload, client_uuid: entry.client_uuid }, org);
     case "reading":
       return api.postJson("readings/", { ...payload, client_uuid: entry.client_uuid }, org);
     case "request":

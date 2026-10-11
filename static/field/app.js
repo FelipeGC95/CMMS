@@ -11,7 +11,8 @@
 import * as api from "./api.js";
 import * as db from "./db.js";
 import * as forms from "./forms.js";
-import { normalizeDecimal } from "./local.js";
+import { applyEntry, normalizeDecimal } from "./local.js";
+import * as parts from "./parts.js";
 import { PhotoTooLarge, prepare } from "./photos.js";
 import * as queue from "./queue.js";
 import * as sync from "./sync.js";
@@ -116,6 +117,7 @@ async function render({ focus = true } = {}) {
     } else {
       app.rendered = "detail";
       ui.renderDetail(view, { session, workOrder: wo, summary: current, timer, flash });
+      parts.renderParts(view, { wo, bootstrap: session.bootstrap, reference: await db.getReference(app.identity) });
     }
   } else if (path === "/request") {
     app.rendered = "request";
@@ -166,6 +168,14 @@ async function renderFix(clientUuid, params) {
     if (photo) photo.hidden = true; // la foto ya guardada se reenvía tal cual
   } else if (entry.kind === "reading") {
     forms.renderReading(view, { reference, entry, params });
+  } else if (entry.kind === "part") {
+    const wo = await db.getWorkOrder(entry.wo_id, app.identity);
+    if (!wo) {
+      ui.renderTemplate(view, "tpl-not-found");
+      return;
+    }
+    parts.renderFix(view, { wo, reference, entry });
+    if (entry.error) forms.showErrors(view, entry.error.details || { non_field_errors: [entry.error.message] });
   }
   view.querySelector("form").dataset.fix = entry.client_uuid;
 }
@@ -266,6 +276,10 @@ async function onSent(entry, data) {
     wo.status = data.status;
   } else if (entry.kind === "wo_photo") {
     wo._photo_count = Math.max(0, (wo._photo_count || 0) - 1);
+  } else if (entry.kind === "part") {
+    // La línea ya está en el servidor; lo que falta usar se actualiza al descargar de nuevo.
+    const line = (wo.parts || []).find((row) => row.client_uuid === entry.client_uuid);
+    if (line) Object.assign(line, { id: data.id, description: data.description, _pending: false });
   }
   await db.putWorkOrder(wo);
 }
@@ -423,6 +437,66 @@ async function onPhoto(input) {
   }
 }
 
+// ---------- Repuestos (INV-13) ----------
+
+function partsSection() {
+  return view.querySelector("[data-slot='parts']");
+}
+
+function togglePartForm(open) {
+  const section = partsSection();
+  if (!section) return;
+  const form = section.querySelector("form[data-form='part']");
+  const button = section.querySelector("[data-slot='part-add-open']");
+  form.hidden = !open;
+  button.hidden = open;
+  button.setAttribute("aria-expanded", String(open));
+  if (open) (form.elements.free.checked ? form.elements.description : form.querySelector("#fp-search")).focus();
+  else button.focus();
+}
+
+// Encola el repuesto (con la hora real del consumo) y repinta la OT con la línea "por enviar".
+async function enqueuePart(wo, payload) {
+  const label = `${wo.code} · ${payload.description} · ${payload.quantity}${payload.unit ? ` ${payload.unit}` : ""}`;
+  await enqueue({ kind: "part", wo, payload: { ...payload, used_at: now() }, label });
+  view.dataset.dirty = "";
+  await keepScroll(() => render({ focus: false }));
+  const saved = view.querySelector("[data-slot='parts-saved']");
+  if (saved) saved.replaceChildren(ui.icon("check"), document.createTextNode(ui.msg("savedPart")));
+  const next = view.querySelector("[data-slot='part-add-open']:not([hidden])");
+  if (next) next.focus({ preventScroll: true });
+}
+
+async function onPartUse(button) {
+  const li = button.closest("[data-part]");
+  const wo = await currentWorkOrder();
+  if (!li || !wo) return;
+  const { payload, error } = parts.readUse(li, wo);
+  if (error) {
+    itemMessage(li, error, true);
+    return;
+  }
+  await enqueuePart(wo, payload);
+}
+
+async function onPart(form, fixEntry) {
+  const reference = await db.getReference(app.identity);
+  const result = parts.readForm(form, reference);
+  forms.showErrors(fixEntry ? view : form, result.errors);
+  if (Object.keys(result.errors).length) return;
+  if (fixEntry) {
+    // Se reemplaza el cambio entero (catálogo o texto libre) y se conserva la hora del consumo.
+    const entry = await queue.resubmit(fixEntry, { used_at: fixEntry.payload.used_at, ...result.payload });
+    const wo = await db.getWorkOrder(entry.wo_id, app.identity);
+    if (wo) await db.putWorkOrder(applyEntry(wo, entry, app.session.bootstrap));
+    sync.run();
+    go(`#/wo/${encodeURIComponent(entry.wo_id)}`, ui.msg("savedFix"));
+    return;
+  }
+  const wo = await currentWorkOrder();
+  if (wo) await enqueuePart(wo, result.payload);
+}
+
 // ---------- Formularios ----------
 
 // Horas de apoyo: se quedan en la OT (no cambian su estado) y se envían a `labor/`.
@@ -448,6 +522,10 @@ async function onSubmit(form) {
   }
   const fixUuid = form.dataset.fix;
   const fixEntry = fixUuid ? await db.getEntry(fixUuid) : null;
+  if (kind === "part") {
+    await onPart(form, fixEntry);
+    return;
+  }
   let result;
   let wo = null;
   if (kind === "complete") {
@@ -573,6 +651,9 @@ document.addEventListener("click", (event) => {
   else if (action === "answer") onAnswer(target);
   else if (action === "note") onAnswer(target, true);
   else if (action === "discard") onDiscard(target);
+  else if (action === "part-add") togglePartForm(true);
+  else if (action === "part-cancel") togglePartForm(false);
+  else if (action === "part-use") onPartUse(target);
 });
 
 view.addEventListener("submit", (event) => {
@@ -586,12 +667,20 @@ view.addEventListener("change", (event) => {
   const input = event.target;
   if (input.matches("input[type='file'][data-photo]")) onPhoto(input);
   else if (input.matches("#fm-meter")) db.getReference(app.identity).then((reference) => forms.describeMeter(view, reference));
+  else if (input.matches("#fp-free, #fp-part")) {
+    db.getReference(app.identity).then((reference) => parts.showMode(input.form, reference));
+  }
 });
 
 view.addEventListener("input", async (event) => {
   view.dataset.dirty = "1";
   const input = event.target;
-  if (input.matches("[data-filter]")) {
+  if (input.matches("[data-filter='fp-part']")) {
+    const reference = await db.getReference(app.identity);
+    const select = document.getElementById("fp-part");
+    parts.fillPartOptions(select, parts.partRows(reference), input.value);
+    parts.showMode(select.form, reference);
+  } else if (input.matches("[data-filter]")) {
     const reference = await db.getReference(app.identity);
     const rows = input.dataset.filter === "fm-meter" ? forms.meterRows(reference) : forms.assetRows(reference);
     forms.applyFilter(input, rows);
