@@ -1,0 +1,34 @@
+{% extends "base.html" %}{% load i18n ui %}
+{% block title %}{% translate "Importar repuestos" %}{% endblock %}
+{% block content %}
+<div class="narrow">
+  <p class="muted"><a href="{% url 'inventory_home' %}">{% translate "Inventario" %}</a></p>
+  <h1>{% translate "Importar repuestos y stock" %}</h1>
+
+  <ol class="stack mb-4">
+    <li>
+      <strong>{% translate "Descarga la plantilla" %}</strong>
+      <p class="muted">{% translate "Trae las columnas, un ejemplo, instrucciones y tus bodegas." %}</p>
+      <a class="btn btn--secondary" href="{% url 'inventory_import_template' %}">{% icon 'list' %}{% translate "Descargar plantilla" %}</a>
+    </li>
+    <li>
+      <strong>{% translate "Llénala con tus repuestos" %}</strong>
+      <p class="muted">{% blocktranslate %}Solo código y nombre son obligatorios. Si el código ya existe, se actualiza ese repuesto. La cantidad es lo que contaste hoy: el stock queda en esa cantidad. Máximo {{ max_rows }} filas; también sirve un CSV.{% endblocktranslate %}</p>
+    </li>
+    <li>
+      <strong>{% translate "Súbela y revisa la vista previa" %}</strong>
+      <p class="muted">{% translate "Nada se guarda hasta que confirmes. Si una fila tiene un error no se importa ninguna: corrige y vuelve a subir." %}</p>
+    </li>
+  </ol>
+
+  <form class="card" method="post" enctype="multipart/form-data" novalidate>
+    {% csrf_token %}
+    <div class="field">
+      <label for="{{ form.file.id_for_label }}">{{ form.file.label }}</label>
+      {{ form.file }}
+      {% for error in form.file.errors %}<span class="error">{% icon 'stop' %}{{ error }}</span>{% endfor %}
+    </div>
+    <button class="btn btn--primary btn--lg btn--block" type="submit">{% translate "Revisar archivo" %}</button>
+  </form>
+</div>
+{% endblock %}

@@ -1,0 +1,22 @@
+{% extends "base.html" %}{% load i18n ui %}
+{% block title %}{% if part %}{% translate "Editar" %} {{ part.code }}{% else %}{% translate "Nuevo repuesto" %}{% endif %}{% endblock %}
+{% block content %}
+<div class="narrow">
+  <div class="page-header">
+    <div>
+      <p class="muted"><a href="{% url 'inventory_home' %}">{% translate "Inventario" %}</a>{% if part %} · <span class="mono">{{ part.code }}</span>{% endif %}</p>
+      <h1>{% if part %}{% translate "Editar repuesto" %}{% else %}{% translate "Nuevo repuesto" %}{% endif %}</h1>
+      {% if not part %}<p class="muted">{% translate "Solo el código y el nombre son obligatorios; el resto se puede completar después." %}</p>{% endif %}
+    </div>
+  </div>
+  <form class="card" method="post" novalidate>
+    {% csrf_token %}
+    {% include "_form_fields.html" with form=form %}
+    <datalist id="part-categories">{% for value in categories %}<option value="{{ value }}"></option>{% endfor %}</datalist>
+    <div class="row">
+      <button class="btn btn--primary btn--lg" type="submit">{% if part %}{% translate "Guardar cambios" %}{% else %}{% translate "Crear repuesto" %}{% endif %}</button>
+      <a class="btn btn--ghost" href="{% if part %}{% url 'inventory_part_detail' part.pk %}{% else %}{% url 'inventory_home' %}{% endif %}">{% translate "Cancelar" %}</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

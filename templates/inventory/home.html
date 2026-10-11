@@ -1,0 +1,103 @@
+{% extends "base.html" %}{% load i18n ui inventory_tags %}
+{% block title %}{% translate "Inventario" %}{% endblock %}
+{% block content %}
+{% optional_url 'inventory_receive' as receive_url %}{% optional_url 'inventory_count' as count_url %}{% optional_url 'inventory_transfer' as transfer_url %}{% optional_url 'inventory_from_plans' as from_plans_url %}
+<div class="page-header">
+  <div>
+    <h1>{% translate "Inventario" %}</h1>
+    {% if has_parts %}<p class="muted">{% blocktranslate count n=page.paginator.count %}{{ n }} repuesto{% plural %}{{ n }} repuestos{% endblocktranslate %}</p>{% else %}<p class="muted">{% translate "Repuestos, stock por bodega y mínimos." %}</p>{% endif %}
+  </div>
+  <div class="page-actions">
+    {% if has_parts %}
+    {% if can_move and receive_url %}<a class="btn btn--primary page-actions__primary" href="{{ receive_url }}">{% icon 'arrow-down' %}{% translate "Registrar entrada" %}</a>{% endif %}
+    {% if can_manage and count_url %}<a class="btn btn--secondary" href="{{ count_url }}">{% icon 'list' %}{% translate "Contar" %}</a>{% endif %}
+    {% if can_move and transfer_url and warehouses|length > 1 %}<a class="btn btn--secondary" href="{{ transfer_url }}">{% icon 'sync' %}{% translate "Transferir" %}</a>{% endif %}
+    {% if can_manage %}<a class="btn btn--secondary" href="{% url 'inventory_part_create' %}">{% icon 'box' %}{% translate "Agregar repuesto" %}</a>
+    <a class="btn btn--ghost" href="{% url 'inventory_import' %}">{% translate "Importar Excel" %}</a>{% endif %}
+    {% endif %}
+    <a class="btn btn--ghost" href="{% url 'inventory_warehouse_list' %}">{% translate "Bodegas" %}</a>
+  </div>
+</div>
+
+{% if not has_parts %}
+{# Estado vacío: el camino más corto para cargar el catálogo (flujo por defecto, docs §4). #}
+{% if can_manage %}
+<section class="grid grid--2" aria-label="{% translate 'Cómo empezar' %}">
+  {% if from_plans_url and from_plans %}<div class="card">
+    <h2>{% translate "Crear desde los repuestos de tus planes" %} <span class="muted num">({{ from_plans }})</span></h2>
+    <p class="muted">{% translate "Toma los repuestos que ya escribiste en tus planes preventivos y los convierte en catálogo, sin digitar de nuevo." %}</p>
+    <a class="btn btn--primary" href="{{ from_plans_url }}">{% icon 'calendar' %}{% translate "Crear desde los planes" %}</a>
+  </div>{% endif %}
+  <div class="card">
+    <h2>{% translate "Importar Excel" %}</h2>
+    <p class="muted">{% translate "Sube tu lista de repuestos con la cantidad que tienes hoy en bodega. Verás una vista previa antes de guardar." %}</p>
+    <a class="btn {% if from_plans_url and from_plans %}btn--secondary{% else %}btn--primary{% endif %}" href="{% url 'inventory_import' %}">{% icon 'list' %}{% translate "Importar Excel" %}</a>
+  </div>
+  <div class="card">
+    <h2>{% translate "Agregar un repuesto" %}</h2>
+    <p class="muted">{% translate "Solo el código y el nombre son obligatorios." %}</p>
+    <a class="btn btn--secondary" href="{% url 'inventory_part_create' %}">{% icon 'box' %}{% translate "Agregar un repuesto" %}</a>
+  </div>
+</section>
+{% else %}
+<div class="card"><p class="empty">{% translate "Aún no hay repuestos en el catálogo." %}</p></div>
+{% endif %}
+{% else %}
+
+<nav class="chips" aria-label="{% translate 'Estado del stock' %}">
+  <a class="chip chip--counter" href="?{% if warehouse %}warehouse={{ warehouse.pk }}{% endif %}"{% if not status %} aria-current="true"{% endif %}>{% translate "Todos" %}</a>
+  <a class="chip chip--counter chip--warning" href="?status=below_min{% if warehouse %}&warehouse={{ warehouse.pk }}{% endif %}"{% if status == "below_min" %} aria-current="true"{% endif %}>{% icon 'alert' %}{% translate "Bajo mínimo" %}<span class="chip__count">{{ counters.below_min }}</span></a>
+  <a class="chip chip--counter chip--error" href="?status=negative{% if warehouse %}&warehouse={{ warehouse.pk }}{% endif %}"{% if status == "negative" %} aria-current="true"{% endif %}>{% icon 'stop' %}{% translate "Negativo" %}<span class="chip__count">{{ counters.negative }}</span></a>
+  {% if show_costs %}<a class="chip chip--counter chip--info" href="?status=no_cost{% if warehouse %}&warehouse={{ warehouse.pk }}{% endif %}"{% if status == "no_cost" %} aria-current="true"{% endif %}>{% icon 'info' %}{% translate "Sin costo" %}<span class="chip__count">{{ counters.no_cost }}</span></a>{% endif %}
+</nav>
+
+<form class="search-bar" method="get" role="search">
+  <label class="visually-hidden" for="q">{% translate "Buscar" %}</label>
+  <input class="input" type="search" id="q" name="q" value="{{ search }}" placeholder="{% translate 'Código, nombre o n° de parte' %}">
+  {% if categories %}<label class="visually-hidden" for="category">{% translate "Categoría" %}</label>
+  <select class="input input--narrow" id="category" name="category">
+    <option value="">{% translate "Todas las categorías" %}</option>
+    {% for value in categories %}<option value="{{ value }}"{% if value|lower == category|lower %} selected{% endif %}>{{ value }}</option>{% endfor %}
+  </select>{% endif %}
+  {% if warehouses|length > 1 %}<label class="visually-hidden" for="warehouse">{% translate "Bodega" %}</label>
+  <select class="input input--narrow" id="warehouse" name="warehouse">
+    <option value="">{% translate "Todas las bodegas" %}</option>
+    {% for item in warehouses %}<option value="{{ item.pk }}"{% if item == warehouse %} selected{% endif %}>{{ item.name }}</option>{% endfor %}
+  </select>{% endif %}
+  <label class="visually-hidden" for="status">{% translate "Estado" %}</label>
+  <select class="input input--narrow" id="status" name="status">
+    <option value="">{% translate "Activos" %}</option>
+    <option value="below_min"{% if status == "below_min" %} selected{% endif %}>{% translate "Bajo mínimo" %}</option>
+    <option value="out"{% if status == "out" %} selected{% endif %}>{% translate "Sin stock" %}</option>
+    <option value="negative"{% if status == "negative" %} selected{% endif %}>{% translate "Negativo" %}</option>
+    {% if show_costs %}<option value="no_cost"{% if status == "no_cost" %} selected{% endif %}>{% translate "Sin costo" %}</option>{% endif %}
+    <option value="inactive"{% if status == "inactive" %} selected{% endif %}>{% translate "Inactivos" %}</option>
+  </select>
+  <button class="btn btn--secondary" type="submit">{% translate "Buscar" %}</button>
+</form>
+
+<div class="card card--flush">
+  {% if page.object_list %}
+  <table class="table">
+    <thead><tr><th>{% translate "Código" %}</th><th>{% translate "Nombre" %}</th><th>{% translate "Categoría" %}</th><th class="num">{% translate "Disponible" %}</th><th class="num">{% translate "En existencia" %}</th>{% if show_costs %}<th class="num">{% translate "Costo promedio" %}</th>{% endif %}<th>{% translate "Estado" %}</th></tr></thead>
+    <tbody>
+      {% for part in page.object_list %}
+      <tr>
+        <td class="mono" data-label="">{{ part.code }}</td>
+        <td data-label=""><a href="{% url 'inventory_part_detail' part.pk %}">{{ part.name }}</a></td>
+        <td data-label="{% translate 'Categoría' %}">{{ part.category|default:"—" }}</td>
+        <td class="num" data-label="{% translate 'Disponible' %}">{{ part.available_total|num }} {{ part.unit }}</td>
+        <td class="num" data-label="{% translate 'En existencia' %}">{{ part.on_hand_total|num }} {{ part.unit }}</td>
+        {% if show_costs %}<td class="num" data-label="{% translate 'Costo promedio' %}">$ {{ part.avg_cost|num }}</td>{% endif %}
+        <td data-label=""><span class="row">{% stock_mark part.on_hand_total part.below_min part.negative part.is_active %}{% if show_costs %}{% no_cost_mark part.on_hand_total part.avg_cost %}{% endif %}</span></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="empty">{% if filtered %}{% translate "No hay repuestos que coincidan." %}{% else %}{% translate "No hay repuestos activos." %}{% endif %}</p>
+  {% endif %}
+</div>
+{% include "_pagination.html" %}
+{% endif %}
+{% endblock %}

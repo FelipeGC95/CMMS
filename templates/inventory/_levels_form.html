@@ -1,0 +1,17 @@
+{% load i18n ui %}<form class="inline-form inline-form--3" method="post" action="{% url 'inventory_part_levels' part.pk %}" hx-post="{% url 'inventory_part_levels' part.pk %}" hx-target="#stock-section" hx-swap="outerHTML">
+  {% csrf_token %}
+  <input type="hidden" name="warehouse" value="{{ warehouse.pk }}">
+  {% if multi_warehouse %}<p class="inline-form__title"><strong>{{ warehouse.name }}</strong></p>{% endif %}
+  {% for error in form.non_field_errors %}<div class="alert alert--error inline-form__title" role="alert">{% icon 'stop' %}<span>{{ error }}</span></div>{% endfor %}
+  {% for field in form %}
+  <div class="field">
+    <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+    {{ field }}
+    {% for error in field.errors %}<span class="error">{% icon 'stop' %}{{ error }}</span>{% endfor %}
+  </div>
+  {% endfor %}
+  <div class="inline-form__submit row">
+    <button class="btn btn--secondary" type="submit">{% translate "Guardar" %}</button>
+    {% if saved %}<span class="badge badge--success" role="status">{% icon 'check' %}{% translate "Guardado" %}</span>{% endif %}
+  </div>
+</form>

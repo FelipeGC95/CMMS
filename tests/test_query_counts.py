@@ -500,7 +500,7 @@ def test_api_lists_do_not_grow_with_rows(tenant_a, resource):
     assert many == few, f"{resource}: {few} → {many} consultas"
 
 
-def _add_inventory_rows(tenant, n, *, work_orders=()):
+def _add_api_inventory_rows(tenant, n, *, work_orders=()):
     """Por fila: repuesto con entrada, bodega con ubicación, transferencia, y en cada OT una
     reserva y un consumo (INV-13, INV-17)."""
     from apps.inventory import services as inventory
@@ -541,9 +541,9 @@ def test_api_inventory_lists_do_not_grow_with_rows(tenant_a, path):
         wo = create_work_order(work_type="corrective", title="x", asset=tenant_a.asset)
     client = api_client(tenant_a)
     url = f"/api/v1/work-orders/{wo.pk}/parts/" if path == "wo-parts" else f"/api/v1/{path}"
-    _add_inventory_rows(tenant_a, 2, work_orders=[wo])
+    _add_api_inventory_rows(tenant_a, 2, work_orders=[wo])
     few = _api_count(client, url)
-    _add_inventory_rows(tenant_a, 6, work_orders=[wo])
+    _add_api_inventory_rows(tenant_a, 6, work_orders=[wo])
     many = _api_count(client, url)
     assert many == few, f"{url}: {few} → {many} consultas"
 
@@ -559,12 +559,12 @@ def test_field_api_with_inventory_does_not_grow_with_rows(tenant_a, path, django
         ]
     client = field_client(tenant_a.tech)
     url = f"{FIELD_API}/{path}"
-    _add_inventory_rows(tenant_a, 1, work_orders=orders)
+    _add_api_inventory_rows(tenant_a, 1, work_orders=orders)
     few = _field_api_queries(client, url)
-    _add_inventory_rows(tenant_a, 5, work_orders=orders)
+    _add_api_inventory_rows(tenant_a, 5, work_orders=orders)
     with tenant_context(tenant_a.org):
         orders.append(create_work_order(work_type="corrective", title="c", asset=tenant_a.asset))
-    _add_inventory_rows(tenant_a, 1, work_orders=orders)
+    _add_api_inventory_rows(tenant_a, 1, work_orders=orders)
     many = _field_api_queries(client, url)
     assert many == few, f"{url}: {few} → {many} consultas"
     with django_assert_max_num_queries(18):
@@ -1208,6 +1208,44 @@ def test_inventory_stock_list_and_part_detail_are_bounded(tenant_a, django_asser
         with django_assert_max_num_queries(3):
             detail = part_detail(parts[0].pk, membership=tenant_a.admin)
             [(m.warehouse.code, m.created_by) for m in detail.movements]
+
+
+def _add_inventory_rows(tenant, n):
+    """Repuestos con stock en dos bodegas, movimientos, mínimos y una bodega más por llamada."""
+    from apps.inventory import services as inventory
+    from apps.inventory.models import Part, Warehouse
+
+    with tenant_context(tenant.org):
+        main = inventory.ensure_default_warehouse()
+        other = inventory.create_warehouse(
+            membership=tenant.admin, code=f"B{Warehouse.objects.count()}", name="Bodega extra"
+        )
+        first = Part.objects.order_by("created_at").first()
+        for _ in range(n):
+            code = f"P{Part.objects.count():03d}"
+            part = inventory.create_part(membership=tenant.admin, code=code, name=code, category=f"C{code}")
+            inventory.receive_stock(membership=tenant.admin, part=part, quantity=3, unit_cost="5")
+            inventory.transfer_stock(
+                membership=tenant.admin, part=part, from_warehouse=main, to_warehouse=other, quantity=1
+            )
+            inventory.set_stock_levels(membership=tenant.admin, part=part, warehouse=other, min_quantity=2)
+            if first is not None:
+                inventory.receive_stock(membership=tenant.admin, part=first, quantity=1, warehouse=other)
+        return first or Part.objects.order_by("created_at").first()
+
+
+@pytest.mark.parametrize("url_name", ["inventory_home", "inventory_warehouse_list", "inventory_part_detail"])
+def test_inventory_screens_do_not_grow_with_rows(client, tenant_a, url_name, django_assert_max_num_queries):
+    """INV-01/03/04: la lista de stock, las bodegas y la ficha en un número fijo de consultas."""
+    login(client, tenant_a.admin)
+    part = _add_inventory_rows(tenant_a, 2)
+    url = reverse(url_name, args=[part.pk]) if url_name == "inventory_part_detail" else reverse(url_name)
+    few = _count(client, url)
+    _add_inventory_rows(tenant_a, 8)
+    many = _count(client, url)
+    assert many == few, f"{url}: {few} → {many} consultas"
+    with django_assert_max_num_queries(25):
+        client.get(url)
 
 
 def _inventory_rows(tenant, wo, n):

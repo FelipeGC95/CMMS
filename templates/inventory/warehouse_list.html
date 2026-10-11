@@ -1,0 +1,44 @@
+{% extends "base.html" %}{% load i18n ui %}
+{% block title %}{% translate "Bodegas" %}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <p class="muted"><a href="{% url 'inventory_home' %}">{% translate "Inventario" %}</a></p>
+    <h1>{% translate "Bodegas" %}</h1>
+    <p class="muted">{% translate "Las entradas y conteos van a la bodega por defecto cuando no eliges otra." %}</p>
+  </div>
+  {% if can_manage %}<div class="page-actions"><a class="btn btn--primary page-actions__primary" href="{% url 'inventory_warehouse_create' %}">{% icon 'box' %}{% translate "Nueva bodega" %}</a></div>{% endif %}
+</div>
+
+<div class="card card--flush">
+  {% if page.object_list %}
+  <table class="table">
+    <thead><tr><th>{% translate "Código" %}</th><th>{% translate "Nombre" %}</th><th>{% translate "Ubicación" %}</th><th>{% translate "Estado" %}</th>{% if can_manage %}<th><span class="visually-hidden">{% translate "Acciones" %}</span></th>{% endif %}</tr></thead>
+    <tbody>
+      {% for warehouse in page.object_list %}
+      <tr>
+        <td class="mono" data-label="">{{ warehouse.code }}</td>
+        <td data-label="">{{ warehouse.name }}</td>
+        <td data-label="{% translate 'Ubicación' %}">{{ warehouse.location|default:"—" }}</td>
+        <td data-label=""><span class="row">{% if warehouse.is_default %}<span class="badge badge--info">{% icon 'check' %}{% translate "Por defecto" %}</span>{% endif %}{% if warehouse.is_active %}<span class="badge badge--success">{% icon 'check' %}{% translate "Activa" %}</span>{% else %}<span class="badge badge--neutral">{% icon 'dot' %}{% translate "Inactiva" %}</span>{% endif %}</span></td>
+        {% if can_manage %}<td data-label="">
+          <div class="row">
+            <a class="btn btn--ghost" href="{% url 'inventory_warehouse_edit' warehouse.pk %}">{% translate "Editar" %}</a>
+            {% if warehouse.is_active and not warehouse.is_default %}
+            <form method="post" action="{% url 'inventory_warehouse_default' warehouse.pk %}">{% csrf_token %}<button class="btn btn--ghost" type="submit">{% translate "Marcar por defecto" %}</button></form>
+            <form method="post" action="{% url 'inventory_warehouse_active' warehouse.pk %}">{% csrf_token %}<input type="hidden" name="is_active" value="0"><button class="btn btn--ghost" type="submit">{% translate "Desactivar" %}</button></form>
+            {% elif not warehouse.is_active %}
+            <form method="post" action="{% url 'inventory_warehouse_active' warehouse.pk %}">{% csrf_token %}<input type="hidden" name="is_active" value="1"><button class="btn btn--secondary" type="submit">{% translate "Reactivar" %}</button></form>
+            {% endif %}
+          </div>
+        </td>{% endif %}
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="empty">{% translate "Aún no hay bodegas. La «Bodega principal» se crea sola con la primera entrada, conteo o importación." %}</p>
+  {% endif %}
+</div>
+{% include "_pagination.html" %}
+{% endblock %}

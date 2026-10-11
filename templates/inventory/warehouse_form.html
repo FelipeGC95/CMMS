@@ -1,0 +1,20 @@
+{% extends "base.html" %}{% load i18n ui %}
+{% block title %}{% if warehouse %}{% translate "Editar" %} {{ warehouse.code }}{% else %}{% translate "Nueva bodega" %}{% endif %}{% endblock %}
+{% block content %}
+<div class="narrow">
+  <div class="page-header">
+    <div>
+      <p class="muted"><a href="{% url 'inventory_warehouse_list' %}">{% translate "Bodegas" %}</a>{% if warehouse %} · <span class="mono">{{ warehouse.code }}</span>{% endif %}</p>
+      <h1>{% if warehouse %}{% translate "Editar bodega" %}{% else %}{% translate "Nueva bodega" %}{% endif %}</h1>
+    </div>
+  </div>
+  <form class="card" method="post" novalidate>
+    {% csrf_token %}
+    {% include "_form_fields.html" with form=form %}
+    <div class="row">
+      <button class="btn btn--primary btn--lg" type="submit">{% if warehouse %}{% translate "Guardar cambios" %}{% else %}{% translate "Crear bodega" %}{% endif %}</button>
+      <a class="btn btn--ghost" href="{% url 'inventory_warehouse_list' %}">{% translate "Cancelar" %}</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

@@ -44,10 +44,10 @@ svg[aria-hidden="true"], svg[role="img"] { width: 1.1em; height: 1.1em; vertical
 .brand .brand__logo--full { min-width: 90px; }
 .brand .brand__logo--iso { display: none; }
 .brand__product { font-family: var(--font-brand); font-weight: 500; font-size: var(--text-md); letter-spacing: 0.04em; padding-left: calc(var(--logo-height) * 0.5); border-left: 1px solid var(--color-nav-divider); }
-.navbar__links { display: flex; gap: var(--space-1); margin-left: var(--space-4); }
+.navbar__links { display: flex; gap: var(--space-1); }
 .navbar__links a {
   color: var(--color-nav-text); text-decoration: none; font-family: var(--font-brand); font-weight: 500;
-  padding: var(--space-2) var(--space-3); border-radius: var(--radius-md); font-size: var(--text-sm);
+  padding: var(--space-2); border-radius: var(--radius-md); font-size: var(--text-sm);
   border-bottom: 3px solid transparent;
 }
 .navbar__links a[aria-current="page"] { border-bottom-color: var(--color-nav-active); border-radius: 0; }
@@ -75,7 +75,11 @@ a.navbar__user { color: var(--color-nav-text); }
 .org-switch .btn-nav { flex-shrink: 0; }
 .navbar__user, .navbar__org { max-width: 22ch; overflow: hidden; text-overflow: ellipsis; }
 .org-switch { display: flex; align-items: center; gap: var(--space-1); }
-.org-switch select { max-width: 180px; min-width: 0; text-overflow: ellipsis; }
+.org-switch select { max-width: 180px; min-width: 7ch; text-overflow: ellipsis; }
+/* Con JS el selector envía solo al elegir (app.js): "Cambiar" queda solo sin JS y la barra de
+   escritorio, con seis destinos, no se monta sobre la campana entre 1100 y 1280 px. */
+.js .org-switch .btn-nav { display: none; }
+.js .navbar__right > .org-switch { min-width: 7ch; }
 /* Campana de notificaciones (X-02): objetivo táctil de 48 px con el contador encima. */
 .navbar__bell { position: relative; display: inline-flex; align-items: center; justify-content: center; min-width: var(--touch-target); min-height: var(--touch-target); color: var(--color-nav-text); border-radius: var(--radius-md); }
 .navbar__bell svg { width: 22px; height: 22px; }
@@ -140,6 +144,8 @@ main { max-width: var(--content-max); margin: 0 auto; padding: var(--space-5) va
   border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); padding: var(--space-4);
 }
 .card--flush { padding: 0; overflow: hidden; }
+/* Título de una tarjeta sin relleno (tabla a todo el ancho): el título sí lleva margen interior. */
+.card--flush > .card__header { padding: var(--space-4) var(--space-4) 0; }
 .card__header { display: flex; justify-content: space-between; align-items: center; gap: var(--space-2); margin-bottom: var(--space-3); }
 .card__header h2 { margin: 0; }
 
@@ -206,6 +212,8 @@ main { max-width: var(--content-max); margin: 0 auto; padding: var(--space-5) va
   .table tr { padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--color-border); }
   .table td { border: 0; padding: 2px 0; }
   .table td[data-label]:not([data-label=""])::before { content: attr(data-label) ": "; color: var(--color-text-muted); }
+  /* Un badge con un mensaje largo (errores de una importación) se parte en líneas en la tarjeta. */
+  .table td .badge { white-space: normal; }
 }
 
 .list { list-style: none; margin: 0; padding: 0; }
@@ -243,6 +251,15 @@ main { max-width: var(--content-max); margin: 0 auto; padding: var(--space-5) va
   background: var(--color-surface);
 }
 .chip[aria-current="true"] { background: var(--color-secondary-bg); color: var(--color-secondary-text); border-color: var(--color-secondary-border); }
+/* Fichas contador (inicio de inventario, INV-12): filtran la lista, con ícono del estado, texto y
+   contador; ≥ 48 px porque también las usan los técnicos. */
+.chip--counter { min-height: var(--touch-target); gap: var(--space-2); }
+.chip--counter svg { width: 18px; height: 18px; flex: none; }
+.chip--warning svg { color: var(--color-warning); }
+.chip--error svg { color: var(--color-error); }
+.chip--info svg { color: var(--color-info); }
+.chip--counter[aria-current="true"] svg { color: inherit; }
+.chip__count { min-width: 1.75em; padding: 0 var(--space-2); border-radius: var(--radius-pill); background: var(--color-surface-sunken); color: var(--color-text); text-align: center; font-variant-numeric: tabular-nums; font-weight: 600; }
 
 .pagination { display: flex; gap: var(--space-2); align-items: center; justify-content: center; margin-top: var(--space-4); }
 

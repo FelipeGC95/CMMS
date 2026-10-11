@@ -1,0 +1,38 @@
+{% load i18n ui inventory_tags %}{# Stock por bodega y mínimos (INV-04, INV-12). htmx reemplaza esta sección al guardar un mínimo. #}
+<section class="card" id="stock-section" aria-labelledby="stock-title">
+  <h2 id="stock-title">{% translate "Stock" %}</h2>
+  <div class="grid grid--kpi mb-4">
+    <div class="kpi"><span class="kpi__label">{% translate "En existencia" %}</span><span class="kpi__value num">{{ detail.on_hand_total|num }}<span class="kpi__unit">{{ part.unit }}</span></span></div>
+    <div class="kpi"><span class="kpi__label">{% translate "Reservado" %}</span><span class="kpi__value num">{{ detail.reserved_total|num }}<span class="kpi__unit">{{ part.unit }}</span></span></div>
+    <div class="kpi"><span class="kpi__label">{% translate "Disponible" %}</span><span class="kpi__value num">{{ detail.available_total|num }}<span class="kpi__unit">{{ part.unit }}</span></span></div>
+    {% if show_costs %}<div class="kpi"><span class="kpi__label">{% translate "Costo promedio" %}</span><span class="kpi__value num">$ {{ part.avg_cost|num }}</span></div>{% endif %}
+  </div>
+  <div class="card--flush">
+    <table class="table">
+      <thead><tr>{% if multi_warehouse %}<th>{% translate "Bodega" %}</th>{% endif %}<th class="num">{% translate "En existencia" %}</th><th class="num">{% translate "Reservado" %}</th><th class="num">{% translate "Disponible" %}</th><th class="num">{% translate "Mínimo" %}</th><th class="num">{% translate "Objetivo" %}</th><th>{% translate "Ubicación en bodega" %}</th><th>{% translate "Estado" %}</th></tr></thead>
+      <tbody>
+        {% for row in rows %}
+        <tr>
+          {% if multi_warehouse %}<td data-label="">{{ row.warehouse.name }}{% if not row.warehouse.is_active %} <span class="muted">({% translate "inactiva" %})</span>{% endif %}</td>{% endif %}
+          <td class="num" data-label="{% translate 'En existencia' %}">{{ row.on_hand|num }} {{ part.unit }}</td>
+          <td class="num" data-label="{% translate 'Reservado' %}">{{ row.reserved|num }}</td>
+          <td class="num" data-label="{% translate 'Disponible' %}">{{ row.available|num }}</td>
+          <td class="num" data-label="{% translate 'Mínimo' %}">{% if row.item and row.item.min_quantity %}{{ row.item.min_quantity|num }}{% else %}—{% endif %}</td>
+          <td class="num" data-label="{% translate 'Objetivo' %}">{% if row.item and row.item.target_quantity is not None %}{{ row.item.target_quantity|num }}{% else %}—{% endif %}</td>
+          <td data-label="{% translate 'Ubicación en bodega' %}">{{ row.item.bin_location|default:"—" }}</td>
+          <td data-label="">{% stock_mark row.on_hand row.is_below_min %}</td>
+        </tr>
+        {% empty %}
+        <tr><td data-label="">{% translate "No hay bodegas activas." %}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% if levels_forms %}
+  <div class="cost-forms mt-4">
+    <h3>{% translate "Mínimo y ubicación en bodega" %}</h3>
+    {% for warehouse, form, saved in levels_forms %}{% include "inventory/_levels_form.html" %}{% endfor %}
+  </div>
+  {% endif %}
+</section>

@@ -1,0 +1,73 @@
+{% extends "base.html" %}{% load i18n ui inventory_tags %}
+{% block title %}{{ part.code }} · {{ part.name }}{% endblock %}
+{% block content %}
+{% optional_url 'inventory_receive' as receive_url %}{% optional_url 'inventory_part_count' part.pk as count_url %}
+<div class="page-header">
+  <div>
+    <p class="muted"><a href="{% url 'inventory_home' %}">{% translate "Inventario" %}</a> · <span class="mono">{{ part.code }}</span></p>
+    <h1>{{ part.name }}</h1>
+    <p class="row">{% stock_mark detail.on_hand_total False False part.is_active %}{% if show_costs %}{% no_cost_mark detail.on_hand_total part.avg_cost %}{% endif %}</p>
+  </div>
+  <div class="page-actions">
+    {% if part.is_active and can_move and receive_url %}<a class="btn btn--primary page-actions__primary" href="{{ receive_url }}?part={{ part.pk }}">{% icon 'arrow-down' %}{% translate "Registrar entrada" %}</a>{% endif %}
+    {% if part.is_active and can_manage and count_url %}<a class="btn btn--secondary" href="{{ count_url }}">{% icon 'list' %}{% translate "Contar" %}</a>{% endif %}
+    {% if can_manage %}
+    <a class="btn btn--secondary" href="{% url 'inventory_part_edit' part.pk %}">{% icon 'wrench' %}{% translate "Editar" %}</a>
+    <form method="post" action="{% url 'inventory_part_active' part.pk %}">
+      {% csrf_token %}
+      {% if part.is_active %}<input type="hidden" name="is_active" value="0"><button class="btn btn--ghost" type="submit">{% icon 'pause' %}{% translate "Desactivar" %}</button>
+      {% else %}<input type="hidden" name="is_active" value="1"><button class="btn btn--secondary" type="submit">{% icon 'play' %}{% translate "Reactivar" %}</button>{% endif %}
+    </form>
+    {% endif %}
+  </div>
+</div>
+
+{% if not part.is_active %}<div class="alert alert--info mb-4" role="status">{% icon 'info' %}<span>{% translate "Repuesto desactivado: no aparece en los buscadores. Su historial sigue visible." %}</span></div>{% endif %}
+
+<div class="stack">
+  {% include "inventory/_stock_section.html" %}
+
+  <section class="card" aria-labelledby="part-data-title">
+    <h2 id="part-data-title">{% translate "Datos del repuesto" %}</h2>
+    <dl class="dl">
+      <dt>{% translate "Código" %}</dt><dd class="mono">{{ part.code }}</dd>
+      <dt>{% translate "Unidad" %}</dt><dd>{{ part.unit }}</dd>
+      <dt>{% translate "Categoría" %}</dt><dd>{{ part.category|default:"—" }}</dd>
+      <dt>{% translate "N° de parte" %}</dt><dd>{{ part.manufacturer_ref|default:"—" }}</dd>
+      <dt>{% translate "Fabricante" %}</dt><dd>{{ part.manufacturer|default:"—" }}</dd>
+      <dt>{% translate "Proveedor" %}</dt><dd>{{ part.supplier|default:"—" }}</dd>
+      {% if show_costs %}
+      <dt>{% translate "Costo promedio" %}</dt><dd class="num">$ {{ part.avg_cost|num }}</dd>
+      <dt>{% translate "Último costo" %}</dt><dd class="num">{% if part.last_cost is not None %}$ {{ part.last_cost|num }}{% else %}—{% endif %}</dd>
+      {% endif %}
+      <dt>{% translate "Última entrada" %}</dt><dd>{{ part.last_received_at|date:"d-m-Y"|default:"—" }}</dd>
+      {% if part.description %}<dt>{% translate "Descripción" %}</dt><dd>{{ part.description|linebreaksbr }}</dd>{% endif %}
+      {% if part.notes %}<dt>{% translate "Notas" %}</dt><dd>{{ part.notes|linebreaksbr }}</dd>{% endif %}
+    </dl>
+  </section>
+
+  <section class="card card--flush" aria-labelledby="movements-title">
+    <div class="card__header"><h2 id="movements-title">{% translate "Últimos movimientos" %}</h2></div>
+    {% if detail.movements %}
+    <table class="table">
+      <thead><tr><th>{% translate "Fecha" %}</th><th>{% translate "Tipo" %}</th>{% if multi_warehouse %}<th>{% translate "Bodega" %}</th>{% endif %}<th class="num">{% translate "Cantidad" %}</th><th class="num">{% translate "Saldo" %}</th>{% if show_costs %}<th class="num">{% translate "Costo unitario" %}</th>{% endif %}<th>{% translate "Detalle" %}</th></tr></thead>
+      <tbody>
+        {% for movement in detail.movements %}
+        <tr>
+          <td class="num" data-label="">{{ movement.occurred_at|date:"d-m-Y H:i" }}</td>
+          <td data-label="">{{ movement.get_kind_display }}{% if movement.reason %} · {{ movement.get_reason_display }}{% endif %}</td>
+          {% if multi_warehouse %}<td data-label="{% translate 'Bodega' %}">{{ movement.warehouse.name }}</td>{% endif %}
+          <td class="num" data-label="{% translate 'Cantidad' %}">{% if movement.quantity > 0 %}+{% endif %}{{ movement.quantity|num }} {{ part.unit }}</td>
+          <td class="num" data-label="{% translate 'Saldo' %}">{{ movement.on_hand_after|num }}</td>
+          {% if show_costs %}<td class="num" data-label="{% translate 'Costo unitario' %}">$ {{ movement.unit_cost|num }}</td>{% endif %}
+          <td data-label="{% translate 'Detalle' %}">{% if movement.work_order %}<a href="{% url 'work_order_detail' movement.work_order.pk %}">{{ movement.work_order.code }}</a>{% elif movement.reference %}{{ movement.reference }}{% elif movement.note %}{{ movement.note }}{% endif %}{% if movement.created_by %}<span class="muted">{% if movement.work_order or movement.reference or movement.note %} · {% endif %}{{ movement.created_by.short_name }}</span>{% elif not movement.work_order and not movement.reference and not movement.note %}—{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="empty">{% translate "Sin movimientos todavía." %}</p>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}
