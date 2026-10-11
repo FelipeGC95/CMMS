@@ -1,5 +1,4 @@
-{% load i18n ui %}{# Repuestos y herramientas previstos por el plan (PM-01 CA2); lo usan la ficha del plan y la OT.
-   Con `link_parts` (ficha del plan con inventario) muestra el código del catálogo o «Enlazar al catálogo» (INV-11 CA2). #}
+{% load i18n ui %}{# Repuestos y herramientas previstos por el plan (PM-01 CA2); lo usan la ficha del plan y la OT. Con link_parts (ficha con inventario): código del catálogo o enlace (INV-11 CA2). #}
 <ul class="list">
   {% for r in resources %}
   <li><div class="list__main"><span class="list__title">{{ r.description }}</span><span class="list__meta">{{ r.get_kind_display }}{% if link_parts and r.part_id %} · <span class="mono">{{ r.part.code }}</span>{% endif %}</span></div>
