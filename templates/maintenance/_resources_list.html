@@ -1,8 +1,8 @@
 {% load i18n ui %}{# Repuestos y herramientas previstos por el plan (PM-01 CA2); lo usan la ficha del plan y la OT. Con link_parts (ficha con inventario): código del catálogo o enlace (INV-11 CA2). #}
 <ul class="list">
   {% for r in resources %}
-  <li><div class="list__main"><span class="list__title">{{ r.description }}</span><span class="list__meta">{{ r.get_kind_display }}{% if link_parts and r.part_id %} · <span class="mono">{{ r.part.code }}</span>{% endif %}</span></div>
-  <span class="num">{{ r.quantity|measure }}{% if r.unit %} {{ r.unit }}{% endif %}</span>
-  {% if link_parts and r.kind == "part" and not r.part_id %}<a class="btn btn--secondary btn--lg" href="{% url 'plan_resource_link' version.plan_id r.pk %}">{% icon 'box' %}{% translate "Enlazar al catálogo" %}<span class="visually-hidden"> «{{ r.description }}»</span></a>{% endif %}</li>
+  <li{% if link_parts %} class="checklist-order__row"{% endif %}><div class="list__main"><span class="list__title">{{ r.description }}</span><span class="list__meta">{{ r.get_kind_display }}{% if link_parts %} · <span class="num">{{ r.quantity|measure }}{% if r.unit %} {{ r.unit }}{% endif %}</span>{% if r.part_id %} · <span class="mono">{{ r.part.code }}</span>{% endif %}{% endif %}</span></div>
+  {% if not link_parts %}<span class="num">{{ r.quantity|measure }}{% if r.unit %} {{ r.unit }}{% endif %}</span>{% endif %}
+  {% if link_parts and r.kind == "part" and not r.part_id %}<div class="checklist-order__actions"><a class="btn btn--secondary btn--lg" href="{% url 'plan_resource_link' version.plan_id r.pk %}">{% icon 'box' %}{% translate "Enlazar al catálogo" %}<span class="visually-hidden"> «{{ r.description }}»</span></a></div>{% endif %}</li>
   {% endfor %}
 </ul>
