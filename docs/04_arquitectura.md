@@ -397,17 +397,22 @@ tener ingresos).
   responsable o apoyo), ejecutar checklist, registrar lecturas, horas y fotos,
   y crear solicitudes. Entrada opcional en v1 ("Modo sin conexión" en Mis OT,
   Mi semana y "Más") e instalable; tras el piloto se decide si es la vista por
-  defecto. Fuera de v1: QR, repuestos, ver fotos o manuales, Background Sync,
+  defecto. Fuera de v1: QR, ver fotos o manuales, Background Sync,
   push, crear/aprobar/cerrar OT y varias organizaciones a la vez.
-- **Repuestos (F2, INV-13, ADR-028):** dejan de estar fuera: entran con el
-  paquete P6 de inventario. `reference/` suma el catálogo activo compacto (sin
+- **Repuestos (F2, INV-13, ADR-028):** dejan de estar fuera: entraron con el
+  paquete P6 de inventario (2026-10, sección "Repuestos" de la ejecución de la
+  OT, `static/field/parts.js`; `POST work-orders/{id}/parts/` con el mismo
+  servicio que la web y la v1). `reference/` suma el catálogo activo compacto (sin
   costos, tope 2.000 con `truncated`, solo con el módulo `inventory` y
   `inventory.view`) y `snapshot/` suma por OT `planned_parts` y `parts`. "Usar"
   un previsto o agregar un repuesto se encola con `client_uuid` y `used_at` en
   la cola de la OT, antes de "Completar". Como el stock negativo se permite,
   no hay conflictos de stock: solo 409 `cancelled`/`locked`, y el mismo
-  `client_uuid` en otra OT → 409 `conflict`. Crear repuestos sin conexión
-  sigue fuera.
+  `client_uuid` en otra OT → 409 `conflict`. El texto libre sin conexión no
+  pide costo (queda en 0; quien gestiona la OT lo ajusta en la web) y el
+  técnico no ve costos de inventario en las respuestas (Q3). Un envío
+  rechazado (400) se corrige y reenvía con el mismo `client_uuid`. Crear
+  repuestos sin conexión sigue fuera.
 - **Estado (2026-10):** implementado en cinco paquetes: P1 servicios en
   `apps/work` (horas del teléfono, regla de checklist, `LaborEntry.client_uuid`),
   P2 `/field/api/`, P3 shell/SW/manifest, P4 cola, sincronización, flujos y e2e,

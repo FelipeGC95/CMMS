@@ -3,11 +3,11 @@
 Guía funcional de la API REST: qué resuelve cada endpoint, sus reglas y
 ejemplos de uso. La decisión técnica está en ADR-005
 (`docs/04_arquitectura.md`); el contrato exacto, en `/api/schema/`.
-Actualizada al 2026-09-29.
+Actualizada al 2026-10-11 (inventario, INV-17).
 
 ## Resumen
 
-La API v1 permite que otro sistema haga, sin pasar por la pantalla, lo mismo que un planificador o un técnico hacen en la web: consultar y dar de alta activos, cargar lecturas de medidores, crear y mover órdenes de trabajo, responder su checklist con fotos y cerrarlas, y reportar fallas.
+La API v1 permite que otro sistema haga, sin pasar por la pantalla, lo mismo que un planificador o un técnico hacen en la web: consultar y dar de alta activos, cargar lecturas de medidores, crear y mover órdenes de trabajo, responder su checklist con fotos y cerrarlas, reportar fallas y, con el módulo de inventario, mantener el catálogo de repuestos, registrar entradas, conteos y transferencias, y consumir repuestos en una OT.
 
 Resuelve tres necesidades concretas:
 
@@ -100,7 +100,7 @@ Todos los errores tienen la misma forma, con textos en español:
 
 ## Mapa de endpoints
 
-Son 5 recursos bajo `/api/v1/` con 23 operaciones; las escrituras exigen un token `write`.
+Son 9 recursos bajo `/api/v1/` con 36 operaciones; las escrituras exigen un token `write`. Los 4 de inventario (repuestos, bodegas, stock y movimientos) exigen además el módulo `inventory` del plan.
 
 | Recurso | Método y ruta | Qué resuelve |
 | --- | --- | --- |
@@ -124,6 +124,16 @@ Son 5 recursos bajo `/api/v1/` con 23 operaciones; las escrituras exigen un toke
 | Fotos | `POST /work-orders/{id}/photos/` | Subir una foto a la OT. |
 | Fotos | `POST /work-orders/{id}/checklist-items/{item_id}/photos/` | Subir una foto a un ítem del checklist. |
 | Adjuntos | `GET /work-orders/{id}/attachments/` | Listar los adjuntos de la OT y sus ítems (solo metadatos). |
+| Repuestos de la OT | `GET /work-orders/{id}/parts/` | Repuestos y materiales usados en la OT. |
+| Repuestos de la OT | `POST /work-orders/{id}/parts/` | Registrar un repuesto usado: del catálogo (descuenta stock y reserva) o texto libre. |
+| Repuestos | `GET /parts/` | Catálogo de repuestos: filtrar por código, texto o categoría. |
+| Repuestos | `GET /parts/{id}/` | Ficha de un repuesto (costo promedio con permiso de costos). |
+| Repuestos | `POST /parts/` | Alta idempotente por código: si ya existe, devuelve el existente. |
+| Repuestos | `PATCH /parts/{id}/` | Editar datos del catálogo o desactivar (`is_active: false`). |
+| Bodegas | `GET /warehouses/` y `GET /warehouses/{id}/` | Bodegas visibles (la por defecto primero). |
+| Stock | `GET /stock/` y `GET /stock/{id}/` | Saldo por repuesto y bodega: existencia, reservado, disponible, mínimo; filtro `below_min`. |
+| Movimientos | `GET /stock-movements/` y `GET /stock-movements/{id}/` | Libro de movimientos por repuesto, bodega, OT o tipo. |
+| Movimientos | `POST /stock-movements/` | Entrada (`receipt`), conteo (`count`) o transferencia (`transfer`). |
 | Solicitudes | `GET /requests/` | Listar avisos de falla por estado. |
 | Solicitudes | `GET /requests/{id}/` | Detalle de un aviso y su OT. |
 | Solicitudes | `POST /requests/` | Reportar una falla: crea el aviso y su OT correctiva. |
@@ -322,6 +332,58 @@ curl -X POST "$API/work-orders/$OT/photos/" -H "Authorization: Bearer $T" \
 
 Estados de la solicitud: `pending`, `accepted`, `rejected`, `merged` (fusionada con otra).
 
+### 8. Inventario: catálogo, stock y movimientos (INV-17)
+
+**Qué resuelve:** que el ERP o una planilla mantenga el catálogo de repuestos, registre las compras recibidas y los conteos, y consulte qué está bajo mínimo; y que una app móvil registre el repuesto usado en una OT. Usa los mismos servicios que `/inventory/` en la web (ADR-028): costo promedio ponderado por repuesto, libro de movimientos inmutable y stock negativo permitido.
+
+- Exige el módulo `inventory` del plan (Prueba, Profesional y Empresa); sin él, los cuatro recursos y enviar `part` en `…/parts/` responden 403 con el mensaje de plan. El texto libre en la OT sigue disponible.
+- **Costos** (`avg_cost`, `last_cost`, `unit_cost`, `total_cost`, `avg_cost_after`, `cost`) solo con el permiso `inventory.cost_view`; si no, vienen en `null`. El token actúa como planificador, así que los ve.
+- El saldo no se edita: solo cambia con movimientos. Bodegas, mínimos, reservas y devoluciones se gestionan en la web.
+
+**Repuestos.** `POST /parts/` es idempotente por código (sin distinguir mayúsculas): si ya existe, responde **200** con el existente sin cambiarlo; si no, **201**. `PATCH` cambia solo los campos enviados; `is_active: false` lo desactiva (sale de los buscadores; `?include_inactive=true` lo vuelve a listar).
+
+```json
+// POST /parts/
+{ "code": "ROD-6204", "name": "Rodamiento 6204 2RS", "unit": "un",
+  "category": "Rodamientos", "manufacturer_ref": "6204-2RSH" }
+
+// respuesta 201 (200 si el código ya existía)
+{ "id": "0193…", "code": "ROD-6204", "avg_cost": "0.0000", "is_active": true, … }
+```
+
+**Stock y bajo mínimo.** `GET /stock/?below_min=true` devuelve los saldos con disponible (existencia − reservado) menor que el mínimo: la base de una orden de compra en el ERP.
+
+**Movimientos.** `POST /stock-movements/` con `kind`:
+
+| `kind` | Campos | Efecto |
+| --- | --- | --- |
+| `receipt` | `part`, `quantity` > 0, `unit_cost` (opcional), `warehouse` (vacía = la por defecto), `reference`, `supplier`, `note`, `occurred_at` | Entrada; con costo recalcula el promedio, sin costo entra al promedio vigente. |
+| `count` | `part`, `counted_quantity` ≥ 0, `warehouse`, `note` | Ajusta la diferencia; `note` (motivo) obligatoria si la diferencia es negativa o supera el 10 %. Sin diferencia → 200 sin movimientos. |
+| `transfer` | `part`, `quantity` > 0, `warehouse` (origen), `to_warehouse` (destino), `note` | Dos movimientos enlazados por `transfer_group`; no cambia el promedio. |
+
+La respuesta es `{"movements": [...]}` (uno, dos o ninguno), con **201** si se creó y **200** al reenviar el mismo `client_uuid`; esa clave usada en otra operación → **409** `conflict`.
+
+```json
+// POST /stock-movements/
+{ "kind": "receipt", "part": "0193…", "quantity": "10", "unit_cost": "4500",
+  "reference": "FAC-10234", "supplier": "Rodamientos del Sur", "client_uuid": "7c1e…" }
+
+// respuesta 201
+{ "movements": [ { "kind": "receipt", "quantity": "10.000", "unit_cost": "4500.0000",
+  "avg_cost_after": "4440.0000", "on_hand_after": "14.000", … } ] }  // antes: 4 a $4.290
+```
+
+**Repuesto usado en una OT.** `POST /work-orders/{id}/parts/` con `part` (catálogo) o `description` + `unit_cost` (texto libre), y `quantity`. Con `part` el servidor fija descripción, unidad y costo (promedio vigente al consumir; un `unit_cost` enviado se ignora), elige la bodega (la de la reserva, la más cercana al activo o la por defecto; `warehouse` para forzarla) y descuenta la reserva de la OT. Nunca se rechaza por falta de stock. Idempotente por `client_uuid`: reenviarlo devuelve la misma línea (200) aunque la OT ya esté cerrada; en otra OT → 409. Una OT cerrada o cancelada responde 400, como el resto de la v1.
+
+```json
+// POST /work-orders/{id}/parts/
+{ "part": "0193…", "quantity": "2", "used_at": "2026-10-11T14:20:00-03:00", "client_uuid": "b9d0…" }
+
+// respuesta 201
+{ "description": "ROD-6204 · Rodamiento 6204 2RS", "quantity": "2.000", "unit": "un",
+  "unit_cost": "4440.0000", "cost": "8880.00", "warehouse": "0193…", … }
+```
+
 ## Casos de aplicación de punta a punta
 
 Cuatro escenarios típicos de una pyme productiva, con la secuencia exacta de llamadas.
@@ -386,11 +448,12 @@ El planificador ve la OT correctiva con prioridad urgente (si el activo es crít
 | Método y ruta | Qué resuelve |
 | --- | --- |
 | `GET bootstrap/` | Persona, organización (zona horaria, `require_failure_details`), rol, permisos (`execute`, `request_create`, `reading_create`), días por defecto, nombres de estado, transiciones de ejecución, `server_time` y `min_client_version`. |
-| `GET snapshot/?days=N` | OT visibles abiertas con fecha ≤ hoy + N (7 por defecto, máx. 14), más las en ejecución, en espera, vencidas y sin fecha; asignadas a la persona primero; tope 200 con `truncated`. Cada OT trae activo o ubicación, medidor, `meter_required`, `allowed_transitions` y el checklist con `photo_count`. |
-| `GET reference/` | Códigos de falla activos por tipo, activos visibles (tope 2.000 con `truncated`) y sus medidores activos. |
+| `GET snapshot/?days=N` | OT visibles abiertas con fecha ≤ hoy + N (7 por defecto, máx. 14), más las en ejecución, en espera, vencidas y sin fecha; asignadas a la persona primero; tope 200 con `truncated`. Cada OT trae activo o ubicación, medidor, `meter_required`, `allowed_transitions`, el checklist con `photo_count`, `planned_parts` (reservas activas con pendiente: `part`, `code`, `name`, `unit`, `quantity`, `consumed_quantity`, `pending`; vacío sin el módulo `inventory`) y `parts` (repuestos ya registrados, sin costos). |
+| `GET reference/` | Códigos de falla activos por tipo, activos visibles (tope 2.000 con `truncated`), sus medidores activos y `parts`: catálogo activo compacto (`id`, `code`, `name`, `unit`, `category`; sin costos; tope 2.000 con `parts_truncated`), solo con el módulo `inventory` y `inventory.view` (si no, vacío). |
 | `POST work-orders/{id}/transition/` | Iniciar, pausar o reanudar (`in_progress`, `on_hold`, `completed`), con `client_uuid` y `at`. |
 | `POST work-orders/{id}/complete/` | Cierre como en la v1, con `at`. |
 | `POST work-orders/{id}/labor/` | Minutos de la persona (p. ej. un apoyo): `minutes`, `client_uuid`. 201; reenvío → 200. |
+| `GET/POST work-orders/{id}/parts/` | Repuesto usado sin conexión (INV-13): `part` del catálogo o `description` (texto libre; sin `unit_cost` queda en 0), `quantity`, `unit`, `used_at` (hora real) y `client_uuid`. Sin conflictos de stock (puede quedar negativo). 201; reenvío → 200 (también con la OT ya cerrada); OT cancelada o cerrada → 409 `cancelled`/`locked`; la clave en otra OT → 409 `conflict`; `part` sin el módulo `inventory` → 403. Los costos solo con `inventory.cost_view` (el técnico no los ve). |
 | `GET work-orders/{id}/checklist-items/` y `POST …/{item_id}/answer/` | Como en la v1, con `answered_at` y `superseded`. |
 | `POST work-orders/{id}/photos/` y `…/checklist-items/{item_id}/photos/` | Como en la v1, con `taken_at`. |
 | `GET work-orders/{id}/attachments/` | Como en la v1. |
@@ -416,6 +479,7 @@ La v1 cubre el flujo del técnico y las integraciones de datos; la configuració
 | Descargar archivos | Los adjuntos devuelven solo metadatos, nunca una URL. | Descarga desde la web con URL firmada. |
 | Borrado | No hay `DELETE` en ningún recurso (sin borrado físico por diseño). | Cancelar una OT con `transition` a `cancelled`. |
 | Notificaciones salientes | No hay webhooks: un sistema externo debe consultar periódicamente. | Consultar `GET /work-orders/?scope=open` cada cierto tiempo. |
+| Bodegas, mínimos, reservas y devoluciones | Solo lectura de bodegas y stock; no se crean bodegas, no se fijan mínimos, no se reservan ni se devuelven repuestos por la API. | Web (`/inventory/` y el detalle de la OT). |
 | Token por usuario | El token actúa como integración (rol planificador), no como un técnico concreto. | Un token por app o integración, con nombre claro. |
 
 ### Referencias

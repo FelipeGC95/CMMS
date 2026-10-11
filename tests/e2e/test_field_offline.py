@@ -287,6 +287,109 @@ def test_cancelled_work_order_is_a_conflict_that_can_be_discarded(browser):
     context.close()
 
 
+# ---------- Inventario P6: repuestos sin conexión (INV-13) ----------
+
+# Repuesto con stock (10 a $1.000) y reserva de 2 en la OT elegida; lo crea el test, así no
+# depende de que seed_demo traiga inventario.
+INVENTORY_SETUP = """
+import json
+from apps.accounts.models import Membership
+from apps.core.tenancy import tenant_context
+from apps.inventory import services as inventory
+from apps.work.models import WorkOrder
+wo = WorkOrder.all_tenants.get(pk="{id}")
+admin = Membership.objects.filter(organization=wo.organization, role="admin").first()
+with tenant_context(wo.organization):
+    part = inventory.create_part(membership=admin, code="{code}", name="Rodamiento e2e", unit="un")
+    inventory.receive_stock(membership=admin, part=part, quantity=10, unit_cost=1000)
+    inventory.reserve_for_work_order(work_order=wo, part=part, quantity=2, source="manual")
+    print(json.dumps({{"part": str(part.pk), "parts_cost": float(wo.parts_cost)}}))
+"""
+
+INVENTORY_STATE = """
+import json
+from apps.inventory.models import Reservation, StockItem
+from apps.work.models import PartUsage, WorkOrder
+wo = WorkOrder.all_tenants.get(pk="{id}")
+lines = PartUsage.all_tenants.filter(work_order=wo, part_id="{part}")
+usages = list(lines.values_list("quantity", flat=True))
+free = PartUsage.all_tenants.filter(work_order=wo, description="{free}").count()
+on_hand = float(sum(StockItem.all_tenants.filter(part_id="{part}").values_list("on_hand", flat=True)))
+reservation = Reservation.all_tenants.get(work_order=wo, part_id="{part}")
+print(json.dumps({{"usages": [float(q) for q in usages], "free": free, "on_hand": on_hand,
+    "parts_cost": float(wo.parts_cost), "reservation": reservation.status}}))
+"""
+
+
+def parts_shot(page, name):
+    """Captura de la sección Repuestos (E2E_SHOTS) a 360, 1024 y 1440 px."""
+    if not os.environ.get("E2E_SHOTS"):
+        return
+    for width in (360, 1024, 1440):
+        page.set_viewport_size({"width": width, "height": 900})
+        section = page.locator("[data-slot='parts']")
+        section.scroll_into_view_if_needed()
+        section.screenshot(path=f"{os.environ['E2E_SHOTS']}/inv6-{name}-{width}.png")
+        page.screenshot(path=f"{os.environ['E2E_SHOTS']}/inv6-{name}-{width}-page.png", full_page=True)
+        assert page.evaluate("document.documentElement.scrollWidth <= window.innerWidth"), width
+    page.set_viewport_size({"width": 360, "height": 800})
+
+
+def test_offline_planned_part_is_used_once(browser):
+    context, page, errors = field_page(browser)
+    wo = pick(page, need_items=False)
+    assert wo, "seed_demo no tiene una OT planificada para el técnico"
+    code = f"E2E-{os.getpid()}"
+    setup = manage(INVENTORY_SETUP.format(id=wo["id"], code=code))
+    # "Descargar de nuevo": la OT trae el previsto y `reference`, el catálogo con el repuesto.
+    with page.expect_response("**/field/api/reference/"):
+        page.click("[data-action='refresh']")
+    page.wait_for_timeout(1000)  # se guarda en IndexedDB
+
+    context.set_offline(True)
+    page.evaluate("id => { location.hash = `#/wo/${id}`; }", wo["id"])
+    planned = page.locator(f"[data-slot='planned'] [data-part='{setup['part']}']")
+    planned.wait_for()
+    assert code in planned.inner_text()
+    assert planned.locator("[data-slot='qty']").input_value() == "2"
+    parts_shot(page, "planned")
+    planned.locator("[data-action='part-use']").click()
+    page.wait_for_selector("[data-slot='parts-saved']:not(:empty)")
+    # Usado entero: deja de estar previsto y queda la línea "por enviar".
+    assert page.locator(f"[data-slot='planned'] [data-part='{setup['part']}']").count() == 0
+    used = page.locator("[data-slot='used']")
+    assert code in used.inner_text() and "Por enviar" in used.inner_text()
+
+    # Un material que no está en el catálogo (texto libre).
+    free = f"Huaipe e2e {os.getpid()}"
+    page.click("[data-action='part-add']")
+    page.check("#fp-free")
+    page.fill("#fp-description", free)
+    page.fill("#fp-qty", "1,5")
+    page.fill("#fp-unit", "kg")
+    parts_shot(page, "form")
+    page.click("form[data-form='part'] button[type=submit]")
+    page.locator("[data-slot='used']", has_text=free).wait_for(timeout=5000)
+    parts_shot(page, "used")
+    assert "Sin conexión" in page.inner_text("#field-sync-rows")
+
+    seen = set()
+    lose_first_response(page, "/parts/", seen)
+    context.set_offline(False)
+    page.evaluate("window.dispatchEvent(new Event('online'))")
+    page.wait_for_selector(".field-sync__row--success", timeout=60000)
+    assert seen == {"/parts/"}
+
+    state = manage(INVENTORY_STATE.format(id=wo["id"], part=setup["part"], free=free))
+    assert state["usages"] == [2.0]  # una sola línea pese al reintento
+    assert state["free"] == 1
+    assert state["on_hand"] == 8.0
+    assert state["reservation"] == "fulfilled"
+    assert state["parts_cost"] == setup["parts_cost"] + 2000  # el texto libre va a costo 0
+    assert errors == []
+    context.close()
+
+
 # ---------- P5: salir borra los datos del teléfono (ADR-011 §1e) ----------
 
 DATABASES = "async () => (await indexedDB.databases()).map((info) => info.name)"

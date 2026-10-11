@@ -502,15 +502,15 @@ elegir bodega ni escribir costos.
 - CA5: El inicio de inventario muestra el contador "Bajo mínimo (N)".
 
 **INV-13 · Consumo offline en la PWA (F2)**
-- CA1: `reference/` incluye el catálogo activo compacto (id, código, nombre,
+- CA1 ✔ `reference/` incluye el catálogo activo compacto (id, código, nombre,
   unidad, categoría; tope 2.000 con `truncated`), sin costos, solo con el
   módulo `inventory` y `inventory.view`.
-- CA2: `snapshot/` incluye por OT `planned_parts` (reservas con pendiente) y
+- CA2 ✔ `snapshot/` incluye por OT `planned_parts` (reservas con pendiente) y
   `parts` ya registrados.
-- CA3: Sin señal: "Usar" un previsto o agregar un repuesto (catálogo o texto
+- CA3 ✔ Sin señal: "Usar" un previsto o agregar un repuesto (catálogo o texto
   libre) con cantidad; se encola con `client_uuid` y `used_at` en la cola de
   la OT, antes de "Completar".
-- CA4: Sin conflictos de stock; solo 409 por OT cancelada o bloqueada.
+- CA4 ✔ Sin conflictos de stock; solo 409 por OT cancelada o bloqueada.
   Reenvío del mismo `client_uuid` → 200; en otra OT → 409 `conflict`.
 
 **INV-14 · Historial, auditoría, exportación y reconciliación (F2)**
@@ -562,14 +562,14 @@ elegir bodega ni escribir costos.
   `apps/core/rls.py`), verificado en `tests/isolation/test_rls.py`.
 
 **INV-17 · API v1 de inventario (F2)**
-- CA1: `GET/POST /api/v1/parts/` (alta idempotente por código: si existe, 200
+- CA1 ✔ `GET/POST /api/v1/parts/` (alta idempotente por código: si existe, 200
   con el existente), `GET/PATCH /api/v1/parts/{id}/`; `GET
   /api/v1/warehouses/`; `GET /api/v1/stock/` (filtros `part`, `warehouse`,
   `below_min`); `GET /api/v1/stock-movements/`.
-- CA2: `POST /api/v1/stock-movements/` con `kind` ∈ {`receipt`, `count`,
+- CA2 ✔ `POST /api/v1/stock-movements/` con `kind` ∈ {`receipt`, `count`,
   `transfer`}, idempotente por `client_uuid`; `GET/POST
   /api/v1/work-orders/{id}/parts/` (INV-09).
-- CA3: Paginación, errores y alcances read/write como el resto de la API;
+- CA3 ✔ Paginación, errores y alcances read/write como el resto de la API;
   esquema sin advertencias (`--fail-on-warn`); documentado en
   [08_api.md](08_api.md).
 
@@ -688,7 +688,9 @@ servidor cuando vuelva la conexión. Implementado en `/field/` (2026-10).
   hasta 14 días.
 - CA3 ✔ Sin señal: iniciar, pausar, reanudar y completar; responder el
   checklist (con firma), fotos de ítems y de la OT, horas al completar y horas
-  de apoyo, lectura de medidor y solicitud con foto.
+  de apoyo, lectura de medidor y solicitud con foto; repuestos previstos
+  ("Usar") y agregados del catálogo descargado o en texto libre (INV-13,
+  2026-10).
 - CA4 ✔ Cola con `client_uuid`: reintentar nunca duplica; correlativos al
   sincronizar; barra de estado accesible (pendientes, enviando, conflictos).
 - CA5 ✔ Conflictos: OT cancelada o cerrada → conflicto con "Descartar";
@@ -703,8 +705,9 @@ servidor cuando vuelva la conexión. Implementado en `/field/` (2026-10).
 - CA8 ✔ Móvil 360 px, objetivos ≥ 48 px, texto ≥ 16 px, sin JS en línea
   (CSP), solo `textContent`; e2e Playwright (`tests/e2e/`, a pedido y como job
   manual del CI).
-- No cumplido / fuera de v1: QR sin conexión; repuestos (entran con INV-13)
-  y correctiva desde hallazgo sin conexión; ver fotos o manuales sin conexión; Background Sync y
+- No cumplido / fuera de v1: QR sin conexión; crear repuestos del catálogo
+  sin conexión (los repuestos en sí entraron con INV-13) y correctiva desde
+  hallazgo sin conexión; ver fotos o manuales sin conexión; Background Sync y
   push; crear, aprobar o cerrar OT; varias organizaciones a la vez; horas con
   inicio y fin explícitos; `/field/` como vista por defecto del técnico (se
   decide tras el piloto); asistente IA sin conexión. Los datos de IndexedDB no
