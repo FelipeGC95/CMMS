@@ -395,26 +395,26 @@ mismo repuesto como texto en cada OT y plan.
   `inventory.cost_view`) y últimos movimientos.
 
 **INV-05 · Entrada de stock (F2)**
-- CA1: Repuesto, cantidad > 0, costo unitario (opcional), bodega (por defecto
+- CA1 ✔ Repuesto, cantidad > 0, costo unitario (opcional), bodega (por defecto
   la por defecto), documento, proveedor, nota y fecha real (por defecto ahora).
-- CA2: Costo vacío → se usa el promedio vigente y el promedio no cambia. Costo
+- CA2 ✔ Costo vacío → se usa el promedio vigente y el promedio no cambia. Costo
   0 explícito permitido (diluye el promedio; se advierte).
-- CA3: "Guardar y registrar otra" conserva bodega y documento.
-- CA4: Idempotente por `client_uuid`.
+- CA3 ✔ "Guardar y registrar otra" conserva bodega y documento.
+- CA4 ✔ Idempotente por `client_uuid`.
 
 **INV-06 · Ajuste por conteo (F2)**
-- CA1: Se informa la cantidad contada y se ajusta por la diferencia; si es 0
+- CA1 ✔ Se informa la cantidad contada y se ajusta por la diferencia; si es 0
   no crea movimiento y lo informa.
-- CA2: Se valoriza al promedio vigente.
-- CA3: Motivo obligatorio solo si la diferencia supera el 10 % o es negativa.
-- CA4: El conteo masivo es la importación (INV-02). Requiere
+- CA2 ✔ Se valoriza al promedio vigente.
+- CA3 ✔ Motivo obligatorio solo si la diferencia supera el 10 % o es negativa.
+- CA4 ✔ El conteo masivo es la importación (INV-02). Requiere
   `inventory.manage`.
 
 **INV-07 · Transferencia entre bodegas (F2)**
-- CA1: Origen ≠ destino, cantidad > 0; dos movimientos enlazados por
+- CA1 ✔ Origen ≠ destino, cantidad > 0; dos movimientos enlazados por
   `transfer_group` en una transacción.
-- CA2: No cambia el promedio; el origen puede quedar negativo (INV-08 CA5).
-- CA3: Solo visible con más de una bodega activa.
+- CA2 ✔ No cambia el promedio; el origen puede quedar negativo (INV-08 CA5).
+- CA3 ✔ Solo visible con más de una bodega activa.
 
 **INV-08 · Costo promedio ponderado (F2)**
 - CA1: Un promedio por repuesto en la organización (`part.avg_cost`, 4
@@ -487,19 +487,19 @@ elegir bodega ni escribir costos.
 - CA4 ✔ Al publicar se conservan los enlaces; un borrador nuevo copia `part`.
 
 **INV-12 · Mínimo, alerta y reposición (F2)**
-- CA1: Mínimo y objetivo por repuesto y bodega (con una sola bodega, en la
+- CA1 ✔ Mínimo y objetivo por repuesto y bodega (con una sola bodega, en la
   ficha del repuesto).
-- CA2: Bajo mínimo = disponible < mínimo (con mínimo > 0); Sin stock =
+- CA2 ✔ Bajo mínimo = disponible < mínimo (con mínimo > 0); Sin stock =
   en existencia 0; Negativo = en existencia < 0. Siempre ícono + texto.
-- CA3: Alerta al cruzar el umbral (de no-bajo a bajo) por un movimiento o una
+- CA3 ✔ Alerta al cruzar el umbral (de no-bajo a bajo) por un movimiento o una
   reserva: notificación `stock_low` (app y correo según preferencias) a
   quienes tienen `inventory.move` y ven la bodega; `dedupe_key`
   `stock_low:<stock_item_id>:<fecha>`; se encola con `on_commit`.
-- CA4: Lista de reposición `/inventory/reorder/` por bodega: disponible,
+- CA4 ✔ Lista de reposición `/inventory/reorder/` por bodega: disponible,
   mínimo, objetivo, faltante de reservas y sugerido = max(objetivo, mínimo) −
   disponible (redondeado hacia arriba); primero los negativos y las reservas
   sin cubrir; exportable a Excel (módulo `exports`).
-- CA5: El inicio de inventario muestra el contador "Bajo mínimo (N)".
+- CA5 ✔ El inicio de inventario muestra el contador "Bajo mínimo (N)".
 
 **INV-13 · Consumo offline en la PWA (F2)**
 - CA1: `reference/` incluye el catálogo activo compacto (id, código, nombre,
@@ -514,22 +514,22 @@ elegir bodega ni escribir costos.
   Reenvío del mismo `client_uuid` → 200; en otra OT → 409 `conflict`.
 
 **INV-14 · Historial, auditoría, exportación y reconciliación (F2)**
-- CA1: Lista paginada de movimientos con filtros por repuesto, bodega, tipo,
+- CA1 ✔ Lista paginada de movimientos con filtros por repuesto, bodega, tipo,
   fechas y OT: quién, fecha real y de registro, cantidad con signo, costo
   unitario, saldo resultante y enlace a la OT o documento.
-- CA2: Movimientos inmutables (tampoco en el admin); los errores se corrigen
+- CA2 ✔ Movimientos inmutables (tampoco en el admin); los errores se corrigen
   con un movimiento contrario.
-- CA3: Auditoría de alta y edición de repuestos y bodegas, de cada movimiento
+- CA3 ✔ Auditoría de alta y edición de repuestos y bodegas, de cada movimiento
   (`stock_receive`, `stock_adjust`, `stock_transfer`, `stock_issue`,
   `stock_return`) y de las reservas (`reserve`, `release`).
-- CA4: `manage.py inventory_reconcile [--organization <slug>] [--fix]`
+- CA4 ✔ `manage.py inventory_reconcile [--organization <slug>] [--fix]`
   verifica (a) en existencia = Σ movimientos por ítem; (b) reservado = Σ
   pendientes de reservas activas; (c) cada `part_usage` enlazado tiene su
   movimiento con cantidad opuesta. `--fix` reescribe el saldo desde el libro y
   lo audita. Una tarea semanal sin `--fix` reporta a Sentry.
-- CA5: Excel de stock (`/inventory/export.xlsx`), de movimientos filtrados y
+- CA5 ✔ Excel de stock (`/inventory/export.xlsx`), de movimientos filtrados y
   de reposición (módulos `exports` + `inventory`).
-- CA6: Las tablas nuevas entran en la exportación completa y la purga
+- CA6 ✔ Las tablas nuevas entran en la exportación completa y la purga
   (X-03, X-04, ADR-027), probado en `tests/test_org_export_delete.py`.
 
 **INV-15 · Indicadores de inventario (F2, liviano)**
