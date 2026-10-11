@@ -556,7 +556,7 @@ def parts(tenant_a, reconciled_inventory):
 
 
 def _parts_plan(tenant, features):
-    tenant.org.plan = Plan.objects.create(code="p-" + "-".join(features), name="Plan", features=features)
+    tenant.org.plan = Plan.objects.create(code="sin-inventario", name="Plan", features=features)
     tenant.org.save(update_fields=["plan"])
 
 

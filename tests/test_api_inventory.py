@@ -90,7 +90,7 @@ def stock(tenant_a):
 
 
 def _plan(tenant, features):
-    tenant.org.plan = Plan.objects.create(code="plan-" + "-".join(features), name="Plan", features=features)
+    tenant.org.plan = Plan.objects.create(code="sin-inventario", name="Plan", features=features)
     tenant.org.save(update_fields=["plan"])
 
 
