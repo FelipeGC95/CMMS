@@ -219,7 +219,7 @@ class FieldAPIMixin:
         require_same_organization(request)
 
     def handle_exception(self, exc):
-        if isinstance(exc, WorkOrderError | InventoryError) and exc.code in CONFLICT_CODES:
+        if isinstance(exc, WorkOrderError | InventoryError) and getattr(exc, "code", None) in CONFLICT_CODES:
             exc = Conflict(exc.messages[0], code=exc.code)
         return super().handle_exception(exc)
 

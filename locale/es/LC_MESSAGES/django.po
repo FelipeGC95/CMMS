@@ -8094,3 +8094,122 @@ msgstr ""
 
 msgid "Liberación de reserva"
 msgstr ""
+
+msgid "Agregar repuesto"
+msgstr ""
+
+msgid "Bodega automática"
+msgstr ""
+
+msgid "Busca por código, nombre o n° de parte."
+msgstr ""
+
+msgid "Buscar en el catálogo"
+msgstr ""
+
+#, python-format
+msgid "Cantidad de %(part)s"
+msgstr ""
+
+msgid "Cubierto"
+msgstr ""
+
+msgid "Código, nombre o n° de parte"
+msgstr ""
+
+msgid "Disponible"
+msgstr ""
+
+msgid "Esta OT no tiene repuestos reservados."
+msgstr ""
+
+#, python-format
+msgid "Faltan %(n)s"
+msgstr ""
+
+msgid "Indica el repuesto o material."
+msgstr ""
+
+msgid "Indica la cantidad usada o desmarca el repuesto."
+msgstr ""
+
+msgid "Indica una cantidad mayor que cero."
+msgstr ""
+
+#, python-format
+msgid "No encontramos «%(q)s» en el catálogo."
+msgstr ""
+
+msgid "No está en el catálogo: agregar como texto"
+msgstr ""
+
+#, python-format
+msgid "Pendiente %(n)s"
+msgstr ""
+
+msgid "Previsto en el plan"
+msgstr ""
+
+msgid "Quitar reserva"
+msgstr ""
+
+msgid "Repuesto o material fuera del catálogo"
+msgstr ""
+
+msgid "Repuestos previstos"
+msgstr ""
+
+msgid "Repuestos previstos usados"
+msgstr ""
+
+#, python-format
+msgid "Reserva quitada: %(part)s."
+msgstr ""
+
+msgid "Reservado"
+msgstr ""
+
+msgid "Reservado en esta OT"
+msgstr ""
+
+#, python-format
+msgid "Reservado: %(quantity)s %(unit)s de %(part)s."
+msgstr ""
+
+msgid "Reservar"
+msgstr ""
+
+msgid "Reservar repuesto"
+msgstr ""
+
+#, python-format
+msgid "Resultados para «%(q)s» (sugeridos primero)"
+msgstr ""
+
+msgid "Se descuentan del stock al completar. Desmarca lo que no usaste o corrige la cantidad."
+msgstr ""
+
+msgid "Sugeridos para esta OT"
+msgstr ""
+
+msgid "Usado"
+msgstr ""
+
+msgid "Usado antes en el activo"
+msgstr ""
+
+#, python-format
+msgid "Usado: %(quantity)s %(unit)s de %(part)s."
+msgstr ""
+
+msgid "Usar"
+msgstr ""
+
+msgid "repuesto del catálogo"
+msgstr ""
+
+msgid "Datos del repuesto con un formulario corto (cantidad + acción): en el teléfono el formulario baja bajo los datos."
+msgstr ""
+
+msgid "Rodamiento 6205"
+msgstr ""

@@ -1136,3 +1136,42 @@ def test_inventory_stock_list_and_part_detail_are_bounded(tenant_a, django_asser
         with django_assert_max_num_queries(3):
             detail = part_detail(parts[0].pk, membership=tenant_a.admin)
             [(m.warehouse.code, m.created_by) for m in detail.movements]
+
+
+def _inventory_rows(tenant, wo, n):
+    """Repuestos reservados y usados en la OT, y usados antes en el activo (INV-09/10)."""
+    from apps.inventory import services as inventory
+    from apps.work.services import add_part_usage
+
+    with tenant_context(tenant.org):
+        start = wo.reservations.count()
+        before = create_work_order(work_type="corrective", title="antes", asset=tenant.asset)
+        for i in range(start, start + n):
+            part = inventory.create_part(membership=tenant.admin, code=f"R-{i:03d}", name=f"Repuesto {i}")
+            inventory.receive_stock(membership=tenant.admin, part=part, quantity=5, unit_cost="10")
+            inventory.reserve_for_work_order(work_order=wo, part=part, quantity=2, source="manual")
+            add_part_usage(work_order=wo, membership=tenant.tech, part=part, quantity=1)
+            add_part_usage(work_order=before, membership=tenant.tech, part=part, quantity=1)
+
+
+@pytest.mark.parametrize("who", ["admin", "tech"])
+def test_work_order_detail_with_inventory_does_not_grow(client, tenant_a, who, django_assert_max_num_queries):
+    """INV-09/10: previstos, sugeridos del buscador y bodegas en consultas fijas."""
+    from apps.inventory import services as inventory
+
+    with tenant_context(tenant_a.org):
+        wo = create_work_order(work_type="corrective", title="x", asset=tenant_a.asset)
+        inventory.ensure_default_warehouse()
+        inventory.create_warehouse(membership=tenant_a.admin, code="B2", name="Bodega 2")
+    login(client, getattr(tenant_a, who))
+    url = reverse("work_order_detail", args=[wo.pk])
+    _inventory_rows(tenant_a, wo, 2)
+    few = _count(client, url)
+    _inventory_rows(tenant_a, wo, 8)
+    many = _count(client, url)
+    assert many == few, f"work_order_detail con inventario: {few} → {many} consultas"
+    assert _count(client, f"{url}?part_q=R-") == few
+    with django_assert_max_num_queries(12):
+        client.get(reverse("inventory_wo_part_search", args=[wo.pk]), {"part_q": "R-"})
+    with django_assert_max_num_queries(35):
+        client.get(url)

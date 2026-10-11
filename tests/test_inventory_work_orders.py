@@ -471,3 +471,24 @@ def test_reconcile_is_clean_after_the_work_order_flows(in_a, part):
     transition(work_order=second, to_status=S.CANCELLED, membership=in_a.admin)
     assert inventory.reconcile_stock() == []
     call_command("inventory_reconcile")
+
+
+# --- API de terreno: los choques de inventario son 409 (X-06) ----------------------
+
+
+def test_field_api_maps_inventory_state_errors_to_409(rf):
+    from rest_framework.request import Request
+    from rest_framework.views import APIView
+
+    from apps.api.framework import FieldAPIMixin
+    from apps.inventory.services import InventoryError
+
+    class Probe(FieldAPIMixin, APIView):
+        pass
+
+    view = Probe()
+    view.request, view.args, view.kwargs, view.format_kwarg = Request(rf.get("/")), (), {}, None
+    view.headers = {}
+    response = view.handle_exception(InventoryError("La OT está cerrada.", code="locked"))
+    assert response.status_code == 409 and response.data["error"]["code"] == "locked"
+    assert view.handle_exception(InventoryError({"quantity": "x"})).status_code == 400
