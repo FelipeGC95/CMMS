@@ -104,6 +104,8 @@
 {% endif %}
 {% endwith %}{% endif %}
 
+{% if inventory_enabled %}{% include "work/_parts_section.html" %}{% endif %}
+
 <section class="card mt-4" id="costs" aria-labelledby="costs-title">
   <div class="card__header">
     <h2 id="costs-title">{% translate "Costos" %}</h2>
@@ -141,7 +143,7 @@
   <div class="cost-forms">
     <form class="inline-form inline-form--4" method="post" action="{% url 'work_order_part_add' wo.pk %}" aria-labelledby="part-add-title">
       {% csrf_token %}{{ part_form.client_uuid }}
-      <h3 class="inline-form__title" id="part-add-title">{% translate "Agregar repuesto o material" %}</h3>
+      <h3 class="inline-form__title" id="part-add-title">{% if inventory_enabled %}{% translate "Repuesto o material fuera del catálogo" %}{% else %}{% translate "Agregar repuesto o material" %}{% endif %}</h3>
       {% for field in part_form.visible_fields %}
       <div class="field"><label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}</div>
       {% endfor %}
@@ -209,6 +211,24 @@
     </div>
     {% if field.name == "failure_ended_at" %}</div>{% endif %}
     {% endfor %}
+    {% if planned_form and planned_form.planned %}
+    <fieldset class="fieldset">
+      <legend>{% translate "Repuestos previstos usados" %}</legend>
+      <p class="help muted">{% translate "Se descuentan del stock al completar. Desmarca lo que no usaste o corrige la cantidad." %}</p>
+      <ul class="list part-list">
+        {% for pp, use, qty in planned_form.rows %}
+        <li class="part-row">
+          <label class="check-group__option" for="{{ use.id_for_label }}">{{ use }}<span><span class="mono">{{ pp.part.code }}</span> {{ pp.part.name }}</span></label>
+          <div class="part-row__form">
+            <label class="visually-hidden" for="{{ qty.id_for_label }}">{% blocktranslate with part=pp.part.code %}Cantidad de {{ part }}{% endblocktranslate %}</label>
+            {{ qty }}<span class="muted">{{ pp.part.unit }}</span>
+          </div>
+          {% for error in qty.errors %}<span class="error">{% icon 'stop' %}{{ error }}</span>{% endfor %}
+        </li>
+        {% endfor %}
+      </ul>
+    </fieldset>
+    {% endif %}
     {% include "work/_signature_pad.html" with field=complete_form.signature %}
     <button class="btn btn--primary btn--lg btn--block" type="submit" {% if pending_required %}disabled{% endif %}>{% icon 'check' %}{% translate "Completar OT" %}</button>
   </form>

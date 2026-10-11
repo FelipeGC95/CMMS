@@ -27,11 +27,20 @@ from apps.assets.models import Meter
 from apps.assets.selectors import visible_assets
 from apps.attachments.models import Attachment, Purpose, TargetType
 from apps.attachments.selectors import attachments_by_target
-from apps.maintenance.models import PlanAssignment, PlanVersion
+from apps.inventory.models import Part, Reservation, StockItem, Warehouse
+from apps.inventory.selectors import warehouse_scope
+from apps.maintenance.models import PlanAssignment, PlanResource, PlanVersion
 from apps.organizations.models import Location
 from apps.organizations.selectors import descendant_ids
 
-from .models import FailureCode, WorkOrder, WorkOrderChecklistItem, WorkOrderHelper, WorkRequest
+from .models import (
+    FailureCode,
+    PartUsage,
+    WorkOrder,
+    WorkOrderChecklistItem,
+    WorkOrderHelper,
+    WorkRequest,
+)
 
 OPEN_STATUSES = [
     WorkOrder.Status.REQUESTED,
@@ -769,3 +778,116 @@ def _field_assets(*, membership):
     """Activos en servicio que la membresía puede ver (alcance por sitio)."""
 
     return visible_assets(membership=membership).filter(is_active=True)
+
+
+# --- Repuestos del catálogo en la OT (INV-09, INV-10) -------------------------
+
+PART_SEARCH_LIMIT = 20
+SUGGESTED_RESERVED, SUGGESTED_USED, SUGGESTED_PLANNED, NOT_SUGGESTED = 0, 1, 2, 3
+
+
+@dataclass
+class PlannedPart:
+    """Repuesto previsto de la OT (una reserva no liberada) con lo que falta cubrir."""
+
+    reservation: object
+    shortfall: Decimal
+
+    @property
+    def part(self):
+        return self.reservation.part
+
+    @property
+    def pending(self) -> Decimal:
+        return self.reservation.pending
+
+
+def planned_parts(*, work_order) -> list[PlannedPart]:
+    """Repuestos previstos (reservas activas y cubiertas) con su faltante (INV-10), en dos consultas.
+
+    Faltante = la parte del pendiente que el stock de la bodega no cubre:
+    min(pendiente, max(reservado − existencia, 0)).
+    """
+    reservations = list(
+        Reservation.objects.filter(work_order=work_order)
+        .exclude(status=Reservation.Status.RELEASED)
+        .select_related("part", "warehouse")
+        .order_by("status", "part__code")
+    )
+    if not reservations:
+        return []
+    items = {
+        (item.part_id, item.warehouse_id): item
+        for item in StockItem.objects.filter(
+            part_id__in={r.part_id for r in reservations},
+            warehouse_id__in={r.warehouse_id for r in reservations},
+        )
+    }
+    result = []
+    for reservation in reservations:
+        item = items.get((reservation.part_id, reservation.warehouse_id))
+        uncovered = max(item.reserved - item.on_hand, Decimal(0)) if item else reservation.pending
+        result.append(PlannedPart(reservation, min(reservation.pending, uncovered)))
+    return result
+
+
+def _planned_in_class_plans(work_order):
+    """Repuestos del catálogo previstos en las versiones vigentes de los planes de la clase del activo.
+
+    `PlanResource.part` llega con P4 (planes y reserva automática): mientras no exista
+    el campo, esta fuente de sugerencias se omite.
+    """
+    try:
+        PlanResource._meta.get_field("part")
+    except Exception:  # noqa: BLE001 - FieldDoesNotExist hasta P4
+        return None
+    if work_order.asset_id is None or work_order.asset.asset_class_id is None:
+        return None
+    return PlanResource.objects.filter(
+        kind=PlanResource.Kind.PART,
+        part__isnull=False,
+        version__plan__asset_class_id=work_order.asset.asset_class_id,
+        version__plan__current_version=F("version"),
+    ).values("part_id")
+
+
+def parts_for_work_order(*, work_order, membership, q: str = "", limit: int = PART_SEARCH_LIMIT):
+    """Buscador de repuestos para la OT (INV-09 CA1): sugeridos primero.
+
+    Sugeridos: reservados en la OT, usados antes en el activo y previstos en los
+    planes de su clase. Sin `q` devuelve solo los sugeridos; con `q` busca en el
+    catálogo activo por código, nombre o n° de parte. Cada repuesto trae
+    `suggested` (0 reservado, 1 usado, 2 previsto, 3 no) y `available_total`
+    (disponible en las bodegas que la membresía ve). Sin costos (Q3).
+    """
+    require_perm(membership, Perm.INVENTORY_VIEW)
+    reserved = Reservation.objects.filter(work_order=work_order, status=Reservation.Status.ACTIVE).values(
+        "part_id"
+    )
+    whens = [When(pk__in=reserved, then=Value(SUGGESTED_RESERVED))]
+    if work_order.asset_id:
+        used = PartUsage.objects.filter(work_order__asset_id=work_order.asset_id, part__isnull=False).values(
+            "part_id"
+        )
+        whens.append(When(pk__in=used, then=Value(SUGGESTED_USED)))
+    planned = _planned_in_class_plans(work_order)
+    if planned is not None:
+        whens.append(When(pk__in=planned, then=Value(SUGGESTED_PLANNED)))
+    stock = (
+        StockItem.objects.filter(
+            part=OuterRef("pk"),
+            warehouse__in=Warehouse.objects.filter(warehouse_scope(membership), is_active=True).values("pk"),
+        )
+        .values("part")
+        .annotate(total=Sum(F("on_hand") - F("reserved")))
+        .values("total")
+    )
+    qs = Part.objects.filter(is_active=True).annotate(
+        suggested=Case(*whens, default=Value(NOT_SUGGESTED), output_field=IntegerField()),
+        available_total=Coalesce(Subquery(stock), Value(Decimal(0))),
+    )
+    if q := q.strip():
+        qs = qs.filter(Q(code__icontains=q) | Q(name__icontains=q) | Q(manufacturer_ref__icontains=q))
+    else:
+        qs = qs.filter(suggested__lt=NOT_SUGGESTED)
+    return list(qs.order_by("suggested", "code")[:limit])

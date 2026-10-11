@@ -320,6 +320,18 @@ main { max-width: var(--content-max); margin: 0 auto; padding: var(--space-5) va
   .inline-form--3 { grid-template-columns: minmax(0, 2fr) minmax(0, 1.5fr) minmax(0, 1fr) auto; }
 }
 
+/* Repuestos en la OT (INV-09/10): datos del repuesto y un formulario corto (cantidad + acción).
+   En el teléfono el formulario baja bajo los datos; desde 720 px quedan en una fila. */
+.part-list .part-row { flex-wrap: wrap; align-items: center; }
+.part-row .list__main { flex: 1 1 16rem; display: flex; flex-direction: column; gap: var(--space-1); }
+.part-row .list__title { white-space: normal; overflow-wrap: anywhere; }
+.part-row__actions { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; }
+.part-row__form { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; }
+.part-row__form .input { width: auto; }
+.part-row__qty { flex: 0 0 6.5rem; max-width: 6.5rem; }
+.part-row__warehouse { flex: 1 1 10rem; min-width: 0; }
+.part-row .error { flex-basis: 100%; font-size: var(--text-sm); color: var(--color-error); display: flex; gap: var(--space-1); align-items: center; }
+
 /* Acciones de la cabecera (detalle de OT): la principal primero y, en el teléfono, a todo el ancho. */
 .page-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; }
 .page-actions > form { display: contents; }

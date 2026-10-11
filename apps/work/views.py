@@ -18,12 +18,15 @@ from apps.attachments.models import Attachment, Purpose, TargetType
 from apps.attachments.selectors import attachments_for
 from apps.core.decorators import membership_required
 from apps.core.files import private_file_response
+from apps.inventory.selectors import visible_warehouses
+from apps.organizations.modules import ModuleNotIncludedError, has_module
 from apps.ui.templatetags.ui import work_order_status_label
 
 from .forms import (
     ApplyChecklistForm,
     AssigneesForm,
     BacklogFilterForm,
+    CatalogPartUsageForm,
     ChecklistItemForm,
     ChecklistPhotoForm,
     ChecklistSignatureForm,
@@ -34,6 +37,7 @@ from .forms import (
     LocationRequestForm,
     OtherCostForm,
     PartUsageForm,
+    PlannedPartsForm,
     ScheduleForm,
     WorkOrderCreateForm,
 )
@@ -49,7 +53,9 @@ from .selectors import (
     filter_backlog,
     filter_work_orders,
     open_requests_for_target,
+    parts_for_work_order,
     pending_requests,
+    planned_parts,
     scheduled_in_week,
     technician_load,
     technicians_in_scope,
@@ -213,7 +219,56 @@ def _with_photos(items):
     return items
 
 
-def _detail_context(request, work_order, complete_form=None, assignees_form=None):
+def inventory_enabled(request) -> bool:
+    """Catálogo de repuestos en la OT: módulo `inventory` del plan e `inventory.view` (INV-16)."""
+    return has_module(request.organization, "inventory") and has_perm(request.membership, Perm.INVENTORY_VIEW)
+
+
+def parts_context(request, work_order, *, planned=None):
+    """Repuestos previstos, buscador del catálogo y permisos de uso y reserva (INV-09, INV-10)."""
+    membership = request.membership
+    if not inventory_enabled(request):
+        return {"inventory_enabled": False}
+    can_use = (
+        has_perm(membership, Perm.WORK_ORDER_EXECUTE)
+        and work_order.is_open
+        and work_order.status not in COST_LOCKED_STATUSES
+    )
+    can_reserve = has_perm(membership, Perm.WORK_ORDER_MANAGE) and work_order.status not in (
+        WorkOrder.Status.COMPLETED,
+        *WorkOrder.CLOSED_STATUSES,
+    )
+    if planned is None:
+        planned = planned_parts(work_order=work_order)
+    for planned_part in planned:
+        planned_part.form_uuid = uuid.uuid4()  # un doble envío de "Usar" no duplica la línea
+    query = request.GET.get("part_q", "").strip()[:100]
+    results = []
+    if can_use or can_reserve:
+        results = parts_for_work_order(work_order=work_order, membership=membership, q=query)
+        for part in results:
+            part.form_uuid = uuid.uuid4()
+    warehouses = list(visible_warehouses(membership=membership)) if can_use or can_reserve else []
+    return {
+        "inventory_enabled": True,
+        "planned_parts": planned,
+        "can_use_parts": can_use,
+        "can_reserve": can_reserve,
+        "part_query": query,
+        "part_results": results,
+        # Con una sola bodega no se ofrece elegirla (INV-03 CA5, INV-09 CA3).
+        "warehouse_choices": warehouses if len(warehouses) > 1 else [],
+    }
+
+
+def _planned_form(request, work_order, planned, data=None):
+    """Repuestos previstos pendientes pre-marcados al completar (Q2); None si no aplica."""
+    if not inventory_enabled(request):
+        return None
+    return PlannedPartsForm(data, planned=planned)
+
+
+def _detail_context(request, work_order, complete_form=None, assignees_form=None, planned_form=None):
     targets = allowed_transitions(work_order=work_order, membership=request.membership)
     can_manage = has_perm(request.membership, Perm.WORK_ORDER_MANAGE)
     can_assign = can_manage and work_order.status not in WorkOrder.CLOSED_STATUSES
@@ -227,6 +282,9 @@ def _detail_context(request, work_order, complete_form=None, assignees_form=None
     can_execute = has_perm(request.membership, Perm.WORK_ORDER_EXECUTE) and work_order.is_open
     pending_required = sum(1 for i in work_order.checklist.all() if i.required and not i.result)
     transitions = [s for s in targets if s != WorkOrder.Status.COMPLETED]
+    parts = parts_context(request, work_order)
+    if can_execute and planned_form is None and parts["inventory_enabled"]:
+        planned_form = _planned_form(request, work_order, parts["planned_parts"])
     # Acción principal visible arriba: en ejecución, ir a completar (o al checklist si faltan
     # ítems obligatorios); si no, aprobar el cierre o iniciar/reanudar. El resto es secundario.
     complete_action = can_execute and work_order.status == WorkOrder.Status.IN_PROGRESS
@@ -257,6 +315,8 @@ def _detail_context(request, work_order, complete_form=None, assignees_form=None
         "source_item": _with_photos([work_order.source_checklist_item])[0]
         if work_order.source_checklist_item_id
         else None,
+        "planned_form": planned_form if can_execute else None,
+        **parts,
     }
 
 
@@ -403,7 +463,8 @@ def _save_checklist_note(request, item):
 def work_order_complete_view(request, pk):
     work_order = _get_detail_or_404(request, pk)
     form = _complete_form(work_order, request.POST)
-    if form.is_valid():
+    planned_form = _planned_form(request, work_order, planned_parts(work_order=work_order), request.POST)
+    if form.is_valid() and (planned_form is None or planned_form.is_valid()):
         try:
             complete_work_order(
                 work_order=work_order,
@@ -421,7 +482,10 @@ def work_order_complete_view(request, pk):
                 symptom=form.cleaned_data.get("symptom"),
                 meter_value=form.cleaned_data.get("meter_value"),
                 signature=form.cleaned_data.get("signature"),
+                parts_used=planned_form.parts_used() if planned_form is not None else (),
             )
+        except ModuleNotIncludedError as exc:
+            messages.error(request, exc.message)
         except ValidationError as exc:
             messages.error(request, " ".join(exc.messages))
         else:
@@ -430,7 +494,12 @@ def work_order_complete_view(request, pk):
                 messages.warning(request, work_order.signature_warning)
             return redirect("work_order_detail", pk=pk)
     work_order = work_order_detail(pk, membership=request.membership)
-    return render(request, "work/detail.html", _detail_context(request, work_order, form), status=400)
+    return render(
+        request,
+        "work/detail.html",
+        _detail_context(request, work_order, form, planned_form=planned_form),
+        status=400,
+    )
 
 
 # --- Checklist de OT no preventivas y fotos por ítem (WO-03) -------------------
@@ -613,6 +682,8 @@ def _costs_redirect(pk):
 def _run_cost_action(request, pk, action):
     try:
         action()
+    except ModuleNotIncludedError as exc:
+        messages.error(request, exc.message)
     except PermissionDeniedError as exc:
         raise PermissionDenied from exc
     except ValidationError as exc:
@@ -641,6 +712,8 @@ def labor_add_view(request, pk):
 @membership_required(perm=Perm.WORK_ORDER_EXECUTE)
 def part_add_view(request, pk):
     work_order = get_object_or_404(visible_work_orders(membership=request.membership), pk=pk)
+    if request.POST.get("part"):
+        return _catalog_part_add(request, work_order)
     form = PartUsageForm(request.POST)
     if not form.is_valid():
         messages.error(
@@ -652,6 +725,32 @@ def part_add_view(request, pk):
         pk,
         lambda: add_part_usage(work_order=work_order, membership=request.membership, **form.cleaned_data),
     )
+
+
+def _catalog_part_add(request, work_order):
+    """ "Usar" un repuesto del catálogo (INV-09): el servidor fija descripción, unidad y costo."""
+    form = CatalogPartUsageForm(request.POST)
+    if not form.is_valid():
+        messages.error(request, _("Indica una cantidad mayor que cero."))
+        return _costs_redirect(work_order.pk)
+    data = form.cleaned_data
+
+    def action():
+        usage = add_part_usage(
+            work_order=work_order,
+            membership=request.membership,
+            part=data["part"],
+            quantity=data["quantity"],
+            warehouse=data["warehouse"],
+            client_uuid=data["client_uuid"],
+        )
+        messages.success(
+            request,
+            _("Usado: %(quantity)s %(unit)s de %(part)s.")
+            % {"quantity": usage.quantity.normalize(), "unit": usage.unit, "part": usage.description},
+        )
+
+    return _run_cost_action(request, work_order.pk, action)
 
 
 @require_POST

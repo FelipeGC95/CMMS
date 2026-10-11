@@ -23,7 +23,7 @@ from apps.audit import services as audit
 from apps.audit.models import AuditEvent
 from apps.core.tenancy import require_current_organization, tenant_context
 from apps.inventory import services as inventory
-from apps.inventory.models import Reservation
+from apps.inventory.models import Part, Reservation, Warehouse
 from apps.inventory.selectors import can_see_warehouse
 from apps.maintenance.models import ItemType, PlanVersion, format_number
 from apps.notifications.services import notify_request_created, notify_request_resolved
@@ -1561,8 +1561,6 @@ def _part_quantity(quantity) -> Decimal:
 
 def _part_warehouse(warehouse, membership):
     """Bodega elegida a mano: de la organización y visible para la membresía (INV-03 CA6)."""
-    from apps.inventory.models import Warehouse
-
     found = Warehouse.objects.filter(pk=getattr(warehouse, "pk", warehouse)).first()
     if found is None or not can_see_warehouse(membership, found):
         raise inventory.InventoryError({"warehouse": _("Bodega no encontrada.")})
@@ -1613,6 +1611,9 @@ def add_part_usage(
         organization = work_order.organization
         if not has_module(organization, "inventory"):
             raise ModuleNotIncludedError(organization, "inventory")
+        part = Part.objects.filter(pk=getattr(part, "pk", part)).first()  # de la organización del contexto
+        if part is None:
+            raise inventory.InventoryError({"part": _("Repuesto no encontrado.")})
         if warehouse is not None:
             warehouse = _part_warehouse(warehouse, membership)
         movement = inventory.issue_to_work_order(

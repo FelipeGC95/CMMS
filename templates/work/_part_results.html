@@ -1,0 +1,36 @@
+{% load i18n ui %}
+<div id="part-results" aria-live="polite">
+  {% if part_results %}
+  <p class="muted">{% if part_query %}{% blocktranslate with q=part_query %}Resultados para «{{ q }}» (sugeridos primero){% endblocktranslate %}{% else %}{% translate "Sugeridos para esta OT" %}{% endif %}</p>
+  <ul class="list part-list">
+    {% for p in part_results %}
+    <li class="part-row">
+      <div class="list__main">
+        <span class="list__title"><span class="mono">{{ p.code }}</span> {{ p.name }}</span>
+        <span class="list__meta">{% if p.suggested == 0 %}{% translate "Reservado en esta OT" %} · {% elif p.suggested == 1 %}{% translate "Usado antes en el activo" %} · {% elif p.suggested == 2 %}{% translate "Previsto en el plan" %} · {% endif %}{% translate "Disponible" %} <span class="num">{{ p.available_total|num }}</span> {{ p.unit }}</span>
+      </div>
+      <form class="part-row__form" method="post" action="{% if can_use_parts %}{% url 'work_order_part_add' wo.pk %}{% else %}{% url 'inventory_wo_reserve' wo.pk %}{% endif %}">
+        {% csrf_token %}
+        <input type="hidden" name="part" value="{{ p.pk }}">
+        <input type="hidden" name="client_uuid" value="{{ p.form_uuid }}">
+        <label class="visually-hidden" for="pq-{{ p.pk }}">{% blocktranslate with part=p.code %}Cantidad de {{ part }}{% endblocktranslate %}</label>
+        <input class="input part-row__qty num" type="number" id="pq-{{ p.pk }}" name="quantity" value="1" min="0.001" step="any" inputmode="decimal" required>
+        {% if warehouse_choices %}
+        <label class="visually-hidden" for="pw-{{ p.pk }}">{% translate "Bodega" %}</label>
+        <select class="input part-row__warehouse" id="pw-{{ p.pk }}" name="warehouse">
+          <option value="">{% translate "Bodega automática" %}</option>
+          {% for w in warehouse_choices %}<option value="{{ w.pk }}">{{ w.name }}</option>{% endfor %}
+        </select>
+        {% endif %}
+        {% if can_use_parts %}<button class="btn btn--secondary" type="submit">{% icon 'box' %}{% translate "Usar" %}</button>{% endif %}
+        {% if can_reserve %}<button class="btn btn--ghost" type="submit" formaction="{% url 'inventory_wo_reserve' wo.pk %}">{% icon 'list' %}{% translate "Reservar" %}</button>{% endif %}
+      </form>
+    </li>
+    {% endfor %}
+  </ul>
+  {% elif part_query %}
+  <p class="empty">{% icon 'box' %} {% blocktranslate with q=part_query %}No encontramos «{{ q }}» en el catálogo.{% endblocktranslate %}</p>
+  {% else %}
+  <p class="muted">{% translate "Busca por código, nombre o n° de parte." %}</p>
+  {% endif %}
+</div>
