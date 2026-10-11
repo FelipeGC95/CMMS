@@ -161,7 +161,8 @@ def test_edit_part_and_category_suggestions(client, tenant_a, stock):
     assert 'list="part-categories"' in page and '<option value="Filtros">' in page
     response = client.post(url, {"code": "ROD-1", "name": "Rodamiento 6205 2RS", "unit": "un"})
     assert response.status_code == 302
-    stock["ok"].refresh_from_db()
+    with tenant_context(tenant_a.org):
+        stock["ok"].refresh_from_db()
     assert stock["ok"].name == "Rodamiento 6205 2RS"
 
 
@@ -169,13 +170,15 @@ def test_deactivate_and_reactivate_part(client, tenant_a, stock):
     login(client, tenant_a.admin)
     url = reverse("inventory_part_active", args=[stock["ok"].pk])
     client.post(url, {"is_active": "0"})
-    stock["ok"].refresh_from_db()
+    with tenant_context(tenant_a.org):
+        stock["ok"].refresh_from_db()
     assert not stock["ok"].is_active
     detail = client.get(reverse("inventory_part_detail", args=[stock["ok"].pk])).content.decode()
     assert "Repuesto desactivado" in detail and "Reactivar" in detail
     assert "Entrada" in detail  # el historial sigue visible
     client.post(url, {"is_active": "1"})
-    stock["ok"].refresh_from_db()
+    with tenant_context(tenant_a.org):
+        stock["ok"].refresh_from_db()
     assert stock["ok"].is_active
 
 
@@ -270,7 +273,8 @@ def test_create_edit_and_default_warehouse(client, tenant_a, stock):
         north = Warehouse.objects.get(code="NOR")
     client.post(reverse("inventory_warehouse_edit", args=[north.pk]), {"code": "NOR", "name": "Norte"})
     client.post(reverse("inventory_warehouse_default", args=[north.pk]))
-    north.refresh_from_db()
+    with tenant_context(tenant_a.org):
+        north.refresh_from_db()
     assert north.name == "Norte" and north.is_default
     page = client.get(reverse("inventory_warehouse_list")).content.decode()
     assert "Por defecto" in page and "Marcar por defecto" in page
@@ -298,7 +302,8 @@ def test_warehouse_deactivation_explains_why_not(client, tenant_a, stock):
     page = client.post(url(empty), {"is_active": "0"}, follow=True).content.decode()
     assert "Bodega VAC desactivada." in page and "Reactivar" in page
     client.post(url(empty), {"is_active": "1"})
-    empty.refresh_from_db()
+    with tenant_context(tenant_a.org):
+        empty.refresh_from_db()
     assert empty.is_active
 
 
