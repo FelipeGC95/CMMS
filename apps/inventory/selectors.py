@@ -329,7 +329,7 @@ def reorder_list(*, membership, warehouse=None):
     """Lista de reposición por bodega (INV-12 CA4): repuestos activos en negativo, con reservas sin
     cubrir o bajo mínimo, en las bodegas activas visibles (o en una).
 
-    Anota `available`, `reservation_gap` (reservado que la existencia no cubre),
+    Anota `available_quantity`, `reservation_gap` (reservado que la existencia no cubre),
     `suggested` = max(objetivo, mínimo) − disponible redondeado hacia arriba y `priority`
     (0 negativo, 1 reservas sin cubrir, 2 bajo mínimo). Orden: bodega (la por defecto
     primero), prioridad y código. Una consulta, sin importar el volumen.
@@ -344,15 +344,17 @@ def reorder_list(*, membership, warehouse=None):
     goal = Coalesce(F("target_quantity"), F("min_quantity"), output_field=quantity)
     return (
         StockItem.objects.filter(warehouse__in=warehouses, part__is_active=True)
-        .annotate(available=available)
+        .annotate(available_quantity=available)
         .filter(
-            Q(on_hand__lt=0) | Q(available__lt=0) | Q(min_quantity__gt=0, available__lt=F("min_quantity"))
+            Q(on_hand__lt=0)
+            | Q(available_quantity__lt=0)
+            | Q(min_quantity__gt=0, available_quantity__lt=F("min_quantity"))
         )
         .annotate(
             reservation_gap=Greatest(
                 ExpressionWrapper(F("reserved") - covered, output_field=quantity), ZERO, output_field=quantity
             ),
-            suggested=Ceil(ExpressionWrapper(goal - F("available"), output_field=quantity)),
+            suggested=Ceil(ExpressionWrapper(goal - F("available_quantity"), output_field=quantity)),
             priority=Case(
                 When(on_hand__lt=0, then=Value(REORDER_NEGATIVE)),
                 When(reserved__gt=covered, then=Value(REORDER_UNCOVERED)),
