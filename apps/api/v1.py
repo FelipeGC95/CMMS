@@ -2,7 +2,7 @@
 
 import uuid
 
-from django.db.models import Q
+from django.db.models import F, Q
 from django.utils.translation import gettext as _
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema, extend_schema_view
@@ -12,11 +12,14 @@ from rest_framework.exceptions import NotFound, ValidationError
 from rest_framework.parsers import MultiPartParser
 from rest_framework.response import Response
 
-from apps.accounts.permissions import Perm, require_perm
+from apps.accounts.permissions import Perm, has_perm, require_perm
 from apps.assets import services as asset_services
 from apps.assets.models import Asset, Meter, MeterReading
 from apps.assets.reading_imports import apply_reading_import, build_reading_preview
 from apps.assets.selectors import visible_assets
+from apps.inventory import services as inventory_services
+from apps.inventory.models import Part, StockItem, StockMovement, Warehouse
+from apps.inventory.selectors import visible_warehouses, warehouse_scope
 from apps.organizations.models import Location
 from apps.organizations.selectors import descendant_ids
 from apps.work import services as work_services
@@ -32,9 +35,11 @@ from apps.work.selectors import (
 from . import serializers as s
 from .framework import TenantAPIMixin
 from .services import (
+    add_part_usage_idempotent,
     answer_checklist_item_idempotent,
     complete_work_order_idempotent,
     create_work_order_idempotent,
+    record_stock_movement_idempotent,
     transition_work_order_idempotent,
     upload_checklist_photo_idempotent,
     upload_work_order_photo_idempotent,
@@ -243,6 +248,7 @@ class WorkOrderActionsMixin:
     """
 
     transition_serializer_class = s.TransitionSerializer
+    part_usage_serializer_class = s.PartUsageCreateSerializer
     # La v1 deja reabrir una OT completada (como la web); la API de terreno no.
     allow_reopen = True
 
@@ -326,6 +332,40 @@ class WorkOrderActionsMixin:
         items = checklist_with_photo_count(work_order=self.get_object())
         page = self.paginate_queryset(items)
         return self.get_paginated_response(s.ChecklistItemListSerializer(page, many=True).data)
+
+    @extend_schema(
+        methods=["GET"],
+        responses=s.PartUsageSerializer(many=True),
+        description="Repuestos y materiales usados en la OT, en orden de registro.",
+    )
+    @extend_schema(
+        methods=["POST"],
+        request=s.PartUsageCreateSerializer,
+        responses={201: s.PartUsageSerializer, 200: s.PartUsageSerializer},
+        description="Registra un repuesto usado (INV-09): del catálogo (`part`, descuenta stock "
+        "y reserva al costo promedio vigente; requiere el módulo de inventario) o texto libre "
+        "(`description`). Idempotente por `client_uuid`: reenviarlo devuelve la línea ya creada "
+        "(200); usarlo en otra OT → 409.",
+    )
+    @action(detail=True, methods=["get", "post"])
+    def parts(self, request, pk=None):
+        work_order = self.get_object()
+        context = {**self.get_serializer_context(), "show_costs": show_inventory_costs(self.membership)}
+        if request.method == "GET":
+            usages = work_order.parts.select_related("part", "stock_movement").order_by("created_at")
+            page = self.paginate_queryset(usages)
+            return self.get_paginated_response(s.PartUsageSerializer(page, many=True, context=context).data)
+        serializer = self.part_usage_serializer_class(
+            data=request.data, context=self.get_serializer_context()
+        )
+        serializer.is_valid(raise_exception=True)
+        usage, created = add_part_usage_idempotent(
+            membership=self.membership, work_order=work_order, **serializer.validated_data
+        )
+        return Response(
+            s.PartUsageSerializer(usage, context=context).data,
+            status=status.HTTP_201_CREATED if created else status.HTTP_200_OK,
+        )
 
     @extend_schema(responses=s.AttachmentSerializer(many=True))
     @action(detail=True, methods=["get"])
@@ -497,3 +537,192 @@ class WorkRequestViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, BaseV
         serializer.is_valid(raise_exception=True)
         work_request = work_services.report_failure(membership=self.membership, **serializer.validated_data)
         return Response(s.WorkRequestSerializer(work_request).data, status=status.HTTP_201_CREATED)
+
+
+# --- Inventario (INV-17): módulo `inventory` del plan (API_MODULES) ---------------------------
+
+
+def show_inventory_costs(membership) -> bool:
+    """Costos de inventario solo con `inventory.cost_view` (Q3)."""
+    return has_perm(membership, Perm.INVENTORY_COST_VIEW)
+
+
+def _flag(request, name) -> bool:
+    return request.query_params.get(name, "").strip().lower() in ("1", "true", "yes")
+
+
+class InventoryViewSet(BaseViewSet):
+    """Inventario: exige `inventory.view` y pasa a los serializadores si se ven costos."""
+
+    def initial(self, request, *args, **kwargs):
+        super().initial(request, *args, **kwargs)
+        require_perm(self.membership, Perm.INVENTORY_VIEW)
+
+    def get_serializer_context(self):
+        return {**super().get_serializer_context(), "show_costs": show_inventory_costs(self.membership)}
+
+    def _visible_warehouse_ids(self):
+        return Warehouse.objects.filter(warehouse_scope(self.membership)).values("pk")
+
+
+@extend_schema_view(
+    list=extend_schema(
+        parameters=[
+            _param("code", "Código exacto (sin distinguir mayúsculas)."),
+            _param("search", "Texto en código, nombre o n° de parte."),
+            _param("category", "Categoría exacta (sin distinguir mayúsculas)."),
+            _param("include_inactive", "true para incluir los desactivados.", OpenApiTypes.BOOL),
+        ]
+    ),
+    create=extend_schema(
+        request=s.PartWriteSerializer,
+        responses={201: s.PartSerializer, 200: s.PartSerializer},
+        description="Alta idempotente por código: si ya existe un repuesto con ese código (sin "
+        "distinguir mayúsculas), responde 200 con el existente sin cambiarlo.",
+    ),
+    partial_update=extend_schema(request=s.PartWriteSerializer, responses=s.PartSerializer),
+)
+class PartViewSet(
+    mixins.ListModelMixin,
+    mixins.RetrieveModelMixin,
+    mixins.CreateModelMixin,
+    mixins.UpdateModelMixin,
+    InventoryViewSet,
+):
+    """Catálogo de repuestos (INV-01). Costos solo con `inventory.cost_view`."""
+
+    serializer_class = s.PartSerializer
+    http_method_names = ["get", "post", "patch", "head", "options"]
+
+    def get_queryset(self):
+        qs = Part.objects.order_by("code")
+        if self.action != "list":
+            return qs
+        params = self.request.query_params
+        if not _flag(self.request, "include_inactive"):
+            qs = qs.filter(is_active=True)
+        if code := params.get("code", "").strip():
+            qs = qs.filter(code__iexact=code)
+        if search := params.get("search", "").strip():
+            qs = qs.filter(
+                Q(code__icontains=search) | Q(name__icontains=search) | Q(manufacturer_ref__icontains=search)
+            )
+        if category := params.get("category", "").strip():
+            qs = qs.filter(category__iexact=category)
+        return qs
+
+    def create(self, request, *args, **kwargs):
+        serializer = s.PartWriteSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = dict(serializer.validated_data)
+        data.pop("is_active", None)
+        existing = Part.objects.filter(code__iexact=data["code"].strip()).first()
+        if existing is not None:
+            return Response(self.get_serializer(existing).data, status=status.HTTP_200_OK)
+        part = inventory_services.create_part(membership=self.membership, **data)
+        return Response(self.get_serializer(part).data, status=status.HTTP_201_CREATED)
+
+    def partial_update(self, request, *args, **kwargs):
+        part = self.get_object()
+        serializer = s.PartWriteSerializer(data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        data = dict(serializer.validated_data)
+        is_active = data.pop("is_active", None)
+        if data:
+            part = inventory_services.update_part(membership=self.membership, part=part, **data)
+        if is_active is not None:
+            part = inventory_services.set_part_active(
+                membership=self.membership, part=part, is_active=is_active
+            )
+        return Response(self.get_serializer(part).data)
+
+
+@extend_schema_view(
+    list=extend_schema(
+        parameters=[_param("include_inactive", "true para incluir las desactivadas.", OpenApiTypes.BOOL)]
+    )
+)
+class WarehouseViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, InventoryViewSet):
+    """Bodegas visibles (INV-03): sin ubicación o con ubicación en el alcance del token."""
+
+    serializer_class = s.WarehouseSerializer
+
+    def get_queryset(self):
+        include_inactive = self.action != "list" or _flag(self.request, "include_inactive")
+        return visible_warehouses(membership=self.membership, include_inactive=include_inactive)
+
+
+@extend_schema_view(
+    list=extend_schema(
+        parameters=[
+            _param("part", "Repuesto.", OpenApiTypes.UUID),
+            _param("warehouse", "Bodega.", OpenApiTypes.UUID),
+            _param("below_min", "true: solo bajo mínimo (disponible < mínimo).", OpenApiTypes.BOOL),
+        ]
+    )
+)
+class StockViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, InventoryViewSet):
+    """Stock por repuesto y bodega (INV-04). Solo lectura: cambia con movimientos."""
+
+    serializer_class = s.StockItemSerializer
+
+    def get_queryset(self):
+        qs = StockItem.objects.filter(warehouse__in=self._visible_warehouse_ids()).select_related(
+            "part", "warehouse"
+        )
+        if self.action == "list":
+            if part_id := _uuid(self.request, "part"):
+                qs = qs.filter(part_id=part_id)
+            if warehouse_id := _uuid(self.request, "warehouse"):
+                qs = qs.filter(warehouse_id=warehouse_id)
+            if _flag(self.request, "below_min"):
+                qs = qs.filter(min_quantity__gt=0, on_hand__lt=F("reserved") + F("min_quantity"))
+        return qs.order_by("part__code", "warehouse__code")
+
+
+@extend_schema_view(
+    list=extend_schema(
+        parameters=[
+            _param("part", "Repuesto.", OpenApiTypes.UUID),
+            _param("warehouse", "Bodega.", OpenApiTypes.UUID),
+            _param("work_order", "OT.", OpenApiTypes.UUID),
+            _param("kind", "Tipo.", enum=[c for c, _l in StockMovement.Kind.choices]),
+        ]
+    ),
+    create=extend_schema(
+        request=s.StockMovementCreateSerializer,
+        responses={201: s.StockMovementResultSerializer, 200: s.StockMovementResultSerializer},
+        description="Registra una entrada, un conteo o una transferencia con los servicios de la "
+        "web. Idempotente por `client_uuid`: reenviarlo devuelve lo ya creado (200); usarlo en "
+        "otra operación → 409. Un conteo sin diferencia responde 200 sin movimientos.",
+    ),
+)
+class StockMovementViewSet(
+    mixins.ListModelMixin, mixins.RetrieveModelMixin, mixins.CreateModelMixin, InventoryViewSet
+):
+    """Libro de movimientos de stock (INV-14): inmutable; un error se corrige con otro movimiento."""
+
+    serializer_class = s.StockMovementSerializer
+
+    def get_queryset(self):
+        qs = StockMovement.objects.filter(warehouse__in=self._visible_warehouse_ids()).select_related(
+            "part", "warehouse"
+        )
+        if self.action == "list":
+            for name in ("part", "warehouse", "work_order"):
+                if value := _uuid(self.request, name):
+                    qs = qs.filter(**{f"{name}_id": value})
+            if kind := self.request.query_params.get("kind", "").strip():
+                qs = qs.filter(kind=kind)
+        return qs.order_by("-occurred_at", "-created_at")
+
+    def create(self, request, *args, **kwargs):
+        serializer = s.StockMovementCreateSerializer(data=request.data, context=self.get_serializer_context())
+        serializer.is_valid(raise_exception=True)
+        movements, created = record_stock_movement_idempotent(
+            membership=self.membership, **serializer.validated_data
+        )
+        body = s.StockMovementResultSerializer(
+            {"movements": movements}, context=self.get_serializer_context()
+        )
+        return Response(body.data, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)

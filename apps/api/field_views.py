@@ -59,7 +59,8 @@ class SnapshotView(FieldView):
 
 @extend_schema(tags=FIELD_TAG, responses=fs.FieldReferenceSerializer)
 class ReferenceView(FieldView):
-    """Códigos de falla activos, activos visibles (tope 2000 con `truncated`) y sus medidores."""
+    """Códigos de falla activos, activos visibles (tope 2000 con `truncated`), sus medidores y el
+    catálogo de repuestos activos (tope 2000 con `parts_truncated`; sin costos)."""
 
     def get(self, request):
         return Response(fs.FieldReferenceSerializer(field.reference(membership=self.membership)).data)
@@ -71,10 +72,29 @@ class FieldWorkOrderViewSet(FieldAPIMixin, v1.WorkOrderActionsMixin, v1.BaseView
 
     serializer_class = s.WorkOrderSerializer
     transition_serializer_class = fs.FieldTransitionSerializer
+    part_usage_serializer_class = fs.FieldPartUsageCreateSerializer
     allow_reopen = False  # una OT terminada por otra persona es un conflicto (409), no se reabre
 
     def get_queryset(self):
         return visible_work_orders(membership=self.membership)
+
+    @extend_schema(
+        methods=["GET"],
+        responses=s.PartUsageSerializer(many=True),
+        description="Repuestos y materiales usados en la OT (costos solo con `inventory.cost_view`).",
+    )
+    @extend_schema(
+        methods=["POST"],
+        request=fs.FieldPartUsageCreateSerializer,
+        responses={201: s.PartUsageSerializer, 200: s.PartUsageSerializer},
+        description="Repuesto usado sin conexión (INV-13): `part` del catálogo o `description`, "
+        "con `quantity`, `client_uuid` y `used_at`. Sin conflictos de stock (puede quedar "
+        "negativo). 409 `cancelled`/`locked` si la OT se canceló o cerró; reenviar el mismo "
+        "`client_uuid` devuelve la línea (200); usarlo en otra OT → 409 `conflict`.",
+    )
+    @action(detail=True, methods=["get", "post"])
+    def parts(self, request, pk=None):
+        return super().parts(request, pk=pk)
 
     @extend_schema(request=fs.FieldTransitionSerializer, responses=s.WorkOrderSerializer)
     @action(detail=True, methods=["post"])

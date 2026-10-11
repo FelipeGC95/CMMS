@@ -202,7 +202,12 @@ WORK_ORDER_KEYS = {
     "allowed_transitions",
     "updated_at",
     "checklist",
+    "planned_parts",
+    "parts",
 }
+# Repuestos en el snapshot (INV-13): previstos con pendiente y ya registrados, sin costos.
+PLANNED_PART_KEYS = {"id", "part", "code", "name", "unit", "quantity", "consumed_quantity", "pending"}
+PART_USAGE_KEYS = {"id", "part", "description", "quantity", "unit", "client_uuid", "created_at"}
 ITEM_KEYS = {
     "id",
     "position",
@@ -232,6 +237,11 @@ def test_demo_fixture_follows_the_field_api_contract():
         assert set(wo) == WORK_ORDER_KEYS, wo["code"]
         for item in wo["checklist"]:
             assert set(item) == ITEM_KEYS
+        for row in wo["planned_parts"]:
+            assert set(row) == PLANNED_PART_KEYS
+        for row in wo["parts"]:
+            assert set(row) == PART_USAGE_KEYS
+    assert any(wo["planned_parts"] for wo in data["snapshot"]["work_orders"])
     # Asignadas a la persona primero (decisión de producto).
     mine = [wo["assigned_to_me"] for wo in data["snapshot"]["work_orders"]]
     assert any(mine) and not all(mine)

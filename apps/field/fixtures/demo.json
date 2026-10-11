@@ -52,6 +52,8 @@
         "meter": null,
         "meter_required": false,
         "allowed_transitions": ["on_hold", "completed"],
+        "planned_parts": [],
+        "parts": [],
         "updated_at": "2026-09-28T11:20:00Z",
         "checklist": []
       },
@@ -73,6 +75,13 @@
         "meter": {"id": "0199a000-0000-7000-8000-000000000301", "name": "Horómetro", "unit": "h"},
         "meter_required": true,
         "allowed_transitions": ["in_progress"],
+        "planned_parts": [
+          {"id": "0199a000-0000-7000-8000-000000000701", "part": "0199a000-0000-7000-8000-000000000601", "code": "FIL-AIRE-01", "name": "Filtro de aire compresor", "unit": "un", "quantity": "1.000", "consumed_quantity": "0.000", "pending": "1.000"},
+          {"id": "0199a000-0000-7000-8000-000000000702", "part": "0199a000-0000-7000-8000-000000000602", "code": "ACE-COMP-46", "name": "Aceite compresor ISO 46", "unit": "L", "quantity": "4.000", "consumed_quantity": "1.000", "pending": "3.000"}
+        ],
+        "parts": [
+          {"id": "0199a000-0000-7000-8000-000000000801", "part": "0199a000-0000-7000-8000-000000000602", "description": "ACE-COMP-46 · Aceite compresor ISO 46", "quantity": "1.000", "unit": "L", "client_uuid": null, "created_at": "2026-09-28T12:50:00Z"}
+        ],
         "updated_at": "2026-09-27T19:00:00Z",
         "checklist": [
           {"id": "0199a000-0000-7000-8000-000000000401", "position": 1, "section": "Antes de detener", "text": "Registrar presión de descarga", "item_type": "measurement", "unit": "bar", "min_value": "6.5", "max_value": "8", "required": true, "result": "ok", "value_number": "7.2", "value_text": "", "note": "", "answered_at": "2026-09-28T12:40:00Z", "photo_count": 0},
@@ -100,6 +109,8 @@
         "meter": null,
         "meter_required": false,
         "allowed_transitions": ["in_progress"],
+        "planned_parts": [],
+        "parts": [],
         "updated_at": "2026-09-26T15:00:00Z",
         "checklist": [
           {"id": "0199a000-0000-7000-8000-000000000406", "position": 1, "section": "", "text": "Tableros cerrados y rotulados", "item_type": "check", "unit": "", "min_value": null, "max_value": null, "required": true, "result": "", "value_number": null, "value_text": "", "note": "", "answered_at": null, "photo_count": 0}
@@ -123,6 +134,8 @@
         "meter": null,
         "meter_required": false,
         "allowed_transitions": ["in_progress"],
+        "planned_parts": [],
+        "parts": [],
         "updated_at": "2026-09-25T10:00:00Z",
         "checklist": [
           {"id": "0199a000-0000-7000-8000-000000000407", "position": 1, "section": "", "text": "Engrasar rodamiento lado acople", "item_type": "check", "unit": "", "min_value": null, "max_value": null, "required": true, "result": "", "value_number": null, "value_text": "", "note": "", "answered_at": null, "photo_count": 0},
@@ -147,6 +160,8 @@
         "meter": null,
         "meter_required": false,
         "allowed_transitions": ["in_progress"],
+        "planned_parts": [],
+        "parts": [],
         "updated_at": "2026-09-20T10:00:00Z",
         "checklist": []
       },
@@ -168,6 +183,8 @@
         "meter": null,
         "meter_required": false,
         "allowed_transitions": ["in_progress"],
+        "planned_parts": [],
+        "parts": [],
         "updated_at": "2026-09-22T10:00:00Z",
         "checklist": []
       }

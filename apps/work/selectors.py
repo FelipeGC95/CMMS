@@ -31,6 +31,7 @@ from apps.inventory.models import Part, Reservation, StockItem, Warehouse
 from apps.inventory.selectors import warehouse_scope
 from apps.maintenance.models import PlanAssignment, PlanResource, PlanVersion
 from apps.organizations.models import Location
+from apps.organizations.modules import has_module
 from apps.organizations.selectors import descendant_ids
 
 from .models import (
@@ -673,6 +674,14 @@ def field_work_orders(*, membership, days: int = FIELD_DEFAULT_DAYS) -> FieldSna
         .order_by("order", "created_at")
     )
     meters = Meter.objects.filter(is_active=True).order_by("kind", "name")
+    # Repuestos (INV-13): los registrados y los previstos con pendiente (reservas activas).
+    prefetches = [Prefetch("parts", queryset=PartUsage.objects.order_by("created_at"), to_attr="field_parts")]
+    with_inventory = has_module(membership.organization, "inventory")
+    if with_inventory:
+        planned = Reservation.objects.filter(status=Reservation.Status.ACTIVE).select_related("part")
+        prefetches.append(
+            Prefetch("reservations", queryset=planned.order_by("part__code"), to_attr="field_planned_parts")
+        )
     qs = (
         visible_work_orders(membership=membership)
         .filter(status__in=OPEN_STATUSES)
@@ -694,6 +703,7 @@ def field_work_orders(*, membership, days: int = FIELD_DEFAULT_DAYS) -> FieldSna
             "helpers",
             Prefetch("checklist", queryset=checklist, to_attr="field_checklist"),
             Prefetch("asset__meters", queryset=meters, to_attr="field_meters"),
+            *prefetches,
         )
         .annotate(
             assigned_to_me=Case(
@@ -713,6 +723,7 @@ def field_work_orders(*, membership, days: int = FIELD_DEFAULT_DAYS) -> FieldSna
     rows = list(qs[: FIELD_WORK_ORDER_LIMIT + 1])
     for wo in rows:
         _attach_field_meter(wo)
+        wo.field_planned_parts = [r for r in getattr(wo, "field_planned_parts", []) if r.pending > 0]
     return FieldSnapshot(
         work_orders=rows[:FIELD_WORK_ORDER_LIMIT],
         truncated=len(rows) > FIELD_WORK_ORDER_LIMIT,

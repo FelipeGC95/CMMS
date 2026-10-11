@@ -16,13 +16,17 @@ from apps.attachments.models import TargetType as AttachmentTargetType
 from apps.audit import services as audit
 from apps.audit.models import AuditEvent
 from apps.audit.services import API_TOKEN_EMAIL_DOMAIN
-from apps.work.models import LaborEntry, WorkOrder
+from apps.inventory import services as inventory
+from apps.inventory.models import StockMovement
+from apps.inventory.services import InventoryError
+from apps.work.models import LaborEntry, PartUsage, WorkOrder
 from apps.work.services import (
     ERROR_CANCELLED,
     ERROR_CONFLICT,
     ERROR_LOCKED,
     WorkOrderError,
     add_checklist_photo,
+    add_part_usage,
     add_work_order_photo,
     answer_checklist_item,
     complete_work_order,
@@ -245,6 +249,80 @@ def complete_work_order_idempotent(
             client_uuid=client_uuid, action=COMPLETE_ACTION, target_id=work_order.pk
         )
     return work_order
+
+
+def _as_conflict(error):
+    """Un `client_uuid` ya usado en otra operación es 409 también en la API v1 (como fotos y OT)."""
+    if getattr(error, "code", None) == ERROR_CONFLICT:
+        return Conflict(error.messages[0])
+    return error
+
+
+def add_part_usage_idempotent(*, membership, work_order: WorkOrder, **data) -> tuple[PartUsage, bool]:
+    """Repuesto usado en la OT desde la API (INV-09, INV-13); devuelve (línea, creada).
+
+    El mismo servicio que la web (`work.services.add_part_usage`): con `part` descuenta
+    stock y reserva al costo promedio vigente. Reenviar el mismo `client_uuid` devuelve
+    la línea ya creada (también con la OT ya cerrada); usarlo en otra OT u operación → 409.
+    """
+    require_perm(membership, Perm.WORK_ORDER_EXECUTE)
+    client_uuid = data.get("client_uuid")
+    replay = bool(client_uuid) and PartUsage.objects.filter(client_uuid=client_uuid).exists()
+    try:
+        usage = add_part_usage(work_order=work_order, membership=membership, **data)
+    except (WorkOrderError, InventoryError) as error:
+        raise _as_conflict(error) from error
+    return usage, not replay
+
+
+def record_stock_movement_idempotent(*, membership, kind: str, client_uuid=None, **data) -> tuple[list, bool]:
+    """Entrada, conteo o transferencia desde la API v1 (INV-17); devuelve (movimientos, creado).
+
+    Usa los servicios del núcleo de inventario (`receive_stock`, `count_stock`,
+    `transfer_stock`), que revisan `client_uuid` antes que nada: reenviarlo devuelve lo
+    ya creado y usarlo en otra operación → 409. Un conteo sin diferencia no crea nada.
+    """
+    replay = bool(client_uuid) and StockMovement.objects.filter(client_uuid=client_uuid).exists()
+    part = data.pop("part")
+    to_warehouse = data.pop("to_warehouse", None)
+    try:
+        if kind == "receipt":
+            fields = ("quantity", "warehouse", "unit_cost", "reference", "supplier", "note", "occurred_at")
+            movements = [
+                inventory.receive_stock(
+                    membership=membership,
+                    part=part,
+                    client_uuid=client_uuid,
+                    **{name: data[name] for name in fields if name in data},
+                )
+            ]
+        elif kind == "count":
+            fields = ("warehouse", "unit_cost", "note", "occurred_at")
+            movement = inventory.count_stock(
+                membership=membership,
+                part=part,
+                counted_quantity=data["counted_quantity"],
+                client_uuid=client_uuid,
+                **{name: data[name] for name in fields if name in data},
+            )
+            movements = [movement] if movement is not None else []
+        elif kind == "transfer":
+            movements = list(
+                inventory.transfer_stock(
+                    membership=membership,
+                    part=part,
+                    from_warehouse=data["warehouse"],
+                    to_warehouse=to_warehouse,
+                    quantity=data["quantity"],
+                    note=data.get("note", ""),
+                    client_uuid=client_uuid,
+                )
+            )
+        else:
+            raise ValueError(f"Tipo de movimiento no válido: {kind}")
+    except InventoryError as error:
+        raise _as_conflict(error) from error
+    return movements, bool(movements) and not replay
 
 
 def _same_answer(item, *, result, value_number, value_text, signature, note) -> bool:

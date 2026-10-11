@@ -25,7 +25,7 @@ from . import pwa
 
 DEMO_FIXTURE = Path(__file__).resolve().parent / "fixtures" / "demo.json"
 DATE_KEYS = {"scheduled_for", "due_on"}
-DATETIME_KEYS = {"server_time", "generated_at", "updated_at", "answered_at"}
+DATETIME_KEYS = {"server_time", "generated_at", "updated_at", "answered_at", "created_at"}
 
 
 @require_GET

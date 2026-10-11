@@ -6,10 +6,11 @@ van como texto; las horas en UTC (ISO 8601 con `Z`).
 """
 
 import datetime
+from decimal import Decimal
 
 from rest_framework import serializers
 
-from apps.work.models import LaborEntry, WorkOrder, WorkOrderChecklistItem
+from apps.work.models import LaborEntry, PartUsage, WorkOrder, WorkOrderChecklistItem
 from apps.work.services import EXECUTION_TARGETS, allowed_transitions
 
 from . import serializers as s
@@ -122,6 +123,30 @@ class FieldChecklistItemSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
 
+class FieldPlannedPartSerializer(serializers.Serializer):
+    """Repuesto previsto de la OT (reserva activa con pendiente, INV-10). Sin costos (Q3)."""
+
+    id = serializers.UUIDField(help_text="Reserva.")
+    part = serializers.UUIDField(source="part_id")
+    code = serializers.CharField(source="part.code")
+    name = serializers.CharField(source="part.name")
+    unit = serializers.CharField(source="part.unit")
+    quantity = serializers.DecimalField(max_digits=14, decimal_places=3, help_text="Reservado.")
+    consumed_quantity = serializers.DecimalField(max_digits=14, decimal_places=3)
+    pending = serializers.DecimalField(
+        max_digits=14, decimal_places=3, help_text="Lo que falta usar: la cantidad que propone «Usar»."
+    )
+
+
+class FieldPartUsageSerializer(serializers.ModelSerializer):
+    """Repuesto o material ya registrado en la OT. Sin costos (Q3)."""
+
+    class Meta:
+        model = PartUsage
+        fields = ["id", "part", "description", "quantity", "unit", "client_uuid", "created_at"]
+        read_only_fields = fields
+
+
 class FieldWorkOrderSerializer(serializers.ModelSerializer):
     """Una OT tal como se guarda en el teléfono (con su checklist incrustado)."""
 
@@ -136,6 +161,12 @@ class FieldWorkOrderSerializer(serializers.ModelSerializer):
         help_text="Estados de ejecución a los que la persona puede llevar la OT."
     )
     checklist = FieldChecklistItemSerializer(source="field_checklist", many=True)
+    planned_parts = FieldPlannedPartSerializer(
+        source="field_planned_parts",
+        many=True,
+        help_text="Repuestos previstos con pendiente (vacío sin el módulo de inventario).",
+    )
+    parts = FieldPartUsageSerializer(source="field_parts", many=True, help_text="Repuestos ya registrados.")
     updated_at = UTCDateTimeField()
 
     class Meta:
@@ -160,6 +191,8 @@ class FieldWorkOrderSerializer(serializers.ModelSerializer):
             "allowed_transitions",
             "updated_at",
             "checklist",
+            "planned_parts",
+            "parts",
         ]
         read_only_fields = fields
 
@@ -204,6 +237,14 @@ class FieldReferenceMeterSerializer(serializers.Serializer):
     current_read_at = UTCDateTimeField(allow_null=True)
 
 
+class FieldReferencePartSerializer(serializers.Serializer):
+    id = serializers.UUIDField()
+    code = serializers.CharField()
+    name = serializers.CharField()
+    unit = serializers.CharField()
+    category = serializers.CharField()
+
+
 class FieldReferenceSerializer(serializers.Serializer):
     failure_codes = serializers.DictField(
         child=FieldFailureCodeSerializer(many=True), help_text="Códigos activos por tipo (modo, causa, …)."
@@ -211,6 +252,12 @@ class FieldReferenceSerializer(serializers.Serializer):
     assets = FieldReferenceAssetSerializer(many=True)
     truncated = serializers.BooleanField(help_text="Había más activos que el tope (2000).")
     meters = FieldReferenceMeterSerializer(many=True)
+    parts = FieldReferencePartSerializer(
+        many=True,
+        help_text="Repuestos activos del catálogo, sin costos (vacío sin el módulo de inventario "
+        "o sin permiso para verlo).",
+    )
+    parts_truncated = serializers.BooleanField(help_text="Había más repuestos que el tope (2000).")
 
 
 # --- escrituras ------------------------------------------------------------------
@@ -221,6 +268,15 @@ class FieldTransitionSerializer(s.TransitionSerializer):
     completar (`completed`; el cierre con horas y lectura va por `…/complete/`)."""
 
     to_status = serializers.ChoiceField([c for c in WorkOrder.Status.choices if c[0] in EXECUTION_TARGETS])
+
+
+class FieldPartUsageCreateSerializer(s.PartUsageCreateSerializer):
+    """Repuesto usado sin conexión (INV-13): del catálogo (`part`) o texto libre (`description`;
+    sin `unit_cost` queda en 0 y quien gestiona la OT lo corrige en la web). Nunca hay
+    conflicto por stock; solo 409 si la OT se canceló o cerró, o si el `client_uuid` ya se
+    usó en otra OT."""
+
+    free_text_default_cost = Decimal(0)
 
 
 class LaborCreateSerializer(serializers.Serializer):

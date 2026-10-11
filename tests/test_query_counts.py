@@ -1037,7 +1037,8 @@ def test_field_api_queries_do_not_grow_with_rows(
     add(4)
     many = _field_api_queries(client, url)
     assert many == few, f"{url}: {few} → {many} consultas"
-    with django_assert_max_num_queries(16):
+    # 18: el snapshot suma dos consultas fijas por los repuestos (registrados y previstos, INV-13).
+    with django_assert_max_num_queries(18):
         client.get(url)
 
 

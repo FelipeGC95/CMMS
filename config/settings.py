@@ -197,7 +197,8 @@ REST_FRAMEWORK = {
 }
 SPECTACULAR_SETTINGS = {
     "TITLE": "GALBUST CMMS API",
-    "DESCRIPTION": "API REST v1: activos, medidores y lecturas, órdenes de trabajo y solicitudes. "
+    "DESCRIPTION": "API REST v1: activos, medidores y lecturas, órdenes de trabajo, solicitudes e "
+    "inventario (repuestos, bodegas, stock y movimientos). "
     "Autenticación: `Authorization: Bearer <token>` (tokens en Más → Tokens de API).",
     "VERSION": "1.0.0",
     "SERVE_INCLUDE_SCHEMA": False,
@@ -213,6 +214,10 @@ SPECTACULAR_SETTINGS = {
         "WorkOrderStatusEnum": "apps.work.models.WorkOrder.Status",
         "WorkRequestStatusEnum": "apps.work.models.WorkRequest.Status",
         "ChecklistItemResultEnum": "apps.work.models.WorkOrderChecklistItem.Result",
+        # El de medidores conserva su nombre aunque inventario agregue otro campo `kind` (INV-17).
+        "KindEnum": "apps.assets.models.MeterKind",
+        "StockMovementKindEnum": "apps.inventory.models.StockMovement.Kind",
+        "StockMovementReasonEnum": "apps.inventory.models.StockMovement.Reason",
     },
 }
 

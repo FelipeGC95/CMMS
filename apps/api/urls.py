@@ -11,6 +11,11 @@ router.register("meters", v1.MeterViewSet, basename="api-meter")
 router.register("readings", v1.MeterReadingViewSet, basename="api-reading")
 router.register("work-orders", v1.WorkOrderViewSet, basename="api-work-order")
 router.register("requests", v1.WorkRequestViewSet, basename="api-request")
+# Inventario (INV-17): además del módulo `api`, exigen `inventory` (API_MODULES).
+router.register("parts", v1.PartViewSet, basename="api-part")
+router.register("warehouses", v1.WarehouseViewSet, basename="api-warehouse")
+router.register("stock", v1.StockViewSet, basename="api-stock")
+router.register("stock-movements", v1.StockMovementViewSet, basename="api-stock-movement")
 
 # API de terreno (X-06, ADR-011): sesión de la web, solo para la PWA del técnico.
 field_router = DefaultRouter(trailing_slash=True, use_regex_path=False)

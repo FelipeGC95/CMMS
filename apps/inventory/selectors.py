@@ -128,6 +128,27 @@ def stock_list(*, membership, q: str = "", category: str = "", warehouse=None, s
     return qs.order_by("code")
 
 
+FIELD_PART_LIMIT = 2000
+
+
+def field_parts(*, membership) -> tuple[list, bool]:
+    """Catálogo compacto para la PWA sin conexión (INV-13): activos, sin costos, tope 2000.
+
+    Devuelve (filas, truncado). Vacío si el plan no incluye `inventory` o la membresía no
+    tiene `inventory.view`: el teléfono solo ofrece texto libre. Una consulta.
+    """
+    from apps.organizations.modules import has_module
+
+    if not has_module(membership.organization, "inventory") or not has_perm(membership, Perm.INVENTORY_VIEW):
+        return [], False
+    rows = list(
+        Part.objects.filter(is_active=True)
+        .order_by("code")
+        .values("id", "code", "name", "unit", "category")[: FIELD_PART_LIMIT + 1]
+    )
+    return rows[:FIELD_PART_LIMIT], len(rows) > FIELD_PART_LIMIT
+
+
 @dataclass
 class PartDetail:
     part: Part

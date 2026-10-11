@@ -10,6 +10,7 @@ from django.utils.translation import gettext as _
 from rest_framework.exceptions import ValidationError
 
 from apps.accounts.permissions import Perm, has_perm
+from apps.inventory.selectors import field_parts
 from apps.ui.templatetags.ui import work_order_status_label
 from apps.work.models import WorkOrder
 from apps.work.selectors import (
@@ -88,11 +89,15 @@ def snapshot(*, membership, days: int) -> dict:
 
 
 def reference(*, membership) -> dict:
-    """Catálogos: códigos de falla activos por tipo, activos visibles (tope 2000) y medidores."""
+    """Catálogos: códigos de falla activos por tipo, activos visibles (tope 2000), medidores y
+    repuestos activos (tope 2000, solo con el módulo `inventory` y `inventory.view`)."""
     result = field_reference(membership=membership)
+    parts, parts_truncated = field_parts(membership=membership)
     return {
         "failure_codes": result.failure_codes,
         "assets": result.assets,
         "truncated": result.assets_truncated,
         "meters": result.meters,
+        "parts": parts,
+        "parts_truncated": parts_truncated,
     }

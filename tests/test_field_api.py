@@ -198,7 +198,7 @@ def test_reference_lists_catalogs(tenant_a):
     response = field_client(tenant_a.tech).get(f"{FIELD_API}/reference/")
     assert response.status_code == 200
     data = response.json()
-    assert set(data) == {"failure_codes", "assets", "truncated", "meters"}
+    assert set(data) == {"failure_codes", "assets", "truncated", "meters", "parts", "parts_truncated"}
     assert set(data["failure_codes"]) == set(FailureCode.Kind.values)
     modes = {c["code"] for c in data["failure_codes"][FailureCode.Kind.MODE]}
     assert "FUG" in modes and "OLD" not in modes
