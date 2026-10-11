@@ -1,0 +1,19 @@
+{% load i18n ui inventory_tags %}{# Resultados del buscador de repuestos (htmx). Con `pick`: opciones de radio dentro del formulario que lo contiene; sin `pick`: enlaces a la ficha. #}
+<div class="part-results" aria-live="polite">
+{% if results %}
+  {% if pick %}
+  <fieldset class="check-group">
+    <legend>{% translate "Elige el repuesto" %}</legend>
+    <div class="check-group__options">
+      {% for part in results %}<label class="check-group__option" for="pick-{{ part.pk }}"><input type="radio" id="pick-{{ part.pk }}" name="{{ pick }}" value="{{ part.pk }}" required{% if forloop.first and results|length == 1 %} checked{% endif %}><span><span class="mono">{{ part.code }}</span> · {{ part.name }} <span class="muted">· {% translate "Disponible" %}: {{ part.available_total|num }} {{ part.unit }}</span></span></label>{% endfor %}
+    </div>
+  </fieldset>
+  {% else %}
+  <ul class="list">
+    {% for part in results %}<li><span class="list__main"><a class="list__title" href="{% url 'inventory_part_detail' part.pk %}"><span class="mono">{{ part.code }}</span> · {{ part.name }}</a><span class="list__meta">{% translate "Disponible" %}: {{ part.available_total|num }} {{ part.unit }}</span></span>{% stock_mark part.on_hand_total part.below_min part.negative %}</li>{% endfor %}
+  </ul>
+  {% endif %}
+{% elif query %}
+  <p class="muted">{% blocktranslate %}No hay repuestos activos que coincidan con «{{ query }}».{% endblocktranslate %}</p>
+{% endif %}
+</div>

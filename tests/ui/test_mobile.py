@@ -86,4 +86,6 @@ def test_desktop_nav_keeps_few_links_and_groups_the_rest_in_more(client, tenant_
     page = client.get(reverse("dashboard")).content.decode()
     desktop = HREF.findall(NAV_LINKS.search(page).group(1))
     assert reverse("menu") in desktop
-    assert len(desktop) <= 5, f"Demasiados enlaces en la barra de escritorio: {desktop}"
+    # Seis como máximo (Inicio, OT, Activos, Solicitudes, Inventario y Más): la barra solo se
+    # muestra desde 1100 px y cabe con el nombre de la organización (capturas de INV P2).
+    assert len(desktop) <= 6, f"Demasiados enlaces en la barra de escritorio: {desktop}"

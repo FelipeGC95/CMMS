@@ -17,7 +17,9 @@ STATUS_INACTIVE = "inactive"
 STATUS_BELOW_MIN = "below_min"
 STATUS_OUT = "out"
 STATUS_NEGATIVE = "negative"
-STOCK_STATUSES = ("", STATUS_INACTIVE, STATUS_BELOW_MIN, STATUS_OUT, STATUS_NEGATIVE)
+STATUS_NO_COST = "no_cost"
+STOCK_STATUSES = ("", STATUS_INACTIVE, STATUS_BELOW_MIN, STATUS_OUT, STATUS_NEGATIVE, STATUS_NO_COST)
+SEARCH_LIMIT = 20
 ZERO = Value(Decimal(0), output_field=DecimalField(max_digits=14, decimal_places=3))
 
 
@@ -100,7 +102,8 @@ def stock_list(*, membership, q: str = "", category: str = "", warehouse=None, s
 
     Anota `on_hand_total`, `reserved_total`, `available_total` y `below_min`
     (alguna bodega bajo mínimo). Estados: "" activos, `inactive`, `below_min`,
-    `out` (existencia total 0), `negative` (alguna bodega en negativo).
+    `out` (existencia total 0), `negative` (alguna bodega en negativo) y
+    `no_cost` (con existencia y costo promedio 0, INV-08).
     """
     require_perm(membership, Perm.INVENTORY_VIEW)
     warehouses = Warehouse.objects.filter(warehouse_scope(membership))
@@ -125,7 +128,75 @@ def stock_list(*, membership, q: str = "", category: str = "", warehouse=None, s
         qs = qs.filter(on_hand_total=0)
     elif status == STATUS_NEGATIVE:
         qs = qs.filter(negative=True)
+    elif status == STATUS_NO_COST:
+        qs = qs.filter(on_hand_total__gt=0, avg_cost=0)
     return qs.order_by("code")
+
+
+def stock_counters(*, membership, warehouse=None) -> dict:
+    """Contadores del inicio de inventario (INV-12): repuestos activos bajo mínimo, en negativo y
+    sin costo, en las bodegas visibles (o en una). Tres consultas, sin importar el volumen."""
+    require_perm(membership, Perm.INVENTORY_VIEW)
+    warehouses = Warehouse.objects.filter(warehouse_scope(membership))
+    if warehouse is not None:
+        warehouses = warehouses.filter(pk=warehouse.pk)
+    items = StockItem.objects.filter(warehouse__in=warehouses, part__is_active=True)
+    below = items.filter(min_quantity__gt=0, on_hand__lt=F("reserved") + F("min_quantity"))
+    return {
+        "below_min": below.values("part").distinct().count(),
+        "negative": items.filter(on_hand__lt=0).values("part").distinct().count(),
+        "no_cost": stock_list(membership=membership, warehouse=warehouse, status=STATUS_NO_COST).count(),
+    }
+
+
+def part_categories() -> list[str]:
+    """Categorías en uso en repuestos activos (sugerencias y filtro, INV-01 CA1)."""
+    return list(
+        Part.objects.filter(is_active=True)
+        .exclude(category="")
+        .order_by("category")
+        .values_list("category", flat=True)
+        .distinct()
+    )
+
+
+def part_search(*, membership, q: str, limit: int = SEARCH_LIMIT) -> list:
+    """Buscador de repuestos activos por código, nombre o n° de parte, con su disponible (INV-01 CA3)."""
+    if not q.strip():
+        return []
+    return list(stock_list(membership=membership, q=q)[:limit])
+
+
+@dataclass
+class StockRow:
+    """Una bodega en la ficha del repuesto: su saldo (o None si aún no hay movimientos)."""
+
+    warehouse: Warehouse
+    item: StockItem | None
+
+    @property
+    def on_hand(self) -> Decimal:
+        return self.item.on_hand if self.item else Decimal(0)
+
+    @property
+    def reserved(self) -> Decimal:
+        return self.item.reserved if self.item else Decimal(0)
+
+    @property
+    def available(self) -> Decimal:
+        return self.on_hand - self.reserved
+
+    @property
+    def is_below_min(self) -> bool:
+        return bool(self.item and self.item.is_below_min)
+
+
+def stock_rows(detail, *, warehouses) -> list[StockRow]:
+    """Stock por bodega de la ficha: las bodegas activas visibles y las inactivas que tienen saldo."""
+    by_warehouse = {item.warehouse_id: item for item in detail.stock_items}
+    rows = [StockRow(warehouse, by_warehouse.pop(warehouse.pk, None)) for warehouse in warehouses]
+    rows += [StockRow(item.warehouse, item) for item in by_warehouse.values()]
+    return rows
 
 
 @dataclass
