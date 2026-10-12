@@ -247,6 +247,7 @@ Todos se muestran en `/design-system/` en ambos modos, con sus estados
 | **Tabla** | densa (escritorio), tarjetas apiladas (< 720px) | Inter con cifras tabulares; encabezado fijo; ordenar y paginar con htmx. Toda `<td>` lleva `data-label`. |
 | **Tarjeta** | simple, con encabezado y acciones | |
 | **Tarjeta KPI** | valor, unidad, variación, meta | Cifra en Inter 600 `--text-2xl`; la variación con ícono de flecha + texto (no solo verde/rojo). |
+| **Desglose de KPI** (`.kpi__breakdown`) | dentro de un `<details class="kpi__formula">` | Lista `<dl>` de etiqueta y monto (p. ej. valor por bodega o repuestos sin movimiento en el inicio de inventario, INV-15): etiqueta a la izquierda, monto alineado a la derecha sin cortar; texto `--color-text` sobre la tarjeta. Sin JS. |
 | **Navbar** | escritorio (logo horizontal), móvil (isotipo + menú) | Fondo `--color-nav-bg`, logo negativo; selector de organización (nombre corto, sin sufijo societario), nombre de pila, tema y "Salir" con ícono. Rol, correo y "Cambiar contraseña" en "Mi cuenta" de /menu/. |
 | **Navegación inferior móvil** | 4–5 destinos | Bajo 1100 px, para todos los roles. Técnico: Mis OT, Escanear QR, Avisar falla, Perfil. Otros roles: sus destinos principales + "Más" con el resto del menú de escritorio. |
 | **Alerta / toast** | 4 estados | `role="status"` o `role="alert"` según urgencia. |

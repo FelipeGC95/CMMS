@@ -349,49 +349,49 @@ Decisiones de producto (2026-10-10):
 **INV-01 · Catálogo de repuestos (F2)**
 Como planificador quiero un catálogo de repuestos, para dejar de escribir el
 mismo repuesto como texto en cada OT y plan.
-- CA1: `code` y `name` obligatorios; `unit` (por defecto "un"); `category`
+- CA1 ✔ `code` y `name` obligatorios; `unit` (por defecto "un"); `category`
   (texto con sugerencias), descripción, fabricante, n° de parte del
   fabricante, proveedor y notas.
-- CA2: Código único por organización sin distinguir mayúsculas; el error se
+- CA2 ✔ Código único por organización sin distinguir mayúsculas; el error se
   muestra en el campo (web y API).
-- CA3: No se borra: se desactiva (desaparece de los buscadores, el historial
+- CA3 ✔ No se borra: se desactiva (desaparece de los buscadores, el historial
   sigue visible, se puede reactivar).
-- CA4: "Dónde se usa" calculado: planes cuya versión vigente lo prevé (y sus
+- CA4 ✔ "Dónde se usa" calculado: planes cuya versión vigente lo prevé (y sus
   clases) y activos donde se consumió en los últimos 24 meses (cantidad y
   última fecha).
-- CA5: Lista paginada; búsqueda por código, nombre o n° de parte; filtros por
+- CA5 ✔ Lista paginada; búsqueda por código, nombre o n° de parte; filtros por
   categoría, bodega y estado (activo, bajo mínimo, sin stock, negativo).
 
 **INV-02 · Importación por Excel/CSV (F2)**
-- CA1: Plantilla `código, nombre, unidad, categoría, n° de parte, fabricante,
+- CA1 ✔ Plantilla `código, nombre, unidad, categoría, n° de parte, fabricante,
   proveedor, bodega, cantidad, costo unitario, stock mínimo, stock objetivo,
   ubicación en bodega`; acepta .xlsx y .csv.
-- CA2: Vista previa con errores por fila; todo o nada (como AST-08).
-- CA3: Idempotente por código: crea o actualiza.
-- CA4: `cantidad` es un **conteo** en esa bodega (o en la por defecto): se
+- CA2 ✔ Vista previa con errores por fila; todo o nada (como AST-08).
+- CA3 ✔ Idempotente por código: crea o actualiza.
+- CA4 ✔ `cantidad` es un **conteo** en esa bodega (o en la por defecto): se
   registra un ajuste con motivo "import"; reimportar la misma cantidad no crea
   movimiento. Con costo y stock previo ≤ 0, el costo fija el promedio.
-- CA5: Una sola transacción; auditoría con los conteos.
+- CA5 ✔ Una sola transacción; auditoría con los conteos.
 
 **INV-03 · Bodegas (F2)**
-- CA1: Código (único por organización, sin distinguir mayúsculas), nombre,
+- CA1 ✔ Código (único por organización, sin distinguir mayúsculas), nombre,
   ubicación (cualquier nodo, opcional), por defecto, activa y notas.
-- CA2: Al primer uso del inventario se crea sola "Bodega principal" (código
+- CA2 ✔ Al primer uso del inventario se crea sola "Bodega principal" (código
   `BOD`), marcada por defecto. Siempre hay exactamente una por defecto.
-- CA3: No se desactiva una bodega con stock ≠ 0, con reservas activas o que
+- CA3 ✔ No se desactiva una bodega con stock ≠ 0, con reservas activas o que
   sea la por defecto; el mensaje explica por qué.
-- CA4: Con una sola bodega activa no se muestra el selector de bodega.
-- CA5: Alcance por sitio: una membresía restringida ve las bodegas cuya
+- CA4 ✔ Con una sola bodega activa no se muestra el selector de bodega.
+- CA5 ✔ Alcance por sitio: una membresía restringida ve las bodegas cuya
   ubicación cae en su alcance (incluidos los hijos) y las sin ubicación; no
   mueve stock de una bodega que no ve.
 
 **INV-04 · Stock por bodega (F2)**
-- CA1: Por repuesto y bodega: en existencia (`on_hand`), reservado,
+- CA1 ✔ Por repuesto y bodega: en existencia (`on_hand`), reservado,
   disponible = en existencia − reservado, mínimo, objetivo, ubicación en
   bodega y último movimiento.
-- CA2: El saldo solo cambia por movimientos: sin edición directa en pantalla,
+- CA2 ✔ El saldo solo cambia por movimientos: sin edición directa en pantalla,
   API ni admin.
-- CA3: Ficha del repuesto: stock por bodega, total, costo promedio (solo con
+- CA3 ✔ Ficha del repuesto: stock por bodega, total, costo promedio (solo con
   `inventory.cost_view`) y últimos movimientos.
 
 **INV-05 · Entrada de stock (F2)**
@@ -417,19 +417,19 @@ mismo repuesto como texto en cada OT y plan.
 - CA3 ✔ Solo visible con más de una bodega activa.
 
 **INV-08 · Costo promedio ponderado (F2)**
-- CA1: Un promedio por repuesto en la organización (`part.avg_cost`, 4
+- CA1 ✔ Un promedio por repuesto en la organización (`part.avg_cost`, 4
   decimales), no por bodega.
-- CA2: Se recalcula solo con entradas con costo, devoluciones desde la OT y
+- CA2 ✔ Se recalcula solo con entradas con costo, devoluciones desde la OT y
   conteos/importaciones con costo cuando el stock es ≤ 0. Con
   `Q = Σ on_hand del repuesto en todas las bodegas antes del movimiento`:
   si Q ≤ 0 → promedio = c; si no, promedio = (Q·promedio + q·c) / (Q + q).
-- CA3: Salidas, ajustes sin costo y transferencias se valorizan al promedio
+- CA3 ✔ Salidas, ajustes sin costo y transferencias se valorizan al promedio
   vigente y no lo cambian; cada movimiento guarda el costo unitario aplicado y
   el promedio resultante (`avg_cost_after`).
-- CA4: El costo cero diluye el promedio (se advierte); stock > 0 con promedio
+- CA4 ✔ El costo cero diluye el promedio (se advierte); stock > 0 con promedio
   0 se marca "Sin costo".
-- CA5: Stock negativo permitido.
-- CA6: Tests con fixtures de resultado conocido: entradas sucesivas, costo
+- CA5 ✔ Stock negativo permitido.
+- CA6 ✔ Tests con fixtures de resultado conocido: entradas sucesivas, costo
   cero, negativo → entrada, devolución y transferencia.
 
 **INV-09 · Consumo desde la OT (F2)**
@@ -455,7 +455,7 @@ elegir bodega ni escribir costos.
 - CA6 ✔ Idempotente por `client_uuid`: el reenvío devuelve la misma línea aunque
   la OT ya esté cerrada; el mismo `client_uuid` en otra OT es conflicto (la
   clave se revisa antes que el estado de la OT).
-- CA7: API v1 `POST /api/v1/work-orders/{id}/parts/` con `part` o
+- CA7 ✔ API v1 `POST /api/v1/work-orders/{id}/parts/` con `part` o
   `description`, mismo servicio que la web.
 
 **INV-10 · Reservas por OT (F2)**
@@ -533,12 +533,12 @@ elegir bodega ni escribir costos.
   (X-03, X-04, ADR-027), probado en `tests/test_org_export_delete.py`.
 
 **INV-15 · Indicadores de inventario (F2, liviano)**
-- CA1: En el inicio de inventario, solo con `inventory.cost_view`: valor del
+- CA1 ✔ En el inicio de inventario, solo con `inventory.cost_view`: valor del
   inventario = Σ en existencia positivo × promedio (total y por bodega);
   consumo valorizado de 12 meses (salidas − devoluciones); rotación aprox. =
   consumo 12 meses ÷ valor actual (marcada "aprox.", con "Fórmula");
   repuestos sin movimiento en 12 meses con su valor.
-- CA2: Número fijo de consultas (`tests/test_query_counts.py`) y fixtures de
+- CA2 ✔ Número fijo de consultas (`tests/test_query_counts.py`) y fixtures de
   valor conocido.
 
 **INV-16 · Permisos, módulo y aislamiento (F2)**
@@ -550,14 +550,14 @@ elegir bodega ni escribir costos.
 | `inventory.move` (entradas, transferencias) | ✔ | ✔ | ✔ | — | — | — |
 | `inventory.manage` (catálogo, bodegas, conteos, mínimos, importación, crear desde planes) | ✔ | ✔ | — | — | — | — |
 
-- CA1: Consumir en la OT = `work_order.execute` (sin cambios); reservar o
+- CA1 ✔ Consumir en la OT = `work_order.execute` (sin cambios); reservar o
   quitar reservas = `work_order.manage`. El token de API actúa con permisos de
   planificador.
-- CA2: Sin el módulo `inventory`: `/inventory/…` responde 403 con mensaje de
+- CA2 ✔ Sin el módulo `inventory`: `/inventory/…` responde 403 con mensaje de
   plan; desaparecen la navegación y los buscadores de catálogo en OT y planes;
   el texto libre en la OT sigue; la API de inventario responde 403 y enviar
   `part` en `…/parts/` responde 403 con mensaje de plan.
-- CA3: Tests de aislamiento de cada modelo, vista y endpoint, incluidos IDs
+- CA3 ✔ Tests de aislamiento de cada modelo, vista y endpoint, incluidos IDs
   cruzados en formularios, API y offline. RLS automático (`post_migrate` de
   `apps/core/rls.py`), verificado en `tests/isolation/test_rls.py`.
 

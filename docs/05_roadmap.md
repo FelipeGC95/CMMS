@@ -170,8 +170,12 @@ generan solas.
 - Asistente de diagnóstico con IA (AI-01..05, ADR-018): herramientas de
   búsqueda con alcance, conversación en el worker, citas, cupos y conjunto de
   evaluación con casos del piloto — 4 semanas.
-- Inventario: repuestos, bodegas, stock mínimo, reservas y consumos — 5 semanas.
-  - **En curso** (diseño aprobado el 2026-10-10): INV-01..INV-17
+- ✔ Inventario: repuestos, bodegas, stock mínimo, reservas y consumos — hecho
+  (2026-10, paquetes P0–P7). Queda fuera de v1: órdenes de compra,
+  proveedores como entidad, lotes y series, conversión de unidades, FIFO,
+  códigos de barra de repuestos, crear repuestos sin conexión e indicadores
+  de inventario en `/reports/kpis/`, PDF o API.
+  - Diseño aprobado el 2026-10-10: INV-01..INV-17
     ([02_requisitos.md](02_requisitos.md) §6), modelo en
     [03_modelo_de_datos.md](03_modelo_de_datos.md) §2.10 y ADR-028. Módulo
     `inventory` en los planes Prueba, Profesional y Empresa. Stock negativo

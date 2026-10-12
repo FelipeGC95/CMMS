@@ -201,6 +201,11 @@ Proveedor de correo (SMTP, ambos con plan gratuito para empezar):
   si el físico no coincide, **Contar** el repuesto (motivo obligatorio si
   faltan unidades o la diferencia supera el 10 %); si salió de otra bodega,
   **Transferir**. Nunca editar `StockItem` a mano.
+- **Demo:** `seed_demo --reset` carga bodega principal y un pañol por sitio,
+  unos 30 repuestos, planes con repuestos enlazados, reservas, consumos de los
+  últimos meses (para los indicadores), un repuesto bajo mínimo y uno en
+  negativo; la demo queda reconciliada. Una base demo que ya existía (Render
+  corre `seed_demo` sin `--reset`) no recibe el inventario hasta recrearla.
 
 ## 4. Checklist para activar producción
 

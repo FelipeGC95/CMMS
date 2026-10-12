@@ -1200,3 +1200,8 @@ lleva `{id, name, path}`; los decimales van como texto; consultas acotadas
     lotes y series, conversión de unidades, FIFO, integración contable,
     códigos de barra de repuestos y crear repuestos sin conexión.
   - Modo sin conexión: los repuestos entran a ADR-011 con INV-13.
+- **Estado (2026-10):** implementado en los paquetes P0–P7 (INV-01..INV-17
+  cumplidos, ver [02_requisitos.md](02_requisitos.md) §6). P7 sumó los
+  indicadores del inicio de inventario (INV-15), "Dónde se usa" calculado
+  en la ficha del repuesto (decisión 9), el inventario de `seed_demo` y la
+  verificación de exportación y purga con los enlaces desde OT y planes.

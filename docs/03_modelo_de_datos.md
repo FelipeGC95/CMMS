@@ -252,9 +252,9 @@ Se **copian** a la organización al adoptarlas; nunca se referencian en vivo (un
 | SSO (F3) | tablas de allauth (`socialaccount`, config SAML por organización) | `user` global + `membership`. |
 | Facturación (F3) | `subscription`, `invoice` | `organization.plan_id`, cupos. |
 
-El inventario (F2) dejó esta tabla: está en construcción y su modelo está en §2.10.
+El inventario (F2) dejó esta tabla: está hecho (2026-10) y su modelo está en §2.10.
 
-### 2.10 Inventario y repuestos (F2, en construcción)
+### 2.10 Inventario y repuestos (F2, hecho)
 
 App nueva `apps/inventory` (ADR-028); todas las tablas heredan de
 `TenantModel`. Requisitos INV-01..INV-17 en [02_requisitos.md](02_requisitos.md) §6.
@@ -291,6 +291,10 @@ Inmutable: `save()` lanza `ImmutableMovementError` si no es alta y `delete()` si
 **Idempotencia:** `client_uuid` en el movimiento (el reenvío de una transferencia devuelve el par por `transfer_group`; la misma clave con otro repuesto o tipo es conflicto). En consumos, el `client_uuid` de `part_usage` se copia al movimiento. La clave se revisa siempre **antes** de las validaciones de estado.
 
 **Consistencia:** `manage.py inventory_reconcile` verifica `on_hand` = Σ movimientos por ítem, `reserved` = Σ pendientes de reservas activas y que cada `part_usage` enlazado tenga su movimiento con cantidad opuesta (INV-14 CA4).
+
+**Lecturas calculadas, sin tablas** (`apps/inventory/selectors.py`):
+- "Dónde se usa" (INV-01 CA4, `part_where_used`): `plan_resource` con ese `part_id` cuya versión es la `current_version` de un plan activo (con su clase de activo; los recursos repetidos se suman) y `part_usage` con ese `part_id` sobre OT con activo en los últimos 24 meses, agrupado por activo (cantidad neta y última fecha = `occurred_at` de la salida), con el alcance por sitio de la membresía. Dos consultas.
+- Indicadores (INV-15, `inventory_insights`, solo `inventory.cost_view`): valor = Σ `on_hand` positivo × `part.avg_cost` por bodega visible; consumo de 12 meses = −Σ `total_cost` de `issue` y `return` con `occurred_at` en los últimos 365 días; rotación aprox. = consumo ÷ valor actual; repuestos sin movimiento = con valor > 0 y sin movimientos en 365 días en las bodegas visibles. Cuatro consultas.
 
 ## 3. Diagrama ER (núcleo MVP + inventario F2)
 
