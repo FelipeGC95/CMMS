@@ -209,6 +209,8 @@ def test_openapi_schema_and_docs(client):
         b"/api/v1/work-orders/{id}/checklist-items/{item_id}/photos/",
         b"/api/v1/work-orders/{id}/checklist-items/",
         b"/api/v1/work-orders/{id}/attachments/",
+        b"/api/v1/condition-rules/{id}/",
+        b"/api/v1/condition-alerts/{id}/acknowledge/",
     ):
         assert path in schema.content, path
     assert b"multipart/form-data" in schema.content

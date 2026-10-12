@@ -1527,6 +1527,23 @@ def test_condition_alert_list_queries_do_not_grow(tenant_a):
     assert count() == few
 
 
+@pytest.mark.parametrize(
+    "path", ["condition-rules/", "condition-rules/?include_inactive=true", "condition-alerts/"]
+)
+def test_api_condition_lists_do_not_grow_with_rows(tenant_a, path, django_assert_max_num_queries):
+    """Listas de condición de la API v1 (CBM-09): consultas fijas sin importar cuántas filas haya."""
+    from tests.api_utils import api_client
+
+    client = api_client(tenant_a)
+    url = f"/api/v1/{path}"
+    _condition_alerts(tenant_a, 2, 0)
+    few = _api_count(client, url)
+    _condition_alerts(tenant_a, 8, 2)
+    with django_assert_max_num_queries(few + 1):  # +1: "último uso" del token
+        assert client.get(url).status_code == 200
+    assert _api_count(client, url) == few
+
+
 def test_condition_evaluation_queries_are_bounded(tenant_a, django_assert_max_num_queries):
     """Lectura de una variable con reglas en régimen (estado ya creado): consultas acotadas."""
     from apps.assets.models import MeterKind
