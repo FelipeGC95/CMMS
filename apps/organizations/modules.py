@@ -69,7 +69,7 @@ API_MODULES = {
     "api-warehouse": "inventory",
     "api-stock": "inventory",
     "api-stock-movement": "inventory",
-    # Reservados para la API de condición (CBM-09).
+    # API de condición (CBM-09).
     "api-condition-rule": "condition",
     "api-condition-alert": "condition",
 }

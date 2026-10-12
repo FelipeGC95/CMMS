@@ -2,6 +2,7 @@
 
 import uuid
 
+from django.db import transaction
 from django.db.models import F, Q
 from django.utils.translation import gettext as _
 from drf_spectacular.types import OpenApiTypes
@@ -14,9 +15,12 @@ from rest_framework.response import Response
 
 from apps.accounts.permissions import Perm, has_perm, require_perm
 from apps.assets import services as asset_services
-from apps.assets.models import Asset, Meter, MeterReading
+from apps.assets.models import Asset, AssetClass, Meter, MeterReading
 from apps.assets.reading_imports import apply_reading_import, build_reading_preview
 from apps.assets.selectors import visible_assets
+from apps.condition import services as condition_services
+from apps.condition.models import ConditionAlert, ConditionRule
+from apps.condition.selectors import alert_list, rule_for, rule_list
 from apps.inventory import services as inventory_services
 from apps.inventory.models import Part, StockItem, StockMovement, Warehouse
 from apps.inventory.selectors import visible_warehouses, warehouse_scope
@@ -38,6 +42,7 @@ from .services import (
     add_part_usage_idempotent,
     answer_checklist_item_idempotent,
     complete_work_order_idempotent,
+    create_condition_rule_idempotent,
     create_work_order_idempotent,
     record_stock_movement_idempotent,
     transition_work_order_idempotent,
@@ -726,3 +731,142 @@ class StockMovementViewSet(
             {"movements": movements}, context=self.get_serializer_context()
         )
         return Response(body.data, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
+
+
+# --- Mantenimiento por condición (CBM-09): módulo `condition` del plan (API_MODULES) -----------
+
+
+class ConditionViewSet(BaseViewSet):
+    """Condición: exige `condition.view` (escribir pide `condition.manage` en el servicio)."""
+
+    def initial(self, request, *args, **kwargs):
+        super().initial(request, *args, **kwargs)
+        require_perm(self.membership, Perm.CONDITION_VIEW)
+
+
+@extend_schema_view(
+    list=extend_schema(
+        parameters=[
+            _param("include_inactive", "true para incluir las desactivadas.", OpenApiTypes.BOOL),
+            _param("asset_class", "Reglas de esa clase de activo.", OpenApiTypes.UUID),
+            _param("meter", "Reglas que aplican a esa variable (directas y por clase).", OpenApiTypes.UUID),
+        ]
+    ),
+    create=extend_schema(
+        request=s.ConditionRuleCreateSerializer,
+        responses={201: s.ConditionRuleSerializer, 200: s.ConditionRuleSerializer},
+        description="Crea una regla sobre una variable (`meter`) o sobre una clase de activo "
+        "(`asset_class` + `meter_kind` + `meter_name`), con las validaciones de la web. "
+        "Idempotente por `client_uuid`: reenviarlo devuelve la regla ya creada (200); usarlo en "
+        "otra operación → 409.",
+    ),
+    partial_update=extend_schema(
+        request=s.ConditionRuleUpdateSerializer,
+        responses=s.ConditionRuleSerializer,
+        description="Cambia la condición, la acción o los datos de la OT; `is_active: false` la "
+        "desactiva (no se borra). El alcance no cambia: para otra variable, crea otra regla.",
+    ),
+)
+class ConditionRuleViewSet(
+    mixins.ListModelMixin,
+    mixins.RetrieveModelMixin,
+    mixins.CreateModelMixin,
+    mixins.UpdateModelMixin,
+    ConditionViewSet,
+):
+    """Reglas de condición (CBM-03): por variable o por clase de activo. Sin borrado."""
+
+    serializer_class = s.ConditionRuleSerializer
+    http_method_names = ["get", "post", "patch", "head", "options"]
+
+    def get_queryset(self):
+        if self.action != "list":
+            return rule_list(membership=self.membership, include_inactive=True)
+        asset_class = meter = None
+        if class_id := _uuid(self.request, "asset_class"):
+            asset_class = AssetClass.objects.filter(pk=class_id).first()
+            if asset_class is None:
+                return ConditionRule.objects.none()
+        if meter_id := _uuid(self.request, "meter"):
+            meter = Meter.objects.filter(
+                pk=meter_id, asset__in=visible_assets(membership=self.membership)
+            ).first()
+            if meter is None:
+                return ConditionRule.objects.none()
+        return rule_list(
+            membership=self.membership,
+            include_inactive=_flag(self.request, "include_inactive"),
+            asset_class=asset_class,
+            meter=meter,
+        )
+
+    def create(self, request, *args, **kwargs):
+        serializer = s.ConditionRuleCreateSerializer(data=request.data, context=self.get_serializer_context())
+        serializer.is_valid(raise_exception=True)
+        rule, created = create_condition_rule_idempotent(
+            membership=self.membership, **serializer.validated_data
+        )
+        rule = rule_for(membership=self.membership, pk=rule.pk)
+        return Response(
+            self.get_serializer(rule).data,
+            status=status.HTTP_201_CREATED if created else status.HTTP_200_OK,
+        )
+
+    @transaction.atomic
+    def partial_update(self, request, *args, **kwargs):
+        rule = self.get_object()
+        serializer = s.ConditionRuleUpdateSerializer(data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        data = dict(serializer.validated_data)
+        is_active = data.pop("is_active", None)
+        if data:
+            rule = condition_services.update_rule(membership=self.membership, rule=rule, **data)
+        if is_active is not None:
+            rule = condition_services.set_rule_active(
+                membership=self.membership, rule=rule, is_active=is_active
+            )
+        return Response(self.get_serializer(rule_for(membership=self.membership, pk=rule.pk)).data)
+
+
+ALERT_STATUSES = ["active", *[c for c, _l in ConditionAlert.Status.choices]]
+
+
+@extend_schema_view(
+    list=extend_schema(
+        parameters=[
+            _param(
+                "status", "Estado; active = abiertas y reconocidas (por defecto, todas).", enum=ALERT_STATUSES
+            ),
+            _param("asset", "Activo.", OpenApiTypes.UUID),
+        ]
+    )
+)
+class ConditionAlertViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, ConditionViewSet):
+    """Alertas de condición (CBM-05): abiertas primero y luego las más recientes."""
+
+    serializer_class = s.ConditionAlertSerializer
+
+    def get_queryset(self):
+        if self.action != "list":
+            return alert_list(membership=self.membership)
+        asset = None
+        if asset_id := _uuid(self.request, "asset"):
+            asset = visible_assets(membership=self.membership).filter(pk=asset_id).first()
+            if asset is None:
+                return ConditionAlert.objects.none()
+        return alert_list(
+            membership=self.membership,
+            status=self.request.query_params.get("status", "").strip(),
+            asset=asset,
+        )
+
+    @extend_schema(request=None, responses=s.ConditionAlertSerializer)
+    @action(detail=True, methods=["post"])
+    def acknowledge(self, request, pk=None):
+        """Reconoce una alerta abierta (queda quién y cuándo); reconocerla otra vez no hace nada.
+
+        Una alerta normalizada o cerrada no se reconoce → 400.
+        """
+        alert = self.get_object()
+        condition_services.acknowledge_alert(membership=self.membership, alert=alert)
+        return Response(self.get_serializer(alert_list(membership=self.membership).get(pk=alert.pk)).data)

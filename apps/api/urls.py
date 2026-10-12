@@ -16,6 +16,9 @@ router.register("parts", v1.PartViewSet, basename="api-part")
 router.register("warehouses", v1.WarehouseViewSet, basename="api-warehouse")
 router.register("stock", v1.StockViewSet, basename="api-stock")
 router.register("stock-movements", v1.StockMovementViewSet, basename="api-stock-movement")
+# Condición (CBM-09): además del módulo `api`, exigen `condition` (API_MODULES).
+router.register("condition-rules", v1.ConditionRuleViewSet, basename="api-condition-rule")
+router.register("condition-alerts", v1.ConditionAlertViewSet, basename="api-condition-alert")
 
 # API de terreno (X-06, ADR-011): sesión de la web, solo para la PWA del técnico.
 field_router = DefaultRouter(trailing_slash=True, use_regex_path=False)

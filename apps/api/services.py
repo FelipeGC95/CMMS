@@ -16,6 +16,8 @@ from apps.attachments.models import TargetType as AttachmentTargetType
 from apps.audit import services as audit
 from apps.audit.models import AuditEvent
 from apps.audit.services import API_TOKEN_EMAIL_DOMAIN
+from apps.condition.models import ConditionRule
+from apps.condition.services import create_rule
 from apps.inventory import services as inventory
 from apps.inventory.models import StockMovement
 from apps.inventory.services import InventoryError
@@ -212,6 +214,32 @@ def transition_work_order_idempotent(
             client_uuid=client_uuid, action=TRANSITION_ACTION, target_id=work_order.pk
         )
     return work_order
+
+
+CONDITION_RULE_CREATE_ACTION = "condition_rule.create"
+
+
+@transaction.atomic
+def create_condition_rule_idempotent(*, membership, client_uuid=None, **data) -> tuple[ConditionRule, bool]:
+    """Alta de una regla de condición desde la API (CBM-09); devuelve (regla, creada).
+
+    El mismo servicio que la web (`condition.services.create_rule`). Reenviar el mismo
+    `client_uuid` devuelve la regla ya creada; usarlo para otra operación → 409.
+    """
+    require_perm(membership, Perm.CONDITION_MANAGE)
+    if client_uuid:
+        key = ApiIdempotencyKey.objects.filter(client_uuid=client_uuid).first()
+        if key is not None:
+            rule = ConditionRule.objects.filter(pk=key.target_id).first()
+            if key.action != CONDITION_RULE_CREATE_ACTION or rule is None:
+                raise Conflict(_("Este client_uuid ya se usó para otra operación."))
+            return rule, False
+    rule = create_rule(membership=membership, **data)
+    if client_uuid:
+        ApiIdempotencyKey.objects.create(
+            client_uuid=client_uuid, action=CONDITION_RULE_CREATE_ACTION, target_id=rule.pk
+        )
+    return rule, True
 
 
 def log_labor_idempotent(

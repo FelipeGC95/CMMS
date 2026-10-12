@@ -2,15 +2,24 @@
 
 from decimal import Decimal
 
+from django.db.models import Q
 from django.utils.translation import gettext as _
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
-from apps.assets.models import Asset, AssetClass, Meter, MeterReading
+from apps.assets.models import (
+    VARIABLE_KINDS,
+    VARIABLE_METER_KIND_CHOICES,
+    Asset,
+    AssetClass,
+    Meter,
+    MeterReading,
+)
 from apps.assets.reading_imports import MAX_ROWS
 from apps.assets.selectors import visible_assets
 from apps.attachments.models import Attachment
+from apps.condition.models import ConditionAlert, ConditionRule
 from apps.inventory.models import Part, StockItem, StockMovement, Warehouse
 from apps.inventory.selectors import warehouse_scope
 from apps.organizations.models import Location
@@ -111,17 +120,41 @@ class MeterReadingSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
 
+def _reading_meters(membership):
+    # Las variables desactivadas también: el servicio responde que hay que reactivarlas (CBM-01 CA5).
+    return Meter.objects.filter(
+        Q(is_active=True) | Q(kind__in=VARIABLE_KINDS), asset__in=_assets(membership)
+    ).select_related("asset")
+
+
 class MeterReadingCreateSerializer(serializers.Serializer):
-    meter = TenantPK(_meters)
-    value = serializers.DecimalField(max_digits=14, decimal_places=3, min_value=0)
+    meter = TenantPK(_reading_meters)
+    value = serializers.DecimalField(
+        max_digits=14,
+        decimal_places=3,
+        help_text="Negativo solo en variables de condición (p. ej. temperatura bajo cero).",
+    )
     read_at = serializers.DateTimeField(required=False)
     is_reset = serializers.BooleanField(required=False, default=False)
     client_uuid = serializers.UUIDField(required=False, allow_null=True)
+
+    def validate(self, data):
+        if data["value"] < 0 and not data["meter"].is_variable:  # CBM-01 CA2
+            raise serializers.ValidationError({"value": [_("La lectura no puede ser negativa.")]})
+        return data
 
 
 class BulkReadingRowSerializer(serializers.Serializer):
     asset_code = serializers.CharField(required=False, allow_blank=True)
     meter = serializers.CharField(required=False, allow_blank=True)
+    kind = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        help_text="Con asset_code: tipo del medidor o variable (temperature, vibration, hours…).",
+    )
+    name = serializers.CharField(
+        required=False, allow_blank=True, help_text="Con asset_code: nombre del medidor o variable."
+    )
     value = serializers.CharField()
     read_at = serializers.CharField()
     is_reset = serializers.BooleanField(required=False, default=False)
@@ -679,3 +712,135 @@ class PartUsageCreateSerializer(serializers.Serializer):
                 raise serializers.ValidationError({"unit_cost": [_("Indica el costo unitario.")]})
             data["unit_cost"] = self.free_text_default_cost
         return data
+
+
+# --- Mantenimiento por condición (CBM-09): módulo `condition` del plan (API_MODULES) ----------
+
+
+def _rule_meters(membership):
+    # Cualquier medidor visible: el servicio responde si no es una variable (mensaje claro).
+    return Meter.objects.filter(asset__in=visible_assets(membership=membership))
+
+
+class ConditionRuleSerializer(serializers.ModelSerializer):
+    label = serializers.CharField(read_only=True)
+    meter_asset_code = serializers.CharField(source="meter.asset.code", read_only=True, default=None)
+    asset_class_code = serializers.CharField(source="asset_class.code", read_only=True, default=None)
+
+    class Meta:
+        model = ConditionRule
+        fields = [
+            "id",
+            "name",
+            "label",
+            "meter",
+            "meter_asset_code",
+            "asset_class",
+            "asset_class_code",
+            "meter_kind",
+            "meter_name",
+            "operator",
+            "threshold",
+            "min_value",
+            "max_value",
+            "consecutive",
+            "action",
+            "work_order_title",
+            "work_order_priority",
+            "work_order_instructions",
+            "is_active",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = fields
+
+
+def _rule_number(help_text):
+    return serializers.DecimalField(
+        max_digits=14, decimal_places=3, required=False, allow_null=True, help_text=help_text
+    )
+
+
+class ConditionRuleFieldsSerializer(serializers.Serializer):
+    """Condición, acción y datos de la OT: lo que se puede editar de una regla (CBM-03)."""
+
+    name = serializers.CharField(max_length=120, required=False, allow_blank=True)
+    operator = serializers.ChoiceField(ConditionRule.Operator.choices)
+    threshold = _rule_number("Umbral de gt y lt, o cambio por día de rate (> 0).")
+    min_value = _rule_number("Mínimo del rango (outside).")
+    max_value = _rule_number("Máximo del rango (outside), mayor que el mínimo.")
+    consecutive = serializers.IntegerField(
+        required=False, min_value=1, max_value=100, help_text="Lecturas seguidas fuera de rango (1 a 100)."
+    )
+    action = serializers.ChoiceField(ConditionRule.Action.choices, required=False)
+    work_order_title = serializers.CharField(max_length=200, required=False, allow_blank=True)
+    work_order_priority = serializers.ChoiceField(
+        WorkOrder.Priority.choices,  # mismos valores que ConditionRule.Priority
+        required=False,
+        allow_null=True,
+        help_text="1 urgente … 4 baja; null: según la criticidad del activo.",
+    )
+    work_order_instructions = serializers.CharField(required=False, allow_blank=True)
+
+
+class ConditionRuleCreateSerializer(ConditionRuleFieldsSerializer):
+    """Una regla sobre una variable (`meter`) o sobre una clase de activo + `meter_kind` + `meter_name`."""
+
+    meter = TenantPK(_rule_meters, required=False, allow_null=True)
+    asset_class = TenantPK(lambda m: AssetClass.objects.all(), required=False, allow_null=True)
+    meter_kind = serializers.ChoiceField(VARIABLE_METER_KIND_CHOICES, required=False, allow_blank=True)
+    meter_name = serializers.CharField(max_length=80, required=False, allow_blank=True)
+    client_uuid = serializers.UUIDField(required=False, allow_null=True)
+
+
+class ConditionRuleUpdateSerializer(ConditionRuleFieldsSerializer):
+    """Edición parcial: la condición, la acción, la OT o `is_active`. El alcance no cambia."""
+
+    is_active = serializers.BooleanField(
+        required=False, help_text="false la desactiva (sus alertas activas quedan normalizadas)."
+    )
+
+    def validate(self, data):
+        scope = sorted(set(self.initial_data) & {"meter", "asset_class", "meter_kind", "meter_name"})
+        if scope:
+            raise serializers.ValidationError(
+                {name: [_("El alcance de una regla no se cambia: crea otra regla.")] for name in scope}
+            )
+        return data
+
+
+class ConditionAlertSerializer(serializers.ModelSerializer):
+    rule_label = serializers.CharField(source="rule.label", read_only=True)
+    meter_kind = serializers.CharField(source="meter.kind", read_only=True)
+    meter_name = serializers.CharField(source="meter.name", read_only=True)
+    unit = serializers.CharField(source="meter.unit", read_only=True)
+    asset_code = serializers.CharField(source="asset.code", read_only=True)
+    work_order_code = serializers.CharField(source="work_order.code", read_only=True, default=None)
+
+    class Meta:
+        model = ConditionAlert
+        fields = [
+            "id",
+            "status",
+            "rule",
+            "rule_label",
+            "meter",
+            "meter_kind",
+            "meter_name",
+            "unit",
+            "asset",
+            "asset_code",
+            "reading",
+            "value",
+            "opened_at",
+            "last_value",
+            "last_read_at",
+            "work_order",
+            "work_order_code",
+            "acknowledged_at",
+            "normalized_at",
+            "closed_at",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = fields

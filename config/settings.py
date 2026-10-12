@@ -214,6 +214,8 @@ SPECTACULAR_SETTINGS = {
         "AssetStatusEnum": "apps.assets.models.Asset.Status",
         "WorkOrderStatusEnum": "apps.work.models.WorkOrder.Status",
         "WorkRequestStatusEnum": "apps.work.models.WorkRequest.Status",
+        # La prioridad de la OT y la de la OT de una regla de condición (CBM-09) son el mismo enum.
+        "PriorityEnum": "apps.work.models.WorkOrder.Priority",
         "ChecklistItemResultEnum": "apps.work.models.WorkOrderChecklistItem.Result",
         # El de medidores conserva su nombre aunque inventario agregue otro campo `kind` (INV-17).
         "KindEnum": "apps.assets.models.MeterKind",
