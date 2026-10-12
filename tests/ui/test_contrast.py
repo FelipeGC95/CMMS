@@ -75,6 +75,10 @@ CONTRAST_PAIRS = [
     ("--color-info", "--color-surface", UI),
     ("--color-text", "--color-surface-sunken", TEXT),
     ("--color-secondary-text", "--color-secondary-bg", TEXT),
+    # Tendencia de una variable (CBM-07): línea y puntos (--color-accent-text) y umbrales y lecturas
+    # fuera de rango (--color-error) sobre el fondo hundido del gráfico; muestras de la leyenda sobre
+    # la tarjeta (--color-accent-text y --color-error sobre --color-surface ya están arriba).
+    ("--color-error", "--color-surface-sunken", UI),
     # Movimientos de inventario (INV-05, INV-07): el repuesto elegido va sobre la tarjeta con borde
     # fuerte (texto, texto atenuado, enlace "Cambiar" y borde sobre --color-surface, pares de arriba).
 ]

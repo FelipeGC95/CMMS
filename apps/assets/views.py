@@ -23,11 +23,13 @@ from apps.attachments.models import TargetType
 from apps.attachments.selectors import attachments_for
 from apps.attachments.services import AttachmentError
 from apps.attachments.services import add_attachment as add_generic_attachment
+from apps.condition.selectors import asset_condition
 from apps.core.decorators import membership_required
 from apps.core.files import private_file_response
 from apps.core.middleware import SESSION_KEY
 from apps.core.tenancy import tenant_context
 from apps.maintenance.selectors import active_assignments_for_asset, reactivatable_assignments_for_asset
+from apps.organizations.modules import has_module
 from apps.organizations.services import quota_warning
 from apps.reporting.selectors import asset_kpis
 from apps.work.forms import AnonymousReportForm, FailureReportForm
@@ -150,6 +152,7 @@ def asset_detail_view(request, pk):
     ids = asset_scope_ids(membership=membership, asset=asset, include_components=include_components)
     done = work_order_list(membership=membership, scope="done").filter(asset_id__in=ids)
     attributes = active_attributes(asset.asset_class)
+    can_manage = has_perm(membership, Perm.ASSET_MANAGE)
     return render(
         request,
         "assets/detail.html",
@@ -160,12 +163,9 @@ def asset_detail_view(request, pk):
             "open_work_orders": work_order_list(membership=membership, scope="open", asset=asset),
             "history": done[:HISTORY_LIMIT],
             "plans": active_assignments_for_asset(asset=asset),
-            "meters": [
-                (meter, MeterReadingForm(prefix=str(meter.pk)))
-                for meter in asset.meters.filter(is_active=True)
-            ],
+            **_meter_sections(request, asset),
             "can_read_meters": has_perm(membership, Perm.METER_READING_CREATE),
-            "can_manage": has_perm(membership, Perm.ASSET_MANAGE),
+            "can_manage": can_manage,
             "can_manage_plans": has_perm(membership, Perm.PLAN_MANAGE),
             "attribute_rows": attribute_rows(asset, attributes),
             "missing_required_count": len(missing_required(asset, attributes)),
@@ -180,6 +180,37 @@ def asset_detail_view(request, pk):
             "attachment_form": AssetAttachmentForm(),
         },
     )
+
+
+def _meter_sections(request, asset) -> dict:
+    """Medidores y variables de la ficha (AST-07, CBM-01, CBM-07).
+
+    Con el módulo `condition` y `condition.view`, las variables van en la sección "Condición"
+    (estado, tendencia y alertas) y "Medidores" muestra solo los de uso. Sin ellos, las
+    variables siguen siendo medidores: se leen en "Medidores" (CBM-08 CA2). Las desactivadas
+    solo las ve quien puede reactivarlas.
+    """
+    membership = request.membership
+    show_condition = has_module(request.organization, "condition") and has_perm(
+        membership, Perm.CONDITION_VIEW
+    )
+    can_manage = has_perm(membership, Perm.ASSET_MANAGE)
+    condition = asset_condition(membership=membership, asset=asset) if show_condition else []
+    meters = [
+        meter
+        for meter in asset.meters.all()
+        if (meter.is_active or (can_manage and meter.is_variable))
+        and not (show_condition and meter.is_variable)
+    ]
+    meters.sort(key=lambda m: (not m.is_active, m.is_variable))
+    for row in condition:
+        row.form = MeterReadingForm(prefix=str(row.meter.pk), meter=row.meter)
+    return {
+        "meters": [(meter, MeterReadingForm(prefix=str(meter.pk), meter=meter)) for meter in meters],
+        "show_condition": show_condition,
+        "condition_rows": [row for row in condition if row.meter.is_active],
+        "inactive_variables": [row for row in condition if not row.meter.is_active],
+    }
 
 
 def _manageable_asset(request, pk):
@@ -394,15 +425,21 @@ def asset_attachment_add_view(request, pk):
 @require_POST
 @membership_required(perm=Perm.METER_READING_CREATE)
 def meter_reading_view(request, pk, meter_pk):
+    """Lectura manual de un medidor o de una variable (AST-07, CBM-02 CA1)."""
     meter = get_object_or_404(
         Meter.objects.select_related("asset").filter(asset__in=visible_assets(membership=request.membership)),
         pk=meter_pk,
         asset_id=pk,
+        is_active=True,
     )
-    form = MeterReadingForm(request.POST, prefix=str(meter.pk))
+    back = f"{reverse('asset_detail', args=[pk])}#meter-{meter.pk}"
+    form = MeterReadingForm(request.POST, prefix=str(meter.pk), meter=meter)
     if not form.is_valid():
-        messages.error(request, _("Ingresa una lectura válida (número mayor o igual a cero)."))
-        return redirect(f"{reverse('asset_detail', args=[pk])}#meters")
+        if meter.is_variable:
+            messages.error(request, _("Ingresa una lectura válida (un número)."))
+        else:
+            messages.error(request, _("Ingresa una lectura válida (número mayor o igual a cero)."))
+        return redirect(back)
     try:
         _reading, warnings = record_meter_reading(
             meter=meter,
@@ -414,10 +451,11 @@ def meter_reading_view(request, pk, meter_pk):
     except ValidationError as exc:
         messages.error(request, " ".join(exc.messages))
     else:
-        messages.success(request, _("Lectura registrada: %(kind)s.") % {"kind": meter.get_kind_display()})
+        label = meter.name or meter.get_kind_display()
+        messages.success(request, _("Lectura registrada: %(kind)s.") % {"kind": label})
         for warning in warnings:
             messages.warning(request, warning)
-    return redirect(f"{reverse('asset_detail', args=[pk])}#meters")
+    return redirect(back)
 
 
 @membership_required

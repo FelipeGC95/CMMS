@@ -6,7 +6,13 @@ una con `record_meter_reading` (mismas reglas que una lectura manual: sin
 negativos, acumulativas que no bajan salvo reinicio, preventivos por uso).
 
 Idempotente por (medidor, fecha, valor): una lectura que ya existe se omite,
-así reenviar el mismo archivo o lote no duplica nada.
+así reenviar el mismo archivo o lote no duplica nada. Cada lectura lleva además
+un `client_uuid` derivado de esa clave (dos confirmaciones simultáneas tampoco
+duplican).
+
+Cuando el activo tiene varios medidores o variables (CBM-02 CA2), las columnas
+opcionales `tipo` y `nombre` eligen cuál: la clave de una variable en el activo
+es (tipo, nombre). Los CSV sin esas columnas se siguen leyendo igual.
 """
 
 import csv
@@ -25,7 +31,7 @@ from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 from django.utils.translation import gettext
 
-from .models import Meter, MeterReading
+from .models import Meter, MeterKind, MeterReading
 from .selectors import visible_assets
 from .services import MeterReadingError, record_meter_reading
 
@@ -54,7 +60,45 @@ HEADER_ALIASES = {
     "is_reset": "is_reset",
     "reset": "is_reset",
     "reinicio": "is_reset",
+    # Elegir la variable o el medidor del activo por (tipo, nombre) (CBM-02 CA2).
+    "kind": "kind",
+    "tipo": "kind",
+    "meter_kind": "kind",
+    "tipo_medidor": "kind",
+    "tipo_variable": "kind",
+    "name": "name",
+    "nombre": "name",
+    "meter_name": "name",
+    "nombre_medidor": "name",
+    "nombre_variable": "name",
+    "variable": "name",
 }
+# Valores aceptados en la columna `tipo`: el código, la etiqueta y sinónimos en español.
+KIND_ALIASES = {
+    "hours": MeterKind.HOURS,
+    "horas": MeterKind.HOURS,
+    "horometro": MeterKind.HOURS,
+    "km": MeterKind.KM,
+    "kilometros": MeterKind.KM,
+    "odometro": MeterKind.KM,
+    "cycles": MeterKind.CYCLES,
+    "ciclos": MeterKind.CYCLES,
+    "other": MeterKind.OTHER,
+    "otro": MeterKind.OTHER,
+    "temperature": MeterKind.TEMPERATURE,
+    "temperatura": MeterKind.TEMPERATURE,
+    "vibration": MeterKind.VIBRATION,
+    "vibracion": MeterKind.VIBRATION,
+    "pressure": MeterKind.PRESSURE,
+    "presion": MeterKind.PRESSURE,
+    "current": MeterKind.CURRENT,
+    "corriente": MeterKind.CURRENT,
+    "variable": MeterKind.VARIABLE,
+    "otra": MeterKind.VARIABLE,
+    "otra_variable": MeterKind.VARIABLE,
+}
+# Espacio de nombres de los `client_uuid` derivados de (medidor, fecha, valor).
+READING_NAMESPACE = uuid.UUID("6f1c2d8e-5a47-4c3b-9e0d-2b7f4a1c9e55")
 TRUE_VALUES = {"1", "si", "s", "yes", "y", "true", "x", "verdadero"}
 DATE_FORMATS = ("%d-%m-%Y %H:%M", "%d/%m/%Y %H:%M", "%d-%m-%Y", "%d/%m/%Y", "%Y-%m-%d")
 
@@ -140,6 +184,27 @@ def parse_read_at(raw) -> datetime.datetime:
     return parsed
 
 
+def parse_kind(raw) -> str | None:
+    """Tipo de medidor desde el CSV: código (`temperature`), etiqueta (`Temperatura (°C)`) o
+    sinónimo (`temperatura`). None si no se reconoce."""
+    text = _normalize(raw or "")
+    if not text:
+        return None
+    if text in KIND_ALIASES:
+        return KIND_ALIASES[text]
+    for value, label in MeterKind.choices:
+        if _normalize(label) == text:
+            return value
+    first = text.split("_", 1)[0]  # «temperatura_c», «presion_bar»
+    return KIND_ALIASES.get(first)
+
+
+def reading_client_uuid(meter_id, read_at: datetime.datetime, value: Decimal) -> uuid.UUID:
+    """`client_uuid` estable para una fila importada: misma lectura, mismo UUID (CBM-02 CA5)."""
+    key = f"{meter_id}|{read_at.astimezone(datetime.UTC).isoformat()}|{value.normalize():f}"
+    return uuid.uuid5(READING_NAMESPACE, key)
+
+
 def parse_flag(raw) -> bool:
     if isinstance(raw, bool):
         return raw
@@ -199,6 +264,30 @@ def _resolve_meters(raw_rows, membership):
     return by_id, by_code
 
 
+def _pick_meter(row, candidates, *, kind, name, filtered):
+    """El medidor del activo según `tipo` y `nombre` (opcionales); si no basta, un error amable."""
+    if not candidates:
+        row.errors.append(gettext("El activo no existe o no tiene medidores."))
+        return None
+    if kind:
+        candidates = [m for m in candidates if m.kind == kind]
+    if name:
+        candidates = [m for m in candidates if m.name.lower() == name.lower()]
+    if len(candidates) == 1:
+        return candidates[0]
+    if not candidates:
+        row.errors.append(gettext("El activo no tiene un medidor con ese tipo y nombre."))
+    elif filtered:
+        row.errors.append(
+            gettext("El activo tiene varios medidores con ese tipo: indica también el nombre (o el id).")
+        )
+    else:
+        row.errors.append(
+            gettext("El activo tiene varios medidores: indica el tipo y el nombre, o el id del medidor.")
+        )
+    return None
+
+
 def _existing_keys(meters, read_ats) -> set:
     if not meters or not read_ats:
         return set()
@@ -229,19 +318,22 @@ def build_reading_preview(raw_rows: list[dict], *, membership) -> ReadingPreview
             action="create",
         )
         meter = None
-        if meter_ref:
+        kind_raw, name = str(raw.get("kind") or "").strip(), str(raw.get("name") or "").strip()
+        kind = parse_kind(kind_raw)
+        if kind_raw and kind is None:
+            row.errors.append(gettext("Tipo de medidor desconocido: %(kind)s.") % {"kind": kind_raw})
+        elif meter_ref:
             meter = by_id.get(meter_ref.lower())
             if meter is None or (code and meter.asset.code.lower() != code.lower()):
                 row.errors.append(gettext("Medidor no encontrado."))
                 meter = None
+            elif (kind and meter.kind != kind) or (name and meter.name.lower() != name.lower()):
+                row.errors.append(gettext("El id del medidor no coincide con el tipo o el nombre."))
+                meter = None
         elif code:
-            candidates = by_code.get(code.lower(), [])
-            if not candidates:
-                row.errors.append(gettext("El activo no existe o no tiene medidores."))
-            elif len(candidates) > 1:
-                row.errors.append(gettext("El activo tiene varios medidores: indica el id del medidor."))
-            else:
-                meter = candidates[0]
+            meter = _pick_meter(
+                row, by_code.get(code.lower(), []), kind=kind, name=name, filtered=bool(kind_raw or name)
+            )
         else:
             row.errors.append(gettext("Falta el código del activo o el id del medidor."))
         if meter is not None:
@@ -345,6 +437,7 @@ def apply_reading_import(rows: list[dict], *, membership, source: str) -> Readin
                 read_at=read_at,
                 is_reset=row["is_reset"],
                 source=source,
+                client_uuid=reading_client_uuid(meter.pk, read_at, value),
                 generate_work_orders=False,  # una vez por medidor, al final
             )
         except MeterReadingError as error:

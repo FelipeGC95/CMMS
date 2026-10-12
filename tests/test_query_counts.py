@@ -1584,3 +1584,57 @@ def test_condition_screens_do_not_grow_with_rows(client, tenant_a, url_name, dja
     assert many == few, f"{url_name}: {few} → {many} consultas"
     with django_assert_max_num_queries(30):
         client.get(url())
+
+
+def _condition_variables(tenant, n):
+    """Por vuelta, dos variables del activo (una con regla directa y otra cubierta por una regla
+    de la clase) con lecturas en la ventana de 90 días, una alarma y una variable desactivada."""
+    from apps.assets.models import Meter, MeterKind
+    from apps.assets.services import record_meter_reading, set_variable_active
+    from apps.condition import services as condition
+
+    with tenant_context(tenant.org):
+        for _ in range(n):
+            i = Meter.objects.count()
+            direct = Meter.objects.create(asset=tenant.asset, kind=MeterKind.TEMPERATURE, name=f"T{i}")
+            by_class = Meter.objects.create(asset=tenant.asset, kind=MeterKind.VIBRATION, name=f"V{i}")
+            condition.create_rule(membership=tenant.admin, meter=direct, operator="gt", threshold="80")
+            condition.create_rule(
+                membership=tenant.admin,
+                asset_class=tenant.asset.asset_class,
+                meter_kind=MeterKind.VIBRATION,
+                meter_name=f"V{i}",
+                operator="outside",
+                min_value="1",
+                max_value="5",
+            )
+            for days, value in ((20, "70"), (10, "85"), (1, "75")):
+                at = timezone.now() - datetime.timedelta(days=days)
+                record_meter_reading(meter=direct, value=value, read_at=at)
+                record_meter_reading(meter=by_class, value="3", read_at=at)
+            retired = Meter.objects.create(asset=tenant.asset, kind=MeterKind.CURRENT, name=f"C{i}")
+            set_variable_active(membership=tenant.admin, meter=retired, is_active=False)
+
+
+def test_asset_detail_condition_section_does_not_grow_with_variables(
+    client, tenant_a, django_assert_max_num_queries
+):
+    """CBM-07 CA3: estado, tendencia y alertas de cada variable en un número fijo de consultas."""
+    login(client, tenant_a.admin)
+    url = reverse("asset_detail", args=[tenant_a.asset.pk])
+    _condition_variables(tenant_a, 1)
+    few = _count(client, url)
+    _condition_variables(tenant_a, 6)
+    many = _count(client, url)
+    assert many == few, f"asset_detail con variables: {few} → {many} consultas"
+    with django_assert_max_num_queries(40):
+        assert "chart-trend" in client.get(url).content.decode()
+
+
+def test_asset_condition_selector_is_five_queries(tenant_a, django_assert_max_num_queries):
+    from apps.condition.selectors import asset_condition
+
+    _condition_variables(tenant_a, 4)
+    with tenant_context(tenant_a.org), django_assert_max_num_queries(5):
+        rows = asset_condition(membership=tenant_a.admin, asset=tenant_a.asset)
+    assert len(rows) == 12

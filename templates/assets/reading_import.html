@@ -10,6 +10,8 @@
       <strong>{% translate "Prepara un CSV con estas columnas" %}</strong>
       <p class="muted">{% translate "asset_code (o meter_id si el activo tiene varios medidores), value, read_at y, opcional, is_reset (sí/no). Separado por coma o punto y coma." %}</p>
       <p class="mono">{{ "asset_code;value;read_at;is_reset" }}<br>{{ "GH-01;1250,5;2026-09-24 08:00;no" }}</p>
+      <p class="muted">{% translate "Si el activo tiene varios medidores o variables de condición, agrega las columnas opcionales tipo (horas, km, ciclos, temperatura, vibración, presión, corriente u otra) y nombre para elegir cuál. Las variables admiten valores negativos." %}</p>
+      <p class="mono">{{ "asset_code;tipo;nombre;value;read_at" }}<br>{{ "CMP-01;temperatura;Rodamiento;72,5;2026-09-24 08:00" }}<br>{{ "CMP-01;vibracion;;3,1;2026-09-24 08:00" }}</p>
     </li>
     <li>
       <strong>{% translate "Súbelo y revisa la vista previa" %}</strong>

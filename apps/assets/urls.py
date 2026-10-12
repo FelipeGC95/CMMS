@@ -1,6 +1,6 @@
 from django.urls import path
 
-from . import class_views, views
+from . import class_views, variable_views, views
 
 urlpatterns = [
     path("assets/new/", views.asset_create_view, name="asset_create"),
@@ -17,4 +17,18 @@ urlpatterns = [
         name="attribute_edit",
     ),
     path("assets/<uuid:pk>/attributes/", class_views.asset_attributes_view, name="asset_attributes"),
+    # Variables de condición del activo (CBM-01).
+    path(
+        "assets/<uuid:pk>/variables/new/", variable_views.variable_create_view, name="asset_variable_create"
+    ),
+    path(
+        "assets/<uuid:pk>/variables/<uuid:meter_pk>/edit/",
+        variable_views.variable_edit_view,
+        name="asset_variable_edit",
+    ),
+    path(
+        "assets/<uuid:pk>/variables/<uuid:meter_pk>/active/",
+        variable_views.variable_active_view,
+        name="asset_variable_active",
+    ),
 ]

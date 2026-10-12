@@ -1,0 +1,77 @@
+{% load i18n ui accounts_tags condition_tags %}<section class="card mt-4" id="condition" aria-labelledby="condition-title">
+  <div class="card__header">
+    <h2 id="condition-title">{% translate "Condición" %}</h2>
+    <a href="{% url 'condition_alert_list' %}?asset={{ asset.pk }}&amp;status=all">{% translate "Alertas del activo" %}</a>
+  </div>
+  {% if condition_rows %}
+  <div class="grid cond-grid">
+    {% for row in condition_rows %}{% with meter=row.meter form=row.form %}
+    <article class="cond-var" id="meter-{{ meter.pk }}" aria-labelledby="meter-{{ meter.pk }}-name">
+      <div class="cond-var__head">
+        <div>
+          <h3 class="cond-var__name" id="meter-{{ meter.pk }}-name">{{ meter.name|default:meter.get_kind_display }}</h3>
+          {% if meter.name %}<span class="muted">{{ meter.get_kind_display }}</span>{% endif %}
+        </div>
+        {% variable_status_badge row %}
+      </div>
+      {% if meter.current_value is not None %}<p class="cond-var__value">
+        <span class="kpi__value">{{ meter.current_value|num }}<span class="kpi__unit">{{ meter.unit }}</span></span>
+        <span class="muted">{% blocktranslate with d=meter.current_read_at|date:"d M Y H:i" %}Leído el {{ d }}{% endblocktranslate %}</span>
+      </p>{% endif %}
+      {% if row.rules %}
+      <p class="chart-legend">
+        <span><svg class="chart-swatch" viewBox="0 0 10 10" aria-hidden="true" focusable="false"><line class="trend__line" x1="0" y1="5" x2="10" y2="5"></line></svg>{% translate "Lecturas" %}</span>
+        <span><svg class="chart-swatch" viewBox="0 0 10 10" aria-hidden="true" focusable="false"><line class="trend__threshold" x1="0" y1="5" x2="10" y2="5"></line></svg>{% translate "Reglas" %}: {% for rule in row.rules %}{{ rule.condition_label }}{% if not forloop.last %} · {% endif %}{% endfor %}</span>
+      </p>
+      {% else %}<p class="muted">{% translate "Sin reglas: agrega una para que el sistema avise cuando la variable salga de rango." %}</p>{% endif %}
+      {% if row.points %}
+      {% trend_chart row as chart %}{{ chart.svg }}
+      <div class="chart-axis"><span>{{ row.since|date:"d M" }}</span><span>{% blocktranslate with low=chart.low|num high=chart.high|num unit=meter.unit %}Escala {{ low }} a {{ high }} {{ unit }}{% endblocktranslate %}</span><span>{{ row.until|date:"d M" }}</span></div>
+      <details class="mt-2">
+        <summary class="chart-data">{% blocktranslate count n=row.points|length %}Ver datos ({{ n }} lectura){% plural %}Ver datos ({{ n }} lecturas){% endblocktranslate %}</summary>
+        <table class="table">
+          <caption class="visually-hidden">{% blocktranslate with v=meter.name|default:meter.get_kind_display %}Lecturas de {{ v }} en los últimos 90 días{% endblocktranslate %}</caption>
+          <thead><tr><th scope="col">{% translate "Fecha" %}</th><th scope="col" class="num">{% translate "Valor" %}</th><th scope="col">{% translate "Estado" %}</th></tr></thead>
+          <tbody>
+            {% for p in row.recent %}
+            <tr>
+              <td data-label="{% translate 'Fecha' %}">{{ p.at|date:"d-m-Y H:i" }}</td>
+              <td class="num" data-label="{% translate 'Valor' %}">{{ p.value|num }} {{ meter.unit }}</td>
+              <td data-label="{% translate 'Estado' %}">{% if p.out_of_range %}<span class="badge badge--error">{% icon 'alert' %}{% translate "Fuera de rango" %}</span>{% else %}<span class="badge badge--neutral">{% icon 'dot' %}{% translate "En rango" %}</span>{% endif %}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% if row.points|length > row.recent|length %}<p class="muted">{% blocktranslate with n=row.recent|length %}Se muestran las {{ n }} más recientes.{% endblocktranslate %}</p>{% endif %}
+      </details>
+      {% elif meter.current_value is not None %}<p class="muted">{% translate "Sin lecturas en los últimos 90 días." %}</p>{% endif %}
+      {% if can_read_meters %}{% include "assets/_meter_reading_form.html" %}{% endif %}
+      <div class="row mt-2">
+        <a class="btn btn--ghost btn--lg" href="{% url 'condition_alert_list' %}?asset={{ asset.pk }}&amp;status=all">{% icon 'alert' %}{% if row.active_alerts %}{% blocktranslate count n=row.active_alerts %}{{ n }} alerta activa{% plural %}{{ n }} alertas activas{% endblocktranslate %}{% else %}{% translate "Ver alertas" %}{% endif %}</a>
+        {% if membership|can:"condition.manage" %}<a class="btn btn--ghost btn--lg" href="{% url 'condition_rule_create' %}?meter={{ meter.pk }}">{% icon 'list' %}{% translate "Agregar regla" %}</a>{% endif %}
+        {% if can_manage %}{% include "assets/_variable_actions.html" %}{% endif %}
+      </div>
+    </article>
+    {% endwith %}{% endfor %}
+  </div>
+  {% else %}
+  <p class="muted">{% translate "Sin variables de condición. Agrega las que mides en este equipo (temperatura, vibración, presión, corriente u otra) para seguir su tendencia y recibir alertas." %}</p>
+  {% endif %}
+  {% if inactive_variables %}
+  <details class="mt-4">
+    <summary class="chart-data">{% blocktranslate count n=inactive_variables|length %}{{ n }} variable desactivada{% plural %}{{ n }} variables desactivadas{% endblocktranslate %}</summary>
+    <ul class="list">
+      {% for row in inactive_variables %}{% with meter=row.meter %}
+      <li id="meter-{{ meter.pk }}">
+        <div class="list__main">
+          <span class="list__title">{{ meter.name|default:meter.get_kind_display }}</span>
+          <span class="list__meta">{% if meter.current_value is not None %}{% blocktranslate with v=meter.current_value|num unit=meter.unit d=meter.current_read_at|date:"d M Y" %}Última lectura {{ v }} {{ unit }} el {{ d }}{% endblocktranslate %}{% else %}{% translate "Sin lecturas" %}{% endif %} · <a href="{% url 'condition_alert_list' %}?asset={{ asset.pk }}&amp;status=all">{% translate "Ver alertas" %}</a></span>
+        </div>
+        <div class="row">{% variable_status_badge row %}{% if can_manage %}{% include "assets/_variable_actions.html" %}{% endif %}</div>
+      </li>
+      {% endwith %}{% endfor %}
+    </ul>
+  </details>
+  {% endif %}
+  {% if can_manage and not is_retired %}<div class="row mt-4"><a class="btn btn--secondary btn--lg" href="{% url 'asset_variable_create' asset.pk %}">{% icon 'contrast' %}{% translate "Agregar variable" %}</a></div>{% endif %}
+</section>

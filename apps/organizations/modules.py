@@ -40,6 +40,8 @@ MODULE_ROUTES = [
     (re.compile(r"^/inventory/"), "inventory"),
     # Mantenimiento por condición (CBM-08): alertas y reglas (pantallas en C2).
     (re.compile(r"^/condition/"), "condition"),
+    # Alta de variables desde la ficha (CBM-01); editarlas o desactivarlas sigue sin el módulo.
+    (re.compile(r"^/assets/[^/]+/variables/new/$"), "condition"),
     (re.compile(r"^/(assets|work-orders|work-orders/backlog|plans/calendar)/export\.xlsx$"), "exports"),
     (re.compile(r"^/(assets|work-orders)/[^/]+/sheet\.pdf$"), "exports"),
     # Indicadores ampliados (KPI-02): la exportación pide además `kpis` en la vista.

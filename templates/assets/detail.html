@@ -62,30 +62,22 @@
   <h2 id="meters-title">{% translate "Medidores" %}</h2>
   <div class="grid grid--2">
     {% for meter, form in meters %}
-    <div class="meter">
+    <div class="meter" id="meter-{{ meter.pk }}">
       <div class="kpi">
-        <span class="kpi__label">{{ meter.name|default:meter.get_kind_display }}</span>
+        <span class="kpi__label">{{ meter.name|default:meter.get_kind_display }}{% if meter.is_variable and meter.name %} <span class="muted">· {{ meter.get_kind_display }}</span>{% endif %}</span>
         <span class="kpi__value">{% if meter.current_value is not None %}{{ meter.current_value|num }}<span class="kpi__unit">{{ meter.unit }}</span>{% else %}—{% endif %}</span>
         <span class="kpi__hint">{% if meter.current_read_at %}{% blocktranslate with d=meter.current_read_at|date:"d M Y H:i" %}Leído el {{ d }}{% endblocktranslate %}{% else %}{% translate "Sin lecturas" %}{% endif %}{% if meter.avg_daily_usage %} · {% blocktranslate with u=meter.avg_daily_usage|num unit=meter.unit %}~{{ u }} {{ unit }}/día{% endblocktranslate %}{% endif %}</span>
       </div>
-      {% if can_read_meters %}
-      <form method="post" action="{% url 'meter_reading' asset.pk meter.pk %}" class="mt-2">
-        {% csrf_token %}
-        {{ form.client_uuid }}
-        <div class="measure">
-          <label class="visually-hidden" for="{{ form.value.id_for_label }}">{{ form.value.label }}</label>
-          <input class="input num" type="number" step="any" min="0" inputmode="decimal" name="{{ form.value.html_name }}" id="{{ form.value.id_for_label }}" placeholder="{% translate 'Nueva lectura' %}" required>
-          <span class="muted">{{ meter.unit }}</span>
-          <button class="btn btn--secondary btn--lg" type="submit">{% translate "Registrar" %}</button>
-        </div>
-        <div class="field field--check">{{ form.is_reset }}<label for="{{ form.is_reset.id_for_label }}">{{ form.is_reset.label }}</label></div>
-      </form>
-      {% endif %}
+      {% if not meter.is_active %}<p class="mt-2"><span class="badge badge--neutral">{% icon 'x' %}{% translate "Desactivada" %}</span></p>
+      {% elif can_read_meters %}{% include "assets/_meter_reading_form.html" %}{% endif %}
+      {% if can_manage and meter.is_variable %}<div class="row mt-2">{% include "assets/_variable_actions.html" %}</div>{% endif %}
     </div>
     {% endfor %}
   </div>
 </section>
 {% endif %}
+
+{% if show_condition %}{% if condition_rows or inactive_variables or can_manage and not is_retired %}{% include "assets/_condition_section.html" %}{% endif %}{% endif %}
 
 <div class="grid grid--2 mt-4">
   <section class="card" aria-labelledby="open-title">

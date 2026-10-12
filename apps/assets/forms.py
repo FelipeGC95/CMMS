@@ -11,7 +11,7 @@ from apps.attachments.models import Purpose
 from apps.organizations.models import Location
 
 from .attributes import build_form_fields, field_name, initial_values
-from .models import MANUAL_STATUSES, Asset, AssetClass, AttributeType
+from .models import MANUAL_STATUSES, VARIABLE_METER_KIND_CHOICES, Asset, AssetClass, AttributeType
 from .selectors import active_attributes, asset_form_choices
 
 
@@ -28,7 +28,13 @@ class AssetAttachmentForm(forms.Form):
 
 
 class MeterReadingForm(forms.Form):
-    value = forms.DecimalField(label=_("Lectura actual"), min_value=0, max_digits=14, decimal_places=3)
+    """Lectura manual de un medidor o de una variable (AST-07, CBM-02 CA1).
+
+    Un medidor de uso no admite negativos; una variable de condición sí (p. ej. una
+    temperatura bajo cero) y no tiene "reinicio" (no es acumulativa).
+    """
+
+    value = forms.DecimalField(label=_("Lectura actual"), max_digits=14, decimal_places=3)
     is_reset = forms.BooleanField(
         label=_("Se cambió o reinició el medidor"),
         required=False,
@@ -36,6 +42,71 @@ class MeterReadingForm(forms.Form):
     )
     # Generado al mostrar el formulario: un doble envío no registra dos lecturas.
     client_uuid = forms.UUIDField(widget=forms.HiddenInput, required=False, initial=uuid.uuid4)
+
+    def __init__(self, *args, meter=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.meter = meter
+        if self.allows_negative:
+            del self.fields["is_reset"]
+
+    @property
+    def allows_negative(self) -> bool:
+        return self.meter is not None and self.meter.is_variable
+
+    def clean_value(self):
+        value = self.cleaned_data["value"]
+        if value < 0 and not self.allows_negative:
+            raise ValidationError(_("La lectura no puede ser negativa."))
+        return value
+
+    def clean(self):
+        cleaned = super().clean()
+        cleaned.setdefault("is_reset", False)
+        return cleaned
+
+
+class VariableForm(forms.Form):
+    """Alta o edición de una variable de condición en la ficha del activo (CBM-01).
+
+    Al editar no se cambia el tipo: el campo no se muestra.
+    """
+
+    kind = forms.ChoiceField(label=_("Tipo"), choices=VARIABLE_METER_KIND_CHOICES)
+    name = forms.CharField(
+        label=_("Nombre"),
+        max_length=80,
+        required=False,
+        help_text=_(
+            "Distingue variables del mismo tipo (p. ej. Rodamiento lado acople). Con dos del mismo tipo, "
+            "el nombre es obligatorio para elegirla en el CSV."
+        ),
+    )
+    unit = forms.CharField(
+        label=_("Unidad"),
+        max_length=20,
+        required=False,
+        help_text=_("Si la dejas vacía se usa la del tipo: °C, mm/s, bar o A."),
+    )
+
+    def __init__(self, *args, meter=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.meter = meter
+        if meter is not None:
+            del self.fields["kind"]
+            self.fields["unit"].help_text = ""
+            self.fields["name"].help_text = _(
+                "Las reglas por clase y los ítems del checklist eligen la variable por tipo y nombre: "
+                "si cambias el nombre, dejan de aplicarle."
+            )
+
+
+def apply_service_errors(form, error: ValidationError) -> None:
+    """Pasa los errores de un servicio al formulario (campo si lo trae, si no generales)."""
+    if hasattr(error, "error_dict"):
+        for field, errors in error.message_dict.items():
+            form.add_error(field if field in form.fields else None, errors)
+    else:
+        form.add_error(None, error.messages)
 
 
 class AssetClassForm(forms.Form):

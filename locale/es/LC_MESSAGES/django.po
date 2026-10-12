@@ -1045,9 +1045,6 @@ msgstr ""
 msgid "El activo no existe o no tiene medidores."
 msgstr ""
 
-msgid "El activo tiene varios medidores: indica el id del medidor."
-msgstr ""
-
 msgid "Falta el código del activo o el id del medidor."
 msgstr ""
 
@@ -9708,4 +9705,197 @@ msgstr ""
 #: templates/work/_checklist_item.html
 #, python-format
 msgid "Al completar la OT, el valor queda como lectura de %(variable)s"
+msgstr ""
+
+#: apps/assets/forms.py
+msgid "Distingue variables del mismo tipo (p. ej. Rodamiento lado acople). Con dos del mismo tipo, el nombre es obligatorio para elegirla en el CSV."
+msgstr ""
+
+#: apps/assets/forms.py
+msgid "Si la dejas vacía se usa la del tipo: °C, mm/s, bar o A."
+msgstr ""
+
+#: apps/assets/forms.py
+msgid "Las reglas por clase y los ítems del checklist eligen la variable por tipo y nombre: si cambias el nombre, dejan de aplicarle."
+msgstr ""
+
+#: apps/assets/services.py
+msgid "La variable está desactivada: reactívala para registrar lecturas."
+msgstr ""
+
+#: apps/assets/services.py
+msgid "El activo ya tiene una variable desactivada de ese tipo con ese nombre: reactívala en vez de crear otra."
+msgstr ""
+
+#: apps/assets/services.py
+msgid "Solo se editan aquí las variables de condición."
+msgstr ""
+
+#: apps/assets/services.py
+msgid "Ponle nombre a la variable (p. ej. Nivel de aceite)."
+msgstr ""
+
+#: apps/assets/reading_imports.py
+#, python-format
+msgid "Tipo de medidor desconocido: %(kind)s."
+msgstr ""
+
+#: apps/assets/reading_imports.py
+msgid "El id del medidor no coincide con el tipo o el nombre."
+msgstr ""
+
+#: apps/assets/reading_imports.py
+msgid "El activo no tiene un medidor con ese tipo y nombre."
+msgstr ""
+
+#: apps/assets/reading_imports.py
+msgid "El activo tiene varios medidores con ese tipo: indica también el nombre (o el id)."
+msgstr ""
+
+#: apps/assets/reading_imports.py
+msgid "El activo tiene varios medidores: indica el tipo y el nombre, o el id del medidor."
+msgstr ""
+
+#: apps/assets/variable_views.py
+#, python-format
+msgid "Variable agregada: %(name)s."
+msgstr ""
+
+#: apps/assets/variable_views.py
+msgid "Variable reactivada."
+msgstr ""
+
+#: apps/assets/variable_views.py
+msgid "Variable desactivada: su historial y sus alertas se conservan."
+msgstr ""
+
+#: apps/assets/views.py
+msgid "Ingresa una lectura válida (un número)."
+msgstr ""
+
+#: apps/condition/templatetags/condition_tags.py
+msgid "Alarma"
+msgstr ""
+
+#: apps/condition/templatetags/condition_tags.py
+msgid "Sin reglas"
+msgstr ""
+
+#: apps/condition/templatetags/condition_tags.py
+msgid "Desactivada"
+msgstr ""
+
+#: apps/condition/templatetags/condition_tags.py
+#, python-format
+msgid "%(variable)s, últimos 90 días: %(n)s lecturas, entre %(low)s y %(high)s %(unit)s."
+msgstr ""
+
+#: apps/condition/templatetags/condition_tags.py
+#, python-format
+msgid "%(variable)s: sin lecturas en los últimos 90 días."
+msgstr ""
+
+#: templates/assets/_condition_section.html
+msgid "Alertas del activo"
+msgstr ""
+
+#: templates/assets/_condition_section.html
+msgid "Lecturas"
+msgstr ""
+
+#: templates/assets/_condition_section.html
+msgid "Sin reglas: agrega una para que el sistema avise cuando la variable salga de rango."
+msgstr ""
+
+#: templates/assets/_condition_section.html
+#, python-format
+msgid "Escala %(low)s a %(high)s %(unit)s"
+msgstr ""
+
+#: templates/assets/_condition_section.html
+#, python-format
+msgid "Ver datos (%(n)s lectura)"
+msgid_plural "Ver datos (%(n)s lecturas)"
+msgstr[0] ""
+msgstr[1] ""
+
+#: templates/assets/_condition_section.html
+#, python-format
+msgid "Lecturas de %(v)s en los últimos 90 días"
+msgstr ""
+
+#: templates/assets/_condition_section.html
+#, python-format
+msgid "Se muestran las %(n)s más recientes."
+msgstr ""
+
+#: templates/assets/_condition_section.html
+msgid "Sin lecturas en los últimos 90 días."
+msgstr ""
+
+#: templates/assets/_condition_section.html
+#, python-format
+msgid "%(n)s alerta activa"
+msgid_plural "%(n)s alertas activas"
+msgstr[0] ""
+msgstr[1] ""
+
+#: templates/assets/_condition_section.html
+msgid "Ver alertas"
+msgstr ""
+
+#: templates/assets/_condition_section.html
+msgid "Agregar regla"
+msgstr ""
+
+#: templates/assets/_condition_section.html
+msgid "Sin variables de condición. Agrega las que mides en este equipo (temperatura, vibración, presión, corriente u otra) para seguir su tendencia y recibir alertas."
+msgstr ""
+
+#: templates/assets/_condition_section.html
+#, python-format
+msgid "%(n)s variable desactivada"
+msgid_plural "%(n)s variables desactivadas"
+msgstr[0] ""
+msgstr[1] ""
+
+#: templates/assets/_condition_section.html
+#, python-format
+msgid "Última lectura %(v)s %(unit)s el %(d)s"
+msgstr ""
+
+#: templates/assets/_condition_section.html
+msgid "Agregar variable"
+msgstr ""
+
+#: templates/assets/reading_import.html
+msgid "Si el activo tiene varios medidores o variables de condición, agrega las columnas opcionales tipo (horas, km, ciclos, temperatura, vibración, presión, corriente u otra) y nombre para elegir cuál. Las variables admiten valores negativos."
+msgstr ""
+
+#: templates/assets/variable_form.html
+msgid "Editar variable"
+msgstr ""
+
+#: templates/assets/variable_form.html
+msgid "Agregar variable de condición"
+msgstr ""
+
+#: templates/assets/variable_form.html
+msgid "Una variable es algo que mides en el equipo para seguir su condición: se registra a mano, por CSV, por API o desde la pauta de una OT. No dispara planes por uso."
+msgstr ""
+
+#: templates/ui/design_system.html
+msgid "Estado de una variable"
+msgstr ""
+
+#: templates/ui/design_system.html
+msgid "Variable en la ficha del activo: tendencia de 90 días"
+msgstr ""
+
+#: templates/ui/design_system.html
+msgid "SVG generado en el servidor que se estira al ancho; umbrales en línea discontinua, lecturas fuera de rango marcadas y la tabla de datos debajo."
+msgstr ""
+
+#: templates/ui/design_system.html
+msgid "Ver datos"
 msgstr ""

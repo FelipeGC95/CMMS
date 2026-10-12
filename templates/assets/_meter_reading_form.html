@@ -1,0 +1,12 @@
+{% load i18n %}<form method="post" action="{% url 'meter_reading' asset.pk meter.pk %}" class="mt-2">
+  {% csrf_token %}
+  {{ form.client_uuid }}
+  <div class="measure">
+    <label class="visually-hidden" for="{{ form.value.id_for_label }}">{{ form.value.label }}</label>
+    {% if form.allows_negative %}<input class="input num" type="number" step="any" name="{{ form.value.html_name }}" id="{{ form.value.id_for_label }}" placeholder="{% translate 'Nueva lectura' %}" required>
+    {% else %}<input class="input num" type="number" step="any" min="0" inputmode="decimal" name="{{ form.value.html_name }}" id="{{ form.value.id_for_label }}" placeholder="{% translate 'Nueva lectura' %}" required>{% endif %}
+    <span class="muted">{{ meter.unit }}</span>
+    <button class="btn btn--secondary btn--lg" type="submit">{% translate "Registrar" %}</button>
+  </div>
+  {% if not form.allows_negative %}<div class="field field--check">{{ form.is_reset }}<label for="{{ form.is_reset.id_for_label }}">{{ form.is_reset.label }}</label></div>{% endif %}
+</form>

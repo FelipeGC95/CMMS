@@ -1,13 +1,19 @@
 """Lecturas de mantenimiento por condición (CBM-05, CBM-07): permisos, alcance por sitio y sin N+1."""
 
-from django.db.models import Case, IntegerField, Q, Value, When
+import datetime
+from dataclasses import dataclass, field
+from decimal import Decimal
+
+from django.db.models import Case, Count, IntegerField, Q, Value, When
+from django.utils import timezone
 
 from apps.accounts.permissions import Perm, require_perm
 from apps.accounts.scoping import allowed_location_ids
-from apps.assets.models import VARIABLE_KINDS, Asset, Meter
+from apps.assets.models import VARIABLE_KINDS, Asset, Meter, MeterReading
 from apps.assets.selectors import visible_assets
 from apps.organizations.selectors import descendant_ids
 
+from .charts import TrendPoint
 from .models import ConditionAlert, ConditionRule, ConditionState
 
 Status = ConditionAlert.Status
@@ -172,3 +178,136 @@ def meter_states(*, meter_ids) -> dict:
     ):
         states.setdefault(state.meter_id, []).append(state)
     return states
+
+
+# --- Sección "Condición" de la ficha del activo (CBM-07) ----------------------------
+
+TREND_DAYS = 90
+TABLE_LIMIT = 30  # filas de la tabla de datos bajo el gráfico (las más recientes)
+
+
+class VariableStatus:
+    ALARM = "alarm"
+    NORMAL = "normal"
+    NO_RULES = "no_rules"
+    NO_READINGS = "no_readings"  # tiene reglas pero aún no hay lecturas que evaluar
+    INACTIVE = "inactive"
+
+
+@dataclass
+class VariableCondition:
+    """Una variable en la ficha: estado, reglas que le aplican y su tendencia de 90 días."""
+
+    meter: Meter
+    status: str
+    rules: list = field(default_factory=list)
+    points: list[TrendPoint] = field(default_factory=list)  # en orden de fecha
+    active_alerts: int = 0
+    since: datetime.datetime | None = None
+    until: datetime.datetime | None = None
+
+    @property
+    def thresholds(self) -> list[Decimal]:
+        """Líneas de umbral: el de `gt`/`lt` y los dos extremos de `outside` (`rate` no tiene)."""
+        values = []
+        for rule in self.rules:
+            if rule.operator in (ConditionRule.Operator.GT, ConditionRule.Operator.LT):
+                values.append(rule.threshold)
+            elif rule.operator == ConditionRule.Operator.OUTSIDE:
+                values += [rule.min_value, rule.max_value]
+        return values
+
+    @property
+    def recent(self) -> list[TrendPoint]:
+        """Las lecturas más recientes primero, para la tabla accesible."""
+        return self.points[::-1][:TABLE_LIMIT]
+
+
+def _out_of_range(rules, value) -> bool:
+    """¿La lectura cruza algún umbral fijo? (`rate` depende de la anterior: no se marca)."""
+    from .services import breaches
+
+    return any(breaches(rule, value) for rule in rules if rule.operator != ConditionRule.Operator.RATE)
+
+
+def asset_condition(*, membership, asset, now=None) -> list[VariableCondition]:
+    """Variables del activo con su estado y tendencia de los últimos 90 días (CBM-07).
+
+    `asset` ya es visible para la membresía (la vista lo obtiene con `visible_assets`).
+    Incluye las desactivadas (su historial y alertas siguen visibles, CBM-01 CA5), al final.
+    Consultas fijas, sin importar cuántas variables, reglas o lecturas haya: variables,
+    reglas (del medidor y de la clase), estados, lecturas de la ventana y alertas activas.
+    """
+    require_perm(membership, Perm.CONDITION_VIEW)
+    meters = list(
+        Meter.objects.filter(asset_id=asset.pk, kind__in=VARIABLE_KINDS).order_by(
+            "-is_active", "kind", "name"
+        )
+    )
+    if not meters:
+        return []
+    ids = [meter.pk for meter in meters]
+    until = now or timezone.now()
+    since = until - datetime.timedelta(days=TREND_DAYS)
+    rules = list(
+        ConditionRule.objects.filter(is_active=True)
+        .filter(
+            Q(meter_id__in=ids)
+            | Q(
+                meter__isnull=True,
+                asset_class_id=asset.asset_class_id,
+                meter_kind__in={m.kind for m in meters},
+            )
+        )
+        .order_by("created_at")
+    )
+    states = meter_states(meter_ids=ids)
+    readings: dict = {}
+    for meter_id, read_at, value in (
+        MeterReading.objects.filter(meter_id__in=ids, read_at__gte=since)
+        .order_by("read_at")
+        .values_list("meter_id", "read_at", "value")
+    ):
+        readings.setdefault(meter_id, []).append((read_at, value))
+    alerts = dict(
+        ConditionAlert.objects.filter(meter_id__in=ids, status__in=ConditionAlert.ACTIVE_STATUSES)
+        .values("meter_id")
+        .annotate(n=Count("id"))
+        .values_list("meter_id", "n")
+    )
+    rows = []
+    for meter in meters:
+        applicable = [
+            rule
+            for rule in rules
+            if rule.meter_id == meter.pk
+            or (rule.meter_id is None and rule.meter_kind == meter.kind and rule.meter_name == meter.name)
+        ]
+        rule_ids = {rule.pk for rule in applicable}
+        in_alarm = any(
+            state.status == ConditionState.Status.ALARM and state.rule_id in rule_ids
+            for state in states.get(meter.pk, [])
+        )
+        if not meter.is_active:
+            status = VariableStatus.INACTIVE
+        elif not applicable:
+            status = VariableStatus.NO_RULES
+        elif meter.current_value is None:
+            status = VariableStatus.NO_READINGS
+        else:
+            status = VariableStatus.ALARM if in_alarm else VariableStatus.NORMAL
+        rows.append(
+            VariableCondition(
+                meter=meter,
+                status=status,
+                rules=applicable,
+                points=[
+                    TrendPoint(at=at, value=value, out_of_range=_out_of_range(applicable, value))
+                    for at, value in readings.get(meter.pk, [])
+                ],
+                active_alerts=alerts.get(meter.pk, 0),
+                since=since,
+                until=until,
+            )
+        )
+    return rows

@@ -178,6 +178,8 @@ def record_meter_reading(
         if existing:
             return existing, []
 
+    if meter.is_variable and not meter.is_active:  # desactivada: conserva su historial (CBM-01 CA5)
+        raise MeterReadingError(gettext("La variable está desactivada: reactívala para registrar lecturas."))
     value = Decimal(str(value))
     read_at = read_at or timezone.now()
     if value < 0 and not meter.is_variable:  # una temperatura bajo cero es válida (CBM-01)
@@ -263,8 +265,7 @@ def create_meter(*, membership, asset: Asset, kind: str, name: str = "", unit: s
     name, unit = (name or "").strip(), (unit or "").strip()
     if len(name) > 80 or len(unit) > 20:
         raise ValidationError(gettext("Nombre o unidad demasiado largos."))
-    if Meter.objects.filter(asset=asset, kind=kind, name=name).exists():
-        raise ValidationError({"name": gettext("El activo ya tiene un medidor de ese tipo con ese nombre.")})
+    _require_unique_meter_key(asset_id=asset.pk, kind=kind, name=name)
     meter = Meter(asset=asset, kind=kind, name=name, unit=unit, is_cumulative=not MeterKind.is_variable(kind))
     meter.save()
     audit.record(
@@ -272,6 +273,89 @@ def create_meter(*, membership, asset: Asset, kind: str, name: str = "", unit: s
         target=meter,
         membership=membership,
         changes=audit.snapshot(meter, fields={"asset", "kind", "name", "unit", "is_cumulative"}),
+    )
+    return meter
+
+
+def _require_unique_meter_key(*, asset_id, kind: str, name: str, exclude=None) -> None:
+    """La clave (tipo, nombre) es única por activo, también contra las variables desactivadas."""
+    clash = Meter.objects.filter(asset_id=asset_id, kind=kind, name__iexact=name)
+    if exclude is not None:
+        clash = clash.exclude(pk=exclude.pk)
+    clash = clash.first()
+    if clash is None:
+        return
+    if not clash.is_active:
+        message = gettext(
+            "El activo ya tiene una variable desactivada de ese tipo con ese nombre: reactívala en vez "
+            "de crear otra."
+        )
+    else:
+        message = gettext("El activo ya tiene un medidor de ese tipo con ese nombre.")
+    raise ValidationError({"name": message})
+
+
+def _require_variable(meter: Meter) -> None:
+    if not meter.is_variable:
+        raise ValidationError(gettext("Solo se editan aquí las variables de condición."))
+
+
+@transaction.atomic
+def create_variable(*, membership, asset: Asset, kind: str, name: str = "", unit: str = "") -> Meter:
+    """Alta de una variable de condición desde la ficha del activo (CBM-01 CA1–CA3).
+
+    Solo tipos variable; "Otra variable" exige nombre. Sin unidad, toma la del tipo.
+    """
+    if not MeterKind.is_variable(kind):
+        raise ValidationError({"kind": gettext("Elige un tipo de variable de condición.")})
+    if kind == MeterKind.VARIABLE and not (name or "").strip():
+        raise ValidationError({"name": gettext("Ponle nombre a la variable (p. ej. Nivel de aceite).")})
+    return create_meter(membership=membership, asset=asset, kind=kind, name=name, unit=unit)
+
+
+@transaction.atomic
+def update_variable(*, membership, meter: Meter, name: str, unit: str) -> Meter:
+    """Cambia el nombre y la unidad de una variable (CBM-01 CA3). El tipo no cambia.
+
+    Cambiar el nombre cambia la clave (tipo, nombre): las reglas por clase y los ítems de
+    checklist que usan el nombre anterior dejan de aplicarle.
+    """
+    _require_manageable_asset(membership=membership, asset=meter.asset)
+    _require_variable(meter)
+    name, unit = (name or "").strip(), (unit or "").strip()
+    if len(name) > 80 or len(unit) > 20:
+        raise ValidationError(gettext("Nombre o unidad demasiado largos."))
+    if meter.kind == MeterKind.VARIABLE and not name:
+        raise ValidationError({"name": gettext("Ponle nombre a la variable (p. ej. Nivel de aceite).")})
+    _require_unique_meter_key(asset_id=meter.asset_id, kind=meter.kind, name=name, exclude=meter)
+    before = audit.snapshot(meter, fields={"name", "unit"})
+    meter.name, meter.unit = name, unit
+    meter.save(update_fields=["name", "unit", "updated_at"])
+    changes = audit.diff(before, audit.snapshot(meter, fields={"name", "unit"}))
+    if changes:
+        audit.record(action=AuditEvent.Action.UPDATE, target=meter, membership=membership, changes=changes)
+    return meter
+
+
+@transaction.atomic
+def set_variable_active(*, membership, meter: Meter, is_active: bool) -> Meter:
+    """Desactiva o reactiva una variable (CBM-01 CA5): no se borra.
+
+    Desactivada no recibe lecturas ni se ofrece para registrar; su historial, sus estados y
+    sus alertas siguen visibles.
+    """
+    _require_manageable_asset(membership=membership, asset=meter.asset)
+    _require_variable(meter)
+    meter = Meter.objects.select_for_update().select_related("asset").get(pk=meter.pk)
+    if meter.is_active == is_active:
+        return meter
+    meter.is_active = is_active
+    meter.save(update_fields=["is_active", "updated_at"])
+    audit.record(
+        action=AuditEvent.Action.UPDATE,
+        target=meter,
+        membership=membership,
+        changes={"is_active": [not is_active, is_active]},
     )
     return meter
 

@@ -1,0 +1,7 @@
+{% load i18n ui %}{# Botones de una variable (editar, desactivar o reactivar); quien incluye pone el contenedor .row #}
+  {% if meter.is_active %}<a class="btn btn--ghost btn--lg" href="{% url 'asset_variable_edit' asset.pk meter.pk %}">{% icon 'wrench' %}{% translate "Editar" %}</a>{% endif %}
+  <form method="post" action="{% url 'asset_variable_active' asset.pk meter.pk %}">
+    {% csrf_token %}
+    {% if meter.is_active %}<input type="hidden" name="is_active" value="0"><button class="btn btn--ghost btn--lg" type="submit">{% icon 'x' %}{% translate "Desactivar" %}</button>
+    {% else %}<input type="hidden" name="is_active" value="1"><button class="btn btn--secondary btn--lg" type="submit">{% icon 'play' %}{% translate "Reactivar" %}</button>{% endif %}
+  </form>

@@ -1,4 +1,4 @@
-{% extends "base.html" %}{% load static i18n ui inventory_tags %}
+{% extends "base.html" %}{% load static i18n ui inventory_tags condition_tags %}
 {% block title %}{% translate "Sistema de diseño" %}{% endblock %}
 {% block extra_head %}<link rel="stylesheet" href="{% url 'design_system_css' %}"><script src="{% static 'js/signature-pad.js' %}" defer></script>{% endblock %}
 {% block content %}
@@ -118,6 +118,35 @@
       <div class="field"><label for="ds-max">{% translate "Máximo" %}</label><input type="text" id="ds-max" inputmode="decimal"></div>
     </div>
   </form>
+  <h3 class="mt-4">{% translate "Estado de una variable" %}</h3>
+  <div class="row mb-4">{% for row in variable_statuses %}{% variable_status_badge row %}{% endfor %}</div>
+  <h3>{% translate "Variable en la ficha del activo: tendencia de 90 días" %}</h3>
+  <p class="muted">{% translate "SVG generado en el servidor que se estira al ancho; umbrales en línea discontinua, lecturas fuera de rango marcadas y la tabla de datos debajo." %}</p>
+  {% with row=variable_sample meter=variable_sample.meter %}
+  <div class="grid grid--2">
+    <article class="cond-var" aria-labelledby="ds-var-name">
+      <div class="cond-var__head">
+        <div><h3 class="cond-var__name" id="ds-var-name">{{ meter.name }}</h3><span class="muted">{{ meter.get_kind_display }}</span></div>
+        {% variable_status_badge row %}
+      </div>
+      <p class="cond-var__value"><span class="kpi__value">{{ meter.current_value|num }}<span class="kpi__unit">{{ meter.unit }}</span></span><span class="muted">{{ meter.current_read_at|date:"d M Y H:i" }}</span></p>
+      <p class="chart-legend">
+        <span><svg class="chart-swatch" viewBox="0 0 10 10" aria-hidden="true" focusable="false"><line class="trend__line" x1="0" y1="5" x2="10" y2="5"></line></svg>{% translate "Lecturas" %}</span>
+        <span><svg class="chart-swatch" viewBox="0 0 10 10" aria-hidden="true" focusable="false"><line class="trend__threshold" x1="0" y1="5" x2="10" y2="5"></line></svg>{% translate "Reglas" %}: {% for rule in row.rules %}{{ rule.condition_label }}{% endfor %}</span>
+      </p>
+      {% trend_chart row as chart %}{{ chart.svg }}
+      <div class="chart-axis"><span>{{ row.since|date:"d M" }}</span><span>{{ chart.low|num }} – {{ chart.high|num }} {{ meter.unit }}</span><span>{{ row.until|date:"d M" }}</span></div>
+      <details class="mt-2">
+        <summary class="chart-data">{% translate "Ver datos" %}</summary>
+        <table class="table">
+          <thead><tr><th scope="col">{% translate "Fecha" %}</th><th scope="col" class="num">{% translate "Valor" %}</th><th scope="col">{% translate "Estado" %}</th></tr></thead>
+          <tbody>{% for p in row.recent|slice:":3" %}<tr><td data-label="{% translate 'Fecha' %}">{{ p.at|date:"d-m-Y H:i" }}</td><td class="num" data-label="{% translate 'Valor' %}">{{ p.value|num }} {{ meter.unit }}</td><td data-label="{% translate 'Estado' %}">{% if p.out_of_range %}<span class="badge badge--error">{% icon 'alert' %}{% translate "Fuera de rango" %}</span>{% else %}<span class="badge badge--neutral">{% icon 'dot' %}{% translate "En rango" %}</span>{% endif %}</td></tr>{% endfor %}</tbody>
+        </table>
+      </details>
+      <div class="measure"><label class="visually-hidden" for="ds-var-reading">{% translate "Lectura actual" %}</label><input class="input num" type="number" step="any" id="ds-var-reading" placeholder="{% translate 'Nueva lectura' %}"><span class="muted">{{ meter.unit }}</span><button class="btn btn--secondary btn--lg" type="button">{% translate "Registrar" %}</button></div>
+    </article>
+  </div>
+  {% endwith %}
 </section>
 
 <section class="card mb-4" aria-labelledby="ds-wizard">

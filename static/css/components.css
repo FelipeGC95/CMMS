@@ -840,3 +840,20 @@ svg.chart-swatch { width: 12px; height: 12px; vertical-align: -1px; margin-right
 .rule-form:has(input[name="operator"][value="outside"]:checked) .rule-form__threshold,
 .rule-form:has(input[name="operator"]:checked):not(:has(input[name="operator"][value="outside"]:checked)) .rule-form__range,
 .rule-form:has(input[name="action"][value="alert"]:checked) .rule-form__work-order { display: none; }
+/* Sección "Condición" de la ficha del activo (CBM-07): una tarjeta interior por variable con su
+   estado, la tendencia de 90 días (SVG del servidor que se estira al ancho; los trazos no se
+   deforman con vector-effect) y la tabla de datos. El texto del gráfico va en HTML, fuera del SVG. */
+.cond-grid { grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr)); align-items: start; }
+.cond-var { display: flex; flex-direction: column; gap: var(--space-2); min-width: 0; padding: var(--space-4); border: 1px solid var(--color-border); border-radius: var(--radius-md); }
+.cond-var__head { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: var(--space-2); }
+.cond-var__name { margin: 0; font-size: var(--text-md); overflow-wrap: anywhere; }
+.cond-var__value { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-2); margin: 0; }
+.cond-var .chart-legend { margin: 0; }
+.cond-var .measure { flex-wrap: wrap; }
+.cond-var .measure .input { flex: 1 1 8rem; }
+svg.chart-trend { display: block; width: 100%; height: 160px; background: var(--color-surface-sunken); border-radius: var(--radius-sm); }
+.trend__line { fill: none; stroke: var(--color-accent-text); stroke-width: 2; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+.trend__threshold { stroke: var(--color-error); stroke-width: 1.5; stroke-dasharray: 6 4; vector-effect: non-scaling-stroke; }
+.trend__dot { fill: none; stroke: var(--color-accent-text); stroke-width: 6; stroke-linecap: round; vector-effect: non-scaling-stroke; }
+.trend__dot--alarm { stroke: var(--color-error); stroke-width: 8; }
+svg.chart-swatch line { stroke-width: 2; vector-effect: non-scaling-stroke; }
