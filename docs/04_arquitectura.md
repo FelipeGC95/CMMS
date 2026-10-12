@@ -73,6 +73,7 @@ apps/
   maintenance/          MaintenancePlan, versiones, disparadores, asignaciones, programador
   work/                 WorkOrder, checklist, mano de obra, costos, WorkRequest, FailureEvent, backlog
   inventory/            (F2, ADR-028) Part, Warehouse, StockItem, StockMovement, Reservation, reposición
+  condition/            (F2, ADR-029) ConditionRule, ConditionState, ConditionAlert, evaluación de lecturas
   catalogs/             FailureCode, plantillas de plataforma (template packs)
   reporting/            KPIs, exportaciones Excel/PDF
   audit/                AuditLog y registro automático
@@ -413,6 +414,16 @@ tener ingresos).
   técnico no ve costos de inventario en las respuestas (Q3). Un envío
   rechazado (400) se corrige y reenvía con el mismo `client_uuid`. Crear
   repuestos sin conexión sigue fuera.
+- **Correctiva desde hallazgo (F2, WO-06 CA2, paquete F1 de condición):** deja
+  de estar fuera. En la ejecución de la OT, un ítem No OK muestra "Avisar
+  hallazgo" (descripción opcional y "equipo detenido"); se encola con
+  `client_uuid` después de la respuesta del ítem y antes de "Completar", y va
+  a `POST work-orders/{id}/checklist/{item}/finding/`, que llama a
+  `work.services.create_corrective_from_item` (idempotente por ítem; el
+  técnico sin `work_order.manage` pasa por `report_failure`, como en la web).
+  409 `cancelled`/`locked` si la OT está cancelada o cerrada; 400 si el ítem
+  no está No OK. Las fotos del ítem viajan por la cola de fotos. Sin
+  implementar aún (ver [05_roadmap.md](05_roadmap.md)).
 - **Estado (2026-10):** implementado en cinco paquetes: P1 servicios en
   `apps/work` (horas del teléfono, regla de checklist, `LaborEntry.client_uuid`),
   P2 `/field/api/`, P3 shell/SW/manifest, P4 cola, sincronización, flujos y e2e,
@@ -1205,3 +1216,91 @@ lleva `{id, name, path}`; los decimales van como texto; consultas acotadas
   indicadores del inicio de inventario (INV-15), "Dónde se usa" calculado
   en la ficha del repuesto (decisión 9), el inventario de `seed_demo` y la
   verificación de exportación y purga con los enlaces desde OT y planes.
+
+### ADR-029 · Condición sobre medidores existentes, reglas con estado materializado y OT predictiva automática
+- **Contexto:** F2 agrega mantenimiento por condición (CBM-01..CBM-10,
+  [02_requisitos.md](02_requisitos.md) §7). El diseño previo (docs/03 §2.9)
+  reservaba tablas aparte `measurement_point` y `measurement` (serie de tiempo
+  particionada). Los clientes son pymes que miden a mano o con un CSV diario
+  unas pocas variables por equipo (temperatura de rodamientos, vibración,
+  presión, corriente); no tienen sensores en línea. Ya existen medidores con
+  lecturas, CSV, API bulk, lecturas desde la OT y desde terreno. El principio
+  rector pide que la condición no agregue pasos: la lectura que el técnico ya
+  anota en la pauta debe bastar para alertar y crear la OT. Decisiones de
+  producto de Felipe (2026-10-12): D1 variables = medidores reutilizados con
+  tipos nuevos no acumulativos; D2 al cruzar el umbral, alerta + OT predictiva
+  (una abierta por regla y medidor; la regla puede ser "solo alertar"); D3 los
+  ítems de medición del checklist alimentan una variable; D4 módulo
+  `condition` en Prueba, Profesional y Empresa.
+- **Decisión:**
+  1. **Variables = `Meter` con tipos nuevos** en `MeterKind`: `temperature`
+     (°C), `vibration` (mm/s), `pressure` (bar), `current` (A) y `variable`
+     (unidad libre). El servicio fuerza `is_cumulative = False`. La clave de
+     una variable en un activo es `(kind, name)` (ya única por activo). Los
+     tipos variable no se ofrecen como disparador de planes por uso
+     (validación en la versión del plan y choices filtradas en el formulario).
+     Sin tablas `measurement_point`/`measurement`.
+  2. **App propia `apps/condition`** con `ConditionRule`, `ConditionState` y
+     `ConditionAlert`, todos `TenantModel`.
+  3. **Reglas con dos alcances:** un medidor concreto, o una clase de activo
+     + `meter_kind` + `meter_name` (cubre los activos de la clase, también los
+     que se creen después). Operadores `gt`, `lt`, `outside` y `rate` (cambio
+     por día respecto de la lectura anterior, en valor absoluto);
+     `consecutive` para filtrar ruido; acción `alert_work_order` (por
+     defecto) o `alert`. Sin borrado: `is_active`.
+  4. **Estado materializado por (regla, medidor)** (`condition_state`:
+     normal/alarma, contador de consecutivas, última lectura evaluada) para
+     la histéresis: se alerta solo al pasar de normal a alarma; en alarma se
+     actualiza el último valor de la alerta abierta; al volver a rango la
+     alerta queda `normalized` y la OT sigue su curso.
+  5. **Evaluación sincrónica en `assets.services.record_meter_reading`**,
+     después de guardar y solo si la lectura es la más reciente (las
+     históricas no alertan), para todas las fuentes. El hook llama a
+     `condition.services` (la dirección vista → servicio → servicio de otra
+     app se respeta; los modelos no llaman servicios). La OT se crea con
+     `work.services.create_work_order` (tipo `predictive`, estado `planned`,
+     `by=None` = sistema) y el aviso `condition_alert` se encola con
+     `transaction.on_commit`.
+  6. **Una OT abierta por regla y medidor:** la alerta abierta guarda la OT;
+     al cerrarse la OT la alerta pasa a `closed`.
+  7. **Checklist → variable:** `plan_task_item` y `work_order_checklist_item`
+     suman `meter_kind` + `meter_name` opcionales (solo ítems `measurement`);
+     al completar la OT se registra una lectura por ítem con valor, enlazada
+     en `work_order_checklist_item.meter_reading_id` (idempotente). Si el
+     activo no tiene la variable, se crea con la unidad del ítem.
+  8. **Permisos** `condition.view` (admin, planner, supervisor, technician,
+     viewer) y `condition.manage` (admin, planner); registrar lecturas sigue
+     con `meter_reading.create`.
+- **Alternativas descartadas:**
+  - **Tablas de series particionadas `measurement_point`/`measurement`:**
+    duplican lecturas, CSV, API, ficha y PWA para un volumen que una pyme no
+    alcanza (decenas de lecturas al día). `meter_reading` ya tiene índice por
+    medidor y fecha y se puede particionar por fecha sin cambiar la API si
+    llega ingesta de sensores.
+  - **Solo alerta, sin OT:** deja al jefe un paso manual por cada alerta; el
+    principio rector pide que el flujo por defecto sea el automático. La regla
+    conserva "solo alertar" para quien lo prefiera.
+  - **Crear una solicitud que se acepta en el backlog:** agrega un paso de
+    aprobación sin información nueva (la regla ya la definió un
+    planificador); la OT predictiva entra directo al backlog y se puede
+    cancelar.
+  - **Evaluar en una tarea en segundo plano:** retrasa la alerta y obliga a
+    reconstruir el orden de las lecturas; la evaluación es barata (pocas
+    reglas por medidor) y sincrónica evita carreras.
+  - **Reglas sin estado (evaluar cada lectura aislada):** generaría una
+    alerta y una OT por lectura mientras dure el episodio.
+- **Consecuencias:**
+  - `MeterKind` mezcla tipos de uso y de condición: cada lugar que ofrece
+    tipos de medidor para planes por uso debe filtrar los variable (test).
+  - `record_meter_reading` hace más trabajo: consultas acotadas e índices
+    compuestos que empiezan por `organization_id`; tests de número de
+    consultas.
+  - Con el módulo `condition` apagado las lecturas se guardan pero no se
+    evalúan; al encenderlo, el estado arranca en normal (no se reevalúa el
+    historial).
+  - Una regla por clase crea su `condition_state` al evaluar la primera
+    lectura de cada medidor, no al guardarse la regla.
+  - El volumen de lecturas crece; si un cliente conecta sensores se
+    particiona `meter_reading` por fecha (sin cambiar la API).
+- **Estado (2026-10-12):** aceptado, en implementación (paquetes C0–C6 y F1,
+  ver [05_roadmap.md](05_roadmap.md)).

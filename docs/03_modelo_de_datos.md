@@ -27,6 +27,7 @@ Los nombres de tablas y campos están en inglés (convención de código, ver
 **`plan`** (catálogo de plataforma, sin tenant)
 `code` (basic, pro, enterprise, trial) · `name` · `max_assets` · `max_users` (null = ilimitado) · `max_storage_mb` · `features JSONB` (lista de códigos de módulo) · `is_active`.
 Inventario (F2): una migración de datos agrega el módulo `inventory` a los planes Prueba, Profesional y Empresa (y a `plans.DEFAULT_PLANS`); Básico no lo incluye.
+Condición (F2, CBM-08): igual con el módulo `condition` (Prueba, Profesional y Empresa; Básico no).
 
 **`organization`** (tenant raíz)
 `name` · `slug` (único) · `plan_id` · `status` (trial, active, suspended, pending_deletion, deleted) · `trial_ends_at` · `timezone` (IANA, ej. `America/Santiago`) · `locale` (`es-CL`) · `currency` · `primary_color` (#RRGGBB o vacío, ORG-09) · `mfa_policy` (admins_only, everyone, optional; ORG-08) · `logo` (clave de objeto) · `allow_anonymous_reports` (aviso por QR sin cuenta, REQ-02; columna propia, apagado por defecto) · `limits_override JSONB` · `settings JSONB` (ej. `require_close_approval`, `planning_horizon_days`, `status_labels`) · `storage_used_bytes BIGINT` · `deletion_requested_at` · `deletion_scheduled_for` · `deletion_requested_by_id` · `deleted_at` · `purge_summary JSONB` (borrado X-04: tras la purga la fila queda como lápida anonimizada, ADR-027).
@@ -92,6 +93,7 @@ Restricción: un solo período abierto por activo (índice único parcial `WHERE
 
 **`meter`**
 `organization_id` · `asset_id` · `kind` (hours, km, cycles, other) · `unit` · `name` · `is_cumulative` · `current_value` · `current_read_at` · `avg_daily_usage` (calculado, para proyecciones) · `is_active`.
+Condición (F2, §2.11, ADR-029): `kind` suma los tipos variable `temperature`, `vibration`, `pressure`, `current` y `variable` (siempre `is_cumulative = false`, admiten valores negativos) y pasa a 20 caracteres (`temperature` tiene 11). `UNIQUE (asset_id, kind, name)` (`uniq_meter_per_asset`) es la clave de una variable en un activo.
 
 **`meter_reading`**
 `organization_id` · `meter_id` · `value` · `read_at` · `source` (manual, import, api, work_order) · `is_reset` · `work_order_id` · `created_by_id` · `client_uuid`.
@@ -110,6 +112,7 @@ Los disparadores son campos de la versión y no una tabla `plan_trigger`: un pla
 
 **`plan_task_item`** — ítems del checklist de una versión (solo editables en borrador).
 `organization_id` · `version_id` · `order` · `text` · `item_type` (check, measurement, text, photo = foto obligatoria, signature = firma por ítem) · `unit` · `min_value` · `max_value` · `required`.
+Condición (F2, §2.11, CBM-06): `meter_kind` (20, vacío) y `meter_name` (80, vacío), solo en ítems `measurement` y solo con tipos variable: enlazan el ítem con la variable `(kind, name)` del activo; `ITEM_FIELDS` los incluye (un borrador nuevo los copia).
 
 **`plan_resource`** — repuestos y herramientas previstos (solo editables en borrador).
 `organization_id` · `version_id` · `kind` (part, tool) · `description` · `quantity` · `unit`. `part_id` se agrega con inventario (F2).
@@ -155,6 +158,7 @@ servicio exige que cada usuario tenga membresía activa en la organización.
 
 **`work_order_checklist_item`** — snapshot del ítem del plan + resultado.
 `organization_id` · `work_order_id` · `source_item_id` · `order` · `section` · `text` · `item_type` · `unit` · `min_value` · `max_value` · `required` (hasta aquí, copiados; `section` = nombre del plan cuando la OT reúne varios checklists) · `result` (ok, not_ok, na; done para texto, foto obligatoria y firma) · `value_number` · `value_text` · `note` · `answered_by_id` · `answered_at` · `client_uuid`.
+Condición (F2, §2.11, CBM-06): `meter_kind` y `meter_name` (copiados del ítem del plan) y `meter_reading_id` (OneToOne a `meter_reading`, null, PROTECT): la lectura registrada al completar la OT; si ya existe no se registra otra (idempotente).
 
 **`labor_entry`**
 `organization_id` · `work_order_id` · `membership_id` · `started_at` · `ended_at` · `minutes` · `hourly_cost` (copiado) · `client_uuid`.
@@ -226,6 +230,7 @@ MTBF/MTTR; si el problema resulta ser de un equipo, la OT se crea sobre él.
 `organization_id` · `recipient_id` · `kind` (wo_assigned, wo_scheduled, wo_due_soon, wo_overdue, request_new, request_resolved) · `title` · `body` · `url` · `work_order_id` · `work_request_id` · `in_app` · `dedupe_key` · `read_at`.
 Índices `(organization_id, recipient_id, read_at)` (contador de la campana) y `(organization_id, recipient_id, created_at DESC)` (bandeja). `UNIQUE (organization_id, recipient_id, dedupe_key)` si `dedupe_key` no es vacío: el aviso diario de vencimiento usa `<kind>:<work_order_id>:<fecha>`, así que se envía una vez por OT, persona y día.
 Inventario (F2, INV-12) agrega `kind = stock_low` (`dedupe_key` `stock_low:<stock_item_id>:<fecha>`).
+Condición (F2, CBM-05) agrega `kind = condition_alert` (`dedupe_key` `condition_alert:<condition_alert_id>`: un aviso por alerta y persona).
 > Implementado como `notifications.Notification`. Diferencias: no hay
 > `emailed_at`; una fila con `in_app = false` registra un aviso que solo salió
 > por correo (no aparece en la bandeja, pero evita repetir el envío). El
@@ -246,7 +251,7 @@ Se **copian** a la organización al adoptarlas; nunca se referencian en vivo (un
 
 | Módulo | Tablas | Punto de enganche en el MVP |
 |---|---|---|
-| Condición (F2) | `measurement_point` (variable de un activo), `measurement` (serie de tiempo, particionada), `condition_rule`, `alert` | `meter` y `meter_reading` son un caso particular; las reglas pueden apuntar a `meter_id` o a `measurement_point_id`. |
+| Condición (F2, en curso; §2.11, ADR-029) | Medidores (`meter`) con tipos variable (temperature, vibration, pressure, current, variable) y sus `meter_reading`; `condition_rule`, `condition_state`, `condition_alert`. Ya no `measurement_point`/`measurement`. | `meter` y `meter_reading` existentes (lecturas, CSV, API bulk, cierre de OT, terreno); `work_order.work_type = predictive`. |
 | Asistente IA (F2, ADR-018) | `assistant_conversation` (`asset_id`, `work_order_id`, `started_by_id`, `helpful`: yes/partial/no), `assistant_message` (`role`, `content JSONB`, `sources JSONB`, `model`, `input_tokens`, `output_tokens`, `cache_read_tokens`) | `failure_event.description` (síntoma) y `work_order.completion_notes` (acción) capturados desde el MVP; `document_page` desde M1; índices de texto completo sobre OT y fallas cuando se construya. |
 | Offline (F2) | `sync_batch` (registro de lotes recibidos) | `client_uuid` en todas las tablas que escribe el técnico. |
 | SSO (F3) | tablas de allauth (`socialaccount`, config SAML por organización) | `user` global + `membership`. |
@@ -295,6 +300,31 @@ Inmutable: `save()` lanza `ImmutableMovementError` si no es alta y `delete()` si
 **Lecturas calculadas, sin tablas** (`apps/inventory/selectors.py`):
 - "Dónde se usa" (INV-01 CA4, `part_where_used`): `plan_resource` con ese `part_id` cuya versión es la `current_version` de un plan activo (con su clase de activo; los recursos repetidos se suman) y `part_usage` con ese `part_id` sobre OT con activo en los últimos 24 meses, agrupado por activo (cantidad neta y última fecha = `occurred_at` de la salida), con el alcance por sitio de la membresía. Dos consultas.
 - Indicadores (INV-15, `inventory_insights`, solo `inventory.cost_view`): valor = Σ `on_hand` positivo × `part.avg_cost` por bodega visible; consumo de 12 meses = −Σ `total_cost` de `issue` y `return` con `occurred_at` en los últimos 365 días; rotación aprox. = consumo ÷ valor actual; repuestos sin movimiento = con valor > 0 y sin movimientos en 365 días en las bodegas visibles. Cuatro consultas.
+
+### 2.11 Mantenimiento por condición (F2, en curso)
+
+App nueva `apps/condition` (ADR-029); todas las tablas heredan de
+`TenantModel`. Requisitos CBM-01..CBM-10 en [02_requisitos.md](02_requisitos.md) §7.
+Las variables son `meter` con tipos variable (§2.3) y sus lecturas son
+`meter_reading`: no hay tablas de series aparte. Valores `NUMERIC(14,3)`.
+
+**`condition_rule`** (CBM-03) — umbral sobre una variable.
+`organization_id` · `name` (120, vacío = descripción calculada) · alcance: `meter_id` (null, PROTECT) **o** `asset_class_id` (null, PROTECT) + `meter_kind` (20) + `meter_name` (80) · `operator` (gt, lt, outside, rate) · `threshold` (14,3, null; gt, lt y rate; en rate es cambio por día en valor absoluto) · `min_value` · `max_value` (14,3, null; outside) · `consecutive` (smallint, por defecto 1) · `action` (alert, alert_work_order; por defecto alert_work_order) · `work_order_title` (200, vacío = "Condición: <variable> en <activo>") · `work_order_priority` (1–4, null = según criticidad, como `work.services._suggest_priority`) · `work_order_instructions` (texto) · `is_active` · `created_by_id`.
+CHECK alcance exactamente uno: `(meter_id IS NOT NULL AND asset_class_id IS NULL AND meter_kind = '')` o `(meter_id IS NULL AND asset_class_id IS NOT NULL AND meter_kind <> '')`; CHECK `consecutive >= 1`; CHECK `operator <> 'outside' OR (min_value IS NOT NULL AND max_value IS NOT NULL AND min_value < max_value)`; CHECK `operator NOT IN ('gt','lt','rate') OR threshold IS NOT NULL`; CHECK `operator <> 'rate' OR threshold > 0`. Índices `(organization_id, meter_id) WHERE is_active`, `(organization_id, asset_class_id, meter_kind, meter_name) WHERE is_active`. No se borra: se desactiva. `meter_kind` solo acepta tipos variable.
+
+**`condition_state`** (CBM-04) — estado materializado por regla y medidor (histéresis).
+`organization_id` · `rule_id` (PROTECT) · `meter_id` (PROTECT) · `status` (normal, alarm) · `consecutive_count` (smallint, por defecto 0) · `last_reading_id` (null, SET_NULL) · `last_value` (14,3, null) · `last_evaluated_at` · `open_alert_id` (null, SET_NULL; la alerta del episodio en curso).
+`UNIQUE (organization_id, rule_id, meter_id)`; índice `(organization_id, meter_id)`. Se crea al evaluar la primera lectura del medidor contra la regla (`get_or_create` con `select_for_update`); con una regla por clase, uno por medidor de la clase.
+
+**`condition_alert`** (CBM-05) — un episodio fuera de rango.
+`organization_id` · `rule_id` (PROTECT) · `meter_id` (PROTECT) · `asset_id` (PROTECT; copiado del medidor para filtrar por activo y sitio sin join) · `reading_id` (PROTECT; la lectura que la abrió) · `value` (14,3) · `last_value` (14,3) · `last_read_at` · `status` (open, acknowledged, normalized, closed) · `work_order_id` (null, PROTECT; null si la regla solo alerta) · `acknowledged_by_id` · `acknowledged_at` · `normalized_at` · `closed_at`.
+Único parcial `(organization_id, rule_id, meter_id) WHERE status IN ('open','acknowledged')` (un episodio abierto por regla y medidor). Índices `(organization_id, status, created_at DESC)`, `(organization_id, asset_id, created_at DESC)`, `(organization_id, work_order_id) WHERE work_order_id IS NOT NULL`. Inmutable salvo las transiciones de estado (`open` → `acknowledged`; `open`/`acknowledged` → `normalized` al volver a rango; cualquiera no cerrada → `closed` al cerrarse la OT vinculada), cada una auditada. Si un episodio nuevo empieza mientras la OT del anterior sigue abierta, la alerta nueva se enlaza a esa OT y no se crea otra (una OT abierta por regla y medidor).
+
+**Evaluación** (`condition.services.evaluate_reading`, llamada desde `assets.services.record_meter_reading` después de guardar y solo si la lectura es la más reciente): con el módulo `condition` activo, se buscan las reglas activas del medidor y las de la clase de su activo con su `(kind, name)` (sobre los índices de arriba), se bloquea `condition_state` y se actualiza el contador; al pasar de normal a alarma se crea la alerta y, con `alert_work_order` y sin otra OT abierta de esa regla y medidor, la OT `predictive` (`work.services.create_work_order`, estado `planned`, `by=None`); el aviso va en `on_commit`. En `rate`, el cambio por día usa la lectura anterior del medidor; sin lectura anterior no evalúa.
+
+**Cambios en tablas existentes:** `meter.kind` (tipos variable, 20 caracteres; §2.3), `plan_version.meter_kind` (mismas choices: también pasa a 20 caracteres aunque el servicio rechace los tipos variable; §2.4), `plan_task_item.meter_kind`/`meter_name` (§2.4), `work_order_checklist_item.meter_kind`/`meter_name`/`meter_reading_id` (§2.5), `notification.kind = condition_alert` (§2.7) y módulo `condition` en `plan.features` (§2.1).
+
+**Orden de migraciones:** `assets/00NN` (choices y largo de `meter.kind`) → `condition/0001` (rule, state, alert; depende de assets, work y la última de organizations) → `maintenance/00NN` (`plan_task_item.meter_kind`/`meter_name`, largo de `plan_version.meter_kind`) → `work/00NN` (campos del checklist de la OT) → `organizations/00NN` (datos: módulo `condition` en los planes) y `notifications/00NN` (choices).
 
 ## 3. Diagrama ER (núcleo MVP + inventario F2)
 
