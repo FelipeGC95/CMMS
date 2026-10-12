@@ -1,0 +1,63 @@
+{% extends "base.html" %}{% load i18n ui %}
+{% block title %}{% translate "Reglas de condición" %}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <p class="muted"><a href="{% url 'condition_alert_list' %}">{% translate "Alertas de condición" %}</a></p>
+    <h1>{% translate "Reglas de condición" %}</h1>
+    <p class="muted">{% blocktranslate count n=page.paginator.count %}{{ n }} regla{% plural %}{{ n }} reglas{% endblocktranslate %}</p>
+  </div>
+  {% if can_manage %}<div class="page-actions"><a class="btn btn--primary page-actions__primary" href="{% url 'condition_rule_create' %}">{% icon 'alert' %}{% translate "Nueva regla" %}</a></div>{% endif %}
+</div>
+
+<nav class="chips" aria-label="{% translate 'Estado de las reglas' %}">
+  <a class="chip chip--counter" href="?{% if asset_class %}asset_class={{ asset_class.pk }}{% endif %}"{% if not status %} aria-current="true"{% endif %}>{% icon 'check' %}{% translate "Activas" %}</a>
+  <a class="chip chip--counter" href="?status=inactive{% if asset_class %}&asset_class={{ asset_class.pk }}{% endif %}"{% if status == "inactive" %} aria-current="true"{% endif %}>{% icon 'dot' %}{% translate "Inactivas" %}</a>
+  <a class="chip chip--counter" href="?status=all{% if asset_class %}&asset_class={{ asset_class.pk }}{% endif %}"{% if status == "all" %} aria-current="true"{% endif %}>{% icon 'list' %}{% translate "Todas" %}</a>
+</nav>
+
+{% if classes %}
+<form class="search-bar" method="get">
+  {% if status %}<input type="hidden" name="status" value="{{ status }}">{% endif %}
+  <label class="visually-hidden" for="asset_class">{% translate "Clase de activo" %}</label>
+  <select class="input" id="asset_class" name="asset_class">
+    <option value="">{% translate "Todas las clases de activo" %}</option>
+    {% for cls in classes %}<option value="{{ cls.pk }}"{% if cls == asset_class %} selected{% endif %}>{{ cls.name }} ({{ cls.code }})</option>{% endfor %}
+  </select>
+  <button class="btn btn--secondary" type="submit">{% translate "Filtrar" %}</button>
+</form>
+{% endif %}
+
+<div class="card card--flush">
+  {% if page.object_list %}
+  <table class="table">
+    <thead><tr><th>{% translate "Regla" %}</th><th>{% translate "Aplica a" %}</th><th>{% translate "Condición" %}</th><th>{% translate "Acción" %}</th><th>{% translate "Estado" %}</th>{% if can_manage %}<th><span class="visually-hidden">{% translate "Acciones" %}</span></th>{% endif %}</tr></thead>
+    <tbody>
+      {% for rule in page.object_list %}
+      <tr>
+        <td data-label="">{% if can_manage %}<a href="{% url 'condition_rule_edit' rule.pk %}">{{ rule.label }}</a>{% else %}<strong>{{ rule.label }}</strong>{% endif %}</td>
+        <td data-label="{% translate 'Aplica a' %}">{{ rule.scope_label }}</td>
+        <td data-label="{% translate 'Condición' %}">{{ rule.condition_label }}{% if rule.consecutive > 1 %} · {% blocktranslate count n=rule.consecutive %}{{ n }} lectura seguida{% plural %}{{ n }} lecturas seguidas{% endblocktranslate %}{% endif %}</td>
+        <td data-label="{% translate 'Acción' %}">{{ rule.get_action_display }}</td>
+        <td data-label="">{% if rule.is_active %}<span class="badge badge--success">{% icon 'check' %}{% translate "Activa" %}</span>{% else %}<span class="badge badge--neutral">{% icon 'dot' %}{% translate "Inactiva" %}</span>{% endif %}</td>
+        {% if can_manage %}<td data-label="">
+          <div class="row">
+            <a class="btn btn--ghost" href="{% url 'condition_rule_edit' rule.pk %}">{% translate "Editar" %}</a>
+            <form method="post" action="{% url 'condition_rule_active' rule.pk %}">{% csrf_token %}{% if rule.is_active %}<input type="hidden" name="is_active" value="0"><button class="btn btn--ghost" type="submit">{% translate "Desactivar" %}</button>{% else %}<input type="hidden" name="is_active" value="1"><button class="btn btn--secondary" type="submit">{% translate "Activar" %}</button>{% endif %}</form>
+          </div>
+        </td>{% endif %}
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% elif filtered %}
+  <p class="empty">{% translate "No hay reglas que coincidan." %}</p>
+  {% else %}
+  <div class="empty">
+    <p>{% translate "Aún no hay reglas de condición." %}</p>
+    {% if can_manage %}<a class="btn btn--primary" href="{% url 'condition_rule_create' %}">{% icon 'alert' %}{% translate "Crear la primera regla" %}</a>{% endif %}
+  </div>
+  {% endif %}
+</div>
+{% include "_pagination.html" %}
+{% endblock %}

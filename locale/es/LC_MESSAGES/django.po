@@ -9302,3 +9302,341 @@ msgstr ""
 #, python-format
 msgid "Valor %(value)s %(unit)s · %(rule)s"
 msgstr ""
+
+#: apps/condition/forms.py
+msgid "¿Dónde aplica?"
+msgstr ""
+
+#: apps/condition/forms.py
+msgid "Variable"
+msgstr ""
+
+#: apps/condition/forms.py
+msgid "Elige la variable"
+msgstr ""
+
+#: apps/condition/forms.py
+msgid "Variables de condición de los activos que ves. Se agregan en la ficha del activo."
+msgstr ""
+
+#: apps/condition/forms.py
+msgid "Elige la clase"
+msgstr ""
+
+#: apps/condition/forms.py
+msgid "Aplica también a los activos de la clase que se creen después."
+msgstr ""
+
+#: apps/condition/forms.py
+msgid "Tipo de variable"
+msgstr ""
+
+#: apps/condition/forms.py
+msgid "Nombre de la variable"
+msgstr ""
+
+#: apps/condition/forms.py
+msgid "Igual que en cada activo, p. ej. «Rodamiento». Vacío: la variable de ese tipo sin nombre."
+msgstr ""
+
+#: apps/condition/forms.py
+msgid "Condición"
+msgstr ""
+
+#: apps/condition/forms.py
+msgid "Umbral"
+msgstr ""
+
+#: apps/condition/forms.py
+msgid "En «Cambio por día mayor que», el cambio máximo por día respecto de la lectura anterior."
+msgstr ""
+
+#: apps/condition/forms.py
+msgid "Lecturas seguidas fuera de rango"
+msgstr ""
+
+#: apps/condition/forms.py
+msgid "1 alerta con la primera lectura; más filtra el ruido de los sensores."
+msgstr ""
+
+#: apps/condition/forms.py
+msgid "Qué hacer"
+msgstr ""
+
+#: apps/condition/forms.py
+msgid "Título de la OT"
+msgstr ""
+
+#: apps/condition/forms.py
+msgid "Vacío: «Condición: <variable> en <activo>»."
+msgstr ""
+
+#: apps/condition/forms.py
+msgid "Prioridad de la OT"
+msgstr ""
+
+#: apps/condition/forms.py
+msgid "Instrucciones de la OT"
+msgstr ""
+
+#: apps/condition/forms.py
+msgid "Nombre de la regla"
+msgstr ""
+
+#: apps/condition/forms.py
+msgid "Opcional. Vacío: se describe sola, p. ej. «Rodamiento · CMP-01 > 80»."
+msgstr ""
+
+#: apps/condition/forms.py
+msgid "Activas (abiertas y reconocidas)"
+msgstr ""
+
+#: apps/condition/forms.py
+msgid "Una variable de un activo"
+msgstr ""
+
+#: apps/condition/forms.py
+msgid "Todos los activos de una clase"
+msgstr ""
+
+#: apps/condition/forms.py
+msgid "Elige el tipo"
+msgstr ""
+
+#: apps/condition/forms.py
+msgid "Según la criticidad del activo"
+msgstr ""
+
+#: apps/condition/forms.py
+msgid "Elige la variable."
+msgstr ""
+
+#: apps/condition/forms.py
+msgid "Elige la clase de activo."
+msgstr ""
+
+#: apps/condition/views.py
+msgid "Regla activada: evalúa desde la próxima lectura."
+msgstr ""
+
+#: apps/condition/views.py
+msgid "Regla desactivada: sus alertas activas quedaron normalizadas."
+msgstr ""
+
+#: apps/condition/views.py
+msgid "Alerta reconocida."
+msgstr ""
+
+#: apps/condition/views.py
+#, python-format
+msgid "Regla creada: %(rule)s."
+msgstr ""
+
+#: templates/condition/_alert_row.html
+msgid "Último"
+msgstr ""
+
+#: templates/condition/_alert_row.html
+msgid "Regla"
+msgstr ""
+
+#: templates/condition/_alert_row.html
+#, python-format
+msgid "clase %(code)s"
+msgstr ""
+
+#: templates/condition/_alert_row.html
+msgid "Reconocer"
+msgstr ""
+
+#: templates/condition/_alert_row.html
+#, python-format
+msgid "Reconocida por %(who)s"
+msgstr ""
+
+#: templates/condition/alert_detail.html
+msgid "Alerta"
+msgstr ""
+
+#: templates/condition/alert_detail.html
+msgid "Alertas de condición"
+msgstr ""
+
+#: templates/condition/alert_detail.html
+msgid "Valores"
+msgstr ""
+
+#: templates/condition/alert_detail.html
+msgid "Valor que la abrió"
+msgstr ""
+
+#: templates/condition/alert_detail.html
+msgid "Último valor"
+msgstr ""
+
+#: templates/condition/alert_detail.html
+msgid "Lectura que la abrió"
+msgstr ""
+
+#: templates/condition/alert_detail.html
+#, python-format
+msgid "%(n)s lectura seguida"
+msgid_plural "%(n)s lecturas seguidas"
+msgstr[0] ""
+msgstr[1] ""
+
+#: templates/condition/alert_detail.html
+msgid "La regla solo alerta."
+msgstr ""
+
+#: templates/condition/alert_detail.html
+#, python-format
+msgid "Abierta: la lectura de %(value)s %(unit)s quedó fuera de rango."
+msgstr ""
+
+#: templates/condition/alert_detail.html
+#, python-format
+msgid "Reconocida por %(who)s."
+msgstr ""
+
+#: templates/condition/alert_detail.html
+msgid "Reconocida."
+msgstr ""
+
+#: templates/condition/alert_detail.html
+msgid "Normalizada: la variable volvió a su rango o se desactivó la regla."
+msgstr ""
+
+#: templates/condition/alert_detail.html
+msgid "Cerrada: la OT vinculada se cerró o canceló."
+msgstr ""
+
+#: templates/condition/alert_list.html
+#, python-format
+msgid "%(n)s alerta"
+msgid_plural "%(n)s alertas"
+msgstr[0] ""
+msgstr[1] ""
+
+#: templates/condition/alert_list.html
+msgid "las abiertas primero"
+msgstr ""
+
+#: templates/condition/alert_list.html
+msgid "Avisos cuando una variable de un activo sale de su rango normal."
+msgstr ""
+
+#: templates/condition/alert_list.html
+msgid "Nueva regla"
+msgstr ""
+
+#: templates/condition/alert_list.html
+msgid "Reglas"
+msgstr ""
+
+#: templates/condition/alert_list.html
+msgid "Aún no hay reglas de condición"
+msgstr ""
+
+#: templates/condition/alert_list.html
+msgid "Una regla define el rango normal de una variable (temperatura, vibración, presión, corriente…). Cuando una lectura se sale, aparece aquí una alerta y, si quieres, se crea la OT predictiva."
+msgstr ""
+
+#: templates/condition/alert_list.html
+msgid "Crear la primera regla"
+msgstr ""
+
+#: templates/condition/alert_list.html
+msgid "Las reglas las crea un administrador o un planificador."
+msgstr ""
+
+#: templates/condition/alert_list.html
+msgid "No hay alertas que coincidan."
+msgstr ""
+
+#: templates/condition/alert_list.html
+msgid "Sin alertas activas: todas las variables con reglas están en rango."
+msgstr ""
+
+#: templates/condition/rule_form.html
+msgid "Editar regla"
+msgstr ""
+
+#: templates/condition/rule_form.html
+msgid "Nueva regla de condición"
+msgstr ""
+
+#: templates/condition/rule_form.html
+msgid "Reglas de condición"
+msgstr ""
+
+#: templates/condition/rule_form.html
+msgid "Define una vez el rango normal de una variable: cuando una lectura se sale, se abre una alerta y, si quieres, la OT predictiva."
+msgstr ""
+
+#: templates/condition/rule_form.html
+msgid "El alcance no se cambia: para otra variable o clase, crea otra regla."
+msgstr ""
+
+#: templates/condition/rule_form.html
+msgid "Cuándo alertar"
+msgstr ""
+
+#: templates/condition/rule_form.html
+msgid "Crear regla"
+msgstr ""
+
+#: templates/condition/rule_list.html
+#, python-format
+msgid "%(n)s regla"
+msgid_plural "%(n)s reglas"
+msgstr[0] ""
+msgstr[1] ""
+
+#: templates/condition/rule_list.html
+msgid "Estado de las reglas"
+msgstr ""
+
+#: templates/condition/rule_list.html
+msgid "Activas"
+msgstr ""
+
+#: templates/condition/rule_list.html
+msgid "Inactivas"
+msgstr ""
+
+#: templates/condition/rule_list.html
+msgid "Todas las clases de activo"
+msgstr ""
+
+#: templates/condition/rule_list.html
+msgid "Aplica a"
+msgstr ""
+
+#: templates/condition/rule_list.html
+msgid "No hay reglas que coincidan."
+msgstr ""
+
+#: templates/condition/rule_list.html
+msgid "Aún no hay reglas de condición."
+msgstr ""
+
+#: templates/reporting/dashboard.html
+msgid "Variables fuera de rango"
+msgstr ""
+
+#: templates/ui/design_system.html
+msgid "Estados de una alerta (ícono + texto), su valor con el último debajo y el formulario de regla que muestra solo los campos de la elección (CSS :has, sin JS)."
+msgstr ""
+
+#: templates/ui/design_system.html
+msgid "Estados de alerta"
+msgstr ""
+
+#: templates/ui/design_system.html
+msgid "Valor de una alerta"
+msgstr ""
+
+#: templates/ui/design_system.html
+msgid "Campos según la elección"
+msgstr ""

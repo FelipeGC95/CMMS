@@ -96,6 +96,30 @@
   </div>
 </section>
 
+<section class="card mb-4" aria-labelledby="ds-condition">
+  <h2 id="ds-condition">{% translate "Mantenimiento por condición" %}</h2>
+  <p class="muted">{% translate "Estados de una alerta (ícono + texto), su valor con el último debajo y el formulario de regla que muestra solo los campos de la elección (CSS :has, sin JS)." %}</p>
+  <h3>{% translate "Estados de alerta" %}</h3>
+  <div class="row mb-4">{% for a in alert_statuses %}{% alert_status_badge a %}{% endfor %}</div>
+  <h3>{% translate "Valor de una alerta" %}</h3>
+  <p class="mb-4"><a class="cond-value" href="#ds-condition">86 °C</a><span class="cond-value__last">{% translate "Último" %}: 88 °C</span></p>
+  <h3>{% translate "Campos según la elección" %}</h3>
+  <form class="rule-form" action="#ds-condition">
+    <fieldset class="check-group">
+      <legend>{% translate "Condición" %}</legend>
+      <div class="check-group__options">
+        <label class="check-group__option" for="ds-op-gt"><input type="radio" id="ds-op-gt" name="operator" value="gt" checked><span>{% translate "Mayor que" %}</span></label>
+        <label class="check-group__option" for="ds-op-outside"><input type="radio" id="ds-op-outside" name="operator" value="outside"><span>{% translate "Fuera del rango" %}</span></label>
+      </div>
+    </fieldset>
+    <div class="field rule-form__threshold"><label for="ds-threshold">{% translate "Umbral" %}</label><input type="text" id="ds-threshold" inputmode="decimal"></div>
+    <div class="field-pair rule-form__range">
+      <div class="field"><label for="ds-min">{% translate "Mínimo" %}</label><input type="text" id="ds-min" inputmode="decimal"></div>
+      <div class="field"><label for="ds-max">{% translate "Máximo" %}</label><input type="text" id="ds-max" inputmode="decimal"></div>
+    </div>
+  </form>
+</section>
+
 <section class="card mb-4" aria-labelledby="ds-wizard">
   <h2 id="ds-wizard">{% translate "Pasos de un asistente" %}</h2>
   <p class="muted">{% translate "Puesta en marcha: hecho, saltado o pendiente, con ícono + texto; el paso abierto lleva borde." %}</p>

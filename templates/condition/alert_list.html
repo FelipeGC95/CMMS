@@ -1,0 +1,56 @@
+{% extends "base.html" %}{% load i18n ui %}
+{% block title %}{% translate "Alertas de condición" %}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>{% translate "Alertas de condición" %}</h1>
+    <p class="muted">{% if has_rules %}{% blocktranslate count n=page.paginator.count %}{{ n }} alerta{% plural %}{{ n }} alertas{% endblocktranslate %} · {% translate "las abiertas primero" %}{% else %}{% translate "Avisos cuando una variable de un activo sale de su rango normal." %}{% endif %}</p>
+  </div>
+  {% if has_rules %}<div class="page-actions">
+    {% if can_manage %}<a class="btn btn--primary page-actions__primary" href="{% url 'condition_rule_create' %}">{% icon 'alert' %}{% translate "Nueva regla" %}</a>{% endif %}
+    <a class="btn btn--ghost" href="{% url 'condition_rule_list' %}">{% icon 'list' %}{% translate "Reglas" %}</a>
+  </div>{% endif %}
+</div>
+
+{% if not has_rules %}
+{# Estado vacío: sin reglas no hay alertas; el camino es crear la primera (flujo por defecto). #}
+<section class="card" aria-labelledby="empty-title">
+  <h2 id="empty-title">{% translate "Aún no hay reglas de condición" %}</h2>
+  <p class="muted">{% translate "Una regla define el rango normal de una variable (temperatura, vibración, presión, corriente…). Cuando una lectura se sale, aparece aquí una alerta y, si quieres, se crea la OT predictiva." %}</p>
+  {% if can_manage %}<a class="btn btn--primary btn--lg" href="{% url 'condition_rule_create' %}">{% icon 'alert' %}{% translate "Crear la primera regla" %}</a>
+  {% else %}<p class="muted">{% translate "Las reglas las crea un administrador o un planificador." %}</p>{% endif %}
+</section>
+{% else %}
+
+{# Filtros plegables en el teléfono (se abren solos si hay alguno activo); desde tablet, en grilla. #}
+<details class="card mb-4 filters"{% if filters_open %} open{% endif %}>
+  <summary class="filters__summary">
+    <h2 id="filters-title">{% translate "Filtros" %}</h2>
+    {% if active_filters %}<span class="badge badge--info">{% icon 'info' %}{% blocktranslate count n=active_filters %}{{ n }} activo{% plural %}{{ n }} activos{% endblocktranslate %}</span>{% endif %}
+  </summary>
+  <form method="get" class="form-grid" aria-labelledby="filters-title">
+    {% include "_form_fields.html" with form=filter_form %}
+    <div class="row form-grid__actions">
+      <button class="btn btn--primary" type="submit">{% translate "Filtrar" %}</button>
+      <a class="btn btn--ghost" href="{% url 'condition_alert_list' %}">{% translate "Limpiar filtros" %}</a>
+    </div>
+  </form>
+</details>
+
+<div class="card card--flush">
+  {% if page.object_list %}
+  <table class="table">
+    <thead><tr><th>{% translate "Estado" %}</th><th>{% translate "Activo" %}</th><th>{% translate "Variable" %}</th><th>{% translate "Valor" %}</th><th>{% translate "Regla" %}</th><th class="num">{% translate "Abierta" %}</th><th>{% translate "OT" %}</th><th><span class="visually-hidden">{% translate "Acciones" %}</span></th></tr></thead>
+    <tbody>
+      {% for alert in page.object_list %}{% include "condition/_alert_row.html" %}{% endfor %}
+    </tbody>
+  </table>
+  {% elif active_filters %}
+  <p class="empty">{% translate "No hay alertas que coincidan." %}</p>
+  {% else %}
+  <p class="empty">{% icon 'check' %} {% translate "Sin alertas activas: todas las variables con reglas están en rango." %}</p>
+  {% endif %}
+</div>
+{% include "_pagination.html" %}
+{% endif %}
+{% endblock %}

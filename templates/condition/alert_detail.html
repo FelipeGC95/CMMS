@@ -1,0 +1,54 @@
+{% extends "base.html" %}{% load i18n ui %}
+{% block title %}{% translate "Alerta" %} · {{ alert.asset.code }}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <p class="muted"><a href="{% url 'condition_alert_list' %}">{% translate "Alertas de condición" %}</a></p>
+    <h1>{{ alert.meter.name|default:alert.meter.get_kind_display }} · <span class="mono">{{ alert.asset.code }}</span></h1>
+    <p class="row">{% alert_status_badge alert %}<span class="muted">{{ alert.asset.name }}</span></p>
+  </div>
+  {% if can_manage and alert.status == "open" %}<div class="page-actions">
+    <form method="post" action="{% url 'condition_alert_acknowledge' alert.pk %}">{% csrf_token %}<button class="btn btn--primary page-actions__primary" type="submit">{% icon 'check' %}{% translate "Reconocer" %}</button></form>
+  </div>{% endif %}
+</div>
+
+<div class="grid grid--2">
+  <section class="card" aria-labelledby="values-title">
+    <h2 id="values-title">{% translate "Valores" %}</h2>
+    <dl class="dl">
+      <dt>{% translate "Valor que la abrió" %}</dt>
+      <dd><strong class="num">{{ alert.value|num }} {{ alert.meter.unit }}</strong><br><span class="muted num">{{ alert.opened_at|date:"d-m-Y H:i" }}</span></dd>
+      <dt>{% translate "Último valor" %}</dt>
+      <dd><strong class="num">{{ alert.last_value|num }} {{ alert.meter.unit }}</strong><br><span class="muted num">{{ alert.last_read_at|date:"d-m-Y H:i" }}</span></dd>
+      <dt>{% translate "Valor actual" %}</dt>
+      <dd>{% if alert.meter.current_value is not None %}<span class="num">{{ alert.meter.current_value|num }} {{ alert.meter.unit }}</span><br><span class="muted num">{{ alert.meter.current_read_at|date:"d-m-Y H:i" }}</span>{% else %}—{% endif %}</dd>
+      <dt>{% translate "Lectura que la abrió" %}</dt>
+      <dd>{{ reading.get_source_display }}{% if reading.created_by %} · {{ reading.created_by.short_name }}{% endif %}{% if reading.work_order_id %} · <a href="{% url 'work_order_detail' reading.work_order_id %}">{% translate "OT de origen" %}</a>{% endif %}</dd>
+    </dl>
+  </section>
+
+  <section class="card" aria-labelledby="rule-title">
+    <h2 id="rule-title">{% translate "Regla" %}</h2>
+    <dl class="dl">
+      <dt>{% translate "Regla" %}</dt>
+      <dd>{% if can_manage %}<a href="{% url 'condition_rule_edit' alert.rule.pk %}">{{ alert.rule.label }}</a>{% else %}{{ alert.rule.label }}{% endif %}</dd>
+      <dt>{% translate "Condición" %}</dt>
+      <dd>{{ alert.rule.condition_label }}{% if alert.rule.consecutive > 1 %} · {% blocktranslate count n=alert.rule.consecutive %}{{ n }} lectura seguida{% plural %}{{ n }} lecturas seguidas{% endblocktranslate %}{% endif %}</dd>
+      <dt>{% translate "Activo" %}</dt>
+      <dd><a href="{% url 'asset_detail' alert.asset.pk %}"><span class="mono">{{ alert.asset.code }}</span> · {{ alert.asset.name }}</a>{% if alert.asset.location %}<br><span class="muted">{{ alert.asset.location }}</span>{% endif %}</dd>
+      <dt>{% translate "OT predictiva" %}</dt>
+      <dd>{% if alert.work_order %}<span class="row"><a href="{% url 'work_order_detail' alert.work_order.pk %}">{{ alert.work_order.code }} · {{ alert.work_order.title }}</a>{% status_badge alert.work_order %}</span>{% else %}<span class="muted">{% translate "La regla solo alerta." %}</span>{% endif %}</dd>
+    </dl>
+  </section>
+</div>
+
+<section class="card mt-4" aria-labelledby="history-title">
+  <h2 id="history-title">{% translate "Historial" %}</h2>
+  <ol class="timeline">
+    <li>{% blocktranslate with value=alert.value|num unit=alert.meter.unit %}Abierta: la lectura de {{ value }} {{ unit }} quedó fuera de rango.{% endblocktranslate %} <span class="muted num">{{ alert.opened_at|date:"d-m-Y H:i" }}</span></li>
+    {% if alert.acknowledged_at %}<li>{% if alert.acknowledged_by %}{% blocktranslate with who=alert.acknowledged_by.short_name %}Reconocida por {{ who }}.{% endblocktranslate %}{% else %}{% translate "Reconocida." %}{% endif %} <span class="muted num">{{ alert.acknowledged_at|date:"d-m-Y H:i" }}</span></li>{% endif %}
+    {% if alert.normalized_at %}<li>{% translate "Normalizada: la variable volvió a su rango o se desactivó la regla." %} <span class="muted num">{{ alert.normalized_at|date:"d-m-Y H:i" }}</span></li>{% endif %}
+    {% if alert.closed_at %}<li>{% translate "Cerrada: la OT vinculada se cerró o canceló." %} <span class="muted num">{{ alert.closed_at|date:"d-m-Y H:i" }}</span></li>{% endif %}
+  </ol>
+</section>
+{% endblock %}

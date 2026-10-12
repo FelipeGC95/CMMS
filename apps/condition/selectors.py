@@ -4,7 +4,8 @@ from django.db.models import Case, IntegerField, Q, Value, When
 
 from apps.accounts.permissions import Perm, require_perm
 from apps.accounts.scoping import allowed_location_ids
-from apps.assets.models import Asset, Meter
+from apps.assets.models import VARIABLE_KINDS, Asset, Meter
+from apps.assets.selectors import visible_assets
 from apps.organizations.selectors import descendant_ids
 
 from .models import ConditionAlert, ConditionRule, ConditionState
@@ -73,6 +74,16 @@ def active_alert_count(*, membership) -> int:
     return visible_alerts(membership=membership).filter(status__in=ConditionAlert.ACTIVE_STATUSES).count()
 
 
+def alert_assets(*, membership, include=None):
+    """Activos visibles con alguna alerta (opciones del filtro por activo), más `include` si se pide."""
+    require_perm(membership, Perm.CONDITION_VIEW)
+    assets = visible_assets(membership=membership)
+    with_alerts = Q(pk__in=ConditionAlert.objects.values("asset_id"))
+    if include is not None:
+        with_alerts |= Q(pk=include)
+    return assets.filter(with_alerts).order_by("code")
+
+
 def asset_alerts(*, membership, asset, limit: int = 20) -> list:
     """Últimas alertas de un activo (ficha del activo, CBM-07)."""
     return list(alert_list(membership=membership, asset=asset)[:limit])
@@ -97,9 +108,13 @@ def visible_rules(*, membership, include_inactive: bool = False):
     return qs
 
 
-def rule_list(*, membership, include_inactive: bool = False, asset_class=None, meter=None):
-    """Reglas (activas, o todas) con su alcance; filtra por clase o por medidor."""
-    qs = visible_rules(membership=membership, include_inactive=include_inactive)
+def rule_list(
+    *, membership, include_inactive: bool = False, inactive_only: bool = False, asset_class=None, meter=None
+):
+    """Reglas (activas, todas o solo las inactivas) con su alcance; filtra por clase o por medidor."""
+    qs = visible_rules(membership=membership, include_inactive=include_inactive or inactive_only)
+    if inactive_only:
+        qs = qs.filter(is_active=False)
     if asset_class is not None:
         qs = qs.filter(asset_class=asset_class)
     if meter is not None:
@@ -127,6 +142,21 @@ def rules_for_meter(meter: Meter, *, include_inactive: bool = False):
     if not include_inactive:
         qs = qs.filter(is_active=True)
     return qs.order_by("created_at")
+
+
+def variable_meters(*, membership):
+    """Variables activas de los activos activos visibles (alcance de una regla nueva, CBM-03)."""
+    require_perm(membership, Perm.CONDITION_VIEW)
+    return (
+        Meter.objects.filter(
+            kind__in=VARIABLE_KINDS,
+            is_active=True,
+            asset__is_active=True,
+            asset__in=visible_assets(membership=membership),
+        )
+        .select_related("asset")
+        .order_by("asset__code", "kind", "name")
+    )
 
 
 # --- Estado por variable (ficha del activo, CBM-07) --------------------------------

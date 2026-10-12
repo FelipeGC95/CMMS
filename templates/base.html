@@ -35,7 +35,7 @@
         {% if membership|can:"work_order.manage" and organization|has_module:"requests" %}<a href="{% url 'request_list' %}" {% nav_current '/requests/' %}>{% translate "Solicitudes" %}</a>{% endif %}
         {% if membership|can:"inventory.view" and organization|has_module:"inventory" %}<a href="{% url 'inventory_home' %}" {% nav_current '/inventory/' %}>{% translate "Inventario" %}</a>{% endif %}
         {# Catálogo de falla, ubicaciones, clases, equipo, auditoría y configuración viven en "Más", igual que en móvil. #}
-        <a href="{% url 'menu' %}" {% nav_current '/menu/' '/report/' '/failure-codes/' '/team/' '/audit/' '/locations/' '/asset-classes/' '/settings/' '/plans/' '/reports/' %}>{% translate "Más" %}</a>
+        <a href="{% url 'menu' %}" {% nav_current '/menu/' '/report/' '/failure-codes/' '/team/' '/audit/' '/locations/' '/asset-classes/' '/settings/' '/plans/' '/reports/' '/condition/' %}>{% translate "Más" %}</a>
       </nav>
       <div class="navbar__right">
         {% if memberships|length > 1 %}
@@ -81,7 +81,7 @@
     <a href="{% url 'dashboard' %}" {% nav_current '/' %}>{% icon 'home' %}{% translate "Inicio" %}</a>
     {% if organization|has_module:"work_orders" %}<a href="{% url 'work_order_list' %}?scope=mine" {% nav_current '/work-orders/' %}>{% icon 'list' %}{% translate "Mis OT" %}</a>{% endif %}
     {% if organization|has_module:"assets" %}<a href="{% url 'asset_list' %}" {% nav_current '/assets/' %}>{% icon 'box' %}{% translate "Activos" %}</a>{% endif %}
-    <a href="{% url 'menu' %}" {% nav_current '/menu/' '/report/' '/requests/' '/failure-codes/' '/team/' '/audit/' '/locations/' '/asset-classes/' '/settings/' '/plans/' '/reports/' '/inventory/' %}>{% icon 'menu' %}{% translate "Más" %}</a>
+    <a href="{% url 'menu' %}" {% nav_current '/menu/' '/report/' '/requests/' '/failure-codes/' '/team/' '/audit/' '/locations/' '/asset-classes/' '/settings/' '/plans/' '/reports/' '/condition/' '/inventory/' %}>{% icon 'menu' %}{% translate "Más" %}</a>
   </nav>
   {% endif %}
 </body>

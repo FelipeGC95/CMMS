@@ -1,0 +1,64 @@
+{% extends "base.html" %}{% load i18n ui %}
+{% block title %}{% if rule %}{% translate "Editar regla" %}{% else %}{% translate "Nueva regla de condición" %}{% endif %}{% endblock %}
+{% block content %}
+<div class="narrow">
+  <div class="page-header">
+    <div>
+      <p class="muted"><a href="{% url 'condition_rule_list' %}">{% translate "Reglas de condición" %}</a></p>
+      <h1>{% if rule %}{% translate "Editar regla" %}{% else %}{% translate "Nueva regla de condición" %}{% endif %}</h1>
+      {% if not rule %}<p class="muted">{% translate "Define una vez el rango normal de una variable: cuando una lectura se sale, se abre una alerta y, si quieres, la OT predictiva." %}</p>{% endif %}
+    </div>
+  </div>
+  {# Los campos que no aplican a la elección se ocultan con CSS (:has); sin soporte, se ven todos y el servicio ignora los que sobran. #}
+  <form class="card rule-form" method="post" novalidate>
+    {% csrf_token %}
+    {% for error in form.non_field_errors %}<div class="alert alert--error" role="alert">{% icon 'stop' %}<span>{{ error }}</span></div>{% endfor %}
+
+    <fieldset class="fieldset">
+      <legend>{% translate "Alcance" %}</legend>
+      {% if rule %}
+      <p><strong>{{ rule.scope_label }}</strong></p>
+      <p class="help muted">{% translate "El alcance no se cambia: para otra variable o clase, crea otra regla." %}</p>
+      {% else %}
+      {% include "condition/_field.html" with field=form.scope extra="" %}
+      {% include "condition/_field.html" with field=form.meter extra="rule-form__meter" %}
+      <div class="rule-form__class">
+        {% include "condition/_field.html" with field=form.asset_class extra="" %}
+        <div class="field-pair">
+          {% include "condition/_field.html" with field=form.meter_kind extra="" %}
+          {% include "condition/_field.html" with field=form.meter_name extra="" %}
+        </div>
+      </div>
+      {% endif %}
+    </fieldset>
+
+    <fieldset class="fieldset">
+      <legend>{% translate "Cuándo alertar" %}</legend>
+      {% include "condition/_field.html" with field=form.operator extra="" %}
+      {% include "condition/_field.html" with field=form.threshold extra="rule-form__threshold" %}
+      <div class="field-pair rule-form__range">
+        {% include "condition/_field.html" with field=form.min_value extra="" %}
+        {% include "condition/_field.html" with field=form.max_value extra="" %}
+      </div>
+      {% include "condition/_field.html" with field=form.consecutive extra="" %}
+    </fieldset>
+
+    <fieldset class="fieldset">
+      <legend>{% translate "Acción" %}</legend>
+      {% include "condition/_field.html" with field=form.action extra="" %}
+      <div class="rule-form__work-order">
+        {% include "condition/_field.html" with field=form.work_order_title extra="" %}
+        {% include "condition/_field.html" with field=form.work_order_priority extra="" %}
+        {% include "condition/_field.html" with field=form.work_order_instructions extra="" %}
+      </div>
+    </fieldset>
+
+    {% include "condition/_field.html" with field=form.name extra="" %}
+
+    <div class="row">
+      <button class="btn btn--primary btn--lg" type="submit">{% icon 'check' %}{% if rule %}{% translate "Guardar cambios" %}{% else %}{% translate "Crear regla" %}{% endif %}</button>
+      <a class="btn btn--ghost" href="{% url 'condition_rule_list' %}">{% translate "Cancelar" %}</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

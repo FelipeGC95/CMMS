@@ -9,12 +9,13 @@ from django.utils import timezone
 from django.utils.translation import gettext as _
 
 from apps.accounts.models import Membership
-from apps.accounts.permissions import Perm
+from apps.accounts.permissions import Perm, has_perm
 from apps.assets.attributes import attribute_rows
 from apps.assets.selectors import active_attributes, asset_failure_history, asset_list, visible_assets
 from apps.assets.views import _list_filters as asset_list_filters
 from apps.attachments.models import Purpose, TargetType
 from apps.attachments.selectors import attachments_for
+from apps.condition.selectors import active_alert_count
 from apps.core.decorators import membership_required
 from apps.maintenance.selectors import active_assignments_for_asset
 from apps.onboarding.selectors import onboarding_for_dashboard
@@ -76,6 +77,10 @@ def dashboard(request):
         .select_related("location"),
         "is_technician": is_technician,
         "onboarding": onboarding,
+        # Alertas de condición activas (CBM-05 CA5): solo con el módulo y permiso de verlas.
+        "condition_alerts": active_alert_count(membership=membership)
+        if has_module(request.organization, "condition") and has_perm(membership, Perm.CONDITION_VIEW)
+        else None,
     }
     return render(request, "reporting/dashboard.html", context)
 

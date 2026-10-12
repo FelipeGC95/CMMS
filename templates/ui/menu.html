@@ -24,6 +24,8 @@
       <li><a href="{% url 'inventory_movements' %}">{% icon 'sync' %}{% translate "Movimientos de stock" %}</a></li>
       <li><a href="{% url 'inventory_reorder' %}">{% icon 'alert' %}{% translate "Reposición de repuestos" %}</a></li>{% endif %}
       {% if membership|can:"inventory.manage" and organization|has_module:"inventory" %}<li><a href="{% url 'inventory_import' %}">{% icon 'list' %}{% translate "Importar repuestos (Excel)" %}</a></li>{% endif %}
+      {% if membership|can:"condition.view" and organization|has_module:"condition" %}<li><a href="{% url 'condition_alert_list' %}">{% icon 'alert' %}{% translate "Alertas de condición" %}</a></li>
+      <li><a href="{% url 'condition_rule_list' %}">{% icon 'list' %}{% translate "Reglas de condición" %}</a></li>{% endif %}
       {% if membership|can:"request.create" and organization|has_module:"requests" %}<li><a href="{% url 'location_report' %}">{% icon 'megaphone' %}{% translate "Avisar problema en una ubicación" %}</a></li>{% endif %}
       {% if membership|can:"work_order.manage" and organization|has_module:"requests" %}<li><a href="{% url 'request_list' %}">{% icon 'megaphone' %}{% translate "Solicitudes" %}</a></li>{% endif %}
       {% if membership|can:"work_order.manage" and organization|has_module:"work_orders" %}<li><a href="{% url 'failure_code_list' %}">{% icon 'alert' %}{% translate "Catálogo de falla" %}</a></li>{% endif %}

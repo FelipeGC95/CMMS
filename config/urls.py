@@ -38,6 +38,7 @@ urlpatterns = [
     path("", include("apps.field.urls")),
     path("inventory/work-orders/", include("apps.inventory.work_urls")),
     path("inventory/", include("apps.inventory.urls")),
+    path("condition/", include("apps.condition.urls")),
     path("assets/", asset_views.asset_list_view, name="asset_list"),
     path("assets/labels/", asset_views.asset_labels_view, name="asset_labels"),
     path("assets/labels/selection/", asset_views.asset_labels_select_view, name="asset_labels_select"),

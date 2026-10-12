@@ -4,6 +4,7 @@ from django.shortcuts import render
 from django.views.decorators.cache import cache_control
 
 from apps.assets.models import Asset
+from apps.condition.models import ConditionAlert
 from apps.core.decorators import membership_required
 from apps.work.models import WorkOrder
 
@@ -22,6 +23,7 @@ def design_system_view(request):
             "asset_statuses": [Asset(status=s) for s in Asset.Status.values],
             "work_order_statuses": [WorkOrder(status=s) for s in WorkOrder.Status.values],
             "priorities": [WorkOrder(priority=p) for p in WorkOrder.Priority.values],
+            "alert_statuses": [ConditionAlert(status=s) for s in ConditionAlert.Status.values],
         },
     )
 

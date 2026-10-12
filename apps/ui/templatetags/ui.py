@@ -119,6 +119,25 @@ def status_badge(obj):
     )
 
 
+# Alertas de condición (CBM-05 CA2): tono e ícono propios; "open" y "closed" de otros
+# modelos no deben cambiar de tono, por eso no van en _STATUS_TONES.
+_ALERT_BADGES = {
+    "open": ("error", "alert"),
+    "acknowledged": ("warning", "user"),
+    "normalized": ("success", "check"),
+    "closed": ("neutral", "dot"),
+}
+
+
+@register.simple_tag
+def alert_status_badge(alert):
+    """Estado de una alerta de condición con ícono + texto."""
+    tone, name = _ALERT_BADGES.get(alert.status, ("neutral", "dot"))
+    return format_html(
+        '<span class="badge badge--{}">{}{}</span>', tone, icon(name), alert.get_status_display()
+    )
+
+
 _PRIORITY_TONES = {1: "error", 2: "warning", 3: "neutral", 4: "neutral"}
 
 

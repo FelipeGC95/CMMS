@@ -1,0 +1,16 @@
+{% load i18n ui %}{# Un campo del formulario de regla, con una clase extra para mostrarlo u ocultarlo según la elección (CSS :has, sin JS). Uso: include con field y extra. #}
+{% if field.widget_type == "radioselect" %}
+<fieldset class="check-group{% if extra %} {{ extra }}{% endif %}">
+  <legend>{{ field.label }}{% if field.field.required %} *{% endif %}</legend>
+  {% if field.help_text %}<span class="help">{{ field.help_text }}</span>{% endif %}
+  <div class="check-group__options">{% for choice in field %}<label class="check-group__option" for="{{ choice.id_for_label }}">{{ choice.tag }}<span>{{ choice.choice_label }}</span></label>{% endfor %}</div>
+  {% for error in field.errors %}<span class="error">{% icon 'stop' %}{{ error }}</span>{% endfor %}
+</fieldset>
+{% else %}
+<div class="field{% if extra %} {{ extra }}{% endif %}">
+  <label for="{{ field.id_for_label }}">{{ field.label }}{% if field.field.required %} *{% endif %}</label>
+  {{ field }}
+  {% if field.help_text %}<span class="help">{{ field.help_text }}</span>{% endif %}
+  {% for error in field.errors %}<span class="error">{% icon 'stop' %}{{ error }}</span>{% endfor %}
+</div>
+{% endif %}

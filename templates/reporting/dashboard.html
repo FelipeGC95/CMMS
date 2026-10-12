@@ -95,6 +95,11 @@
     <span class="kpi__value">{{ kpis.overdue_work_orders }}</span>
     <span class="kpi__hint">{% blocktranslate with n=kpis.open_work_orders %}de {{ n }} abiertas{% endblocktranslate %}</span>
   </a>
+  {% if condition_alerts is not None %}<a class="card kpi kpi--link {% if condition_alerts %}kpi--alert{% endif %}" href="{% url 'condition_alert_list' %}">
+    <span class="kpi__label">{% translate "Alertas de condición" %}</span>
+    <span class="kpi__value">{{ condition_alerts }}</span>
+    <span class="kpi__hint">{% translate "Variables fuera de rango" %}</span>
+  </a>{% endif %}
 </section>
 {% if organization|has_module:"kpis" %}
 <p class="mt-2"><a href="{% url 'kpi_report' %}">{% icon 'list' %}{% translate "Ver indicadores ampliados: backlog, costos y Pareto de fallas" %}</a></p>
