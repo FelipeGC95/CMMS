@@ -21,7 +21,7 @@ def episode(tenant_a):
         rule = services.create_rule(membership=tenant_a.admin, meter=meter, operator="gt", threshold="80")
         read(meter, "85")
         read(meter, "87", hours=1)
-        return meter, rule, ConditionAlert.objects.get()
+        return meter, rule, ConditionAlert.objects.select_related("work_order").get()
 
 
 # --- Alertas ----------------------------------------------------------------------
@@ -102,7 +102,8 @@ def test_acknowledge_with_htmx_returns_the_row_and_records_who(client, tenant_a,
     assert response.status_code == 200
     body = response.content.decode()
     assert body.lstrip().startswith("<tr") and "Reconocida" in body
-    alert.refresh_from_db()
+    with tenant_context(tenant_a.org):
+        alert.refresh_from_db()
     assert alert.status == ConditionAlert.Status.ACKNOWLEDGED
     assert alert.acknowledged_by == tenant_a.admin.user
 
