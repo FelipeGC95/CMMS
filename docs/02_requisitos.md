@@ -633,6 +633,16 @@ seguir su condición sin una herramienta aparte.
 - CA5: No se borran: se desactivan (el historial y las alertas siguen
   visibles).
 
+Implementado (2026-10, paquete C4): "Agregar variable" en la sección
+"Condición" de la ficha (`/assets/<id>/variables/new/`, pide además el módulo
+`condition`), "Editar" (nombre y unidad; el tipo no cambia) y
+"Desactivar"/"Reactivar" con `asset.manage`, en `assets.services.create_variable`,
+`update_variable` y `set_variable_active` (auditados). La clave (tipo, nombre)
+se compara sin distinguir mayúsculas y también contra las desactivadas (el
+error invita a reactivar). "Otra variable" exige nombre. Una variable
+desactivada rechaza lecturas de cualquier fuente; sus lecturas y alertas
+siguen en la ficha ("N variables desactivadas").
+
 **CBM-02 · Lecturas de variables (F2)**
 - CA1: Registro manual desde la ficha del activo y desde "Registrar lectura"
   con `meter_reading.create` (sin cambios de permisos).
@@ -645,6 +655,17 @@ seguir su condición sin una herramienta aparte.
   lectura (CBM-06).
 - CA5: Todas las fuentes pasan por el mismo servicio (`record_meter_reading`)
   y son idempotentes por `client_uuid`.
+
+Implementado (2026-10, paquete C4): CA1, CA2 y CA5 en la web. El formulario de
+lectura acepta negativos solo en variables (y no muestra "reinicio"). El CSV
+lee las columnas `tipo` (código, etiqueta o palabra en español: temperatura,
+vibración, presión, corriente, otra, horas, km, ciclos) y `nombre`; sin ellas
+un activo con varios medidores da error por fila pidiendo tipo y nombre, y un
+`tipo` sin `nombre` con dos variables de ese tipo pide el nombre. Cada fila
+importada lleva un `client_uuid` derivado de (medidor, fecha, valor). El
+serializer `MeterReadingCreateSerializer` de la API aún tiene `min_value=0`
+y `BulkReadingRowSerializer` no expone `kind`/`name`: quedan para C5 (las
+filas de `build_reading_preview` ya leen las claves `kind` y `name`).
 
 **CBM-03 · Reglas de condición (F2)**
 Como planificador quiero definir una vez el rango normal de una variable, para
@@ -734,6 +755,17 @@ la lectura al completar).
   líneas de umbral de las reglas, colores por tokens y su tabla; sin JS ni
   estilos en línea; a 360 px sin scroll horizontal.
 - CA3: Número fijo de consultas (`tests/test_query_counts.py`).
+
+Implementado (2026-10, paquete C4): sección "Condición" de la ficha con el
+módulo `condition` y `condition.view` (`condition.selectors.asset_condition`,
+cinco consultas). Estados: normal, alarma, sin reglas, sin lecturas (tiene
+reglas pero aún no hay lecturas) y desactivada. La tendencia la arma
+`condition.charts.build_trend` (función pura) con las reglas activas por
+medidor y por clase (`gt`/`lt` una línea, `outside` dos; `rate` no dibuja
+línea); las lecturas fuera de rango se marcan en el gráfico y en la tabla
+(las 30 más recientes). El enlace a alertas filtra `/condition/` por activo.
+Sin el módulo o sin `condition.view`, las variables se muestran y se leen en
+"Medidores".
 
 **CBM-08 · Permisos, módulo y aislamiento (F2)**
 
