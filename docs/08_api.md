@@ -262,6 +262,8 @@ Todos aceptan `note` (observación, hasta 500 caracteres). Reenviar la misma res
 
 Con `answered_at` (hora en que se respondió sin conexión) **gana la última**: si el ítem ya tiene una respuesta posterior, la enviada no se aplica, queda en la auditoría como descartada y la respuesta trae `"superseded": true` con el ítem vigente. La respuesta siempre incluye `answered_at` y `superseded`.
 
+Mediciones que alimentan una variable (CBM-06): el ítem trae `meter_kind` y `meter_name` (vacíos si no alimenta ninguna) y `meter_reading` (id de la lectura, `null` hasta completar). Al completar la OT (`…/complete/`, igual en la web y en terreno), cada ítem enlazado con `value_number` registra una lectura de esa variable del activo (origen OT, fecha = `answered_at` o el término), la crea si el activo no la tiene y pasa por las reglas de condición. Una sola vez por ítem: reabrir y completar de nuevo no la repite.
+
 ```json
 // POST /work-orders/{id}/checklist-items/{item_id}/answer/
 { "value_number": "4.2", "note": "Medido en caliente" }

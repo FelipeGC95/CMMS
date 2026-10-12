@@ -718,6 +718,15 @@ lectura del equipo, sin registrarla dos veces.
 - CA5: Versiones publicadas inmutables (ADR-016): el enlace se agrega en un
   borrador nuevo; los ítems existentes no cambian.
 
+Implementado (2026-10, paquete C3): campos "Variable" y "Nombre de la
+variable" en el editor de ítems del borrador y columnas opcionales en el
+Excel de planes (PM-08; los archivos sin ellas se siguen leyendo); también se
+copia al aplicar un checklist de plan a una OT. La lectura la registra
+`work.services.record_checklist_readings`, llamada al pasar la OT a
+completada. Una variable desactivada no se reactiva: el ítem no registra
+lectura. La PWA de terreno aún no muestra el enlace en el ítem (sí registra
+la lectura al completar).
+
 **CBM-07 · Condición en la ficha del activo (F2)**
 - CA1: Sección "Condición" con cada variable: último valor y fecha, estado
   (ícono + texto: normal, alarma, sin reglas) y enlace a sus alertas.
