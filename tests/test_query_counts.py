@@ -1560,3 +1560,27 @@ def test_condition_evaluation_queries_are_bounded(tenant_a, django_assert_max_nu
         meter = variable(tenant_a.asset, kind=MeterKind.PRESSURE)
         with django_assert_max_num_queries(8):  # sin reglas: no busca estados
             read(meter, "5")
+
+
+@pytest.mark.parametrize(
+    "url_name", ["condition_alert_list", "condition_rule_list", "condition_alert_detail", "dashboard"]
+)
+def test_condition_screens_do_not_grow_with_rows(client, tenant_a, url_name, django_assert_max_num_queries):
+    """CBM-03/05: alertas, reglas, detalle e inicio con el contador en un número fijo de consultas."""
+    from apps.condition.models import ConditionAlert
+
+    login(client, tenant_a.admin)
+    _condition_alerts(tenant_a, 2, 0)
+
+    def url():
+        if url_name != "condition_alert_detail":
+            return reverse(url_name)
+        with tenant_context(tenant_a.org):
+            return reverse(url_name, args=[ConditionAlert.objects.order_by("created_at").first().pk])
+
+    few = _count(client, url())
+    _condition_alerts(tenant_a, 8, 2)
+    many = _count(client, url())
+    assert many == few, f"{url_name}: {few} → {many} consultas"
+    with django_assert_max_num_queries(30):
+        client.get(url())
