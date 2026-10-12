@@ -21,6 +21,7 @@ from apps.attachments.models import TargetType as AttachmentTargetType
 from apps.attachments.services import AttachmentError, QuotaExceededError
 from apps.audit import services as audit
 from apps.audit.models import AuditEvent
+from apps.condition import services as condition
 from apps.core.tenancy import require_current_organization, tenant_context
 from apps.inventory import services as inventory
 from apps.inventory.models import Part, Reservation, Warehouse
@@ -651,6 +652,8 @@ def transition(*, work_order: WorkOrder, to_status: str, membership, comment: st
         inventory.release_work_order_reservations(
             work_order=work_order, reason=Reservation.ReleaseReason.CANCELLED, by=user
         )
+        # Las alertas de condición de esta OT quedan cerradas (CBM-05; llamada explícita, ADR-029).
+        condition.close_alerts_for_work_order(work_order=work_order, by=user)
     if to_status == S.COMPLETED:
         # Quien avisó la falla se entera de que su solicitud fue atendida (X-02).
         for work_request in WorkRequest.objects.filter(
@@ -689,6 +692,8 @@ def _close(*, work_order: WorkOrder, user, at, record=True):
     inventory.release_work_order_reservations(
         work_order=work_order, reason=Reservation.ReleaseReason.CLOSED, by=user
     )
+    # Las alertas de condición de esta OT quedan cerradas (CBM-05; llamada explícita, ADR-029).
+    condition.close_alerts_for_work_order(work_order=work_order, by=user)
 
     # La falla de esta OT (si la hay): se cierra aquí si nadie informó su fin al completar.
     failure = FailureEvent.objects.filter(work_order=work_order).first()

@@ -46,6 +46,7 @@ INSTALLED_APPS = [
     "apps.attachments",
     "apps.work",
     "apps.inventory",
+    "apps.condition",
     "apps.reporting",
     "apps.audit",
     "apps.notifications",

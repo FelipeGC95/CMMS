@@ -246,7 +246,8 @@ class PlanVersion(TenantModel):
     calendar_unit = models.CharField(
         _("unidad"), max_length=8, choices=CalendarUnit.choices, default=CalendarUnit.DAYS
     )
-    meter_kind = models.CharField(_("medidor"), max_length=10, choices=MeterKind.choices, blank=True)
+    # Mismas choices que el medidor; `clean` rechaza las variables de condición (CBM-01).
+    meter_kind = models.CharField(_("medidor"), max_length=20, choices=MeterKind.choices, blank=True)
     meter_interval = models.DecimalField(
         _("cada cuántas unidades del medidor"), max_digits=14, decimal_places=3, null=True, blank=True
     )
@@ -324,6 +325,10 @@ class PlanVersion(TenantModel):
             raise ValidationError(_("Define una frecuencia por calendario, por medidor o ambas."))
         if bool(self.meter_kind) != bool(self.meter_interval):
             raise ValidationError(_("Para disparar por medidor indica el tipo y la frecuencia."))
+        if MeterKind.is_variable(self.meter_kind):
+            raise ValidationError(
+                _("Una variable de condición no dispara planes por uso: elige horómetro, odómetro o ciclos.")
+            )
 
     def save(self, *args, **kwargs):
         """Una versión publicada es inmutable: solo puede cambiar de estado (ADR-016).

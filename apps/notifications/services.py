@@ -374,6 +374,61 @@ def _deliver_stock_low(*, stock_item_id, actor) -> int:
     return len(rows)
 
 
+def notify_condition_alert(*, alert) -> None:
+    """Una variable entró en alarma (CBM-05): aviso al confirmar a quienes gestionan OT en el sitio."""
+    _on_commit(_deliver_condition_alert, alert_id=alert.pk)
+
+
+def _condition_alert_url(alert) -> str:
+    # La pantalla de alertas llega con C2; antes, la OT predictiva o la ficha del activo.
+    for name, target in (
+        ("condition_alert_detail", alert.pk),
+        ("work_order_detail", alert.work_order_id),
+        ("asset_detail", alert.asset_id),
+    ):
+        if target is None:
+            continue
+        try:
+            return reverse(name, args=[target])
+        except NoReverseMatch:
+            continue
+    return ""
+
+
+def _deliver_condition_alert(*, alert_id) -> int:
+    from apps.condition.models import ConditionAlert
+    from apps.maintenance.models import format_number
+
+    alert = (
+        ConditionAlert.objects.select_related("meter", "asset", "work_order", "rule")
+        .filter(pk=alert_id)
+        .first()
+    )
+    if alert is None:
+        return 0
+    meter, asset = alert.meter, alert.asset
+    variable = meter.name or meter.get_kind_display()
+    title = _("Alerta de condición: %(variable)s en %(asset)s") % {"variable": variable, "asset": asset.code}
+    body = _("Valor %(value)s %(unit)s · %(rule)s") % {
+        "value": format_number(alert.value),
+        "unit": meter.unit,
+        "rule": alert.rule.condition_label,
+    }
+    if alert.work_order_id:
+        body = f"{body} · {alert.work_order.code}"
+    location_id = asset.location_id
+    created = deliver(
+        kind=Kind.CONDITION_ALERT,
+        memberships=managers_in_scope(location_id),
+        title=title,
+        body=f"{asset.name} · {body}",
+        url=_condition_alert_url(alert),
+        work_order=alert.work_order,
+        location_id=location_id,
+    )
+    return len(created)
+
+
 # --- Vencimientos (resumen diario) ------------------------------------------------
 
 DUE_SOON_DAYS = 1  # "por vencer": vence hoy o mañana (dentro de ~24 h)

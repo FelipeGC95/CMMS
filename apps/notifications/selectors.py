@@ -13,9 +13,10 @@ KIND_PERMS = {
     Kind.REQUEST_RESOLVED: Perm.REQUEST_CREATE,
     Kind.DATA_EXPORT_READY: Perm.ORGANIZATION_MANAGE,
     Kind.STOCK_LOW: Perm.INVENTORY_MOVE,  # quienes reponen (INV-12)
+    Kind.CONDITION_ALERT: Perm.WORK_ORDER_MANAGE,  # quienes deciden la OT predictiva (CBM-05)
 }
 # Módulo de plan que además exige el tipo (ORG-10): sin él, el aviso no existe para nadie.
-KIND_MODULES = {Kind.STOCK_LOW: "inventory"}
+KIND_MODULES = {Kind.STOCK_LOW: "inventory", Kind.CONDITION_ALERT: "condition"}
 
 
 def receivable_kinds(*, membership) -> list[str]:

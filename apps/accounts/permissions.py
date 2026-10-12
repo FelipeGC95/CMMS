@@ -23,6 +23,9 @@ class Perm(StrEnum):
     INVENTORY_COST_VIEW = "inventory.cost_view"  # costo promedio, valor y costos de movimientos
     INVENTORY_MOVE = "inventory.move"  # entradas y transferencias
     INVENTORY_MANAGE = "inventory.manage"  # catálogo, bodegas, conteos, mínimos, importación
+    # Mantenimiento por condición (CBM-08). Registrar lecturas sigue siendo METER_READING_CREATE.
+    CONDITION_VIEW = "condition.view"  # alertas y reglas de condición
+    CONDITION_MANAGE = "condition.manage"  # crear y editar reglas, reconocer alertas
 
 
 ROLE_PERMISSIONS: dict[str, frozenset[Perm]] = {
@@ -38,13 +41,26 @@ ROLE_PERMISSIONS: dict[str, frozenset[Perm]] = {
             Perm.INVENTORY_VIEW,
             Perm.INVENTORY_COST_VIEW,
             Perm.INVENTORY_MOVE,
+            Perm.CONDITION_VIEW,
         }
     ),
     Role.TECHNICIAN: frozenset(
-        {Perm.WORK_ORDER_EXECUTE, Perm.REQUEST_CREATE, Perm.METER_READING_CREATE, Perm.INVENTORY_VIEW}
+        {
+            Perm.WORK_ORDER_EXECUTE,
+            Perm.REQUEST_CREATE,
+            Perm.METER_READING_CREATE,
+            Perm.INVENTORY_VIEW,
+            Perm.CONDITION_VIEW,
+        }
     ),
     Role.VIEWER: frozenset(
-        {Perm.REQUEST_CREATE, Perm.METER_READING_CREATE, Perm.INVENTORY_VIEW, Perm.INVENTORY_COST_VIEW}
+        {
+            Perm.REQUEST_CREATE,
+            Perm.METER_READING_CREATE,
+            Perm.INVENTORY_VIEW,
+            Perm.INVENTORY_COST_VIEW,
+            Perm.CONDITION_VIEW,
+        }
     ),
     Role.EXTERNAL: frozenset({Perm.REQUEST_CREATE}),
 }

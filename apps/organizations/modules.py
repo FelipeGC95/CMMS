@@ -30,6 +30,7 @@ MODULE_LABELS = {
     "exports": gettext_lazy("Exportación a Excel y PDF"),
     "sso": gettext_lazy("Inicio de sesión único (SSO)"),
     "inventory": gettext_lazy("Inventario y repuestos"),
+    "condition": gettext_lazy("Mantenimiento por condición"),
 }
 
 # Rutas web → módulo. Gana la primera que coincide (las más específicas van primero).
@@ -37,6 +38,8 @@ MODULE_ROUTES = [
     # Inventario (INV-16): los Excel piden `exports` aquí y además `inventory` en la vista.
     (re.compile(r"^/inventory/(export|movements/export|reorder/export)\.xlsx$"), "exports"),
     (re.compile(r"^/inventory/"), "inventory"),
+    # Mantenimiento por condición (CBM-08): alertas y reglas (pantallas en C2).
+    (re.compile(r"^/condition/"), "condition"),
     (re.compile(r"^/(assets|work-orders|work-orders/backlog|plans/calendar)/export\.xlsx$"), "exports"),
     (re.compile(r"^/(assets|work-orders)/[^/]+/sheet\.pdf$"), "exports"),
     # Indicadores ampliados (KPI-02): la exportación pide además `kpis` en la vista.
@@ -64,6 +67,9 @@ API_MODULES = {
     "api-warehouse": "inventory",
     "api-stock": "inventory",
     "api-stock-movement": "inventory",
+    # Reservados para la API de condición (CBM-09).
+    "api-condition-rule": "condition",
+    "api-condition-alert": "condition",
 }
 
 

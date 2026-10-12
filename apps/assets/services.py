@@ -180,7 +180,7 @@ def record_meter_reading(
 
     value = Decimal(str(value))
     read_at = read_at or timezone.now()
-    if value < 0:
+    if value < 0 and not meter.is_variable:  # una temperatura bajo cero es válida (CBM-01)
         raise MeterReadingError(gettext("La lectura no puede ser negativa."))
 
     previous_value, previous_at = meter.current_value, meter.current_read_at
@@ -225,10 +225,19 @@ def record_meter_reading(
         },
     )
     if not is_latest:
-        return reading, warnings  # lectura histórica: no cambia el valor vigente
+        return reading, warnings  # lectura histórica: no cambia el valor vigente ni alerta (CBM-04)
 
     meter.current_value = value
     meter.current_read_at = read_at
+    if meter.is_variable:
+        # Una variable de condición no tiene uso diario ni dispara preventivos (CBM-01):
+        # sus lecturas las evalúan las reglas de condición (CBM-04, ADR-029).
+        meter.avg_daily_usage = None
+        meter.save(update_fields=["current_value", "current_read_at", "avg_daily_usage", "updated_at"])
+        from apps.condition import services as condition
+
+        condition.evaluate_reading(reading=reading, previous_value=previous_value, previous_at=previous_at)
+        return reading, warnings
     meter.avg_daily_usage = _average_daily_usage(meter, until=read_at)
     meter.save(update_fields=["current_value", "current_read_at", "avg_daily_usage", "updated_at"])
 
@@ -239,6 +248,32 @@ def record_meter_reading(
     if generate_work_orders:
         maintenance.generate_due_work_orders(meter=meter)
     return reading, warnings
+
+
+@transaction.atomic
+def create_meter(*, membership, asset: Asset, kind: str, name: str = "", unit: str = "") -> Meter:
+    """Agrega un medidor de uso o una variable de condición a un activo (AST-07, CBM-01).
+
+    Una variable de condición siempre es no acumulativa; un medidor de uso, acumulativo.
+    La clave en el activo es (tipo, nombre).
+    """
+    _require_manageable_asset(membership=membership, asset=asset)
+    if kind not in MeterKind.values:
+        raise ValidationError({"kind": gettext("Elige un tipo de medidor válido.")})
+    name, unit = (name or "").strip(), (unit or "").strip()
+    if len(name) > 80 or len(unit) > 20:
+        raise ValidationError(gettext("Nombre o unidad demasiado largos."))
+    if Meter.objects.filter(asset=asset, kind=kind, name=name).exists():
+        raise ValidationError({"name": gettext("El activo ya tiene un medidor de ese tipo con ese nombre.")})
+    meter = Meter(asset=asset, kind=kind, name=name, unit=unit, is_cumulative=not MeterKind.is_variable(kind))
+    meter.save()
+    audit.record(
+        action=AuditEvent.Action.CREATE,
+        target=meter,
+        membership=membership,
+        changes=audit.snapshot(meter, fields={"asset", "kind", "name", "unit", "is_cumulative"}),
+    )
+    return meter
 
 
 def _average_daily_usage(meter: Meter, *, until) -> Decimal | None:

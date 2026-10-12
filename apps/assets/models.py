@@ -215,22 +215,54 @@ class AssetStatusPeriod(TenantModel):
 
 
 class MeterKind(models.TextChoices):
+    # Medidores de uso (AST-07): disparan preventivos por uso.
     HOURS = "hours", _("Horómetro (h)")
     KM = "km", _("Odómetro (km)")
     CYCLES = "cycles", _("Ciclos")
     OTHER = "other", _("Otro")
+    # Variables de condición (CBM-01, ADR-029): no acumulativas; las evalúan las reglas de
+    # condición y nunca disparan planes por uso ni entran al uso diario o a la proyección.
+    TEMPERATURE = "temperature", _("Temperatura (°C)")
+    VIBRATION = "vibration", _("Vibración (mm/s)")
+    PRESSURE = "pressure", _("Presión (bar)")
+    CURRENT = "current", _("Corriente (A)")
+    VARIABLE = "variable", _("Otra variable")
+
+    @classmethod
+    def is_variable(cls, kind) -> bool:
+        """¿Es una variable de condición (y no un medidor de uso)?"""
+        return kind in VARIABLE_KINDS
 
 
-METER_DEFAULT_UNITS = {MeterKind.HOURS: "h", MeterKind.KM: "km", MeterKind.CYCLES: "ciclos"}
+VARIABLE_KINDS = frozenset(
+    {MeterKind.TEMPERATURE, MeterKind.VIBRATION, MeterKind.PRESSURE, MeterKind.CURRENT, MeterKind.VARIABLE}
+)
+# Tipos que sirven de disparador por uso en los planes (PM-02): sin las variables de condición.
+USAGE_METER_KIND_CHOICES = [
+    (value, label) for value, label in MeterKind.choices if value not in VARIABLE_KINDS
+]
+VARIABLE_METER_KIND_CHOICES = [
+    (value, label) for value, label in MeterKind.choices if value in VARIABLE_KINDS
+]
+
+METER_DEFAULT_UNITS = {
+    MeterKind.HOURS: "h",
+    MeterKind.KM: "km",
+    MeterKind.CYCLES: "ciclos",
+    MeterKind.TEMPERATURE: "°C",
+    MeterKind.VIBRATION: "mm/s",
+    MeterKind.PRESSURE: "bar",
+    MeterKind.CURRENT: "A",
+}
 
 
 class Meter(TenantModel):
-    """Medidor de uso de un activo (AST-07)."""
+    """Medidor de uso (AST-07) o variable de condición (CBM-01) de un activo."""
 
     asset = models.ForeignKey(
         Asset, on_delete=models.CASCADE, related_name="meters", verbose_name=_("activo")
     )
-    kind = models.CharField(_("tipo"), max_length=10, choices=MeterKind.choices)
+    kind = models.CharField(_("tipo"), max_length=20, choices=MeterKind.choices)
     unit = models.CharField(_("unidad"), max_length=20, blank=True)
     name = models.CharField(_("nombre"), max_length=80, blank=True)
     is_cumulative = models.BooleanField(_("acumulativo"), default=True)
@@ -262,9 +294,15 @@ class Meter(TenantModel):
     def __str__(self):
         return f"{self.name or self.get_kind_display()} · {self.asset.code}"
 
+    @property
+    def is_variable(self) -> bool:
+        return MeterKind.is_variable(self.kind)
+
     def save(self, *args, **kwargs):
         if not self.unit:
             self.unit = METER_DEFAULT_UNITS.get(self.kind, "")
+        if self.is_variable:
+            self.is_cumulative = False  # una variable de condición sube y baja (CBM-01)
         super().save(*args, **kwargs)
 
 

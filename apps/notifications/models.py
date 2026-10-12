@@ -17,6 +17,7 @@ class Kind(models.TextChoices):
     REQUEST_RESOLVED = "request_resolved", _("Mi solicitud resuelta")
     DATA_EXPORT_READY = "data_export_ready", _("Exportación de datos lista")
     STOCK_LOW = "stock_low", _("Repuesto bajo mínimo")
+    CONDITION_ALERT = "condition_alert", _("Alerta de condición")
 
 
 class Notification(TenantModel):

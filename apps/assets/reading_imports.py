@@ -253,7 +253,7 @@ def build_reading_preview(raw_rows: list[dict], *, membership) -> ReadingPreview
         except ValueError:
             row.errors.append(gettext("Valor inválido."))
         else:
-            if value < 0:
+            if value < 0 and not (meter is not None and meter.is_variable):  # CBM-01: bajo cero vale
                 row.errors.append(gettext("La lectura no puede ser negativa."))
             row.value = f"{value.normalize():f}"
         try:

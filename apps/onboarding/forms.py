@@ -1,7 +1,7 @@
 from django import forms
 from django.utils.translation import gettext_lazy as _
 
-from apps.assets.models import AssetClass, MeterKind
+from apps.assets.models import USAGE_METER_KIND_CHOICES, AssetClass
 from apps.maintenance.templates_library import available_templates
 from apps.organizations.models import Location
 
@@ -45,7 +45,7 @@ class AssetRowForm(forms.Form):
         label=_("Ubicación"), queryset=Location.all_tenants.none(), required=False
     )
     meter_kind = forms.ChoiceField(
-        label=_("Medidor"), choices=[("", _("Sin medidor")), *MeterKind.choices], required=False
+        label=_("Medidor"), choices=[("", _("Sin medidor")), *USAGE_METER_KIND_CHOICES], required=False
     )
 
     def __init__(self, *args, classes=None, locations=None, **kwargs):

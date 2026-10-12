@@ -3,7 +3,7 @@
 from django import forms
 from django.utils.translation import gettext_lazy as _
 
-from apps.assets.models import AssetClass, MeterKind
+from apps.assets.models import USAGE_METER_KIND_CHOICES, AssetClass
 from apps.organizations.models import Location
 from apps.organizations.selectors import visible_locations
 
@@ -81,7 +81,7 @@ class TriggerForm(forms.Form):
         help_text=_("Meses de calendario: mismo día del mes (o el último, si no existe)."),
     )
     meter_kind = forms.ChoiceField(
-        label=_("Medidor"), required=False, choices=[("", _("Sin medidor")), *MeterKind.choices]
+        label=_("Medidor"), required=False, choices=[("", _("Sin medidor")), *USAGE_METER_KIND_CHOICES]
     )
     meter_interval = forms.DecimalField(
         label=_("Cada cuántas unidades del medidor"),

@@ -24,7 +24,7 @@ from openpyxl.utils.exceptions import InvalidFileException
 
 from apps.accounts.permissions import Perm, require_perm
 from apps.assets.imports import MAX_FILE_BYTES, ImportFileError, _cell_text, _normalize
-from apps.assets.models import METER_DEFAULT_UNITS, AssetClass, MeterKind
+from apps.assets.models import METER_DEFAULT_UNITS, USAGE_METER_KIND_CHOICES, AssetClass, MeterKind
 from apps.audit import services as audit
 from apps.audit.models import AuditEvent
 
@@ -113,7 +113,7 @@ def _choice_aliases():
             CalendarUnit.choices,
             {"dia": "days", "semana": "weeks", "mes": "months", "d": "days", "sem": "weeks"},
         ),
-        "meter_kind": _aliases([c for c in MeterKind.choices if c[0] != MeterKind.OTHER], meter_extra),
+        "meter_kind": _aliases([c for c in USAGE_METER_KIND_CHOICES if c[0] != MeterKind.OTHER], meter_extra),
         "schedule_mode": _aliases(PlanVersion.ScheduleMode.choices),
         "item_type": _aliases(ItemType.choices),
         "kind": _aliases(PlanResource.Kind.choices),
