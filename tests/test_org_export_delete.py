@@ -231,24 +231,41 @@ def test_purge_command_runs_due_purges(tenant_a):
 
 
 def _inventory_data(tenant):
+    """Una fila en cada tabla de inventario y los enlaces desde OT y planes (PROTECT entre apps)."""
     from apps.inventory import services as inventory
-    from apps.work.services import create_work_order
+    from apps.maintenance.services import create_plan
+    from apps.work.services import add_part_usage, create_work_order
 
     with tenant_context(tenant.org):
         part = inventory.create_part(membership=tenant.admin, code="ROD", name="Rodamiento")
         inventory.receive_stock(membership=tenant.admin, part=part, quantity=5, unit_cost="10")
         wo = create_work_order(work_type="corrective", title="x", asset=tenant.asset)
-        inventory.issue_to_work_order(work_order=wo, part=part, quantity=2, by=tenant.tech.user)
+        add_part_usage(work_order=wo, membership=tenant.tech, part=part, quantity=2)
         inventory.reserve_for_work_order(work_order=wo, part=part, quantity=1, source="manual")
+        create_plan(
+            code="PMR",
+            name="Con repuesto",
+            calendar_interval=30,
+            items=[{"text": "x", "item_type": "check"}],
+            resources=[
+                {"kind": "part", "description": "Rodamiento", "quantity": 1, "unit": "un", "part": part}
+            ],
+        )
+    return part
 
 
 def test_export_includes_inventory_tables(tenant_a, django_capture_on_commit_callbacks):
-    _inventory_data(tenant_a)
+    part = _inventory_data(tenant_a)
     files = read_zip(_export(tenant_a, django_capture_on_commit_callbacks).file)
     movements = csv_rows(files["datos/inventory_stockmovement.csv"])
     assert sorted(row["kind"] for row in movements) == ["issue", "receipt"]
     for name in ("part", "warehouse", "stockitem", "reservation"):
         assert len(csv_rows(files[f"datos/inventory_{name}.csv"])) == 1, name
+    # Los enlaces al catálogo desde la OT y los planes también se exportan.
+    (usage,) = csv_rows(files["datos/work_partusage.csv"])
+    assert usage["part_id"] == str(part.pk)
+    assert usage["stock_movement_id"] == next(row["id"] for row in movements if row["kind"] == "issue")
+    assert [row["part_id"] for row in csv_rows(files["datos/maintenance_planresource.csv"])] == [str(part.pk)]
 
 
 def test_purge_removes_immutable_inventory_rows(tenant_a, tenant_b):
@@ -260,6 +277,9 @@ def test_purge_removes_immutable_inventory_rows(tenant_a, tenant_b):
     summary = purge.purge_organization(org)
     connection.check_constraints()
     assert summary["tables"]["inventory.stockmovement"] == 2
+    for label in ("inventory.part", "inventory.warehouse", "inventory.stockitem", "inventory.reservation"):
+        assert summary["tables"][label] == 1, label
+    assert summary["tables"]["work.partusage"] == 1
     with platform_context():
         assert not StockMovement.all_tenants.filter(organization_id=org.pk).exists()
         assert StockMovement.all_tenants.filter(organization_id=tenant_b.org.pk).count() == 2
