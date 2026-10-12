@@ -9010,3 +9010,295 @@ msgstr ""
 
 msgid "Pañol de mantención"
 msgstr ""
+
+#: apps/assets/models.py
+msgid "Temperatura (°C)"
+msgstr ""
+
+#: apps/assets/models.py
+msgid "Vibración (mm/s)"
+msgstr ""
+
+#: apps/assets/models.py
+msgid "Presión (bar)"
+msgstr ""
+
+#: apps/assets/models.py
+msgid "Corriente (A)"
+msgstr ""
+
+#: apps/assets/models.py
+msgid "Otra variable"
+msgstr ""
+
+#: apps/assets/services.py
+msgid "Nombre o unidad demasiado largos."
+msgstr ""
+
+#: apps/assets/services.py
+msgid "Elige un tipo de medidor válido."
+msgstr ""
+
+#: apps/assets/services.py
+msgid "El activo ya tiene un medidor de ese tipo con ese nombre."
+msgstr ""
+
+#: apps/condition/apps.py apps/organizations/modules.py
+msgid "Mantenimiento por condición"
+msgstr ""
+
+#: apps/condition/models.py
+msgid "tipo de variable"
+msgstr ""
+
+#: apps/condition/models.py
+msgid "nombre de la variable"
+msgstr ""
+
+#: apps/condition/models.py
+msgid "condición"
+msgstr ""
+
+#: apps/condition/models.py
+msgid "umbral"
+msgstr ""
+
+#: apps/condition/models.py
+msgid "lecturas seguidas fuera de rango"
+msgstr ""
+
+#: apps/condition/models.py
+msgid "título de la OT"
+msgstr ""
+
+#: apps/condition/models.py
+msgid "prioridad de la OT"
+msgstr ""
+
+#: apps/condition/models.py
+msgid "instrucciones de la OT"
+msgstr ""
+
+#: apps/condition/models.py
+msgid "regla de condición"
+msgstr ""
+
+#: apps/condition/models.py
+msgid "reglas de condición"
+msgstr ""
+
+#: apps/condition/models.py
+msgid "último valor"
+msgstr ""
+
+#: apps/condition/models.py
+msgid "fecha de la última lectura evaluada"
+msgstr ""
+
+#: apps/condition/models.py
+msgid "estado de condición"
+msgstr ""
+
+#: apps/condition/models.py
+msgid "estados de condición"
+msgstr ""
+
+#: apps/condition/models.py
+msgid "abierta el"
+msgstr ""
+
+#: apps/condition/models.py
+msgid "fecha del último valor"
+msgstr ""
+
+#: apps/condition/models.py
+msgid "reconocida el"
+msgstr ""
+
+#: apps/condition/models.py
+msgid "normalizada el"
+msgstr ""
+
+#: apps/condition/models.py
+msgid "cerrada el"
+msgstr ""
+
+#: apps/condition/models.py
+msgid "alerta de condición"
+msgstr ""
+
+#: apps/condition/models.py
+msgid "alertas de condición"
+msgstr ""
+
+#: apps/condition/models.py
+msgid "Mayor que"
+msgstr ""
+
+#: apps/condition/models.py
+msgid "Menor que"
+msgstr ""
+
+#: apps/condition/models.py
+msgid "Fuera del rango"
+msgstr ""
+
+#: apps/condition/models.py
+msgid "Cambio por día mayor que"
+msgstr ""
+
+#: apps/condition/models.py
+msgid "Solo alertar"
+msgstr ""
+
+#: apps/condition/models.py
+msgid "Alertar y crear OT predictiva"
+msgstr ""
+
+#: apps/condition/models.py
+msgid "variable"
+msgstr ""
+
+#: apps/condition/models.py
+msgid "En alarma"
+msgstr ""
+
+#: apps/condition/models.py
+msgid "regla"
+msgstr ""
+
+#: apps/condition/models.py
+msgid "última lectura evaluada"
+msgstr ""
+
+#: apps/condition/models.py
+msgid "alerta del episodio en curso"
+msgstr ""
+
+#: apps/condition/models.py
+msgid "Abierta"
+msgstr ""
+
+#: apps/condition/models.py
+msgid "Reconocida"
+msgstr ""
+
+#: apps/condition/models.py
+msgid "Normalizada"
+msgstr ""
+
+#: apps/condition/models.py
+msgid "lectura que la abrió"
+msgstr ""
+
+#: apps/condition/models.py
+msgid "OT predictiva"
+msgstr ""
+
+#: apps/condition/models.py
+msgid "reconocida por"
+msgstr ""
+
+#: apps/condition/models.py
+#, python-format
+msgid "%(variable)s · clase %(cls)s"
+msgstr ""
+
+#: apps/condition/models.py
+#, python-format
+msgid "cambio > %(n)s/día"
+msgstr ""
+
+#: apps/condition/models.py
+#, python-format
+msgid "fuera de %(min)s–%(max)s"
+msgstr ""
+
+#: apps/condition/services.py
+msgid "Elige una condición válida."
+msgstr ""
+
+#: apps/condition/services.py
+msgid "Elige una acción válida."
+msgstr ""
+
+#: apps/condition/services.py
+#, python-format
+msgid "Lectura de %(value)s %(unit)s el %(date)s fuera de rango (%(condition)s)."
+msgstr ""
+
+#: apps/condition/services.py
+msgid "Indica el mínimo y el máximo del rango."
+msgstr ""
+
+#: apps/condition/services.py
+#, python-format
+msgid "Indica un número entre 1 y %(max)s."
+msgstr ""
+
+#: apps/condition/services.py
+msgid "Elige una prioridad válida."
+msgstr ""
+
+#: apps/condition/services.py
+msgid "Elige una variable de un activo o una clase de activo, no ambas."
+msgstr ""
+
+#: apps/condition/services.py
+msgid "El alcance de una regla no se cambia: crea otra regla."
+msgstr ""
+
+#: apps/condition/services.py
+msgid "Solo se reconoce una alerta abierta."
+msgstr ""
+
+#: apps/condition/services.py
+#, python-format
+msgid "Condición: %(variable)s en %(asset)s"
+msgstr ""
+
+#: apps/condition/services.py
+msgid "El máximo debe ser mayor que el mínimo."
+msgstr ""
+
+#: apps/condition/services.py
+msgid "Indica el umbral."
+msgstr ""
+
+#: apps/condition/services.py
+msgid "Clase de activo no encontrada."
+msgstr ""
+
+#: apps/condition/services.py
+msgid "Elige un tipo de variable."
+msgstr ""
+
+#: apps/condition/services.py
+msgid "El cambio por día debe ser mayor que cero."
+msgstr ""
+
+#: apps/condition/services.py
+msgid "Variable no encontrada."
+msgstr ""
+
+#: apps/condition/services.py
+msgid "Las reglas de condición se definen sobre variables, no sobre medidores de uso."
+msgstr ""
+
+#: apps/maintenance/models.py
+msgid "Una variable de condición no dispara planes por uso: elige horómetro, odómetro o ciclos."
+msgstr ""
+
+#: apps/notifications/models.py
+msgid "Alerta de condición"
+msgstr ""
+
+#: apps/notifications/services.py
+#, python-format
+msgid "Alerta de condición: %(variable)s en %(asset)s"
+msgstr ""
+
+#: apps/notifications/services.py
+#, python-format
+msgid "Valor %(value)s %(unit)s · %(rule)s"
+msgstr ""

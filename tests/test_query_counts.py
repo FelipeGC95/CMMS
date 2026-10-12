@@ -1488,3 +1488,75 @@ def test_inventory_plan_screens_do_not_grow_with_rows(client, tenant_a, which):
     add(8)
     many = _count(client, url)
     assert many == few, f"{which}: {few} → {many} consultas"
+
+
+# --- Mantenimiento por condición (CBM-04/05) -----------------------------------------
+
+
+def _condition_alerts(tenant, n, start):
+    """`n` variables con una regla y una alerta abierta cada una (con su OT predictiva)."""
+    from apps.condition import services as condition
+    from tests.condition_utils import read, variable
+
+    with tenant_context(tenant.org):
+        for i in range(start, start + n):
+            asset = Asset.objects.create(
+                code=f"V-{i:03d}", name=f"Motor {i}", asset_class=tenant.asset.asset_class
+            )
+            meter = variable(asset)
+            condition.create_rule(membership=tenant.admin, meter=meter, operator="gt", threshold="80")
+            read(meter, "85")
+
+
+def test_condition_alert_list_queries_do_not_grow(tenant_a):
+    from apps.condition.selectors import alert_list, rule_list
+
+    def count():
+        with tenant_context(tenant_a.org), CaptureQueriesContext(connection) as ctx:
+            shown = [
+                (a.rule.label, str(a.meter), a.asset.code, a.work_order.code, a.asset.location)
+                for a in alert_list(membership=tenant_a.admin)
+            ]
+            shown += [(r.label, r.meter.asset.code) for r in rule_list(membership=tenant_a.admin)]
+        assert shown
+        return len(ctx)
+
+    _condition_alerts(tenant_a, 2, 0)
+    few = count()
+    _condition_alerts(tenant_a, 8, 2)
+    assert count() == few
+
+
+def test_condition_evaluation_queries_are_bounded(tenant_a, django_assert_max_num_queries):
+    """Lectura de una variable con reglas en régimen (estado ya creado): consultas acotadas."""
+    from apps.assets.models import MeterKind
+    from apps.condition import services as condition
+    from tests.condition_utils import read, variable
+
+    def per_reading(rules):
+        with tenant_context(tenant_a.org):
+            asset = Asset.objects.create(
+                code=f"E-{rules}", name="Motor", asset_class=tenant_a.asset.asset_class
+            )
+            meter = variable(asset)
+            for i in range(rules):
+                condition.create_rule(
+                    membership=tenant_a.admin,
+                    meter=meter,
+                    operator="gt",
+                    threshold=str(80 + i),
+                    action="alert",
+                )
+            read(meter, "70")  # crea los estados
+            read(meter, "90", hours=1)  # abre los episodios
+            with CaptureQueriesContext(connection) as ctx:
+                read(meter, "91", hours=2)  # sigue en alarma: solo actualiza
+        return len(ctx)
+
+    one, five = per_reading(1), per_reading(5)
+    assert one <= 14, one
+    assert five - one <= 4 * 2, (one, five)  # a lo más el estado y la alerta de cada regla extra
+    with tenant_context(tenant_a.org):
+        meter = variable(tenant_a.asset, kind=MeterKind.PRESSURE)
+        with django_assert_max_num_queries(8):  # sin reglas: no busca estados
+            read(meter, "5")

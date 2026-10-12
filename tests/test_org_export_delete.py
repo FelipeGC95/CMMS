@@ -284,3 +284,44 @@ def test_purge_removes_immutable_inventory_rows(tenant_a, tenant_b):
         assert not StockMovement.all_tenants.filter(organization_id=org.pk).exists()
         assert StockMovement.all_tenants.filter(organization_id=tenant_b.org.pk).count() == 2
         assert Part.all_tenants.filter(organization_id=tenant_b.org.pk).count() == 1
+
+
+# ---------- Mantenimiento por condición (CBM-10): exportación y purga ----------
+
+
+def _condition_data(tenant):
+    """Una regla, su estado, una alerta y su OT predictiva (PROTECT entre apps)."""
+    from apps.condition import services as condition
+    from tests.condition_utils import read, variable
+
+    with tenant_context(tenant.org):
+        meter = variable(tenant.asset)
+        condition.create_rule(membership=tenant.admin, meter=meter, operator="gt", threshold="80")
+        read(meter, "85")
+    return meter
+
+
+def test_export_includes_condition_tables(tenant_a, django_capture_on_commit_callbacks):
+    meter = _condition_data(tenant_a)
+    files = read_zip(_export(tenant_a, django_capture_on_commit_callbacks).file)
+    for name in ("conditionrule", "conditionstate", "conditionalert"):
+        rows = csv_rows(files[f"datos/condition_{name}.csv"])
+        assert len(rows) == 1, name
+        assert rows[0]["meter_id"] == str(meter.pk)
+    (alert,) = csv_rows(files["datos/condition_conditionalert.csv"])
+    assert alert["work_order_id"]
+
+
+def test_purge_removes_condition_rows(tenant_a, tenant_b):
+    from apps.condition.models import ConditionAlert, ConditionRule
+
+    _condition_data(tenant_a)
+    _condition_data(tenant_b)
+    org = _request_deletion(tenant_a)
+    summary = purge.purge_organization(org)
+    connection.check_constraints()
+    for label in ("condition.conditionrule", "condition.conditionstate", "condition.conditionalert"):
+        assert summary["tables"][label] == 1, label
+    with platform_context():
+        assert not ConditionAlert.all_tenants.filter(organization_id=org.pk).exists()
+        assert ConditionRule.all_tenants.filter(organization_id=tenant_b.org.pk).count() == 1

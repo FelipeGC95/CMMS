@@ -20,10 +20,9 @@ STATUS_ORDER = Case(
     output_field=IntegerField(),
 )
 ALERT_RELATED = (
-    "rule",
     "rule__asset_class",
-    "meter",
-    "asset",
+    "rule__meter__asset",
+    "meter__asset",
     "asset__location",
     "work_order",
     "acknowledged_by",
