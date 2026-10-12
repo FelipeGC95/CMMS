@@ -1210,6 +1210,51 @@ def test_inventory_stock_list_and_part_detail_are_bounded(tenant_a, django_asser
             [(m.warehouse.code, m.created_by) for m in detail.movements]
 
 
+def test_inventory_insights_and_where_used_are_fixed_queries(tenant_a, django_assert_num_queries):
+    """INV-15 y INV-01 CA4: indicadores en 4 consultas y "Dónde se usa" en 2, sin importar el volumen."""
+    from apps.inventory import services as inventory
+    from apps.inventory.models import Part
+    from apps.inventory.selectors import inventory_insights, part_where_used
+    from apps.maintenance.services import create_plan
+    from apps.work.services import add_part_usage
+
+    with tenant_context(tenant_a.org):
+        first = inventory.create_part(membership=tenant_a.admin, code="FIRST", name="Primero")
+
+    def grow(n):
+        with tenant_context(tenant_a.org):
+            for _ in range(n):
+                k = Part.objects.count()
+                part = inventory.create_part(membership=tenant_a.admin, code=f"Q{k}", name=f"Q{k}")
+                inventory.receive_stock(membership=tenant_a.admin, part=part, quantity=4, unit_cost="7")
+                asset = Asset.objects.create(
+                    code=f"QA{k}", name=f"QA{k}", asset_class=tenant_a.asset.asset_class
+                )
+                wo = create_work_order(work_type="corrective", title="q", asset=asset)
+                add_part_usage(work_order=wo, membership=tenant_a.admin, part=first, quantity=1)
+                create_plan(
+                    code=f"PQ{k}",
+                    name=f"PQ{k}",
+                    calendar_interval=30,
+                    items=[{"text": "x", "item_type": "check"}],
+                    resources=[
+                        {"kind": "part", "description": "x", "quantity": 1, "unit": "un", "part": first}
+                    ],
+                )
+
+    for n in (2, 8):
+        grow(n)
+        with tenant_context(tenant_a.org):
+            with django_assert_num_queries(4):
+                insights = inventory_insights(membership=tenant_a.admin)
+                [(row.name, row.value) for row in insights.by_warehouse]
+                [(part.code, value) for part, value in insights.stale]
+            with django_assert_num_queries(2):
+                where = part_where_used(first, membership=tenant_a.admin)
+                [(use.plan.name, use.plan.asset_class) for use in where.plans]
+                [(use.code, use.quantity) for use in where.assets]
+
+
 def _add_inventory_rows(tenant, n):
     """Repuestos con stock en dos bodegas, movimientos, mínimos y una bodega más por llamada."""
     from apps.inventory import services as inventory

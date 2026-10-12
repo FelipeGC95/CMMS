@@ -1,4 +1,4 @@
-{% extends "base.html" %}{% load i18n ui inventory_tags %}
+{% extends "base.html" %}{% load i18n ui inventory_tags accounts_tags %}
 {% block title %}{{ part.code }} · {{ part.name }}{% endblock %}
 {% block content %}
 {% optional_url 'inventory_receive' as receive_url %}{% optional_url 'inventory_part_count' part.pk as count_url %}
@@ -46,6 +46,8 @@
       {% if part.notes %}<dt>{% translate "Notas" %}</dt><dd>{{ part.notes|linebreaksbr }}</dd>{% endif %}
     </dl>
   </section>
+
+  {% include "inventory/_where_used.html" %}
 
   <section class="card card--flush" aria-labelledby="movements-title">
     <div class="card__header"><h2 id="movements-title">{% translate "Últimos movimientos" %}</h2>{% if detail.movements %}<a href="{% url 'inventory_movements' %}?part={{ part.code|urlencode }}">{% translate "Ver todos" %}</a>{% endif %}</div>

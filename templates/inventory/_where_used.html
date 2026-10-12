@@ -1,0 +1,45 @@
+{% load i18n ui accounts_tags %}{# "Dónde se usa" (INV-01 CA4): calculado desde los planes vigentes y los consumos en OT. #}
+<section class="card" aria-labelledby="where-used-title">
+  <h2 id="where-used-title">{% translate "Dónde se usa" %}</h2>
+
+  <h3>{% translate "Planes preventivos" %}</h3>
+  {% if where_used.plans %}
+  <div class="card--flush mb-4">
+    <table class="table">
+      <thead><tr><th>{% translate "Plan" %}</th><th>{% translate "Clase de activo" %}</th><th class="num">{% translate "Por ejecución" %}</th></tr></thead>
+      <tbody>
+        {% for use in where_used.plans %}
+        <tr>
+          <td data-label="">{% if membership|can:"plan.manage" %}<a href="{% url 'plan_detail' use.plan.pk %}">{{ use.plan.name }}</a>{% else %}{{ use.plan.name }}{% endif %} <span class="muted mono">{{ use.plan.code }}</span></td>
+          <td data-label="{% translate 'Clase de activo' %}">{{ use.plan.asset_class.name|default:"—" }}</td>
+          <td class="num" data-label="{% translate 'Por ejecución' %}">{{ use.quantity|num }} {{ part.unit }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="muted">{% translate "Ningún plan vigente prevé este repuesto." %}</p>
+  {% endif %}
+
+  <h3>{% translate "Activos donde se consumió (últimos 24 meses)" %}</h3>
+  {% if where_used.assets %}
+  <div class="card--flush">
+    <table class="table">
+      <thead><tr><th>{% translate "Activo" %}</th><th class="num">{% translate "Cantidad" %}</th><th>{% translate "Último uso" %}</th></tr></thead>
+      <tbody>
+        {% for use in where_used.assets %}
+        <tr>
+          <td data-label=""><a href="{% url 'asset_detail' use.asset_id %}">{{ use.name }}</a> <span class="muted mono">{{ use.code }}</span></td>
+          <td class="num" data-label="{% translate 'Cantidad' %}">{{ use.quantity|num }} {{ part.unit }}</td>
+          <td class="num" data-label="{% translate 'Último uso' %}">{{ use.last_used_at|date:"d-m-Y" }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% if where_used.more_assets %}<p class="muted">{% translate "Se muestran los 20 activos con uso más reciente." %}</p>{% endif %}
+  {% else %}
+  <p class="muted">{% translate "No se ha consumido en activos en los últimos 24 meses." %}</p>
+  {% endif %}
+</section>

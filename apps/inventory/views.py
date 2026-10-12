@@ -18,9 +18,11 @@ from .forms import PartForm, StockLevelsForm, WarehouseForm, apply_errors
 from .models import Part
 from .selectors import (
     STOCK_STATUSES,
+    inventory_insights,
     part_categories,
     part_detail,
     part_search,
+    part_where_used,
     stock_counters,
     stock_list,
     stock_rows,
@@ -96,6 +98,10 @@ def inventory_home_view(request):
             "warehouses": warehouses,
             "categories": part_categories(),
             "counters": stock_counters(membership=membership, warehouse=warehouse),
+            # Indicadores (INV-15): solo con permiso de costos (Q3).
+            "insights": inventory_insights(membership=membership)
+            if has_parts and perms["show_costs"]
+            else None,
             "has_parts": has_parts,
             "from_plans": from_plans,
             "filtered": bool(search or category or status or warehouse),
@@ -210,8 +216,10 @@ def _detail_context(membership, pk, *, bound=None) -> dict:
 
 @membership_required(perm=Perm.INVENTORY_VIEW)
 def part_detail_view(request, pk):
-    """Ficha del repuesto (pantalla 2, INV-04): stock por bodega, mínimos y últimos movimientos."""
-    return render(request, "inventory/part_detail.html", _detail_context(request.membership, pk))
+    """Ficha del repuesto (pantalla 2, INV-04): stock por bodega, mínimos, movimientos y dónde se usa."""
+    context = _detail_context(request.membership, pk)
+    context["where_used"] = part_where_used(context["part"], membership=request.membership)
+    return render(request, "inventory/part_detail.html", context)
 
 
 @require_POST

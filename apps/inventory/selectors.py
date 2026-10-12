@@ -7,13 +7,16 @@ from decimal import Decimal
 
 from django.db.models import (
     Case,
+    Count,
     DecimalField,
     Exists,
     ExpressionWrapper,
     F,
     IntegerField,
+    Max,
     OuterRef,
     Q,
+    Subquery,
     Sum,
     Value,
     When,
@@ -385,4 +388,213 @@ def reorder_list(*, membership, warehouse=None):
         )
         .select_related("part", "warehouse")
         .order_by("-warehouse__is_default", "warehouse__name", "warehouse_id", "priority", "part__code")
+    )
+
+
+# --- "Dónde se usa" (INV-01 CA4) -----------------------------------------------
+
+WHERE_USED_DAYS = 730  # 24 meses
+WHERE_USED_LIMIT = 20
+
+
+@dataclass
+class PlanUse:
+    """Un plan cuya versión vigente prevé el repuesto, con la cantidad por ejecución."""
+
+    plan: object
+    quantity: Decimal
+
+
+@dataclass
+class AssetUse:
+    """Un activo donde se consumió el repuesto: cantidad neta y última fecha."""
+
+    asset_id: object
+    code: str
+    name: str
+    quantity: Decimal
+    last_used_at: datetime.datetime
+
+
+@dataclass
+class WhereUsed:
+    plans: list
+    assets: list
+    more_assets: bool = False
+
+
+def part_where_used(part, *, membership, now=None) -> WhereUsed:
+    """Dónde se usa el repuesto (INV-01 CA4), calculado y sin tablas nuevas (ADR-028 §9).
+
+    Planes activos cuya versión vigente (publicada) lo prevé, con su clase de activo, y
+    activos visibles (alcance por sitio) donde se consumió en los últimos 24 meses:
+    cantidad neta (quitar una línea de la OT la devuelve y la borra) y última fecha.
+    Dos consultas, sin importar el volumen.
+    """
+    from apps.maintenance.models import PlanResource
+    from apps.work.models import PartUsage
+
+    require_perm(membership, Perm.INVENTORY_VIEW)
+    resources = (
+        PlanResource.objects.filter(
+            part=part, version__plan__current_version=F("version"), version__plan__is_active=True
+        )
+        .select_related("version__plan__asset_class")
+        .order_by("version__plan__name", "version__plan_id")
+    )
+    plans: dict = {}
+    for resource in resources:
+        plan = resource.version.plan
+        if plan.pk in plans:
+            plans[plan.pk].quantity += resource.quantity
+        else:
+            plans[plan.pk] = PlanUse(plan=plan, quantity=resource.quantity)
+
+    since = (now or timezone.now()) - datetime.timedelta(days=WHERE_USED_DAYS)
+    usages = PartUsage.objects.filter(part=part, work_order__asset__isnull=False).annotate(
+        used_at=Coalesce("stock_movement__occurred_at", "created_at")
+    )
+    allowed = allowed_location_ids(membership)
+    if allowed is not None:
+        usages = usages.filter(work_order__asset__location_id__in=allowed)
+    rows = list(
+        usages.filter(used_at__gte=since)
+        .values("work_order__asset_id", "work_order__asset__code", "work_order__asset__name")
+        .annotate(total=Sum("quantity"), last=Max("used_at"))
+        .order_by("-last", "work_order__asset__code")[: WHERE_USED_LIMIT + 1]
+    )
+    assets = [
+        AssetUse(
+            asset_id=row["work_order__asset_id"],
+            code=row["work_order__asset__code"],
+            name=row["work_order__asset__name"],
+            quantity=row["total"],
+            last_used_at=row["last"],
+        )
+        for row in rows[:WHERE_USED_LIMIT]
+    ]
+    return WhereUsed(plans=list(plans.values()), assets=assets, more_assets=len(rows) > WHERE_USED_LIMIT)
+
+
+# --- Indicadores (INV-15) -------------------------------------------------------
+
+INSIGHTS_DAYS = 365  # 12 meses
+STALE_LIMIT = 10
+MONEY_STEP = Decimal("0.01")
+VALUE_FIELD = DecimalField(max_digits=32, decimal_places=7)
+
+
+def _money(value) -> Decimal:
+    return (value or Decimal(0)).quantize(MONEY_STEP)
+
+
+@dataclass
+class WarehouseValue:
+    warehouse_id: object
+    code: str
+    name: str
+    value: Decimal
+
+
+def inventory_value(*, membership) -> tuple[Decimal, list]:
+    """Valor del inventario (INV-15): Σ on_hand positivo × costo promedio, total y por bodega.
+
+    Solo bodegas visibles (activas o no, si tienen saldo). Devuelve
+    (total, [WarehouseValue]) con las bodegas de mayor valor primero. Una consulta.
+    """
+    require_perm(membership, Perm.INVENTORY_COST_VIEW)
+    value = ExpressionWrapper(F("on_hand") * F("part__avg_cost"), output_field=VALUE_FIELD)
+    rows = list(
+        StockItem.objects.filter(
+            warehouse__in=Warehouse.objects.filter(warehouse_scope(membership)), on_hand__gt=0
+        )
+        .values("warehouse_id", "warehouse__code", "warehouse__name")
+        .annotate(value=Sum(value))
+        .order_by("-value", "warehouse__name")
+    )
+    by_warehouse = [
+        WarehouseValue(
+            warehouse_id=row["warehouse_id"],
+            code=row["warehouse__code"],
+            name=row["warehouse__name"],
+            value=_money(row["value"]),
+        )
+        for row in rows
+    ]
+    return sum((row.value for row in by_warehouse), Decimal(0)), by_warehouse
+
+
+def consumption_12m(*, membership, now=None) -> Decimal:
+    """Consumo valorizado de los últimos 12 meses (INV-15): salidas a OT − devoluciones.
+
+    Al costo con que quedó cada movimiento, en las bodegas visibles. Una consulta.
+    """
+    require_perm(membership, Perm.INVENTORY_COST_VIEW)
+    since = (now or timezone.now()) - datetime.timedelta(days=INSIGHTS_DAYS)
+    total = StockMovement.objects.filter(
+        warehouse__in=Warehouse.objects.filter(warehouse_scope(membership)),
+        kind__in=[StockMovement.Kind.ISSUE, StockMovement.Kind.RETURN],
+        occurred_at__gte=since,
+    ).aggregate(total=Sum("total_cost"))["total"]
+    # Las salidas tienen costo negativo y las devoluciones positivo: el consumo es el opuesto.
+    return _money(-(total or Decimal(0)))
+
+
+def stale_parts(*, membership, now=None):
+    """Repuestos con existencia y sin movimientos en 12 meses (INV-15), con su valor.
+
+    Anota `stock_value` (Σ on_hand positivo × costo promedio en las bodegas visibles) y
+    `last_moved_at`; los de mayor valor primero. Una consulta.
+    """
+    require_perm(membership, Perm.INVENTORY_COST_VIEW)
+    since = (now or timezone.now()) - datetime.timedelta(days=INSIGHTS_DAYS)
+    warehouses = Warehouse.objects.filter(warehouse_scope(membership))
+    movements = StockMovement.objects.filter(part=OuterRef("pk"), warehouse__in=warehouses)
+    in_scope = Q(stock_items__warehouse__in=warehouses, stock_items__on_hand__gt=0)
+    return (
+        Part.objects.annotate(
+            stock_value=Sum(
+                ExpressionWrapper(F("stock_items__on_hand") * F("avg_cost"), output_field=VALUE_FIELD),
+                filter=in_scope,
+            ),
+            last_moved_at=Subquery(movements.order_by("-occurred_at").values("occurred_at")[:1]),
+        )
+        .filter(stock_value__gt=0)
+        .exclude(Exists(movements.filter(occurred_at__gte=since)))
+        .order_by("-stock_value", "code")
+    )
+
+
+@dataclass
+class InventoryInsights:
+    total_value: Decimal
+    by_warehouse: list
+    consumption: Decimal
+    stale_count: int
+    stale_value: Decimal
+    stale: list
+
+    @property
+    def turnover(self) -> Decimal | None:
+        """Rotación aproximada: consumo de 12 meses ÷ valor actual (vacía si no hay valor)."""
+        if self.total_value <= 0:
+            return None
+        return (self.consumption / self.total_value).quantize(Decimal("0.1"))
+
+
+def inventory_insights(*, membership, now=None) -> InventoryInsights:
+    """Los cuatro indicadores del inicio de inventario (INV-15) en cuatro consultas fijas.
+
+    `stale` trae los 10 repuestos sin movimiento de mayor valor, como (repuesto, valor).
+    """
+    total, by_warehouse = inventory_value(membership=membership)
+    stale = stale_parts(membership=membership, now=now)
+    summary = stale.aggregate(count=Count("pk"), value=Sum("stock_value"))
+    return InventoryInsights(
+        total_value=total,
+        by_warehouse=by_warehouse,
+        consumption=consumption_12m(membership=membership, now=now),
+        stale_count=summary["count"] or 0,
+        stale_value=_money(summary["value"]),
+        stale=[(part, _money(part.stock_value)) for part in stale[:STALE_LIMIT]],
     )

@@ -47,6 +47,8 @@
 {% endif %}
 {% else %}
 
+{% if insights %}{% include "inventory/_insights.html" %}{% endif %}
+
 <nav class="chips" aria-label="{% translate 'Estado del stock' %}">
   <a class="chip chip--counter" href="?{% if warehouse %}warehouse={{ warehouse.pk }}{% endif %}"{% if not status %} aria-current="true"{% endif %}>{% translate "Todos" %}</a>
   <a class="chip chip--counter chip--warning" href="?status=below_min{% if warehouse %}&warehouse={{ warehouse.pk }}{% endif %}"{% if status == "below_min" %} aria-current="true"{% endif %}>{% icon 'alert' %}{% translate "Bajo mínimo" %}<span class="chip__count">{{ counters.below_min }}</span></a>

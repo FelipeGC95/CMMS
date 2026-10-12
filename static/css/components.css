@@ -162,6 +162,10 @@ main { max-width: var(--content-max); margin: 0 auto; padding: var(--space-5) va
 .kpi__formula > summary { display: flex; align-items: center; min-height: var(--touch-target); cursor: pointer; color: var(--color-accent-text); font-weight: 500; }
 .kpi__formula p { margin: var(--space-1) 0 0; }
 .kpi__formula code { font-size: var(--text-xs); color: var(--color-text); overflow-wrap: anywhere; }
+/* Desglose de un KPI (p. ej. valor por bodega, INV-15): etiqueta a la izquierda, monto a la derecha. */
+.kpi__breakdown { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--space-1) var(--space-3); margin: var(--space-1) 0 0; }
+.kpi__breakdown dt { color: var(--color-text); overflow-wrap: anywhere; }
+.kpi__breakdown dd { margin: 0; text-align: right; color: var(--color-text); font-variant-numeric: tabular-nums; white-space: nowrap; }
 
 /* ---------- Botones ---------- */
 .btn {

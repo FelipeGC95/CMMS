@@ -8940,3 +8940,73 @@ msgstr ""
 
 msgid "Reposición de repuestos"
 msgstr ""
+
+msgid "Indicadores de inventario"
+msgstr ""
+
+msgid "Valor del inventario"
+msgstr ""
+
+msgid "Existencia positiva × costo promedio"
+msgstr ""
+
+msgid "Por bodega"
+msgstr ""
+
+msgid "Consumo 12 meses"
+msgstr ""
+
+msgid "Salidas a OT − devoluciones, al costo de cada movimiento"
+msgstr ""
+
+msgid "Rotación aprox."
+msgstr ""
+
+msgid "veces al año"
+msgstr ""
+
+msgid "Aproximada: usa el valor de hoy, no el promedio del año"
+msgstr ""
+
+msgid "consumo valorizado de 12 meses / valor actual del inventario"
+msgstr ""
+
+msgid "Es aproximada porque divide por el valor de hoy y no por el valor promedio del período. Una rotación baja indica stock que se mueve poco."
+msgstr ""
+
+msgid "Sin movimiento en 12 meses"
+msgstr ""
+
+#, python-format
+msgid "%(n)s repuesto con existencia"
+msgid_plural "%(n)s repuestos con existencia"
+msgstr[0] ""
+msgstr[1] ""
+
+msgid "Ver repuestos"
+msgstr ""
+
+#, python-format
+msgid "Los %(n)s de mayor valor."
+msgstr ""
+
+msgid "Dónde se usa"
+msgstr ""
+
+msgid "Por ejecución"
+msgstr ""
+
+msgid "Ningún plan vigente prevé este repuesto."
+msgstr ""
+
+msgid "Activos donde se consumió (últimos 24 meses)"
+msgstr ""
+
+msgid "Se muestran los 20 activos con uso más reciente."
+msgstr ""
+
+msgid "No se ha consumido en activos en los últimos 24 meses."
+msgstr ""
+
+msgid "Pañol de mantención"
+msgstr ""

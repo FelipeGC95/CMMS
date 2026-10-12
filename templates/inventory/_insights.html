@@ -1,0 +1,45 @@
+{% load i18n ui %}{# Indicadores de inventario (INV-15): solo con inventory.cost_view; bodegas visibles. #}
+<section class="grid grid--kpi mb-4" aria-label="{% translate 'Indicadores de inventario' %}">
+  <div class="card kpi">
+    <span class="kpi__label">{% translate "Valor del inventario" %}</span>
+    <span class="kpi__value num">$ {{ insights.total_value|num }}</span>
+    <span class="kpi__hint">{% translate "Existencia positiva × costo promedio" %}</span>
+    {% if insights.by_warehouse|length > 1 %}
+    <details class="kpi__formula">
+      <summary>{% translate "Por bodega" %}</summary>
+      <dl class="kpi__breakdown">
+        {% for row in insights.by_warehouse %}<dt>{{ row.name }}</dt><dd class="num">$ {{ row.value|num }}</dd>{% endfor %}
+      </dl>
+    </details>
+    {% endif %}
+  </div>
+  <div class="card kpi">
+    <span class="kpi__label">{% translate "Consumo 12 meses" %}</span>
+    <span class="kpi__value num">$ {{ insights.consumption|num }}</span>
+    <span class="kpi__hint">{% translate "Salidas a OT − devoluciones, al costo de cada movimiento" %}</span>
+  </div>
+  <div class="card kpi">
+    <span class="kpi__label">{% translate "Rotación aprox." %}</span>
+    <span class="kpi__value num">{% if insights.turnover is not None %}{{ insights.turnover|num }}<span class="kpi__unit">{% translate "veces al año" %}</span>{% else %}—{% endif %}</span>
+    <span class="kpi__hint">{% translate "Aproximada: usa el valor de hoy, no el promedio del año" %}</span>
+    <details class="kpi__formula">
+      <summary>{% translate "Fórmula" %}</summary>
+      <p><code>{% translate "consumo valorizado de 12 meses / valor actual del inventario" %}</code></p>
+      <p>{% translate "Es aproximada porque divide por el valor de hoy y no por el valor promedio del período. Una rotación baja indica stock que se mueve poco." %}</p>
+    </details>
+  </div>
+  <div class="card kpi">
+    <span class="kpi__label">{% translate "Sin movimiento en 12 meses" %}</span>
+    <span class="kpi__value num">$ {{ insights.stale_value|num }}</span>
+    <span class="kpi__hint">{% blocktranslate count n=insights.stale_count %}{{ n }} repuesto con existencia{% plural %}{{ n }} repuestos con existencia{% endblocktranslate %}</span>
+    {% if insights.stale %}
+    <details class="kpi__formula">
+      <summary>{% translate "Ver repuestos" %}</summary>
+      <dl class="kpi__breakdown">
+        {% for part, value in insights.stale %}<dt><a href="{% url 'inventory_part_detail' part.pk %}">{{ part.code }}</a> {{ part.name }}</dt><dd class="num">$ {{ value|num }}</dd>{% endfor %}
+      </dl>
+      {% if insights.stale_count > insights.stale|length %}<p>{% blocktranslate with n=insights.stale|length %}Los {{ n }} de mayor valor.{% endblocktranslate %}</p>{% endif %}
+    </details>
+    {% endif %}
+  </div>
+</section>
