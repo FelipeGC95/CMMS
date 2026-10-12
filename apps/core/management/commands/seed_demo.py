@@ -27,6 +27,8 @@ from apps.work.models import FailureCode, FailureEvent, LaborRate, WorkOrder
 from apps.work.selectors import OPEN_STATUSES
 from apps.work.services import answer_checklist_item, complete_work_order, create_work_order
 
+from . import _seed_inventory as demo_inventory
+
 # En ambientes publicados se define DEMO_PASSWORD (la de por defecto está en el repo).
 PASSWORD = os.environ.get("DEMO_PASSWORD") or "demo-galbust-2026"
 
@@ -221,32 +223,32 @@ LABOR_RATE_TECH2 = Decimal("22000")
 
 HISTORY_FAILURES = [
     # activo, hace N días, horas detenido, descripción, modo, causa,
-    # repuestos [(descripción, cantidad, costo unitario)], otro costo (descripción, monto) o None
+    # repuestos del catálogo [(código, cantidad)] (al costo promedio), otro costo (descripción, monto) o None
     ("FRI-01", 78, 9.0, "Cámara 1 sin frío por falla de contactor", "BRD", "ELE",
-     [("Contactor 3 polos 40 A", 1, 64000)], ("Técnico de frío externo", 180000)),
+     [("REP-FRI-001", 1)], ("Técnico de frío externo", 180000)),
     ("ENV-01", 66, 4.0, "Mordaza no corta el film", "ERO", "DES",
-     [("Cuchilla de corte", 1, 92000)], None),
+     [("REP-ENV-003", 1)], None),
     ("CMP-01", 57, 6.5, "Fuga de aceite en enfriador del compresor", "ELP", "MAT",
-     [("Juego de sellos enfriador", 1, 145000), ("Aceite Roto-Inject 5 L", 2, 48000)], None),
+     [("REP-CMP-004", 1), ("REP-CMP-003", 2)], None),
     ("GRH-01", 49, 3.0, "Grúa no levanta carga completa", "ERO", "ELE",
-     [("Relé de control hidráulico", 1, 38000)], None),
+     [("REP-GRH-007", 1)], None),
     ("ENV-02", 41, 2.5, "Mordaza vertical no sella", "ERO", "DES",
-     [("Resistencia de mordaza", 2, 41000)], None),
+     [("REP-ENV-001", 2)], None),
     ("CAL-01", 35, 5.0, "Caldera se apaga por bajo nivel de agua", "BRD", "SUC",
-     [("Electrodo de nivel", 1, 56000)], ("Limpieza química de serpentín", 240000)),
+     [("REP-CAL-001", 1)], ("Limpieza química de serpentín", 240000)),
     ("ENV-01", 26, 5.5, "Mordaza vertical no sella, bolsas abiertas", "ERO", "DES",
-     [("Resistencia de mordaza", 2, 41000), ("Teflón de mordaza", 3, 12500)], None),
+     [("REP-ENV-001", 2)], None),
     ("CMP-01", 21, 3.0, "Compresor se detiene por alta temperatura", "OHE", "SUC",
-     [("Filtro de aire", 1, 32000)], None),
+     [("REP-CMP-001", 1)], None),
     ("FRI-02", 17, 7.0, "Cámara 2 no baja de -12 °C", "BRD", "ELE",
-     [("Presostato de alta", 1, 87000)], ("Carga de refrigerante R404A", 210000)),
+     [("REP-FRI-002", 1), ("REP-FRI-004", 3)], None),
     ("ENV-02", 12, 2.0, "Film se corta en el formador", "ERO", "OPE", [], None),
     ("GRH-02", 9, 4.5, "Fuga de aceite hidráulico en cilindro de elevación", "ELP", "MAT",
-     [("Kit de sellos de cilindro", 1, 76000), ("Aceite hidráulico 20 L", 1, 89000)], None),
+     [("REP-GRH-006", 1), ("REP-GRH-004", 1)], None),
     ("ENV-01", 6, 3.5, "Ruido fuerte en motor de arrastre", "NOI", "LUB",
-     [("Rodamiento 6205-2RS", 2, 9500)], None),
+     [("REP-ENV-004", 2)], None),
     ("CAL-01", 3, 2.5, "Quemador no enciende en la mañana", "BRD", "ELE",
-     [("Electrodo de ignición", 1, 28000)], None),
+     [("REP-CAL-002", 1)], None),
 ]  # fmt: skip
 
 
@@ -426,6 +428,11 @@ class Command(BaseCommand):
             )
         # El catálogo base de falla (REQ-03 CA1) ya se cargó al crear `org` (señal en apps.work).
         codes = {c.code: c for c in FailureCode.objects.all()}
+        # Inventario (INV): bodega principal + pañol del sitio, catálogo y stock inicial.
+        parts = demo_inventory.seed_warehouses_and_parts(
+            admin=admin, locations=locations, history_days=HISTORY_DAYS
+        )
+        self.parts = parts
 
         # Planes y asignaciones con vencimientos repartidos (algunos atrasados).
         for code, name, cls, interval, minutes, items in PLANS:
@@ -436,6 +443,7 @@ class Command(BaseCommand):
                 calendar_interval=interval,
                 estimated_minutes=minutes,
                 items=self._items(items),
+                resources=demo_inventory.plan_resources(code, parts),
             )
             for asset in (a for a in assets.values() if a.asset_class_id == classes[cls].id):
                 first_due = history_start + datetime.timedelta(days=random.randint(0, min(interval, 60) - 1))
@@ -515,8 +523,9 @@ class Command(BaseCommand):
             description="Gotera en el techo de la bodega\nCae agua cerca de los pallets de despacho.",
         )
 
-        # Preventivos vigentes (próximos 14 días y atrasados).
+        # Preventivos vigentes (próximos 14 días y atrasados): reservan sus repuestos previstos.
         generate_due_work_orders(today=today)
+        demo_inventory.finish()
 
     def _corrective_checklist(self, work_order, members):
         """Checklist de la correctiva abierta (MVP-0: aviso por QR → OT → checklist en el celular)."""
@@ -564,6 +573,7 @@ class Command(BaseCommand):
                 calendar_interval=days,
                 estimated_minutes=minutes,
                 items=self._items(items),
+                resources=demo_inventory.plan_resources(code, self.parts),
             )
             for asset_code, left in remaining.items():
                 meter = assets[asset_code].meters.get(kind=kind)
@@ -628,8 +638,12 @@ class Command(BaseCommand):
                 delay = delays.setdefault(wo.pk, random.choice([0, 0, 0, 0, 0, 1, 3, 6]))
                 if day >= wo.due_on + datetime.timedelta(days=delay):
                     self._run_checklist(wo, tech)
+                    # Al cerrar en la web se consumen los repuestos previstos (Q2 de INV).
                     complete_work_order(
-                        work_order=wo, membership=tech, labor_minutes=wo.estimated_minutes or 60
+                        work_order=wo,
+                        membership=tech,
+                        labor_minutes=wo.estimated_minutes or 60,
+                        parts_used=demo_inventory.planned_usage(wo),
                     )
                     self._backdate(wo, day)
             day += datetime.timedelta(days=1)
@@ -653,6 +667,7 @@ class Command(BaseCommand):
             created_at=moment - datetime.timedelta(days=3),
         )
         wo.transitions.update(created_at=moment)
+        demo_inventory.backdate_movements(wo.stock_movements.all(), moment)
         if wo.plan_assignment_id:
             from apps.maintenance.services import register_completion
 
@@ -686,14 +701,9 @@ class Command(BaseCommand):
             membership=members["operator"], asset=asset, description=text, asset_stopped=True
         )
         wo = request.work_order
-        for description, quantity, unit_cost in parts:
+        for code, quantity in parts:
             add_part_usage(
-                work_order=wo,
-                membership=members["tech"],
-                description=description,
-                quantity=quantity,
-                unit_cost=unit_cost,
-                unit="un",
+                work_order=wo, membership=members["tech"], part=self.parts[code], quantity=quantity
             )
         if other:
             add_other_cost(work_order=wo, membership=members["admin"], description=other[0], amount=other[1])
@@ -726,4 +736,5 @@ class Command(BaseCommand):
             created_at=started, started_at=repair_start, completed_at=ended, closed_at=ended
         )
         wo.transitions.update(created_at=ended)
+        demo_inventory.backdate_movements(wo.stock_movements.all(), repair_start)
         request.__class__.objects.filter(pk=request.pk).update(created_at=started)

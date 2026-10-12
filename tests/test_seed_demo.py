@@ -76,3 +76,37 @@ def test_demo_has_an_open_corrective_from_a_failure_report_with_checklist():
         wo = with_checklist[0]
         assert wo.assigned_to.email == "tecnico@demo.cl"
         assert wo.checklist.filter(item_type="measurement").exists()
+
+
+def test_demo_has_inventory_with_history_and_alerts():
+    # INV (P7): bodega principal + una por sitio, catálogo, planes enlazados, reservas, consumos
+    # históricos (para los indicadores), un repuesto bajo mínimo y uno en negativo.
+    from apps.accounts.models import Membership
+    from apps.inventory.models import Part, Reservation, Warehouse
+    from apps.inventory.selectors import inventory_insights, stock_counters
+    from apps.inventory.services import reconcile_stock
+    from apps.maintenance.models import PlanResource
+    from apps.organizations.models import Location
+
+    call_command("seed_demo", verbosity=0)
+
+    org = Organization.objects.get(slug="alimentos-del-sur")
+    admin = Membership.objects.get(organization=org, user__email="jefe@demo.cl")
+    with tenant_context(org):
+        sites = set(Location.objects.filter(kind=Location.Kind.SITE).values_list("pk", flat=True))
+        warehouses = list(Warehouse.objects.all())
+        assert sum(w.is_default for w in warehouses) == 1
+        assert sites <= {w.location_id for w in warehouses}
+        assert Part.objects.count() >= 30
+        assert PlanResource.objects.filter(
+            part__isnull=False, version__plan__current_version__isnull=False
+        ).exists()
+        assert Reservation.objects.filter(status=Reservation.Status.ACTIVE).exists()
+        counters = stock_counters(membership=admin)
+        assert counters["below_min"] >= 1
+        assert counters["negative"] >= 1
+        insights = inventory_insights(membership=admin)
+        assert insights.total_value > 0
+        assert insights.consumption > 0
+        assert insights.stale_count >= 1
+        assert reconcile_stock() == []
