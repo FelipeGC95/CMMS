@@ -26,7 +26,7 @@ ITEM_HEADER = ["Código del plan", "Orden", "Tarea", "Tipo", "Unidad", "Mínimo"
 RESOURCE_HEADER = ["Código del plan", "Tipo", "Descripción", "Cantidad", "Unidad"]
 
 
-def _file(plans, items, resources=(), name="planes.xlsx"):
+def _file(plans, items, resources=(), name="planes.xlsx", item_header=ITEM_HEADER):
     wb = Workbook()
     ws = wb.active
     ws.title = "Planes"
@@ -34,7 +34,7 @@ def _file(plans, items, resources=(), name="planes.xlsx"):
     for row in plans:
         ws.append(row)
     ws = wb.create_sheet("Checklist")
-    ws.append(ITEM_HEADER)
+    ws.append(item_header)
     for row in items:
         ws.append(row)
     ws = wb.create_sheet("Recursos")
@@ -57,13 +57,57 @@ def test_export_has_current_version_items_and_resources(in_a):
     plans = list(wb["Planes"].iter_rows(values_only=True))
     assert plans[1][:5] == ("PM1", "Mensual", "CMP", 30, "días")
     items = list(wb["Checklist"].iter_rows(values_only=True))
-    assert items[2] == ("PM1", 2, "Presión", "Medición", "bar", 6.5, 8, "Sí")
+    assert items[2][:8] == ("PM1", 2, "Presión", "Medición", "bar", 6.5, 8, "Sí")
+    assert items[0][8:] == ("Variable", "Nombre de la variable")  # CBM-06, opcionales
+    assert not any(items[2][8:])
 
 
 def test_export_round_trip_is_unchanged(in_a):
     upload = SimpleUploadedFile("x.xlsx", build_plans_workbook(membership=in_a.admin))
     preview = _preview(in_a, upload)
     assert [(r.code, r.action) for r in preview.rows] == [("PM1", "unchanged")]
+
+
+def test_variable_link_round_trips_and_imports(in_a):
+    """CBM-06: columnas opcionales «Variable» y «Nombre de la variable» (las plantillas viejas sirven)."""
+    upload = _file(
+        [["TER-01", "Termografía", "CMP", 1, "meses", None, None, None, None, None, None]],
+        [
+            ["TER-01", 1, "Temperatura", "Medición", "°C", "-10", "80", "Sí", "Temperatura", "Rodamiento"],
+            ["TER-01", 2, "Vibración", "Medición", "mm/s", None, "4,5", "Sí", "mm/s", None],
+            ["TER-01", 3, "Limpiar", "Verificación", None, None, None, "Sí", None, None],
+        ],
+        item_header=[*ITEM_HEADER, "Variable", "Nombre de la variable"],
+    )
+    preview = _preview(in_a, upload)
+    assert preview.rows[0].action == "create", preview.rows[0].errors
+    apply_plan_import(preview.to_session(), membership=in_a.admin)
+    items = MaintenancePlan.objects.get(code="TER-01").current_version.items.order_by("order")
+    assert [(i.meter_kind, i.meter_name) for i in items] == [
+        ("temperature", "Rodamiento"),
+        ("vibration", ""),
+        ("", ""),
+    ]
+    again = SimpleUploadedFile("x.xlsx", build_plans_workbook(membership=in_a.admin))
+    assert {(r.code, r.action) for r in _preview(in_a, again).rows} == {
+        ("PM1", "unchanged"),
+        ("TER-01", "unchanged"),
+    }
+
+
+def test_variable_link_errors_per_row(in_a):
+    upload = _file(
+        [["TER-02", "Termografía", "CMP", 1, "meses", None, None, None, None, None, None]],
+        [
+            ["TER-02", 1, "Horas", "Medición", "h", None, None, "Sí", "Horómetro", None],
+            ["TER-02", 2, "Limpiar", "Verificación", None, None, None, "Sí", "Temperatura", None],
+            ["TER-02", 3, "Sin tipo", "Medición", None, None, None, "Sí", None, "Motor"],
+        ],
+        item_header=[*ITEM_HEADER, "Variable", "Nombre de la variable"],
+    )
+    [row] = _preview(in_a, upload).rows
+    assert row.action == "error" and len(row.errors) == 4  # + «sin ítems»
+    assert "fila 2" in row.errors[0] and "fila 3" in row.errors[1] and "fila 4" in row.errors[2]
 
 
 def test_new_code_creates_published_plan(in_a):

@@ -3,7 +3,7 @@
 from django import forms
 from django.utils.translation import gettext_lazy as _
 
-from apps.assets.models import USAGE_METER_KIND_CHOICES, AssetClass
+from apps.assets.models import USAGE_METER_KIND_CHOICES, VARIABLE_METER_KIND_CHOICES, AssetClass
 from apps.organizations.models import Location
 from apps.organizations.selectors import visible_locations
 
@@ -138,6 +138,18 @@ class PlanItemForm(forms.Form):
     min_value = forms.DecimalField(label=_("Mínimo"), max_digits=14, decimal_places=3, required=False)
     max_value = forms.DecimalField(label=_("Máximo"), max_digits=14, decimal_places=3, required=False)
     required = forms.BooleanField(label=_("Obligatorio para completar la OT"), required=False, initial=True)
+    # Variable de condición que alimenta la medición (CBM-06); el servicio valida el resto.
+    meter_kind = forms.ChoiceField(
+        label=_("Variable"),
+        choices=[("", _("No alimenta una variable")), *VARIABLE_METER_KIND_CHOICES],
+        required=False,
+    )
+    meter_name = forms.CharField(
+        label=_("Nombre de la variable"),
+        max_length=80,
+        required=False,
+        help_text=_("Ej: Rodamiento lado acople. Si el equipo no la tiene, se crea al completar la OT."),
+    )
 
     def clean(self):
         cleaned = super().clean()

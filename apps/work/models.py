@@ -5,8 +5,9 @@ from pathlib import Path
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 
+from apps.assets.models import VARIABLE_METER_KIND_CHOICES
 from apps.core.models import TenantModel
-from apps.maintenance.models import ItemType
+from apps.maintenance.models import ItemType, variable_label
 
 
 def attachment_upload_to(instance, filename):
@@ -329,11 +330,29 @@ class WorkOrderChecklistItem(TenantModel):
         verbose_name=_("respondido por"),
     )
     answered_at = models.DateTimeField(null=True, blank=True, verbose_name=_("fecha de respuesta"))
+    # Variable de condición que alimenta (CBM-06, copiada del plan) y la lectura que registró al
+    # completar la OT: si ya la tiene, no se registra otra (idempotente).
+    meter_kind = models.CharField(
+        max_length=20, choices=VARIABLE_METER_KIND_CHOICES, blank=True, verbose_name=_("variable")
+    )
+    meter_name = models.CharField(max_length=80, blank=True, verbose_name=_("nombre de la variable"))
+    meter_reading = models.OneToOneField(
+        "assets.MeterReading",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="checklist_item",
+        verbose_name=_("lectura registrada"),
+    )
 
     class Meta:
         verbose_name = _("ítem del checklist de OT")
         verbose_name_plural = _("ítems del checklist de OT")
         ordering = ["order"]
+
+    @property
+    def variable_label(self) -> str:
+        return variable_label(self)
 
 
 MONEY = {"max_digits": 14, "decimal_places": 2}

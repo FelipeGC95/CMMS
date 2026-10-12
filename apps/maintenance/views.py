@@ -260,7 +260,17 @@ def plan_item_edit_view(request, pk, item_pk):
     form = PlanItemForm(
         request.POST or None,
         initial={
-            f: getattr(item, f) for f in ("text", "item_type", "unit", "min_value", "max_value", "required")
+            f: getattr(item, f)
+            for f in (
+                "text",
+                "item_type",
+                "unit",
+                "min_value",
+                "max_value",
+                "required",
+                "meter_kind",
+                "meter_name",
+            )
         },
     )
     if request.method == "POST" and form.is_valid():

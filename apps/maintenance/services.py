@@ -11,6 +11,7 @@ from django.utils import timezone
 from django.utils.translation import gettext as _
 
 from apps.accounts.permissions import Perm, require_perm
+from apps.assets.models import MeterKind
 from apps.audit import services as audit
 from apps.audit.models import AuditEvent
 
@@ -35,7 +36,17 @@ logger = logging.getLogger(__name__)
 METER_MIN_LEAD = Decimal("0.10")
 # Campos de la versión que cambian cuándo vence un plan.
 TRIGGER_FIELDS = ("calendar_interval", "calendar_unit", "meter_kind", "meter_interval")
-ITEM_FIELDS = ("order", "text", "item_type", "unit", "min_value", "max_value", "required")
+ITEM_FIELDS = (
+    "order",
+    "text",
+    "item_type",
+    "unit",
+    "min_value",
+    "max_value",
+    "required",
+    "meter_kind",
+    "meter_name",
+)
 RESOURCE_FIELDS = ("kind", "description", "quantity", "unit", "part")
 
 
@@ -57,17 +68,25 @@ def locked_plans():
     return MaintenancePlan.objects.select_related(None).select_for_update()
 
 
+def _item_values(item: dict) -> dict:
+    """Campos de un ítem nuevo: foto siempre obligatoria y enlace a variable validado (CBM-06)."""
+    values = dict(item)
+    if values.get("item_type") == ItemType.PHOTO:
+        values["required"] = True
+    if values.get("meter_kind") or values.get("meter_name"):
+        values["meter_kind"], values["meter_name"] = clean_variable_link(
+            values.get("item_type"), values.get("meter_kind"), values.get("meter_name")
+        )
+    return values
+
+
 def _add_content(version: PlanVersion, *, items=(), resources=()):
     PlanTaskItem.objects.bulk_create(
         [
             PlanTaskItem(
                 organization=version.organization,
                 version=version,
-                **{
-                    "order": i,
-                    **item,
-                    **({"required": True} if item.get("item_type") == ItemType.PHOTO else {}),
-                },
+                **{"order": i, **_item_values(item)},
             )
             for i, item in enumerate(items, start=1)
         ]
@@ -142,11 +161,7 @@ def bulk_create_published_plans(*, organization, plans, by=None, change_note: st
             PlanTaskItem(
                 organization=organization,
                 version=version,
-                **{
-                    "order": i,
-                    **item,
-                    **({"required": True} if item.get("item_type") == ItemType.PHOTO else {}),
-                },
+                **{"order": i, **_item_values(item)},
             )
             for i, item in enumerate(data["items"], start=1)
         ]
@@ -702,6 +717,29 @@ def _clean_measurement(item_type, unit, min_value, max_value):
     return unit.strip(), min_value, max_value
 
 
+def clean_variable_link(item_type, meter_kind, meter_name) -> tuple[str, str]:
+    """Enlace opcional de un ítem con una variable de condición del activo (CBM-06 CA1).
+
+    Solo ítems de medición y solo tipos variable (no los de uso: horas, km, ciclos, otro).
+    """
+    meter_kind, meter_name = (meter_kind or "").strip(), (meter_name or "").strip()
+    if not meter_kind and not meter_name:
+        return "", ""
+    if item_type != ItemType.MEASUREMENT:
+        raise ValidationError(
+            {"meter_kind": _("Solo un ítem de medición puede alimentar una variable de condición.")}
+        )
+    if not meter_kind:
+        raise ValidationError({"meter_kind": _("Elige el tipo de variable para ese nombre.")})
+    if not MeterKind.is_variable(meter_kind):
+        raise ValidationError(
+            {"meter_kind": _("Elige una variable de condición (temperatura, vibración, presión…).")}
+        )
+    if len(meter_name) > 80:
+        raise ValidationError({"meter_name": _("El nombre de la variable supera 80 caracteres.")})
+    return meter_kind, meter_name
+
+
 @transaction.atomic
 def create_plan_with_draft(*, membership, code: str, name: str, asset_class=None, **version_fields):
     """Crea un plan nuevo con su versión 1 en borrador (se publica al tener checklist)."""
@@ -780,11 +818,22 @@ def update_draft(*, membership, version: PlanVersion, **fields) -> PlanVersion:
 
 @transaction.atomic
 def add_draft_item(
-    *, membership, version, text, item_type, unit="", min_value=None, max_value=None, required=True
+    *,
+    membership,
+    version,
+    text,
+    item_type,
+    unit="",
+    min_value=None,
+    max_value=None,
+    required=True,
+    meter_kind="",
+    meter_name="",
 ) -> PlanTaskItem:
     _require_plan_manager(membership)
     _check_draft_version(version)
     unit, min_value, max_value = _clean_measurement(item_type, unit, min_value, max_value)
+    meter_kind, meter_name = clean_variable_link(item_type, meter_kind, meter_name)
     required = required or item_type == ItemType.PHOTO  # «foto obligatoria» siempre bloquea el cierre
     last = version.items.aggregate(n=Max("order"))["n"] or 0
     item = PlanTaskItem.objects.create(
@@ -796,6 +845,8 @@ def add_draft_item(
         min_value=min_value,
         max_value=max_value,
         required=required,
+        meter_kind=meter_kind,
+        meter_name=meter_name,
     )
     audit.record(
         action=AuditEvent.Action.CREATE,
@@ -808,15 +859,27 @@ def add_draft_item(
 
 @transaction.atomic
 def update_draft_item(
-    *, membership, item, text, item_type, unit="", min_value=None, max_value=None, required=True
+    *,
+    membership,
+    item,
+    text,
+    item_type,
+    unit="",
+    min_value=None,
+    max_value=None,
+    required=True,
+    meter_kind="",
+    meter_name="",
 ) -> PlanTaskItem:
     _require_plan_manager(membership)
     _check_draft_version(item.version)
     unit, min_value, max_value = _clean_measurement(item_type, unit, min_value, max_value)
+    meter_kind, meter_name = clean_variable_link(item_type, meter_kind, meter_name)
     required = required or item_type == ItemType.PHOTO
     before = audit.snapshot(item, ITEM_FIELDS)
     item.text, item.item_type, item.unit = text.strip(), item_type, unit
     item.min_value, item.max_value, item.required = min_value, max_value, required
+    item.meter_kind, item.meter_name = meter_kind, meter_name
     item.save(update_fields=[f for f in ITEM_FIELDS if f != "order"] + ["updated_at"])
     changes = audit.diff(before, audit.snapshot(item, ITEM_FIELDS))
     if changes:

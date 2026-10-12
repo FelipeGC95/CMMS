@@ -8,7 +8,7 @@ from django.db import models
 from django.utils.translation import gettext_lazy as _
 from django.utils.translation import ngettext
 
-from apps.assets.models import METER_DEFAULT_UNITS, MeterKind
+from apps.assets.models import METER_DEFAULT_UNITS, VARIABLE_METER_KIND_CHOICES, MeterKind
 from apps.core.models import TenantManager, TenantModel
 
 
@@ -402,6 +402,11 @@ class PlanTaskItem(DraftContentMixin, TenantModel):
     min_value = models.DecimalField(_("mínimo"), max_digits=14, decimal_places=3, null=True, blank=True)
     max_value = models.DecimalField(_("máximo"), max_digits=14, decimal_places=3, null=True, blank=True)
     required = models.BooleanField(_("obligatorio"), default=True)
+    # Variable de condición que alimenta la medición (CBM-06): (tipo, nombre) del medidor del activo.
+    meter_kind = models.CharField(
+        _("variable"), max_length=20, choices=VARIABLE_METER_KIND_CHOICES, blank=True
+    )
+    meter_name = models.CharField(_("nombre de la variable"), max_length=80, blank=True)
 
     class Meta:
         verbose_name = _("ítem de checklist")
@@ -410,6 +415,18 @@ class PlanTaskItem(DraftContentMixin, TenantModel):
 
     def __str__(self):
         return self.text
+
+    @property
+    def variable_label(self) -> str:
+        return variable_label(self)
+
+
+def variable_label(item) -> str:
+    """«Temperatura (°C) · Rodamiento»: la variable que alimenta un ítem de medición (CBM-06)."""
+    if not item.meter_kind:
+        return ""
+    kind = str(item.get_meter_kind_display())
+    return f"{kind} · {item.meter_name}" if item.meter_name else kind
 
 
 class PlanAbsorption(TenantModel):

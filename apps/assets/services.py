@@ -276,6 +276,33 @@ def create_meter(*, membership, asset: Asset, kind: str, name: str = "", unit: s
     return meter
 
 
+@transaction.atomic
+def ensure_variable(*, asset: Asset, kind: str, name: str = "", unit: str = "", by=None) -> Meter | None:
+    """La variable (tipo, nombre) del activo; si no la tiene, la crea con `unit` (CBM-06 CA3).
+
+    Paso del sistema al completar una OT con ítems enlazados: no pide `asset.manage`
+    (lo autoriza quien completa la OT). Solo tipos variable (no acumulativos). Devuelve
+    None si la variable existe pero está desactivada: no se reactiva sola.
+    """
+    if not MeterKind.is_variable(kind):
+        raise ValidationError({"kind": gettext("Elige un tipo de variable de condición.")})
+    name, unit = (name or "").strip()[:80], (unit or "").strip()[:20]
+    meter, created = Meter.objects.get_or_create(
+        asset=asset, kind=kind, name=name, defaults={"unit": unit, "is_cumulative": False}
+    )
+    if created:
+        audit.record(
+            action=AuditEvent.Action.CREATE,
+            target=meter,
+            actor=by,
+            changes={
+                **audit.snapshot(meter, fields={"asset", "kind", "name", "unit", "is_cumulative"}),
+                "source": "checklist",
+            },
+        )
+    return meter if meter.is_active else None
+
+
 def _average_daily_usage(meter: Meter, *, until) -> Decimal | None:
     """Uso por día entre la primera y la última lectura de la ventana, sin cruzar reinicios."""
     since = until - datetime.timedelta(days=USAGE_WINDOW_DAYS)

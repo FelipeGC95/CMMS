@@ -16,6 +16,7 @@ import zipfile
 from dataclasses import asdict, dataclass, field
 from decimal import Decimal, InvalidOperation
 
+from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.utils.translation import gettext, gettext_lazy
 from openpyxl import Workbook, load_workbook
@@ -24,12 +25,19 @@ from openpyxl.utils.exceptions import InvalidFileException
 
 from apps.accounts.permissions import Perm, require_perm
 from apps.assets.imports import MAX_FILE_BYTES, ImportFileError, _cell_text, _normalize
-from apps.assets.models import METER_DEFAULT_UNITS, USAGE_METER_KIND_CHOICES, AssetClass, MeterKind
+from apps.assets.models import (
+    METER_DEFAULT_UNITS,
+    USAGE_METER_KIND_CHOICES,
+    VARIABLE_KINDS,
+    VARIABLE_METER_KIND_CHOICES,
+    AssetClass,
+    MeterKind,
+)
 from apps.audit import services as audit
 from apps.audit.models import AuditEvent
 
 from .models import CalendarUnit, ItemType, MaintenancePlan, PlanResource, PlanTaskItem, PlanVersion
-from .services import bulk_create_published_plans, create_draft_with_content
+from .services import bulk_create_published_plans, clean_variable_link, create_draft_with_content
 
 MAX_PLANS = 500
 MAX_ITEMS_PER_PLAN = 100
@@ -72,6 +80,22 @@ ITEM_COLUMNS = [
     ("min_value", gettext_lazy("Mínimo"), False, gettext_lazy("Solo mediciones.")),
     ("max_value", gettext_lazy("Máximo"), False, gettext_lazy("Solo mediciones.")),
     ("required", gettext_lazy("Obligatorio"), False, gettext_lazy("Sí (por defecto) o No.")),
+    # Opcionales (CBM-06): una plantilla anterior sin estas columnas se sigue leyendo.
+    (
+        "meter_kind",
+        gettext_lazy("Variable"),
+        False,
+        gettext_lazy(
+            "Solo mediciones: Temperatura, Vibración, Presión, Corriente u Otra variable. "
+            "Al completar la OT, el valor queda como lectura de esa variable del activo."
+        ),
+    ),
+    (
+        "meter_name",
+        gettext_lazy("Nombre de la variable"),
+        False,
+        gettext_lazy("Opcional, ej: Rodamiento lado acople."),
+    ),
 ]
 RESOURCE_COLUMNS = [
     ("plan", gettext_lazy("Código del plan"), True, ""),
@@ -116,6 +140,10 @@ def _choice_aliases():
         "meter_kind": _aliases([c for c in USAGE_METER_KIND_CHOICES if c[0] != MeterKind.OTHER], meter_extra),
         "schedule_mode": _aliases(PlanVersion.ScheduleMode.choices),
         "item_type": _aliases(ItemType.choices),
+        "variable": _aliases(
+            VARIABLE_METER_KIND_CHOICES,
+            {_normalize(unit): kind for kind, unit in METER_DEFAULT_UNITS.items() if kind in VARIABLE_KINDS},
+        ),
         "kind": _aliases(PlanResource.Kind.choices),
     }
 
@@ -178,6 +206,8 @@ def export_rows(*, membership):
                     _number_cell(item.min_value),
                     _number_cell(item.max_value),
                     gettext("Sí") if item.required else gettext("No"),
+                    str(item.get_meter_kind_display()) if item.meter_kind else "",
+                    item.meter_name,
                 ]
             )
         for resource in resources.get(v.id, ()):
@@ -420,7 +450,15 @@ def _parse_item(raw, aliases, errors) -> dict | None:
             gettext("%(where)s: tipo «%(value)s» no válido.") % {"where": where, "value": raw["item_type"]}
         )
         return None
-    item = {"text": text, "item_type": item_type, "unit": "", "min_value": None, "max_value": None}
+    item = {
+        "text": text,
+        "item_type": item_type,
+        "unit": "",
+        "min_value": None,
+        "max_value": None,
+        "meter_kind": "",
+        "meter_name": "",
+    }
     required = _normalize(raw.get("required", "")) or "si"
     if required not in YES | NO:
         errors.append(gettext("%(where)s: «Obligatorio» debe ser Sí o No.") % {"where": where})
@@ -441,6 +479,23 @@ def _parse_item(raw, aliases, errors) -> dict | None:
         ):
             errors.append(
                 gettext("%(where)s: el máximo no puede ser menor que el mínimo.") % {"where": where}
+            )
+            return None
+    if raw.get("meter_kind") or raw.get("meter_name"):
+        meter_kind = aliases["variable"].get(_normalize(raw.get("meter_kind", "")), "")
+        if raw.get("meter_kind") and not meter_kind:
+            errors.append(
+                gettext("%(where)s: variable «%(value)s» no válida.")
+                % {"where": where, "value": raw["meter_kind"]}
+            )
+            return None
+        try:
+            item["meter_kind"], item["meter_name"] = clean_variable_link(
+                item_type, meter_kind, raw.get("meter_name", "")
+            )
+        except ValidationError as error:
+            errors.append(
+                gettext("%(where)s: %(error)s") % {"where": where, "error": " ".join(error.messages)}
             )
             return None
     try:
@@ -494,7 +549,16 @@ def _content_key(fields, items, resources):
         for k in sorted(fields)
     )
     item_key = tuple(
-        (i["text"], i["item_type"], i["unit"], i["min_value"], i["max_value"], bool(i["required"]))
+        (
+            i["text"],
+            i["item_type"],
+            i["unit"],
+            i["min_value"],
+            i["max_value"],
+            bool(i["required"]),
+            i.get("meter_kind", ""),
+            i.get("meter_name", ""),
+        )
         for i in items
     )
     resource_key = tuple(
@@ -527,6 +591,8 @@ def _version_key(version, items, resources):
                 "min_value": i.min_value,
                 "max_value": i.max_value,
                 "required": i.required,
+                "meter_kind": i.meter_kind,
+                "meter_name": i.meter_name,
             }
             for i in items
         ],

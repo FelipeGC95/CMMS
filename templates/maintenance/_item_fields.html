@@ -9,5 +9,10 @@
     <div class="field"><label for="{{ f.id_for_label }}">{{ f.label }}</label>{{ f }}{% for e in f.errors %}<span class="error">{% icon 'stop' %}{{ e }}</span>{% endfor %}</div>
     {% endif %}{% endfor %}
   </div>
+  <div class="field-pair">
+    {% for f in form %}{% if f.name == "meter_kind" or f.name == "meter_name" %}
+    <div class="field"><label for="{{ f.id_for_label }}">{{ f.label }}</label>{{ f }}{% if f.help_text %}<span class="help">{{ f.help_text }}</span>{% endif %}{% for e in f.errors %}<span class="error">{% icon 'stop' %}{{ e }}</span>{% endfor %}</div>
+    {% endif %}{% endfor %}
+  </div>
 </fieldset>
 {% with f=form.required %}<div class="field field--check">{{ f }}<label for="{{ f.id_for_label }}">{{ f.label }}</label></div>{% endwith %}
