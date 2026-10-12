@@ -199,7 +199,7 @@ REST_FRAMEWORK = {
 SPECTACULAR_SETTINGS = {
     "TITLE": "GALBUST CMMS API",
     "DESCRIPTION": "API REST v1: activos, medidores y lecturas, órdenes de trabajo, solicitudes e "
-    "inventario (repuestos, bodegas, stock y movimientos). "
+    "inventario (repuestos, bodegas, stock y movimientos) y mantenimiento por condición (reglas y alertas). "
     "Autenticación: `Authorization: Bearer <token>` (tokens en Más → Tokens de API).",
     "VERSION": "1.0.0",
     "SERVE_INCLUDE_SCHEMA": False,

@@ -217,7 +217,7 @@ generan solas.
     | C2 · Pantallas | `/condition/` (alertas, reglas, formularios), contador en el inicio, navegación y "Más", design system (CBM-03, CBM-05) | condition (vistas), ui | C1 | tras C1 (∥ C3, C4) |
     | ✔ C3 · Checklist → variable | CBM-06: campos en plan y OT, editor de planes, lectura al completar (hecho 2026-10) | maintenance, work | C1 | tras C1 (∥ C2, C4) |
     | ✔ C4 · Ficha del activo | CBM-01 (alta de variables), CBM-02 (CSV con tipo/nombre), CBM-07 (estado y tendencia SVG) (hecho 2026-10) | assets | C1 | tras C1 (∥ C2, C3) |
-    | C5 · API v1 | CBM-09 (reglas, alertas, bulk con `kind`/`name`), docs/08 | api | C1–C4 | tras C2–C4 |
+    | ✔ C5 · API v1 | CBM-09 (reglas, alertas, bulk con `kind`/`name`), docs/08 (hecho 2026-10) | api | C1–C4 | tras C2–C4 |
     | C6 · Seed y cierre | CBM-10 (`seed_demo`, exportación y purga), cierre de docs, capturas | core, docs | C2–C5 | al final (∥ F1) |
     | F1 · Correctiva desde hallazgo sin conexión | WO-06 CA2: endpoint de terreno, PWA, e2e, ADR-011 | api (field), field, static/field | C5 (misma app `api`) | al final (∥ C6) |
 - ✔ KPIs ampliados (KPI-02) — hecho (2026-10): `/reports/kpis/` con backlog

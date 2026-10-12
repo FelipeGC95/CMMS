@@ -667,6 +667,13 @@ serializer `MeterReadingCreateSerializer` de la API aún tiene `min_value=0`
 y `BulkReadingRowSerializer` no expone `kind`/`name`: quedan para C5 (las
 filas de `build_reading_preview` ya leen las claves `kind` y `name`).
 
+Implementado (2026-10, paquete C5): CA3. `POST /api/v1/readings/bulk/` acepta
+`kind` y `name` por fila (mismas reglas y mensajes que el CSV) y
+`POST /api/v1/readings/` acepta negativos solo en variables (en medidores de
+uso, 400 en `value`); una variable desactivada responde 400 (lectura suelta)
+o error de fila (carga masiva). También vale para `POST /field/api/readings/`
+(mismo serializer).
+
 **CBM-03 · Reglas de condición (F2)**
 Como planificador quiero definir una vez el rango normal de una variable, para
 que el sistema me avise y cree la OT cuando se salga.
@@ -795,6 +802,18 @@ Sin el módulo o sin `condition.view`, las variables se muestran y se leen en
 - CA3: `POST /api/v1/readings/bulk/` con `kind`/`name` (CBM-02 CA3).
 - CA4: Paginación, errores y alcances read/write como el resto de la API;
   esquema sin advertencias; documentado en [08_api.md](08_api.md).
+
+Implementado (2026-10, paquete C5): CA1–CA4 en `apps/api/v1.py`
+(`ConditionRuleViewSet`, `ConditionAlertViewSet`) con los servicios y
+selectores de `apps/condition`. Reglas: filtros `include_inactive`,
+`asset_class` y `meter` (las que aplican a la variable); `POST` idempotente
+por `client_uuid` (`ApiIdempotencyKey`, sin migración); `PATCH` edita la
+condición, la acción y la OT o `is_active`, y rechaza cambios de alcance (400).
+Alertas: filtros `status` (o `active`) y `asset`; reconocer una alerta
+normalizada o cerrada → 400 (como los errores de estado de la v1). Leer exige
+`condition.view` y escribir `condition.manage` (el token, como planificador,
+tiene ambos); sin el módulo `condition` → 403 con mensaje de plan. Fuera de la
+API: alta y baja de variables (siguen en la ficha del activo).
 
 **CBM-10 · Datos demo, exportación y purga (F2)**
 - CA1: `seed_demo` crea variables, reglas por clase e historia con al menos un

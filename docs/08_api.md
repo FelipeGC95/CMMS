@@ -3,17 +3,17 @@
 Guía funcional de la API REST: qué resuelve cada endpoint, sus reglas y
 ejemplos de uso. La decisión técnica está en ADR-005
 (`docs/04_arquitectura.md`); el contrato exacto, en `/api/schema/`.
-Actualizada al 2026-10-11 (inventario, INV-17).
+Actualizada al 2026-10-12 (mantenimiento por condición, CBM-09).
 
 ## Resumen
 
-La API v1 permite que otro sistema haga, sin pasar por la pantalla, lo mismo que un planificador o un técnico hacen en la web: consultar y dar de alta activos, cargar lecturas de medidores, crear y mover órdenes de trabajo, responder su checklist con fotos y cerrarlas, reportar fallas y, con el módulo de inventario, mantener el catálogo de repuestos, registrar entradas, conteos y transferencias, y consumir repuestos en una OT.
+La API v1 permite que otro sistema haga, sin pasar por la pantalla, lo mismo que un planificador o un técnico hacen en la web: consultar y dar de alta activos, cargar lecturas de medidores, crear y mover órdenes de trabajo, responder su checklist con fotos y cerrarlas, reportar fallas y, con el módulo de inventario, mantener el catálogo de repuestos, registrar entradas, conteos y transferencias, y consumir repuestos en una OT, y, con el módulo de condición, definir reglas sobre variables (temperatura, vibración…) y seguir sus alertas.
 
 Resuelve tres necesidades concretas:
 
 - **App móvil o cliente sin conexión:** el técnico ejecuta la OT completa (iniciar, checklist, fotos, cierre) y los reintentos no duplican nada gracias a `client_uuid`.
 - **Integración con otros sistemas (ERP, BI, planillas):** leer el catálogo de activos y el historial de OT, o crear OT y avisos desde otro sistema.
-- **Telemetría y medidores:** un PLC, SCADA o script envía horómetros y contadores, y los preventivos por uso se disparan solos.
+- **Telemetría y medidores:** un PLC, SCADA o script envía horómetros y contadores, y los preventivos por uso se disparan solos; con variables de condición, una lectura fuera de rango abre una alerta y una OT predictiva.
 
 Toda la API usa los mismos servicios que la web: las reglas, permisos, auditoría y aislamiento entre organizaciones son idénticos. No hay una segunda versión de las reglas que pueda desalinearse.
 
@@ -40,7 +40,7 @@ No hay sesión ni cookies, así que no aplica CSRF. Un token revocado, vencido, 
 | Organización | La del token; no se elige ni se envía. Un id de otra empresa responde igual que uno inexistente (404 o error de validación). |
 | Rol efectivo | Planificador sobre toda la organización (sin restricción por sitio). |
 | Alcance `read` | Solo `GET`. Cualquier escritura → 403. |
-| Alcance `write` | Lectura y escritura: activos, lecturas, OT, checklist, fotos, solicitudes. |
+| Alcance `write` | Lectura y escritura: activos, lecturas, OT, checklist, fotos, solicitudes, inventario y reglas y alertas de condición. |
 | Nunca puede | Administrar equipo, auditoría, configuración ni otros tokens. |
 | Autoría | Cada token tiene su propio usuario de servicio (`API · <nombre>`): la auditoría muestra qué integración hizo cada cambio. |
 | Zona horaria | La de la organización del token. |
@@ -63,11 +63,12 @@ Toda lista es paginada: `?page=2&page_size=100` (50 por defecto, máximo 200). L
 
 Un cliente móvil puede perder la señal justo después de enviar. Para que el reintento no duplique, las altas aceptan un `client_uuid` que genera el propio cliente:
 
-- **Lecturas, OT, solicitudes, fotos:** reenviar el mismo `client_uuid` devuelve el registro ya creado, sin crear otro.
+- **Lecturas, OT, solicitudes, fotos, reglas de condición:** reenviar el mismo `client_uuid` devuelve el registro ya creado, sin crear otro.
 - **Cierre de OT:** reenviar la misma clave devuelve la OT actual (200); usar esa clave en otra OT → **409 conflict**.
 - **Fotos:** misma clave en otro objeto → **409**.
 - **Transiciones:** repetir el mismo estado destino no hace nada; con `client_uuid`, reenviar el cambio devuelve la OT actual aunque ya haya avanzado (en otra OT → **409**).
 - **Respuesta de checklist:** repetir la misma respuesta no hace nada.
+- **Reconocer una alerta de condición:** reconocerla otra vez no hace nada.
 - **Carga masiva de lecturas:** idempotente por (medidor, fecha, valor), sin `client_uuid`.
 
 ### Errores
@@ -100,7 +101,7 @@ Todos los errores tienen la misma forma, con textos en español:
 
 ## Mapa de endpoints
 
-Son 9 recursos bajo `/api/v1/` con 36 operaciones; las escrituras exigen un token `write`. Los 4 de inventario (repuestos, bodegas, stock y movimientos) exigen además el módulo `inventory` del plan.
+Son 11 recursos bajo `/api/v1/` con 43 operaciones; las escrituras exigen un token `write`. Los 4 de inventario (repuestos, bodegas, stock y movimientos) exigen además el módulo `inventory` del plan, y los 2 de condición (reglas y alertas), el módulo `condition`.
 
 | Recurso | Método y ruta | Qué resuelve |
 | --- | --- | --- |
@@ -137,6 +138,13 @@ Son 9 recursos bajo `/api/v1/` con 36 operaciones; las escrituras exigen un toke
 | Solicitudes | `GET /requests/` | Listar avisos de falla por estado. |
 | Solicitudes | `GET /requests/{id}/` | Detalle de un aviso y su OT. |
 | Solicitudes | `POST /requests/` | Reportar una falla: crea el aviso y su OT correctiva. |
+| Reglas de condición | `GET /condition-rules/` | Reglas activas (o todas), por clase de activo o por variable. |
+| Reglas de condición | `GET /condition-rules/{id}/` | Una regla, con su alcance y su condición. |
+| Reglas de condición | `POST /condition-rules/` | Crear una regla sobre una variable o sobre una clase de activo. |
+| Reglas de condición | `PATCH /condition-rules/{id}/` | Cambiar la condición, la acción o la OT; desactivar (`is_active: false`). |
+| Alertas de condición | `GET /condition-alerts/` | Alertas (abiertas primero), por estado o activo. |
+| Alertas de condición | `GET /condition-alerts/{id}/` | Una alerta: valores, fechas y OT predictiva. |
+| Alertas de condición | `POST /condition-alerts/{id}/acknowledge/` | Reconocer una alerta abierta. |
 
 ## Guía por funcionalidad
 
@@ -175,11 +183,12 @@ curl -H "Authorization: Bearer $T" "$API/assets/?code=ENV-01"
 
 ### 2. Medidores y lecturas: mantenimiento por uso
 
-**Qué resuelve:** que el horómetro, cuentakilómetros o contador de ciclos llegue solo al CMMS y que los planes preventivos por uso («cada 500 horas») generen su OT cuando corresponde, sin que nadie digite lecturas.
+**Qué resuelve:** que el horómetro, cuentakilómetros o contador de ciclos llegue solo al CMMS y que los planes preventivos por uso («cada 500 horas») generen su OT cuando corresponde, sin que nadie digite lecturas. Las variables de condición (temperatura, vibración, presión, corriente u otra) también son medidores: sus lecturas entran por los mismos endpoints y las evalúan las reglas de condición (sección 9).
 
 **Reglas (las mismas que la web):**
 
-- La lectura no puede ser negativa.
+- La lectura no puede ser negativa en un medidor de uso (horas, km, ciclos, otro); en una variable de condición sí (p. ej. `-12` °C).
+- Una variable desactivada no recibe lecturas: 400 «La variable está desactivada: reactívala para registrar lecturas.» (en la carga masiva, error de fila).
 - En un medidor acumulativo el valor no puede bajar, salvo que se marque `is_reset: true` (cambio de horómetro).
 - Si falta `read_at`, se usa la hora actual.
 - Registrar la lectura recalcula el uso diario promedio y dispara los preventivos por uso que vencen.
@@ -195,21 +204,27 @@ curl -X POST "$API/readings/" \
        "client_uuid": "7b1e…"}'
 ```
 
-**Carga masiva (`POST /readings/bulk/`):** hasta 2.000 filas por envío, con las mismas reglas que el CSV de la web. Cada fila identifica el medidor por `meter` (id) o por `asset_code` si el activo tiene un solo medidor. Acepta fechas `aaaa-mm-dd hh:mm` o `dd-mm-aaaa hh:mm`. Las filas válidas se guardan y las inválidas se informan una a una, sin detener el lote.
+**Carga masiva (`POST /readings/bulk/`):** hasta 2.000 filas por envío, con las mismas reglas que el CSV de la web. Cada fila identifica el medidor por `meter` (id) o por `asset_code`; si el activo tiene varios medidores o variables, `kind` (tipo) y `name` (nombre) eligen cuál (CBM-02 CA3). `kind` acepta el código (`temperature`, `vibration`, `pressure`, `current`, `variable`, `hours`, `km`, `cycles`, `other`), la etiqueta o la palabra en español (`temperatura`, `vibración`, `presión`, `corriente`, `otra`, `horas`…); `name` no distingue mayúsculas. Con `kind` basta si el activo tiene un solo medidor de ese tipo; con dos, falta `name` y la fila vuelve con error. Con `meter` y además `kind`/`name`, deben coincidir. Acepta fechas `aaaa-mm-dd hh:mm` o `dd-mm-aaaa hh:mm`. Las filas válidas se guardan y las inválidas se informan una a una, sin detener el lote.
 
 ```json
 // petición
 { "rows": [
   { "asset_code": "ENV-01", "value": "12480", "read_at": "2026-09-29 08:00" },
-  { "asset_code": "COMP-02", "value": "-5", "read_at": "2026-09-29 08:00" }
+  { "asset_code": "COMP-02", "kind": "hours", "value": "-5", "read_at": "2026-09-29 08:00" },
+  { "asset_code": "COMP-02", "kind": "temperature", "name": "Rodamiento",
+    "value": "-3.5", "read_at": "2026-09-29 08:00" },
+  { "asset_code": "COMP-02", "kind": "temperature", "value": "71", "read_at": "2026-09-29 08:00" }
 ]}
 
 // respuesta
-{ "created": 1, "duplicates": 0, "errors": 1,
+{ "created": 2, "duplicates": 0, "errors": 2,
   "rows": [
     { "row": 1, "asset_code": "ENV-01", "result": "create", "errors": [] },
     { "row": 2, "asset_code": "COMP-02", "result": "error",
-      "errors": ["La lectura no puede ser negativa."] }
+      "errors": ["La lectura no puede ser negativa."] },
+    { "row": 3, "asset_code": "COMP-02", "meter": "0193…", "result": "create", "errors": [] },
+    { "row": 4, "asset_code": "COMP-02", "result": "error",
+      "errors": ["El activo tiene varios medidores con ese tipo: indica también el nombre (o el id)."] }
   ]}
 ```
 
@@ -386,9 +401,63 @@ La respuesta es `{"movements": [...]}` (uno, dos o ninguno), con **201** si se c
   "unit_cost": "4440.0000", "cost": "8880.00", "warehouse": "0193…", … }
 ```
 
+### 9. Mantenimiento por condición: reglas y alertas (CBM-09)
+
+**Qué resuelve:** que un sistema externo (SCADA, planilla de termografía, BI) defina una sola vez el rango normal de una variable y siga sus alertas sin entrar a la web. Las lecturas llegan por `POST /readings/` o `POST /readings/bulk/` (sección 2); cada lectura nueva se evalúa al registrarse y, si cruza el umbral, abre una alerta y, por defecto, una OT predictiva (ADR-029). Usa los mismos servicios que `/condition/` en la web.
+
+- Exige el módulo `condition` del plan (Prueba, Profesional y Empresa); sin él, reglas y alertas responden 403 con el mensaje de plan. Las lecturas siguen funcionando (se guardan, pero no se evalúan).
+- Leer pide `condition.view`; crear y editar reglas y reconocer alertas, `condition.manage`. El token actúa como planificador: tiene ambos.
+- Sin borrado: una regla se desactiva con `is_active: false` (sus alertas activas quedan normalizadas) y se reactiva con `true` (arranca de cero en la próxima lectura).
+
+**Reglas.** El alcance es exactamente uno:
+
+| Alcance | Campos | Aplica a |
+| --- | --- | --- |
+| Una variable | `meter` (id de un medidor de tipo variable) | Solo esa variable. |
+| Una clase de activo | `asset_class` + `meter_kind` (`temperature`, `vibration`, `pressure`, `current`, `variable`) + `meter_name` (vacío = variables sin nombre) | Las variables con ese tipo y nombre en los activos de la clase, también los que se creen después. |
+
+| `operator` | Campos | Fuera de rango cuando |
+| --- | --- | --- |
+| `gt` | `threshold` | valor > umbral |
+| `lt` | `threshold` | valor < umbral |
+| `outside` | `min_value` < `max_value` | valor < mínimo o > máximo |
+| `rate` | `threshold` > 0 | cambio por día respecto de la lectura anterior (valor absoluto) > umbral |
+
+Opcionales: `consecutive` (lecturas seguidas fuera de rango para alertar, 1 a 100; 1 por defecto), `action` (`alert_work_order` por defecto, o `alert`: solo alertar), `name`, y los datos de la OT: `work_order_title` (vacío = «Condición: <variable> en <activo>»), `work_order_priority` (1 a 4; `null` = según la criticidad del activo) y `work_order_instructions`. Un medidor de uso, un tipo que no es variable, un id de otra organización o dos alcances a la vez → 400. `POST` es idempotente por `client_uuid` (reenviarlo → **200** con la regla ya creada; esa clave en otra operación → **409**). `PATCH` cambia solo los campos enviados; el alcance no se cambia (400: crea otra regla).
+
+**Filtros de la lista:** `include_inactive=true` (por defecto solo las activas), `asset_class`, `meter` (las que aplican a esa variable: directas y por clase).
+
+```json
+// POST /condition-rules/
+{ "asset_class": "0192f1a2-…", "meter_kind": "temperature", "meter_name": "Rodamiento",
+  "operator": "gt", "threshold": "80", "consecutive": 2, "client_uuid": "5e2a…" }
+
+// respuesta 201
+{ "id": "0193…", "label": "Rodamiento · clase MOT > 80", "meter": null,
+  "asset_class": "0192f1a2-…", "asset_class_code": "MOT", "meter_kind": "temperature",
+  "meter_name": "Rodamiento", "operator": "gt", "threshold": "80.000", "min_value": null,
+  "max_value": null, "consecutive": 2, "action": "alert_work_order",
+  "work_order_priority": null, "is_active": true, … }
+```
+
+**Alertas.** Una alerta es un episodio fuera de rango de una variable: `open` (abierta), `acknowledged` (reconocida), `normalized` (la variable volvió a rango; la OT sigue su curso) o `closed` (se cerró o canceló su OT). Mientras siga fuera de rango no se abren otras: se actualizan `last_value` y `last_read_at`. Filtros: `status` (uno de los cuatro, o `active` = abiertas y reconocidas) y `asset`. Abiertas primero, luego las más recientes.
+
+```json
+// GET /condition-alerts/?status=active
+{ "count": 1, "results": [{
+  "id": "0193…", "status": "open", "rule": "0193…", "rule_label": "Rodamiento · clase MOT > 80",
+  "meter": "0193…", "meter_kind": "temperature", "meter_name": "Rodamiento", "unit": "°C",
+  "asset": "0192f1a4-…", "asset_code": "MOT-03", "value": "86.000",
+  "opened_at": "2026-10-12T11:00:00-03:00", "last_value": "88.500",
+  "last_read_at": "2026-10-12T13:00:00-03:00",
+  "work_order": "0193…", "work_order_code": "OT-P-00057", "acknowledged_at": null, … }]}
+```
+
+**Reconocer:** `POST /condition-alerts/{id}/acknowledge/` (sin cuerpo) deja quién (el usuario del token) y cuándo; reconocerla otra vez no hace nada (200). Una alerta normalizada o cerrada → 400.
+
 ## Casos de aplicación de punta a punta
 
-Cuatro escenarios típicos de una pyme productiva, con la secuencia exacta de llamadas.
+Cinco escenarios típicos de una pyme productiva, con la secuencia exacta de llamadas.
 
 ### Caso A — Técnico en terreno con app móvil (token `write`)
 
@@ -431,6 +500,14 @@ Un bot de WhatsApp o un formulario de la intranet recibe «la envasadora se detu
 4. Consultar `GET /requests/{id}/` o `GET /work-orders/{id}/` para informar el avance.
 
 El planificador ve la OT correctiva con prioridad urgente (si el activo es crítico A) y vencimiento hoy, sin haber digitado nada.
+
+### Caso E — Termografía mensual de motores (token `write`)
+
+Un contratista mide la temperatura de rodamientos de 40 motores y entrega una planilla.
+
+1. Una sola vez: `POST /condition-rules/` con el `asset_class` de los motores, `meter_kind: "temperature"`, `meter_name: "Rodamiento"`, `operator: "gt"` y `threshold: "80"`.
+2. Cada mes: `POST /readings/bulk/` con `asset_code`, `kind: "temperature"`, `name: "Rodamiento"`, `value` y `read_at` por motor (la variable debe existir en el activo: se crea en la ficha, o sola al completar una OT cuyo checklist la enlaza).
+3. `GET /condition-alerts/?status=active` para el informe: cada motor sobre 80 °C trae su OT predictiva (`work_order_code`) ya en el backlog.
 
 ## API de terreno (`/field/api/`)
 
@@ -480,7 +557,8 @@ La v1 cubre el flujo del técnico y las integraciones de datos; la configuració
 | Gestionar solicitudes | No se aceptan, rechazan ni fusionan avisos por la API. | Web (bandeja del planificador). |
 | Descargar archivos | Los adjuntos devuelven solo metadatos, nunca una URL. | Descarga desde la web con URL firmada. |
 | Borrado | No hay `DELETE` en ningún recurso (sin borrado físico por diseño). | Cancelar una OT con `transition` a `cancelled`. |
-| Notificaciones salientes | No hay webhooks: un sistema externo debe consultar periódicamente. | Consultar `GET /work-orders/?scope=open` cada cierto tiempo. |
+| Notificaciones salientes | No hay webhooks: un sistema externo debe consultar periódicamente. | Consultar `GET /work-orders/?scope=open` o `GET /condition-alerts/?status=active` cada cierto tiempo. |
+| Variables de condición | No se crean ni desactivan variables por la API (`GET /meters/` las lista). | Web (ficha del activo) o un ítem de medición del checklist enlazado a la variable. |
 | Bodegas, mínimos, reservas y devoluciones | Solo lectura de bodegas y stock; no se crean bodegas, no se fijan mínimos, no se reservan ni se devuelven repuestos por la API. | Web (`/inventory/` y el detalle de la OT). |
 | Token por usuario | El token actúa como integración (rol planificador), no como un técnico concreto. | Un token por app o integración, con nombre claro. |
 
