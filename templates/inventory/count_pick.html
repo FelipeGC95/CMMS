@@ -1,0 +1,26 @@
+{% extends "base.html" %}{% load i18n ui %}
+{% block title %}{% translate "Contar" %}{% endblock %}
+{% block content %}
+<div class="narrow">
+  <div class="page-header">
+    <div>
+      <p class="muted"><a href="{% url 'inventory_home' %}">{% translate "Inventario" %}</a></p>
+      <h1 id="part-pick-title">{% translate "Contar un repuesto" %}</h1>
+      <p class="muted">{% translate "Elige el repuesto y anota cuántos hay. Para contar muchos de una vez, usa la importación Excel." %}</p>
+    </div>
+  </div>
+  <form class="card" method="get" role="search" aria-labelledby="part-pick-title">
+    <div class="search-bar">
+      <label class="visually-hidden" for="part-q">{% translate "Buscar repuesto" %}</label>
+      <input class="input" type="search" id="part-q" name="q" value="{{ query }}" placeholder="{% translate 'Código, nombre o n° de parte' %}" autocomplete="off"
+        hx-get="{% url 'inventory_part_search' %}" hx-vals='{"pick": "part"}' hx-trigger="input changed delay:300ms, search" hx-target="#part-results">
+      <button class="btn btn--secondary" type="submit" name="search" value="1" formnovalidate>{% translate "Buscar" %}</button>
+    </div>
+    <div id="part-results">{% include "inventory/_part_search_results.html" with results=results query=query pick="part" %}</div>
+    <div class="row">
+      <button class="btn btn--primary btn--lg" type="submit">{% icon 'list' %}{% translate "Contar este repuesto" %}</button>
+      <a class="btn btn--ghost" href="{% url 'inventory_import' %}">{% translate "Importar conteo (Excel)" %}</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

@@ -1,0 +1,36 @@
+{% extends "base.html" %}{% load i18n ui %}
+{% block title %}{% translate "Transferir" %}{% endblock %}
+{% block content %}
+<div class="narrow">
+  <div class="page-header">
+    <div>
+      <p class="muted"><a href="{% url 'inventory_home' %}">{% translate "Inventario" %}</a></p>
+      <h1 id="part-pick-title">{% translate "Transferir entre bodegas" %}</h1>
+      <p class="muted">{% translate "Mueve existencias de una bodega a otra; el costo promedio no cambia." %}</p>
+    </div>
+  </div>
+  {% if not picked %}{% include "inventory/_part_picker_search.html" %}{% endif %}
+  {% if stock %}
+  <section class="card card--flush mb-4" aria-labelledby="transfer-stock-title">
+    <div class="card__header"><h2 id="transfer-stock-title">{% translate "Stock por bodega" %}</h2></div>
+    <table class="table">
+      <thead><tr><th>{% translate "Bodega" %}</th><th class="num">{% translate "En existencia" %}</th><th class="num">{% translate "Disponible" %}</th></tr></thead>
+      <tbody>
+        {% for warehouse, on_hand, available in stock %}
+        <tr><td data-label="">{{ warehouse.name }}</td><td class="num" data-label="{% translate 'En existencia' %}">{{ on_hand|num }} {{ picked.unit }}</td><td class="num" data-label="{% translate 'Disponible' %}">{{ available|num }} {{ picked.unit }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+  {% endif %}
+  <form class="card" method="post" novalidate>
+    {% csrf_token %}
+    {% include "inventory/_part_picker_choice.html" %}
+    {% include "_form_fields.html" with form=form %}
+    <div class="row">
+      <button class="btn btn--primary btn--lg" type="submit">{% icon 'sync' %}{% translate "Transferir" %}</button>
+      <a class="btn btn--ghost" href="{% if picked %}{% url 'inventory_part_detail' picked.pk %}{% else %}{% url 'inventory_home' %}{% endif %}">{% translate "Cancelar" %}</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

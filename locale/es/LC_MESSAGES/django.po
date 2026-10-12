@@ -8760,4 +8760,183 @@ msgid "Indica el repuesto del catálogo o su descripción."
 msgstr ""
 
 msgid "Indica el costo unitario."
+msgid "Opcional. Vacío: entra al costo promedio actual. Con 0, el promedio baja."
+msgstr ""
+
+msgid "Factura o guía. Ej.: GD-1234."
+msgstr ""
+
+msgid "Fecha de la entrada"
+msgstr ""
+
+msgid "Vacía: ahora. Hasta 30 días atrás."
+msgstr ""
+
+msgid "Cantidad contada"
+msgstr ""
+
+msgid "Obligatorio si faltan unidades o si la diferencia supera el 10 %."
+msgstr ""
+
+msgid "Hacia"
+msgstr ""
+
+msgid "La fecha final no puede ser anterior a la inicial."
+msgstr ""
+
+msgid "Código o nombre"
+msgstr ""
+
+msgid "Ej.: OT-C-00012"
+msgstr ""
+
+msgid "Elige un repuesto."
+msgstr ""
+
+#, python-format
+msgid "Entrada registrada: %(part)s +%(quantity)s %(unit)s."
+msgstr ""
+
+msgid "Para transferir se necesitan al menos dos bodegas activas."
+msgstr ""
+
+#, python-format
+msgid "Registraste costo 0: el costo promedio de %(part)s bajó (se diluye)."
+msgstr ""
+
+msgid "Sin diferencia: el conteo coincide con el sistema."
+msgstr ""
+
+#, python-format
+msgid "Transferidas %(quantity)s %(unit)s de %(part)s: %(source)s → %(target)s."
+msgstr ""
+
+#, python-format
+msgid "Ajuste registrado: %(sign)s%(quantity)s %(unit)s; saldo %(after)s."
+msgstr ""
+
+msgid "Reservas sin cubrir"
+msgstr ""
+
+msgid "Saldo resultante"
+msgstr ""
+
+msgid "Registrado por"
+msgstr ""
+
+msgid "Registrado el"
+msgstr ""
+
+msgid "Movimientos"
+msgstr ""
+
+msgid "Faltante de reservas"
+msgstr ""
+
+msgid "Sugerido"
+msgstr ""
+
+msgid "Reposición"
+msgstr ""
+
+msgid "Valor en existencia"
+msgstr ""
+
+msgid "Costo estimado"
+msgstr ""
+
+msgid "Busca el repuesto por código, nombre o n° de parte y elígelo."
+msgstr ""
+
+msgid "Buscar repuesto"
+msgstr ""
+
+msgid "Anota lo que hay físicamente; el sistema ajusta la diferencia."
+msgstr ""
+
+msgid "En el sistema"
+msgstr ""
+
+msgid "Guardar conteo"
+msgstr ""
+
+msgid "Contar un repuesto"
+msgstr ""
+
+msgid "Elige el repuesto y anota cuántos hay. Para contar muchos de una vez, usa la importación Excel."
+msgstr ""
+
+msgid "Contar este repuesto"
+msgstr ""
+
+msgid "Importar conteo (Excel)"
+msgstr ""
+
+msgid "Movimientos de stock"
+msgstr ""
+
+msgid "Registrado"
+msgstr ""
+
+msgid "Doc."
+msgstr ""
+
+msgid "No hay movimientos que coincidan."
+msgstr ""
+
+#, python-format
+msgid "%(n)s movimiento"
+msgid_plural "%(n)s movimientos"
+msgstr[0] ""
+msgstr[1] ""
+
+msgid "Lo que llegó a bodega: una línea por repuesto."
+msgstr ""
+
+msgid "Guardar y registrar otra"
+msgstr ""
+
+msgid "Exportar Excel para comprar"
+msgstr ""
+
+msgid "Ver"
+msgstr ""
+
+msgid "Sugerido = el mayor entre objetivo y mínimo, menos lo disponible (existencia − reservado), redondeado hacia arriba."
+msgstr ""
+
+msgid "Faltan para reservas"
+msgstr ""
+
+msgid "Nada que reponer: ningún repuesto está bajo su mínimo, en negativo ni con reservas sin cubrir."
+msgstr ""
+
+#, python-format
+msgid "%(n)s repuesto por reponer"
+msgid_plural "%(n)s repuestos por reponer"
+msgstr[0] ""
+msgstr[1] ""
+
+msgid "Transferir entre bodegas"
+msgstr ""
+
+msgid "Mueve existencias de una bodega a otra; el costo promedio no cambia."
+msgstr ""
+
+msgid "Stock por bodega"
+msgstr ""
+
+msgid "Repuesto elegido en un movimiento"
+msgstr ""
+
+msgid "Entrada y transferencia: el repuesto ya elegido, con su enlace para cambiarlo (48 px)."
+msgstr ""
+
+msgid "Cantidad con signo y motivo de reposición"
+msgstr ""
+
+msgid "Libro de movimientos: flecha + signo, nunca solo color. Reposición: por qué se repone, en el orden en que se atiende."
+msgstr ""
+
+msgid "Reposición de repuestos"
 msgstr ""

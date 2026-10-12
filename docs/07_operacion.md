@@ -49,7 +49,10 @@ Proveedor de correo (SMTP, ambos con plan gratuito para empezar):
   - 07:00 UTC, respaldo (solo con `BACKUPS_ENABLED=1`);
   - 08:00 UTC, `organizations.purge_organizations`: borra los ZIP de
     exportación vencidos y purga las organizaciones cuyo borrado venció
-    (X-04, sección 3c).
+    (X-04, sección 3c);
+  - lunes 09:00 UTC, `inventory.enqueue_reconciliation`: una tarea por
+    organización activa que compara el stock con el libro de movimientos,
+    sin corregir (INV-14, sección 3e).
 - **Migraciones:** `python manage.py migrate` en el *pre-deploy command*.
 - Diagnóstico de la cola: `python manage.py procrastinate healthchecks`.
 
@@ -170,6 +173,34 @@ Proveedor de correo (SMTP, ambos con plan gratuito para empezar):
     el job `e2e` (Postgres, `seed_demo`, `runserver`, chromium) y sube las
     capturas y el log del servidor como artefacto. El botón aparece cuando el
     workflow con `workflow_dispatch` está en `main`.
+
+## 3e. Inventario: reconciliación y stock negativo (INV-14, ADR-028)
+
+- **Qué se revisa:** el saldo por repuesto y bodega (`StockItem`) es una caché
+  del libro de movimientos (`StockMovement`, inmutable). `python manage.py
+  inventory_reconcile [--organization <slug>]` verifica (a) existencia = Σ
+  movimientos; (b) reservado = Σ pendientes de reservas activas; (c) cada
+  consumo de OT enlazado tiene su salida con la cantidad opuesta. Sin `--fix`
+  solo lista las diferencias (una línea por diferencia y el total).
+- **Tarea semanal:** lunes 09:00 UTC en el worker
+  (`inventory.reconcile_stock` por organización). Si hay diferencias deja un
+  `WARNING` "Inventario descuadrado en <slug>: N diferencias (tipos)" en el
+  log del worker (y en Sentry si su integración de logs captura advertencias;
+  por defecto Sentry las guarda como migas, no como evento). Sin worker, un
+  cron semanal: `python manage.py inventory_reconcile`.
+- **Corregir un descuadre:** primero entender la causa (un cambio hecho a mano
+  en la base, un error de código). Luego `python manage.py inventory_reconcile
+  --organization <slug> --fix`: reescribe existencia y reservado desde el libro
+  y deja la auditoría `stock_reconcile` con el valor anterior y el nuevo. El
+  tipo (c) no se corrige solo: revisar la OT y el consumo indicados.
+- **Stock negativo (no es un descuadre):** se permite a propósito (un consumo
+  nunca se rechaza por falta de stock) y aparece como "Negativo ·
+  regularizar" en el inicio de inventario y primero en Reposición. Se
+  regulariza desde la web, no por consola: si faltó registrar una entrada,
+  **Registrar entrada** con su documento y fecha real (hasta 30 días atrás);
+  si el físico no coincide, **Contar** el repuesto (motivo obligatorio si
+  faltan unidades o la diferencia supera el 10 %); si salió de otra bodega,
+  **Transferir**. Nunca editar `StockItem` a mano.
 
 ## 4. Checklist para activar producción
 

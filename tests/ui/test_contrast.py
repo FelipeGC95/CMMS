@@ -75,6 +75,8 @@ CONTRAST_PAIRS = [
     ("--color-info", "--color-surface", UI),
     ("--color-text", "--color-surface-sunken", TEXT),
     ("--color-secondary-text", "--color-secondary-bg", TEXT),
+    # Movimientos de inventario (INV-05, INV-07): el repuesto elegido va sobre la tarjeta con borde
+    # fuerte (texto, texto atenuado, enlace "Cambiar" y borde sobre --color-surface, pares de arriba).
 ]
 
 

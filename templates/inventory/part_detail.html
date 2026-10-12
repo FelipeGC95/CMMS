@@ -11,6 +11,7 @@
   <div class="page-actions">
     {% if part.is_active and can_move and receive_url %}<a class="btn btn--primary page-actions__primary" href="{{ receive_url }}?part={{ part.pk }}">{% icon 'arrow-down' %}{% translate "Registrar entrada" %}</a>{% endif %}
     {% if part.is_active and can_manage and count_url %}<a class="btn btn--secondary" href="{{ count_url }}">{% icon 'list' %}{% translate "Contar" %}</a>{% endif %}
+    {% if part.is_active and can_move and multi_warehouse %}<a class="btn btn--secondary" href="{% url 'inventory_transfer' %}?part={{ part.pk }}">{% icon 'sync' %}{% translate "Transferir" %}</a>{% endif %}
     {% if can_manage %}
     <a class="btn btn--secondary" href="{% url 'inventory_part_edit' part.pk %}">{% icon 'wrench' %}{% translate "Editar" %}</a>
     <form method="post" action="{% url 'inventory_part_active' part.pk %}">
@@ -47,7 +48,7 @@
   </section>
 
   <section class="card card--flush" aria-labelledby="movements-title">
-    <div class="card__header"><h2 id="movements-title">{% translate "Últimos movimientos" %}</h2></div>
+    <div class="card__header"><h2 id="movements-title">{% translate "Últimos movimientos" %}</h2>{% if detail.movements %}<a href="{% url 'inventory_movements' %}?part={{ part.code|urlencode }}">{% translate "Ver todos" %}</a>{% endif %}</div>
     {% if detail.movements %}
     <table class="table">
       <thead><tr><th>{% translate "Fecha" %}</th><th>{% translate "Tipo" %}</th>{% if multi_warehouse %}<th>{% translate "Bodega" %}</th>{% endif %}<th class="num">{% translate "Cantidad" %}</th><th class="num">{% translate "Saldo" %}</th>{% if show_costs %}<th class="num">{% translate "Costo unitario" %}</th>{% endif %}<th>{% translate "Detalle" %}</th></tr></thead>

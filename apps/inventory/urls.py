@@ -2,10 +2,19 @@
 
 from django.urls import path
 
-from . import import_views, views
+from . import import_views, movement_views, views
 
 urlpatterns = [
     path("", views.inventory_home_view, name="inventory_home"),
+    path("export.xlsx", movement_views.stock_xlsx_view, name="inventory_export_xlsx"),
+    path("receive/", movement_views.receive_view, name="inventory_receive"),
+    path("count/", movement_views.count_pick_view, name="inventory_count"),
+    path("parts/<uuid:pk>/count/", movement_views.part_count_view, name="inventory_part_count"),
+    path("transfer/", movement_views.transfer_view, name="inventory_transfer"),
+    path("movements/", movement_views.movement_list_view, name="inventory_movements"),
+    path("movements/export.xlsx", movement_views.movements_xlsx_view, name="inventory_movements_export_xlsx"),
+    path("reorder/", movement_views.reorder_view, name="inventory_reorder"),
+    path("reorder/export.xlsx", movement_views.reorder_xlsx_view, name="inventory_reorder_export_xlsx"),
     path("parts/new/", views.part_create_view, name="inventory_part_create"),
     path("parts/search/", views.part_search_view, name="inventory_part_search"),
     path("parts/<uuid:pk>/", views.part_detail_view, name="inventory_part_detail"),

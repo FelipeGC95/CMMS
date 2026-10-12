@@ -80,6 +80,20 @@
     <a class="chip chip--counter chip--error" href="#ds-inventory">{% icon 'stop' %}{% translate "Negativo" %}<span class="chip__count">1</span></a>
     <a class="chip chip--counter chip--info" href="#ds-inventory">{% icon 'info' %}{% translate "Sin costo" %}<span class="chip__count">2</span></a>
   </nav>
+  <h3>{% translate "Repuesto elegido en un movimiento" %}</h3>
+  <p class="muted">{% translate "Entrada y transferencia: el repuesto ya elegido, con su enlace para cambiarlo (48 px)." %}</p>
+  <div class="picked-part">
+    <span class="picked-part__label">{% translate "Repuesto" %}</span>
+    <span class="picked-part__name"><span class="mono">ROD-6205</span> · {% translate "Rodamiento 6205 2RS" %}</span>
+    <a class="picked-part__change" href="#ds-inventory">{% translate "Cambiar" %}</a>
+  </div>
+  <h3>{% translate "Cantidad con signo y motivo de reposición" %}</h3>
+  <p class="muted">{% translate "Libro de movimientos: flecha + signo, nunca solo color. Reposición: por qué se repone, en el orden en que se atiende." %}</p>
+  <div class="row">
+    <span class="qty">{% icon 'arrow-down' %}+12 un</span>
+    <span class="qty">{% icon 'arrow-up' %}-3 un</span>
+    {% reorder_mark 0 %}{% reorder_mark 1 %}{% reorder_mark 2 %}
+  </div>
 </section>
 
 <section class="card mb-4" aria-labelledby="ds-wizard">

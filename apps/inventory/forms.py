@@ -3,11 +3,16 @@
 Validan la entrada; las reglas de negocio están en los servicios.
 """
 
+import uuid
+
 from django import forms
 from django.core.exceptions import ValidationError
 from django.utils.translation import gettext_lazy as _
 
 from apps.organizations.selectors import visible_locations
+from apps.work.forms import LocalDateTimeInput
+
+from .models import StockMovement, Warehouse
 
 PART_FIELDS = (
     "code",
@@ -129,3 +134,194 @@ class PartImportForm(forms.Form):
             }
         ),
     )
+
+
+# --- Movimientos (INV-05, INV-06, INV-07, INV-14) -------------------------------
+
+
+def _decimal_widget():
+    return forms.NumberInput(attrs={"inputmode": "decimal", "step": "any", "min": "0"})
+
+
+class WarehouseChoiceField(forms.ModelChoiceField):
+    def label_from_instance(self, obj):
+        return obj.name
+
+
+def _positive(value):
+    if value is not None and value <= 0:
+        raise ValidationError(_("La cantidad debe ser mayor que cero."))
+    return value
+
+
+def _setup_warehouse(form, name, *, keep_single=False):
+    """Selector entre las bodegas visibles y activas; con una sola se quita (INV-03 CA4)."""
+    if len(form.warehouses) > 1 or (keep_single and form.warehouses):
+        pks = [warehouse.pk for warehouse in form.warehouses]
+        form.fields[name].queryset = Warehouse.objects.filter(pk__in=pks).order_by("-is_default", "name")
+    else:
+        del form.fields[name]
+
+
+class _MovementForm(forms.Form):
+    """Base de entrada, conteo y transferencia: bodegas visibles y clave de idempotencia oculta."""
+
+    client_uuid = forms.UUIDField(widget=forms.HiddenInput, required=False, initial=uuid.uuid4)
+
+    def __init__(self, *args, warehouses=(), **kwargs):
+        super().__init__(*args, **kwargs)
+        self.warehouses = list(warehouses)
+
+
+# El repuesto (`part`) no es campo del formulario: llega como radio del buscador o como campo
+# oculto si ya venía elegido, y la vista lo busca entre los de la organización (un ID ajeno no
+# se encuentra).
+
+
+class ReceiveForm(_MovementForm):
+    """Entrada de stock (INV-05). La bodega se pide solo con más de una activa (INV-03 CA4)."""
+
+    quantity = forms.DecimalField(
+        label=_("Cantidad"), max_digits=14, decimal_places=3, widget=_decimal_widget()
+    )
+    unit_cost = forms.DecimalField(
+        label=_("Costo unitario"),
+        max_digits=18,
+        decimal_places=4,
+        min_value=0,
+        required=False,
+        widget=_decimal_widget(),
+        help_text=_("Opcional. Vacío: entra al costo promedio actual. Con 0, el promedio baja."),
+    )
+    warehouse = WarehouseChoiceField(label=_("Bodega"), queryset=None, empty_label=None)
+    reference = forms.CharField(
+        label=_("Documento"), max_length=60, required=False, help_text=_("Factura o guía. Ej.: GD-1234.")
+    )
+    supplier = forms.CharField(label=_("Proveedor"), max_length=150, required=False)
+    note = forms.CharField(
+        label=_("Nota"), max_length=500, required=False, widget=forms.Textarea(attrs={"rows": 2})
+    )
+    occurred_at = forms.DateTimeField(
+        label=_("Fecha de la entrada"),
+        required=False,
+        widget=LocalDateTimeInput(),
+        help_text=_("Vacía: ahora. Hasta 30 días atrás."),
+    )
+
+    def __init__(self, *args, warehouses=(), show_costs=True, **kwargs):
+        super().__init__(*args, warehouses=warehouses, **kwargs)
+        _setup_warehouse(self, "warehouse")
+        if not show_costs:
+            del self.fields["unit_cost"]
+
+    def clean_quantity(self):
+        return _positive(self.cleaned_data["quantity"])
+
+
+class CountForm(_MovementForm):
+    """Conteo de un repuesto en una bodega (INV-06). El motivo lo exige el servicio si corresponde."""
+
+    warehouse = WarehouseChoiceField(label=_("Bodega"), queryset=None, empty_label=None)
+    counted_quantity = forms.DecimalField(
+        label=_("Cantidad contada"), max_digits=14, decimal_places=3, min_value=0, widget=_decimal_widget()
+    )
+    note = forms.CharField(
+        label=_("Motivo"),
+        max_length=500,
+        required=False,
+        widget=forms.Textarea(attrs={"rows": 2}),
+        help_text=_("Obligatorio si faltan unidades o si la diferencia supera el 10 %."),
+    )
+
+    def __init__(self, *args, warehouses=(), **kwargs):
+        super().__init__(*args, warehouses=warehouses, **kwargs)
+        _setup_warehouse(self, "warehouse")
+
+
+class TransferForm(_MovementForm):
+    """Transferencia entre bodegas (INV-07): solo existe con más de una bodega activa."""
+
+    from_warehouse = WarehouseChoiceField(label=_("Desde"), queryset=None, empty_label=None)
+    to_warehouse = WarehouseChoiceField(label=_("Hacia"), queryset=None, empty_label=None)
+    quantity = forms.DecimalField(
+        label=_("Cantidad"), max_digits=14, decimal_places=3, widget=_decimal_widget()
+    )
+    note = forms.CharField(
+        label=_("Nota"), max_length=500, required=False, widget=forms.Textarea(attrs={"rows": 2})
+    )
+
+    def __init__(self, *args, warehouses=(), **kwargs):
+        super().__init__(*args, warehouses=warehouses, **kwargs)
+        for name in ("from_warehouse", "to_warehouse"):
+            _setup_warehouse(self, name, keep_single=True)
+        if len(self.warehouses) > 1 and "from_warehouse" not in self.initial:
+            self.initial.setdefault("from_warehouse", self.warehouses[0].pk)
+            self.initial.setdefault("to_warehouse", self.warehouses[1].pk)
+
+    def clean_quantity(self):
+        return _positive(self.cleaned_data["quantity"])
+
+    def clean(self):
+        cleaned = super().clean()
+        source, target = cleaned.get("from_warehouse"), cleaned.get("to_warehouse")
+        if source is not None and source == target:
+            self.add_error("to_warehouse", _("Elige una bodega de destino distinta a la de origen."))
+        return cleaned
+
+
+class MovementFilterForm(forms.Form):
+    """Filtros del libro de movimientos (INV-14 CA1). Los inválidos se ignoran."""
+
+    part = forms.CharField(
+        label=_("Repuesto"),
+        max_length=200,
+        required=False,
+        widget=forms.TextInput(attrs={"placeholder": _("Código o nombre")}),
+    )
+    warehouse = WarehouseChoiceField(
+        label=_("Bodega"), queryset=None, required=False, empty_label=_("Todas las bodegas")
+    )
+    kind = forms.ChoiceField(label=_("Tipo"), required=False)
+    date_from = forms.DateField(
+        label=_("Desde"), required=False, widget=forms.DateInput(attrs={"type": "date"})
+    )
+    date_to = forms.DateField(
+        label=_("Hasta"), required=False, widget=forms.DateInput(attrs={"type": "date"})
+    )
+    work_order = forms.CharField(
+        label=_("OT"),
+        max_length=20,
+        required=False,
+        widget=forms.TextInput(attrs={"placeholder": _("Ej.: OT-C-00012")}),
+    )
+
+    def __init__(self, *args, warehouses=(), **kwargs):
+        super().__init__(*args, **kwargs)
+        self.warehouses = list(warehouses)
+        _setup_warehouse(self, "warehouse")
+        self.fields["kind"].choices = [("", _("Todos los tipos")), *StockMovement.Kind.choices]
+
+    def clean(self):
+        cleaned = super().clean()
+        start, end = cleaned.get("date_from"), cleaned.get("date_to")
+        if start and end and end < start:
+            self.add_error("date_to", _("La fecha final no puede ser anterior a la inicial."))
+        return cleaned
+
+    @property
+    def active_count(self) -> int:
+        return sum(1 for value in getattr(self, "cleaned_data", {}).values() if value)
+
+    def filters(self) -> dict:
+        """Argumentos de `movement_list`: solo los filtros válidos."""
+        if self.is_bound:
+            self.is_valid()
+        data = getattr(self, "cleaned_data", {})
+        return {
+            "part": data.get("part", ""),
+            "warehouse": data.get("warehouse"),
+            "kind": data.get("kind", ""),
+            "date_from": data.get("date_from"),
+            "date_to": data.get("date_to"),
+            "work_order": data.get("work_order", ""),
+        }
