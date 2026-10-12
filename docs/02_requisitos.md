@@ -265,6 +265,17 @@ Como técnico quiero ejecutar el checklist desde el celular.
 **WO-06 · Correctiva desde hallazgo (M1)**
 - CA1: Desde un ítem No OK se crea una OT correctiva vinculada, con activo y
   foto precargados.
+- CA2 (F2): **Sin conexión** (`/field/`, X-06, ADR-011): un ítem No OK muestra
+  "Avisar hallazgo" (descripción opcional y "¿el equipo está detenido?"); el
+  aviso se encola con `client_uuid` después de la respuesta del ítem y antes
+  de "Completar", y al sincronizar llama a `POST
+  /field/api/work-orders/{id}/checklist/{item}/finding/` con el mismo servicio
+  que la web (`create_corrective_from_item`, idempotente por ítem). Quien no
+  tiene `work_order.manage` (técnico) pasa por el aviso de falla (solicitud +
+  correctiva), igual que en la web. OT cancelada o bloqueada → 409
+  `cancelled`/`locked`; ítem que no está No OK → 400. Las fotos del ítem
+  viajan por la cola de fotos de siempre y se ven en la correctiva por el
+  vínculo.
 
 ## 5. Solicitudes, fallas y backlog (`REQ`)
 
@@ -584,10 +595,177 @@ asistente de puesta en marcha.
 
 ## 7. Mantenimiento por condición (`CBM`, F2)
 
-- Reglas de umbral sobre medidores o variables (>, <, fuera de rango, tasa de
-  cambio) que generan alerta y, opcionalmente, una OT o solicitud.
-- Ingesta por API y CSV de lecturas de variables (temperatura, vibración…).
-- MVP: solo se diseñan las tablas `measurement_point` y `reading` (ver 03).
+**Estado:** en construcción (F2). Diseño aprobado el 2026-10-12; paquetes
+C0–C6 y F1 en [05_roadmap.md](05_roadmap.md) y decisiones en
+[04_arquitectura.md](04_arquitectura.md), ADR-029. Modelo en
+[03_modelo_de_datos.md](03_modelo_de_datos.md) §2.11.
+
+Variables de condición (temperatura, vibración, presión, corriente…) medidas
+a mano, por CSV, por API o desde el checklist de una OT; reglas de umbral que,
+al cruzarse, abren una alerta y, por defecto, una OT predictiva. Las variables
+**son medidores** de tipo variable (no acumulativos): se reusan lecturas,
+CSV, `POST /api/v1/readings/bulk/` y la ficha del activo, sin tablas de series
+aparte. Módulo de plan `condition` ("Mantenimiento por condición") en los
+planes Prueba, Profesional y Empresa; Básico no lo incluye.
+
+Decisiones de producto (2026-10-12):
+- Variables = medidores reutilizados con tipos nuevos no acumulativos (D1).
+- Al cruzar el umbral: alerta + OT predictiva, una sola abierta por regla y
+  medidor; la regla puede ser "solo alertar" (D2).
+- Los ítems de medición del checklist alimentan una variable del activo (D3).
+- Módulo `condition` en Prueba, Profesional y Empresa, como `inventory` (D4).
+
+**CBM-01 · Variables de condición en el activo (F2)**
+Como planificador quiero registrar qué variables mido en cada equipo, para
+seguir su condición sin una herramienta aparte.
+- CA1: Tipos nuevos de medidor: temperatura (°C), vibración (mm/s), presión
+  (bar), corriente (A) y variable (otra, unidad libre). Unidad por defecto
+  según el tipo, editable.
+- CA2: Siempre no acumulativos: el servicio fuerza `is_cumulative = False`
+  (no hay reinicio ni rechazo por lectura menor) y admiten valores negativos
+  (p. ej. temperaturas bajo cero); los tipos de uso (horas, km, ciclos, otro)
+  no cambian.
+- CA3: Alta y edición desde la ficha del activo con `asset.manage`; la clave
+  de una variable en un activo es (tipo, nombre), única por activo.
+- CA4: Los tipos variable no se ofrecen como disparador de planes por uso: se
+  filtran en el formulario de la versión y el servicio rechaza una versión
+  con `meter_kind` variable.
+- CA5: No se borran: se desactivan (el historial y las alertas siguen
+  visibles).
+
+**CBM-02 · Lecturas de variables (F2)**
+- CA1: Registro manual desde la ficha del activo y desde "Registrar lectura"
+  con `meter_reading.create` (sin cambios de permisos).
+- CA2: CSV de lecturas (AST-09) con columnas opcionales `tipo` y `nombre` para
+  elegir la variable cuando el activo tiene varias; mismo patrón de vista
+  previa con errores por fila.
+- CA3: `POST /api/v1/readings/bulk/` acepta `meter` (id) o `asset_code` +
+  `kind` + `name`; resultado por fila como hoy.
+- CA4: Al completar una OT, los ítems de medición enlazados registran su
+  lectura (CBM-06).
+- CA5: Todas las fuentes pasan por el mismo servicio (`record_meter_reading`)
+  y son idempotentes por `client_uuid`.
+
+**CBM-03 · Reglas de condición (F2)**
+Como planificador quiero definir una vez el rango normal de una variable, para
+que el sistema me avise y cree la OT cuando se salga.
+- CA1: Alcance: un medidor concreto, o una clase de activo + tipo + nombre de
+  variable (aplica a todas las variables con esa clave en activos de la clase,
+  incluidas las que se creen después).
+- CA2: Operadores: mayor que (`gt`), menor que (`lt`), fuera de rango
+  (`outside`, [mín, máx]) y tasa de cambio (`rate`: cambio por día respecto de
+  la lectura anterior, en valor absoluto, mayor que el umbral).
+- CA3: Lecturas consecutivas fuera de rango para alertar (por defecto 1;
+  filtra ruido de sensores).
+- CA4: Acción: "alerta y OT" (por defecto) o "solo alerta". Datos de la OT:
+  título (por defecto "Condición: <variable> en <activo>"), prioridad (por
+  defecto según la criticidad del activo, como en las fallas) e
+  instrucciones.
+- CA5: Validaciones en el servicio (web y API): en `outside` mín < máx; en
+  `rate` umbral > 0; el alcance es exactamente uno (medidor o clase + clave);
+  el medidor y la clase son de la organización.
+- CA6: No se borran: `is_active`. Alta y edición auditadas; requieren
+  `condition.manage`.
+
+**CBM-04 · Evaluación e histéresis (F2)**
+- CA1: Cada lectura nueva se evalúa al registrarse, dentro de la misma
+  transacción, contra las reglas activas que aplican a su medidor (directas y
+  por clase), para todas las fuentes (manual, CSV, API, OT, terreno).
+- CA2: Solo la lectura más reciente del medidor evalúa: las lecturas
+  históricas (con fecha anterior a la vigente) no alertan.
+- CA3: Estado por regla y medidor (normal / alarma, contador de consecutivas,
+  última lectura evaluada): se alerta solo al pasar de normal a alarma.
+  Mientras siga en alarma no hay alertas ni OT nuevas; se actualiza el último
+  valor de la alerta abierta.
+- CA4: Al volver a rango la alerta queda "normalizada" y la OT sigue su curso;
+  un nuevo cruce después abre un episodio nuevo.
+- CA5: Una sola OT abierta por regla y medidor: con acción "alerta y OT" se
+  crea una OT predictiva (tipo `predictive`, estado planificada, creada por el
+  sistema) con el activo, el título, la prioridad y las instrucciones de la
+  regla. Si un episodio nuevo empieza mientras la OT del anterior sigue
+  abierta, la alerta nueva se enlaza a esa OT y no se crea otra.
+- CA6: Reenviar la misma lectura (`client_uuid`) no vuelve a evaluar ni
+  duplica alertas u OT.
+- CA7: Número acotado de consultas por lectura (índices compuestos con
+  `organization_id`), probado con `django_assert_max_num_queries`.
+
+**CBM-05 · Alertas (F2)**
+- CA1: `/condition/` lista las alertas con las abiertas primero; filtros por
+  estado, sitio y activo; paginada y con el alcance por sitio de la membresía.
+- CA2: Cada alerta muestra regla, variable, activo, valor que la abrió, último
+  valor y fecha, estado (ícono + texto: abierta, reconocida, normalizada,
+  cerrada) y enlace a la OT.
+- CA3: "Reconocer" con `condition.manage` (queda quién y cuándo); al cerrarse
+  la OT vinculada la alerta pasa a cerrada.
+- CA4: Alertas inmutables salvo sus transiciones de estado; cada transición
+  auditada.
+- CA5: Contador "Alertas de condición (N)" en el inicio.
+- CA6: Aviso `condition_alert` (app y correo según preferencias) a quienes
+  tienen `work_order.manage` y ven el sitio del activo; se encola con
+  `on_commit`.
+
+**CBM-06 · El checklist alimenta variables (F2)**
+Como técnico quiero que la temperatura que anoto en la pauta quede como
+lectura del equipo, sin registrarla dos veces.
+- CA1: Un ítem de medición del plan (borrador) se puede enlazar a una variable
+  por tipo + nombre (opcional); el enlace se copia al checklist de la OT.
+- CA2: Al completar la OT, cada ítem enlazado con valor registra una lectura
+  (origen OT, fecha = respuesta del ítem o cierre), una por ítem, idempotente
+  (la OT guarda la lectura en el ítem).
+- CA3: Si el activo no tiene esa variable, se crea sola con la unidad del
+  ítem.
+- CA4: Igual en la web, la API v1 y la PWA (mismo servicio de cierre).
+- CA5: Versiones publicadas inmutables (ADR-016): el enlace se agrega en un
+  borrador nuevo; los ítems existentes no cambian.
+
+**CBM-07 · Condición en la ficha del activo (F2)**
+- CA1: Sección "Condición" con cada variable: último valor y fecha, estado
+  (ícono + texto: normal, alarma, sin reglas) y enlace a sus alertas.
+- CA2: Tendencia de los últimos 90 días como SVG generado en el servidor, con
+  líneas de umbral de las reglas, colores por tokens y su tabla; sin JS ni
+  estilos en línea; a 360 px sin scroll horizontal.
+- CA3: Número fijo de consultas (`tests/test_query_counts.py`).
+
+**CBM-08 · Permisos, módulo y aislamiento (F2)**
+
+| Permiso | admin | planner | supervisor | technician | viewer | external |
+|---|---|---|---|---|---|---|
+| `condition.view` | ✔ | ✔ | ✔ | ✔ | ✔ | — |
+| `condition.manage` (reglas, reconocer alertas) | ✔ | ✔ | — | — | — | — |
+
+- CA1: Registrar lecturas sigue siendo `meter_reading.create`; dar de alta
+  variables, `asset.manage`. El token de API actúa con permisos de
+  planificador.
+- CA2: Sin el módulo `condition`: `/condition/…` responde 403 con mensaje de
+  plan; desaparecen la navegación, el contador y la sección de la ficha; la
+  API de condición responde 403. Las variables siguen siendo medidores y sus
+  lecturas se registran, pero no se evalúan reglas.
+- CA3: Tests de aislamiento de cada modelo, vista y endpoint, incluidos IDs
+  cruzados (medidor, clase, regla) en formularios y API. RLS automático
+  (`post_migrate` de `apps/core/rls.py`), verificado en
+  `tests/isolation/test_rls.py`.
+
+**CBM-09 · API v1 de condición (F2)**
+- CA1: `GET/POST /api/v1/condition-rules/`, `GET/PATCH
+  /api/v1/condition-rules/{id}/` (sin borrado: `is_active`), mismo servicio y
+  validaciones que la web.
+- CA2: `GET /api/v1/condition-alerts/` (filtros estado, activo), detalle y
+  `POST /api/v1/condition-alerts/{id}/acknowledge/`.
+- CA3: `POST /api/v1/readings/bulk/` con `kind`/`name` (CBM-02 CA3).
+- CA4: Paginación, errores y alcances read/write como el resto de la API;
+  esquema sin advertencias; documentado en [08_api.md](08_api.md).
+
+**CBM-10 · Datos demo, exportación y purga (F2)**
+- CA1: `seed_demo` crea variables, reglas por clase e historia con al menos un
+  episodio de alarma con su OT predictiva.
+- CA2: Las tablas nuevas entran en la exportación completa y la purga (X-03,
+  X-04, ADR-027), probado en `tests/test_org_export_delete.py`.
+
+**Fuera de v1:** ingesta en tiempo real (MQTT, OPC-UA, conectores SCADA);
+tablas de series de tiempo particionadas; reglas compuestas (varias
+variables) o estadísticas (promedio móvil, desviación); crear solicitud en vez
+de OT; umbrales por organización fuera de las reglas; predicción o IA sobre la
+tendencia; gráficos interactivos con JS.
 
 ## 8. Indicadores y reportes (`KPI`)
 
@@ -662,7 +840,8 @@ cambios). Consultable y filtrable por el administrador. Solo inserción.
 
 **X-02 · Notificaciones (M1)**: en la app y por correo: OT asignada, OT por
 vencer/vencida, solicitud nueva, solicitud resuelta. Preferencias por usuario.
-En F2 se suma stock bajo mínimo (`stock_low`, INV-12).
+En F2 se suman stock bajo mínimo (`stock_low`, INV-12) y alerta de
+condición (`condition_alert`, CBM-05).
 
 **X-03 · Exportación completa de datos (M1)**: el administrador descarga un ZIP
 con todos los datos de su organización (Excel/CSV + adjuntos). Implementado: un CSV
@@ -706,13 +885,14 @@ servidor cuando vuelva la conexión. Implementado en `/field/` (2026-10).
   (CSP), solo `textContent`; e2e Playwright (`tests/e2e/`, a pedido y como job
   manual del CI).
 - No cumplido / fuera de v1: QR sin conexión; crear repuestos del catálogo
-  sin conexión (los repuestos en sí entraron con INV-13) y correctiva desde
-  hallazgo sin conexión; ver fotos o manuales sin conexión; Background Sync y
+  sin conexión (los repuestos en sí entraron con INV-13); ver fotos o manuales sin conexión; Background Sync y
   push; crear, aprobar o cerrar OT; varias organizaciones a la vez; horas con
   inicio y fin explícitos; `/field/` como vista por defecto del técnico (se
   decide tras el piloto); asistente IA sin conexión. Los datos de IndexedDB no
   van cifrados en el teléfono (mitigado con el borrado al salir y el
   vencimiento de 14 días).
+- En F2 (paquete F1, sin implementar aún): correctiva desde hallazgo sin
+  conexión, WO-06 CA2.
 
 **X-07 · i18n (M0)**: todos los textos marcados para traducción; español (Chile)
 completo; inglés y portugués en F3.
