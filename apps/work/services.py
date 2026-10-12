@@ -1,6 +1,7 @@
 """Reglas de negocio de OT, avisos de falla y checklist."""
 
 import datetime
+import uuid
 from decimal import Decimal, InvalidOperation
 
 from django.core.exceptions import ValidationError
@@ -13,7 +14,7 @@ from django.utils.translation import gettext_lazy
 from apps.accounts.models import Membership
 from apps.accounts.permissions import Perm, PermissionDeniedError, has_perm, require_perm
 from apps.assets.models import Asset, MeterReading
-from apps.assets.services import change_asset_status, record_meter_reading
+from apps.assets.services import change_asset_status, ensure_variable, record_meter_reading
 from apps.attachments import services as attachments_services
 from apps.attachments.models import Attachment
 from apps.attachments.models import Purpose as AttachmentPurpose
@@ -243,6 +244,8 @@ def create_work_order(
                 min_value=item.min_value,
                 max_value=item.max_value,
                 required=item.required,
+                meter_kind=getattr(item, "meter_kind", ""),
+                meter_name=getattr(item, "meter_name", ""),
             )
             for order, section, item in rows
         ]
@@ -655,6 +658,8 @@ def transition(*, work_order: WorkOrder, to_status: str, membership, comment: st
         # Las alertas de condición de esta OT quedan cerradas (CBM-05; llamada explícita, ADR-029).
         condition.close_alerts_for_work_order(work_order=work_order, by=user)
     if to_status == S.COMPLETED:
+        # Los ítems enlazados a variables dejan su lectura (CBM-06; antes del cierre automático).
+        record_checklist_readings(work_order=work_order, membership=membership, at=now)
         # Quien avisó la falla se entera de que su solicitud fue atendida (X-02).
         for work_request in WorkRequest.objects.filter(
             work_order=work_order, status__in=(R.PENDING, R.ACCEPTED)
@@ -665,6 +670,65 @@ def transition(*, work_order: WorkOrder, to_status: str, membership, comment: st
     elif to_status == S.CLOSED:
         _close(work_order=work_order, user=user, at=now, record=False)
     return work_order
+
+
+# Espacio de nombres del client_uuid de la lectura de cada ítem (CBM-06): uno por ítem.
+CHECKLIST_READING_NAMESPACE = uuid.UUID("6f1d3c2a-5b7e-4f0a-9c1d-2e8b7a4c6d10")
+
+
+def checklist_reading_uuid(item: WorkOrderChecklistItem) -> uuid.UUID:
+    return uuid.uuid5(CHECKLIST_READING_NAMESPACE, str(item.pk))
+
+
+def record_checklist_readings(*, work_order: WorkOrder, membership=None, at=None) -> list[MeterReading]:
+    """Cada ítem de medición enlazado a una variable y con valor registra su lectura (CBM-06 CA2–CA4).
+
+    La llama `transition` al completar, así que vale para la web, la API v1 y
+    terreno. Fecha de la lectura: la respuesta del ítem o, si no la hay, `at`
+    (la hora de término). Si el activo no tiene la variable, se crea con la
+    unidad del ítem (CA3). Idempotente: el ítem guarda su lectura y un ítem que
+    ya la tiene no registra otra (además, `client_uuid` determinista por ítem).
+    Cada lectura pasa por la evaluación de reglas de condición (CBM-04).
+    """
+    if work_order.asset_id is None:
+        return []  # una OT sobre una ubicación no tiene variables
+    items = list(
+        WorkOrderChecklistItem.objects.select_for_update()
+        .filter(
+            work_order=work_order,
+            item_type=ItemType.MEASUREMENT,
+            meter_reading__isnull=True,
+            value_number__isnull=False,
+        )
+        .exclude(meter_kind="")
+    )
+    if not items:
+        return []
+    at = at or timezone.now()
+    user = membership.user if membership is not None else None
+    # Quien completa registra la lectura si puede; si no, queda como paso del sistema.
+    by = membership if membership is not None and has_perm(membership, Perm.METER_READING_CREATE) else None
+    readings = []
+    for item in sorted(items, key=lambda i: (i.answered_at or at, i.order)):
+        meter = ensure_variable(
+            asset=work_order.asset, kind=item.meter_kind, name=item.meter_name, unit=item.unit, by=user
+        )
+        if meter is None:
+            continue  # variable desactivada (CBM-01 CA5): no se reactiva sola
+        reading, _warnings = record_meter_reading(
+            meter=meter,
+            value=item.value_number,
+            membership=by,
+            read_at=item.answered_at or at,
+            source=MeterReading.Source.WORK_ORDER,
+            work_order=work_order,
+            client_uuid=checklist_reading_uuid(item),
+            generate_work_orders=False,
+        )
+        item.meter_reading = reading
+        item.save(update_fields=["meter_reading", "updated_at"])
+        readings.append(reading)
+    return readings
 
 
 def _close(*, work_order: WorkOrder, user, at, record=True):
@@ -1006,6 +1070,8 @@ def apply_plan_checklist(
                 min_value=item.min_value,
                 max_value=item.max_value,
                 required=item.required,
+                meter_kind=item.meter_kind,
+                meter_name=item.meter_name,
             )
             for index, item in enumerate(plan_items)
         ]

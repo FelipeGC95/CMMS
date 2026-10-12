@@ -9640,3 +9640,72 @@ msgstr ""
 #: templates/ui/design_system.html
 msgid "Campos según la elección"
 msgstr ""
+
+#: apps/work/models.py
+msgid "lectura registrada"
+msgstr ""
+
+#: apps/maintenance/services.py
+msgid "Solo un ítem de medición puede alimentar una variable de condición."
+msgstr ""
+
+#: apps/maintenance/services.py
+msgid "Elige el tipo de variable para ese nombre."
+msgstr ""
+
+#: apps/maintenance/services.py
+msgid "Elige una variable de condición (temperatura, vibración, presión…)."
+msgstr ""
+
+#: apps/maintenance/services.py
+msgid "El nombre de la variable supera 80 caracteres."
+msgstr ""
+
+#: apps/assets/services.py
+msgid "Elige un tipo de variable de condición."
+msgstr ""
+
+#: apps/maintenance/forms.py
+msgid "No alimenta una variable"
+msgstr ""
+
+#: apps/maintenance/forms.py
+msgid ""
+"Ej: Rodamiento lado acople. Si el equipo no la tiene, se crea al completar "
+"la OT."
+msgstr ""
+
+#: apps/maintenance/plan_excel.py
+msgid ""
+"Solo mediciones: Temperatura, Vibración, Presión, Corriente u Otra variable. "
+"Al completar la OT, el valor queda como lectura de esa variable del activo."
+msgstr ""
+
+#: apps/maintenance/plan_excel.py
+msgid "Opcional, ej: Rodamiento lado acople."
+msgstr ""
+
+#: apps/maintenance/plan_excel.py
+#, python-format
+msgid "%(where)s: variable «%(value)s» no válida."
+msgstr ""
+
+#: apps/maintenance/plan_excel.py
+#, python-format
+msgid "%(where)s: %(error)s"
+msgstr ""
+
+#: templates/maintenance/_item_type_meta.html
+#, python-format
+msgid "Alimenta %(variable)s"
+msgstr ""
+
+#: templates/work/_checklist_item.html
+#, python-format
+msgid "Lectura registrada en la variable %(variable)s"
+msgstr ""
+
+#: templates/work/_checklist_item.html
+#, python-format
+msgid "Al completar la OT, el valor queda como lectura de %(variable)s"
+msgstr ""

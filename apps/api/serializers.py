@@ -294,6 +294,9 @@ class ChecklistItemSerializer(serializers.ModelSerializer):
             "value_text",
             "note",
             "answered_at",
+            "meter_kind",
+            "meter_name",
+            "meter_reading",
         ]
         read_only_fields = fields
 

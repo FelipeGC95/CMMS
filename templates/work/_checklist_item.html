@@ -1,5 +1,6 @@
 {% load i18n ui %}<li class="check-item {% if item.result %}check-item--{{ item.result }}{% endif %}" id="item-{{ item.pk }}">
   <div class="check-item__text"><span class="check-item__num">{{ item.order }}.</span><span>{{ item.text }}{% if item.required %}<span class="visually-hidden"> ({% translate "obligatorio" %})</span>{% endif %}</span></div>
+  {% if item.meter_kind %}<p class="help muted">{% icon 'sync' %} {% if item.meter_reading_id %}{% blocktranslate with variable=item.variable_label %}Lectura registrada en la variable {{ variable }}{% endblocktranslate %}{% else %}{% blocktranslate with variable=item.variable_label %}Al completar la OT, el valor queda como lectura de {{ variable }}{% endblocktranslate %}{% endif %}</p>{% endif %}
   {% if error %}<div class="alert alert--error" role="alert">{% icon 'stop' %}<span>{{ error }}</span></div>{% endif %}
   {% if can_execute %}
   <form method="post" action="{% url 'checklist_answer' item.work_order_id item.pk %}"
