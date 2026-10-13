@@ -7,6 +7,8 @@ export const LOCKED_STATUSES = new Set(["completed", "closed", "cancelled"]);
 export const LABOR_LOCKED_STATUSES = new Set(["closed", "cancelled"]);
 // Cambios que la persona aún quiere enviar (los en conflicto ya no se aplican).
 export const LIVE_STATUSES = new Set(["pending", "sending", "rejected"]);
+// Cambios que el servidor no aceptó: esperan en "Conflictos" a que se corrijan o descarten.
+export const PROBLEM_STATUSES = new Set(["conflict", "rejected"]);
 const ACTIONS = ["start", "resume", "pause", "complete"];
 
 export function transitionsFor(status, bootstrap) {

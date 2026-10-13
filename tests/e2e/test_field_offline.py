@@ -108,11 +108,20 @@ def field_page(browser):
     return context, page, errors
 
 
+SHOWN_IDS = "links => links.map((a) => decodeURIComponent(a.hash.replace('#/wo/', '')))"
+
+
 def pick(page, *, need_items):
     """Una OT planificada del técnico entre las que la vista descargó."""
-    shown = page.eval_on_selector_all(
-        ".field-wo__link", "links => links.map((a) => decodeURIComponent(a.hash.replace('#/wo/', '')))"
-    )
+    for attempt in range(3):
+        try:
+            shown = page.eval_on_selector_all(".field-wo__link", SHOWN_IDS)
+            break
+        except playwright.Error:
+            # En la primera visita el Service Worker toma el control y la vista se recarga.
+            if attempt == 2:
+                raise
+            page.wait_for_selector(".field-days, [data-slot='none']:not([hidden])", timeout=20000)
     return manage(PICK.format(shown=shown, need_items=need_items))
 
 
@@ -423,7 +432,160 @@ def test_synced_finding_shows_its_code_and_cannot_be_repeated(browser):
         page.click("[data-action='refresh']")
     page.wait_for_timeout(1000)
     page.evaluate("id => { location.hash = `#/wo/${id}`; }", wo["id"])
-    item(page, target["id"]).locator(".field-finding__state--success", has_text=code).wait_for(timeout=10000)
+    downloaded = item(page, target["id"]).locator(".field-finding__state--success", has_text=code)
+    downloaded.wait_for(timeout=10000)
+    # El snapshot trae también el número de la solicitud (`finding_request_number`).
+    number = manage(REQUEST_NUMBER.format(item=target["id"]))
+    assert f"Solicitud N° {number}" in downloaded.inner_text()
+    assert errors == []
+    context.close()
+
+
+REQUEST_NUMBER = """
+import json
+from apps.work.models import WorkRequest
+print(json.dumps(WorkRequest.all_tenants.get(work_order__source_checklist_item_id="{item}").number))
+"""
+
+# OT propia del test (no gasta las de seed_demo): preventiva de hoy del técnico, en el mismo
+# activo y organización que otra OT suya, con dos ítems de verificación.
+FRESH_WORK_ORDER = """
+import json
+from django.utils import timezone
+from apps.accounts.models import User
+from apps.core.tenancy import tenant_context
+from apps.work.models import WorkOrder, WorkOrderChecklistItem as Item
+from apps.work.services import create_work_order
+tech = User.objects.get(email="tecnico@demo.cl")
+model = WorkOrder.all_tenants.filter(assigned_to=tech, asset__isnull=False).order_by("created_at").first()
+with tenant_context(model.organization):
+    wo = create_work_order(work_type="preventive", title="{title}", asset=model.asset,
+        due_on=timezone.localdate(), assigned_to=tech)
+    items = [Item.objects.create(work_order=wo, text=text, item_type="check", required=True, order=n)
+        for n, text in enumerate(["Revisar fugas e2e", "Revisar ruidos e2e"], start=1)]
+print(json.dumps({{"id": str(wo.pk), "code": wo.code,
+    "items": [{{"id": str(i.pk), "type": "check", "min": None, "max": None}} for i in items]}}))
+"""
+
+
+def reject_first_finding(page, seen):
+    """El servidor rechaza (400) el primer aviso de hallazgo; los siguientes pasan."""
+
+    def handler(route):
+        if route.request.method == "POST" and "finding" not in seen:
+            seen.add("finding")
+            body = {
+                "error": {
+                    "code": "invalid",
+                    "message": "Revisa los datos enviados.",
+                    "details": {"description": ["Describe el hallazgo con más detalle (e2e)."]},
+                }
+            }
+            route.fulfill(status=400, content_type="application/json", body=json.dumps(body))
+        else:
+            route.continue_()
+
+    page.route("**/finding/", handler)
+
+
+def page_shot(page, name):
+    """Captura de la pantalla completa (E2E_SHOTS) a 360, 1024 y 1440 px, sin scroll horizontal."""
+    if not os.environ.get("E2E_SHOTS"):
+        return
+    for width in (360, 1024, 1440):
+        page.set_viewport_size({"width": width, "height": 900})
+        page.screenshot(path=f"{os.environ['E2E_SHOTS']}/f1-{name}-{width}.png", full_page=True)
+        assert page.evaluate("document.documentElement.scrollWidth <= window.innerWidth"), width
+    page.set_viewport_size({"width": 360, "height": 800})
+
+
+def test_rejected_finding_does_not_block_completing_and_is_fixed_from_conflicts(browser):
+    context, page, errors = field_page(browser)
+    page.on("dialog", lambda dialog: dialog.accept())
+    wo = manage(FRESH_WORK_ORDER.format(title=f"Hallazgo rechazado e2e {os.getpid()}"))
+    with page.expect_response("**/field/api/reference/"):
+        page.click("[data-action='refresh']")
+    page.wait_for_timeout(1000)  # se guarda en IndexedDB
+    target, other = wo["items"]
+
+    context.set_offline(True)
+    page.evaluate("id => { location.hash = `#/wo/${id}`; }", wo["id"])
+    page.wait_for_selector(".field-detail")
+    page.click("[data-transition='start']")
+    page.wait_for_selector("[data-transition='pause']:not([hidden])")
+    item(page, other["id"]).locator("[data-result='ok']").click()
+    item(page, other["id"]).locator("[data-slot='saved']:not(:empty)").wait_for()
+    item(page, target["id"]).locator("[data-result='not_ok']").click()
+    li = item(page, target["id"])
+    li.locator("[data-action='finding-open']").click()
+    li.locator("textarea[name='description']").fill("Fuga")
+    li.locator("form[data-form='finding'] button[type=submit]").click()
+    li = item(page, target["id"])
+    li.locator(".field-finding__state--warning").wait_for()
+    assert "Por enviar: 2" in li.locator("[data-slot='badges']").inner_text()  # respuesta + aviso
+    assert "Por enviar: 1" in item(page, other["id"]).locator("[data-slot='badges']").inner_text()
+
+    page.click("[data-slot='complete']")
+    page.wait_for_selector("form[data-form='complete']")
+    page.fill("#fc-labor", "15")
+    if page.locator("#fc-meter").is_visible():
+        page.fill("#fc-meter", "999999")
+    page.click("form[data-form='complete'] button[type=submit]")
+    page.wait_for_selector(".field-detail [data-slot='flash']:not([hidden])")
+    # Marca los nodos: las insignias deben cambiar en vivo, sin repintar los ítems.
+    page.evaluate(
+        "ids => ids.forEach((id) => { document.getElementById(`item-${id}`).dataset.e2e = '1'; })",
+        [target["id"], other["id"]],
+    )
+
+    seen = set()
+    reject_first_finding(page, seen)
+    context.set_offline(False)
+    page.evaluate("window.dispatchEvent(new Event('online'))")
+    page.wait_for_selector(".field-sync__row--error", timeout=60000)
+    assert seen == {"finding"}
+    # "Completar" se envió aunque el aviso de hallazgo, antes en la cola, fue rechazado.
+    waiting = "#field-sync-rows .field-sync__row--info, #field-sync-rows .field-sync__row--warning"
+    page.wait_for_function("selector => !document.querySelector(selector)", arg=waiting, timeout=60000)
+    state = manage(FINDING_STATE.format(id=wo["id"], item=target["id"]))
+    assert state["status"] in ("completed", "closed") and state["correctives"] == 0
+
+    # Insignias en vivo: el ítem respondido ya no tiene "Por enviar"; el del hallazgo, "Con conflicto".
+    done = item(page, other["id"])
+    assert done.get_attribute("data-e2e") == "1"  # el mismo nodo: no se repintó
+    page.wait_for_function(
+        "id => !document.querySelector(`#item-${id} [data-queue-badge]`)", arg=other["id"], timeout=10000
+    )
+    li = item(page, target["id"])
+    assert li.get_attribute("data-e2e") == "1"
+    problem = li.locator(".field-finding__state--error")
+    problem.wait_for(timeout=10000)
+    assert "Con conflicto" in li.locator("[data-slot='badges']").inner_text()
+    assert "Por enviar" not in li.locator("[data-slot='badges']").inner_text()
+    finding_shot(page, "rejected-item", li)
+
+    # Conflictos: "Corregir y reenviar" (400) además de "Descartar".
+    problem.locator("a[href='#/conflicts']").click()
+    card = page.locator(".field-problem", has_text="Aviso de hallazgo")
+    card.wait_for()
+    assert card.locator("[data-slot='help-finding']").is_visible()
+    assert card.locator("[data-action='discard']").is_visible()
+    page_shot(page, "conflicts-rejected")
+    card.locator("[data-slot='fix']").click()
+    form = page.locator("form[data-form='finding'][data-fix]")
+    form.wait_for()
+    assert "Describe el hallazgo" in page.locator("[data-field='description'] [data-error]").inner_text()
+    assert form.locator("textarea[name='description']").input_value() == "Fuga"
+    page_shot(page, "finding-fix")
+    corrected = f"Fuga de aire en el acople, e2e {os.getpid()}"
+    form.locator("textarea[name='description']").fill(corrected)
+    form.locator("button[type=submit]").click()
+    page.wait_for_selector(".field-sync__row--success", timeout=60000)
+
+    state = manage(FINDING_STATE.format(id=wo["id"], item=target["id"]))
+    assert state["correctives"] == 1 and state["requests"] == 1
+    assert corrected in state["description"][0]
+    assert state["status"] in ("completed", "closed")
     assert errors == []
     context.close()
 

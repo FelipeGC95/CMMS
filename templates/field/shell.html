@@ -145,6 +145,7 @@
     data-msg-kind-finding="{% translate 'Aviso de hallazgo' %}"
     data-msg-finding-pending="{% translate 'Hallazgo por enviar' %}"
     data-msg-finding-done="{% translate 'Hallazgo avisado' %}"
+    data-msg-finding-problem="{% translate 'Hallazgo no enviado: el servidor no lo aceptó. No detiene la OT.' %}"
     data-msg-saved-finding="{% translate 'Hallazgo guardado en el teléfono: se envía al tener conexión.' %}"
     data-msg-feeds-variable="{% translate 'Alimenta' %}"
     data-msg-part-pending="{% translate 'Falta usar' %}"
@@ -370,7 +371,7 @@
         <label class="btn btn--secondary btn--lg photo-upload__button" data-slot="photo-label">{% icon 'camera' %}{% translate "Agregar foto" %}</label>
       </div>
       {# Hallazgo (WO-06 CA2): solo en un ítem No OK. Se encola después de la respuesta del ítem #}
-      {# y antes de "Completar"; va a work-orders/{id}/checklist/{item}/finding/. #}
+      {# y antes de "Completar"; va a work-orders/{id}/checklist-items/{item}/finding/. #}
       <div class="field-finding" data-slot="finding" hidden>
         <p class="field-finding__state" data-slot="finding-state" hidden></p>
         <button class="btn btn--secondary btn--lg" type="button" data-action="finding-open" data-slot="finding-open" aria-expanded="false">{% icon 'alert' %}{% translate "Avisar hallazgo" %}</button>
@@ -637,7 +638,7 @@
     <article>
       <a class="btn btn--ghost btn--lg field-back" href="#/">{% icon 'list' %}{% translate "Volver a la lista" %}</a>
       <div class="page-header"><div><h1 tabindex="-1">{% translate "Conflictos o rechazados" %}</h1>
-        <p class="muted">{% translate "Cambios que el servidor no aceptó. Lo que sigue de la misma OT espera hasta que los resuelvas." %}</p></div></div>
+        <p class="muted">{% translate "Cambios que el servidor no aceptó. Lo que sigue de la misma OT espera hasta que los resuelvas, salvo un aviso de hallazgo: ese no detiene la OT." %}</p></div></div>
       <p class="alert alert--success" data-slot="flash" role="status" hidden></p>
       <ul class="field-problems" data-slot="items"></ul>
       <p class="card empty" data-slot="none" hidden>{% translate "No hay cambios con conflicto ni rechazados." %}</p>
@@ -655,11 +656,41 @@
       <ul class="field-problem__details" data-slot="details" hidden></ul>
       <p class="muted" data-slot="help-conflict" hidden>{% translate "La OT cambió en el servidor (por ejemplo, otra persona la canceló o la completó). Descarta el cambio; la OT se descarga de nuevo." %}</p>
       <p class="muted" data-slot="help-rejected" hidden>{% translate "Los datos no pasaron la validación. Corrígelos y reenvía: no se duplica." %}</p>
+      <p class="muted" data-slot="help-finding-cancelled" hidden>{% translate "La OT fue cancelada: el hallazgo ya no puede avisarse desde ella. Descártalo; si la falla sigue, avísala con una solicitud nueva." %}</p>
+      <p class="muted" data-slot="help-finding-renew" hidden>{% translate "Este aviso se confundió con otro cambio. Reenvíalo: sale como un aviso nuevo y no duplica la correctiva del ítem." %}</p>
+      <p class="muted" data-slot="help-finding" hidden>{% translate "No detiene la OT: lo demás de ella se envía igual, también el cierre." %}</p>
       <div class="field-actions">
         <a class="btn btn--primary btn--lg" data-slot="fix" hidden>{% icon 'wrench' %}{% translate "Corregir y reenviar" %}</a>
         <button class="btn btn--ghost btn--lg" type="button" data-action="discard" data-slot="discard">{% icon 'x' %}{% translate "Descartar" %}</button>
       </div>
     </li>
+  </template>
+
+  {# Corregir y reenviar un aviso de hallazgo (WO-06 CA2) desde Conflictos. #}
+  <template id="tpl-finding-fix">
+    <article class="field-form">
+      <a class="btn btn--ghost btn--lg field-back" href="#/conflicts">{% icon 'list' %}{% translate "Conflictos o rechazados" %}</a>
+      <div class="page-header">
+        <div>
+          <h1 tabindex="-1">{% translate "Corregir aviso de hallazgo" %}</h1>
+          <p class="muted" data-slot="title"></p>
+        </div>
+      </div>
+      <div class="alert alert--error" data-slot="errors" role="alert" hidden>{% icon 'stop' %}<span data-slot="errors-text"></span></div>
+      <form class="card field-finding__form" novalidate data-form="finding">
+        <p class="help">{% translate "Se reenvía sin duplicar: si la correctiva del ítem ya existe, se usa esa." %}</p>
+        <div class="field" data-field="description">
+          <label for="ff-description">{% translate "Descripción (opcional)" %}</label>
+          <textarea class="input" id="ff-description" name="description" rows="4" maxlength="2000" autocapitalize="sentences"></textarea>
+          <span class="error" data-error hidden></span>
+        </div>
+        <div class="field field--check" data-slot="stopped-field" data-field="asset_stopped">
+          <input id="ff-stopped" name="asset_stopped" type="checkbox">
+          <label for="ff-stopped">{% translate "¿El equipo está detenido?" %}</label>
+        </div>
+        <button class="btn btn--primary btn--lg btn--block" type="submit">{% icon 'wrench' %}{% translate "Corregir y reenviar" %}</button>
+      </form>
+    </article>
   </template>
 
   <template id="tpl-not-found">

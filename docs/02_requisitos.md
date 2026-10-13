@@ -269,19 +269,24 @@ Como técnico quiero ejecutar el checklist desde el celular.
   "Avisar hallazgo" (descripción opcional y "¿el equipo está detenido?"); el
   aviso se encola con `client_uuid` después de la respuesta del ítem y antes
   de "Completar", y al sincronizar llama a `POST
-  /field/api/work-orders/{id}/checklist/{item}/finding/` con el mismo servicio
+  /field/api/work-orders/{id}/checklist-items/{item}/finding/` con el mismo servicio
   que la web (`create_corrective_from_item`, idempotente por ítem). Quien no
   tiene `work_order.manage` (técnico) pasa por el aviso de falla (solicitud +
-  correctiva), igual que en la web. OT cancelada o bloqueada → 409
-  `cancelled`/`locked`; ítem que no está No OK → 400. Las fotos del ítem
+  correctiva), igual que en la web. OT cancelada → 409 `cancelled`; con la
+  OT ya completada o cerrada se acepta (el aviso pudo hacerse antes de
+  completar; como el servicio de la web); ítem que no está No OK → 400. Las fotos del ítem
   viajan por la cola de fotos de siempre y se ven en la correctiva por el
   vínculo. Ya avisado, el ítem muestra "Hallazgo por enviar" o "Hallazgo
   avisado · <código de la OT> · Solicitud N°" (ícono + texto) y no ofrece
   avisar de nuevo; el snapshot trae `finding_code` (correctiva abierta del
-  ítem). Si el ítem deja de estar No OK antes de enviarse, el aviso
+  ítem) y `finding_request_number`. Si el ítem deja de estar No OK antes de enviarse, el aviso
   pendiente se retira. Idempotente también por `client_uuid` (reenviarlo
   devuelve la misma correctiva aunque la OT ya se haya completado). Un aviso
-  rechazado (400) o en conflicto (409) solo se puede descartar.
+  rechazado (400) o en conflicto (409) no detiene la OT: sale de su carril
+  ("Completar" se envía igual), el ítem muestra "Hallazgo no enviado" y en
+  Conflictos se corrige y reenvía (400, mismo `client_uuid`; 409 `conflict`,
+  uno nuevo) o se descarta (OT cancelada: solo descartar). Las insignias "Por
+  enviar: N" se actualizan en vivo.
 
 ## 5. Solicitudes, fallas y backlog (`REQ`)
 

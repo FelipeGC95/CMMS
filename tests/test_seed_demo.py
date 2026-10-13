@@ -171,3 +171,34 @@ def test_demo_has_condition_variables_rules_and_alert_episodes():
 
         # Un ítem de medición de un plan alimenta una variable (CBM-06).
         assert PlanTaskItem.objects.filter(meter_kind="temperature", meter_name="Descarga").exists()
+
+
+def _demo_has_inventory_and_condition():
+    from apps.condition.models import ConditionRule
+    from apps.inventory.models import Part
+
+    with tenant_context(Organization.objects.get(slug="alimentos-del-sur")):
+        return Part.objects.exists() and ConditionRule.objects.exists()
+
+
+# Transaccional: en PostgreSQL el flush (TRUNCATE) no corre dentro de la transacción del test.
+@pytest.mark.django_db(transaction=True)
+def test_reset_if_stale_recreates_demo_loaded_before_inventory_and_condition():
+    # Base de Render cargada antes de inventario y condición: solo la organización demo.
+    Organization.objects.create(name="Alimentos del Sur SpA", slug="alimentos-del-sur")
+
+    call_command("seed_demo", "--reset-if-stale", verbosity=0)
+
+    assert _demo_has_inventory_and_condition()
+    assert User.objects.filter(email="jefe@demo.cl").exists()
+
+
+def test_reset_if_stale_keeps_up_to_date_demo():
+    call_command("seed_demo", verbosity=0)
+    org_id = Organization.objects.get(slug="alimentos-del-sur").pk
+
+    call_command("seed_demo", "--reset-if-stale", verbosity=0)
+
+    # Sin recrear: la misma organización (un flush la habría cambiado).
+    assert Organization.objects.get(slug="alimentos-del-sur").pk == org_id
+    assert _demo_has_inventory_and_condition()

@@ -756,6 +756,47 @@
         <button class="btn btn--ghost btn--lg" type="button">{% icon 'x' %}{% translate "Descartar" %}</button>
       </div>
     </li>
+    <li class="card field-problem">
+      <div class="field-problem__head"><span class="badge badge--warning">{% icon 'alert' %}{% translate "Rechazado" %}</span><h4 class="field-problem__title">{% translate "Aviso de hallazgo" %} · OT-P-00003 · {% translate "Revisar fugas de aire en líneas" %}</h4></div>
+      <p class="field-problem__message">{% translate "Revisa los datos enviados." %}</p>
+      <p class="muted">{% translate "Los datos no pasaron la validación. Corrígelos y reenvía: no se duplica." %}</p>
+      <p class="muted">{% translate "No detiene la OT: lo demás de ella se envía igual, también el cierre." %}</p>
+      <div class="field-actions">
+        <a class="btn btn--primary btn--lg" href="#ds-field">{% icon 'wrench' %}{% translate "Corregir y reenviar" %}</a>
+        <button class="btn btn--ghost btn--lg" type="button">{% icon 'x' %}{% translate "Descartar" %}</button>
+      </div>
+    </li>
+    <li class="card field-problem">
+      <div class="field-problem__head"><span class="badge badge--error">{% icon 'stop' %}{% translate "Conflicto" %}</span><h4 class="field-problem__title">{% translate "Aviso de hallazgo" %} · OT-P-00004 · {% translate "Revisar fugas de aire en líneas" %}</h4></div>
+      <p class="field-problem__message">{% translate "La OT fue cancelada." %}</p>
+      <p class="muted">{% translate "La OT fue cancelada: el hallazgo ya no puede avisarse desde ella. Descártalo; si la falla sigue, avísala con una solicitud nueva." %}</p>
+      <div class="field-actions">
+        <button class="btn btn--ghost btn--lg" type="button">{% icon 'x' %}{% translate "Descartar" %}</button>
+      </div>
+    </li>
   </ul>
+  <h3>{% translate "Corregir aviso de hallazgo" %}</h3>
+  <p class="muted">{% translate "Desde Conflictos: se edita la descripción o «equipo detenido» y se reenvía sin duplicar. El ítem muestra «Hallazgo no enviado» mientras tanto." %}</p>
+  <ol class="checklist mb-4">
+    <li class="check-item check-item--not_ok">
+      <p class="check-item__text"><span class="check-item__num">3.</span><span>{% translate "Revisar fugas de aire en líneas" %}</span></p>
+      <div class="row field-item-badges"><span class="badge badge--error">{% icon 'stop' %}{% translate "No OK" %}</span><span class="badge badge--error">{% icon 'stop' %}{% translate "Con conflicto" %}</span></div>
+      <div class="field-finding">
+        <p class="field-finding__state field-finding__state--error">{% icon 'stop' %}<span>{% translate "Hallazgo no enviado: el servidor no lo aceptó. No detiene la OT." %} <a href="#ds-field">{% translate "Revisar" %}</a></span></p>
+      </div>
+    </li>
+  </ol>
+  <form class="card field-finding__form mb-4" novalidate>
+    <div class="field">
+      <label for="ds-finding-fix-description">{% translate "Descripción (opcional)" %}</label>
+      <textarea class="input" id="ds-finding-fix-description" rows="3" maxlength="2000"></textarea>
+      <span class="error">{% icon 'stop' %}{% translate "Escribe hasta 2.000 caracteres." %}</span>
+    </div>
+    <div class="field field--check">
+      <input id="ds-finding-fix-stopped" type="checkbox">
+      <label for="ds-finding-fix-stopped">{% translate "¿El equipo está detenido?" %}</label>
+    </div>
+    <button class="btn btn--primary btn--lg btn--block" type="button">{% icon 'wrench' %}{% translate "Corregir y reenviar" %}</button>
+  </form>
 </section>
 {% endblock %}

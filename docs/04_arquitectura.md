@@ -418,10 +418,11 @@ tener ingresos).
   de estar fuera. En la ejecución de la OT, un ítem No OK muestra "Avisar
   hallazgo" (descripción opcional y "equipo detenido"); se encola con
   `client_uuid` después de la respuesta del ítem y antes de "Completar", y va
-  a `POST work-orders/{id}/checklist/{item}/finding/`, que llama a
+  a `POST work-orders/{id}/checklist-items/{item}/finding/`, que llama a
   `work.services.create_corrective_from_item` (idempotente por ítem; el
   técnico sin `work_order.manage` pasa por `report_failure`, como en la web).
-  409 `cancelled`/`locked` si la OT está cancelada o cerrada; 400 si el ítem
+  409 `cancelled` si la OT está cancelada (completada o cerrada se acepta: ver
+  "Límites resueltos"); 400 si el ítem
   no está No OK. Las fotos del ítem viajan por la cola de fotos.
   **Implementado (2026-10):** `apps.api.services.report_finding_idempotent`
   bloquea la OT de origen (dos avisos simultáneos crean una sola correctiva)
@@ -435,6 +436,38 @@ tener ingresos).
   por enviar" o "Hallazgo avisado · OT-C-… · Solicitud N°" y no deja avisar
   dos veces; el snapshot trae `finding_code` (correctiva abierta del ítem) y
   `variable` (la variable de condición que alimenta un ítem de medición).
+  **Límites resueltos (2026-10):**
+  1. *Excepción al carril de la OT:* la regla general sigue igual (un 409/404
+     o un 400 bloquea lo que sigue de esa OT hasta resolverlo), pero el aviso
+     de hallazgo es accesorio: si el servidor lo rechaza (400) o lo pone en
+     conflicto (409/404), **sale del carril** (`sync.nextEntry` lo salta sin
+     bloquear) y lo que sigue de la OT, incluido "Completar", se envía igual.
+     El orden se mantiene: la respuesta del ítem sigue yendo antes que el
+     aviso, y el aviso, mientras esté por enviar, antes que "Completar". En
+     Conflictos el aviso ofrece "Corregir y reenviar" (descripción y "equipo
+     detenido"): con el mismo `client_uuid` si fue un 400 (el servidor solo
+     guarda la clave en `ApiIdempotencyKey` cuando crea la correctiva), con
+     uno nuevo si fue 409 `conflict` (la clave ya se usó en otra operación).
+     Con la OT cancelada (409 `cancelled`) explica que ya no puede avisarse
+     desde ella y solo ofrece "Descartar". El ítem muestra "Hallazgo no
+     enviado" (ícono + texto, con enlace a Conflictos).
+  2. *Aviso tras "Completar":* como "Completar" puede adelantarse a un aviso
+     rechazado, el endpoint acepta el aviso con la OT de origen completada o
+     cerrada (también con un `client_uuid` nuevo) mientras el ítem siga No OK;
+     solo la OT cancelada es 409 `cancelled`. Es lo que ya hace el servicio
+     de la web (`create_corrective_from_item` no mira el estado de la OT de
+     origen; la correctiva es otra OT y la de origen no cambia). La interfaz,
+     como la web (WO-06 CA1), ofrece "Avisar hallazgo" solo con la OT abierta.
+  3. *Insignias en vivo:* "Por enviar: N" de cada ítem y OT (respuestas,
+     fotos, hallazgos) y el estado del hallazgo se actualizan al encolar,
+     enviar, rechazar o descartar sin repintar el ítem (`ui.updateQueue`).
+  4. *Snapshot:* cada ítem trae `finding_request_number` (N° de la solicitud
+     de la correctiva abierta, anotado en la misma consulta): tras "Descargar
+     de nuevo" el ítem muestra "Hallazgo avisado · OT-C-… · Solicitud N° …".
+  5. *Ruta:* la canónica es `work-orders/{id}/checklist-items/{item}/finding/`
+     (como `answer/` y `photos/`); `work-orders/{id}/checklist/{item}/finding/`
+     queda como alias (`deprecated` en el esquema) para teléfonos con la PWA
+     anterior.
 - **Estado (2026-10):** implementado en cinco paquetes: P1 servicios en
   `apps/work` (horas del teléfono, regla de checklist, `LaborEntry.client_uuid`),
   P2 `/field/api/`, P3 shell/SW/manifest, P4 cola, sincronización, flujos y e2e,
@@ -524,7 +557,9 @@ tener ingresos).
   `completed_at`, reducidas en el teléfono a ≤ 2000 px). 401 o `mfa_required`
   pausan la cola ("Inicia sesión para enviar N cambios"); 409/404 bloquean esa
   OT hasta "Descartar"; 400 permite "Corregir y reenviar" con el mismo
-  `client_uuid`; red o 5xx reintentan con espera exponencial. Horas de
+  `client_uuid`; red o 5xx reintentan con espera exponencial. Excepción: un
+  aviso de hallazgo rechazado o en conflicto no bloquea la OT (ver
+  "Correctiva desde hallazgo"). Horas de
   apoyo: formulario de minutos en la OT (hasta que se cierra o cancela) que se
   encola y va a `labor/` con `client_uuid`. Cada envío lleva
   `X-Field-Organization` (la organización donde se hizo el cambio): si la
@@ -540,8 +575,8 @@ Subclases de los viewsets de v1 con `FieldAPIMixin`: `readings/` POST,
 `…/checklist-items/{item}/photos/` (+ `taken_at`), `…/complete/` (+ `at`).
 Nuevos: `work-orders/{id}/transition/` (+ `client_uuid`, `at`),
 `work-orders/{id}/labor/` (`minutes`, `client_uuid`),
-`work-orders/{id}/checklist/{item}/finding/` (`description`, `asset_stopped`,
-`client_uuid`; WO-06 CA2), `bootstrap/`,
+`work-orders/{id}/checklist-items/{item}/finding/` (`description`, `asset_stopped`,
+`client_uuid`; WO-06 CA2; alias anterior `…/checklist/{item}/finding/`), `bootstrap/`,
 `snapshot/?days=N` (7 por defecto, máx. 14) y `reference/` (códigos de falla
 activos por tipo, activos visibles compactos con tope 2000 y `truncated`,
 medidores activos). Errores 409 con código `cancelled`, `locked`, `conflict`,

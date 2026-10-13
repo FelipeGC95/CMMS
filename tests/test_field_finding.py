@@ -1,4 +1,5 @@
-"""Hallazgo sin conexión (WO-06 CA2): `POST /field/api/work-orders/{id}/checklist/{item}/finding/`."""
+"""Hallazgo sin conexión (WO-06 CA2): `POST /field/api/work-orders/{id}/checklist-items/{item}/finding/`
+(y su ruta anterior `…/checklist/{item}/finding/`)."""
 
 import uuid
 
@@ -29,8 +30,8 @@ def _finding_wo(tenant, *, result="not_ok", item_type="check", **item_fields):
     return wo, item
 
 
-def _url(wo, item):
-    return f"{FIELD_API}/work-orders/{wo.pk}/checklist/{item.pk}/finding/"
+def _url(wo, item, route="checklist-items"):
+    return f"{FIELD_API}/work-orders/{wo.pk}/{route}/{item.pk}/finding/"
 
 
 def _set_status(tenant, wo, status):
@@ -145,18 +146,55 @@ def test_measurement_out_of_range_is_a_finding(tenant_a):
         assert "(9,5 bar)" in WorkOrder.objects.get(pk=response.json()["id"]).description
 
 
-@pytest.mark.parametrize(
-    ("status", "code"), [(S.CANCELLED, "cancelled"), (S.COMPLETED, "locked"), (S.CLOSED, "locked")]
-)
-def test_finished_work_order_is_a_conflict(tenant_a, status, code):
+def test_cancelled_work_order_is_a_conflict(tenant_a):
     wo, item = _finding_wo(tenant_a)
-    _set_status(tenant_a, wo, status)
+    _set_status(tenant_a, wo, S.CANCELLED)
     response = field_client(tenant_a.tech).post(
         _url(wo, item), {"client_uuid": str(uuid.uuid4())}, format="json"
     )
-    assert response.status_code == 409 and response.json()["error"]["code"] == code
+    assert response.status_code == 409 and response.json()["error"]["code"] == "cancelled"
     with tenant_context(tenant_a.org):
         assert not WorkOrder.objects.filter(source_checklist_item=item).exists()
+
+
+@pytest.mark.parametrize("status", [S.COMPLETED, S.CLOSED])
+def test_finding_reported_before_completing_is_accepted_after(tenant_a, status):
+    """Un aviso rechazado se corrige y reenvía después de "Completar" (no detiene la OT), incluso
+    con un client_uuid nuevo: como en la web, la OT terminada no impide la correctiva."""
+    wo, item = _finding_wo(tenant_a)
+    _set_status(tenant_a, wo, status)
+    body = {"description": "Corregido", "client_uuid": str(uuid.uuid4())}
+    response = field_client(tenant_a.tech).post(_url(wo, item), body, format="json")
+    assert response.status_code == 201, response.json()
+    with tenant_context(tenant_a.org):
+        corrective = WorkOrder.objects.get(source_checklist_item=item)
+        assert corrective.parent_work_order_id == wo.pk
+        assert WorkOrder.objects.get(pk=wo.pk).status == status  # la OT de origen no cambia
+
+
+def test_rejected_finding_is_resent_with_the_same_client_uuid(tenant_a):
+    """Un 400 no guarda la clave: el mismo client_uuid, corregido, crea la correctiva."""
+    wo, item = _finding_wo(tenant_a)
+    client = field_client(tenant_a.tech)
+    key = str(uuid.uuid4())
+    rejected = client.post(_url(wo, item), {"description": "x" * 2001, "client_uuid": key}, format="json")
+    assert rejected.status_code == 400
+    _set_status(tenant_a, wo, S.COMPLETED)  # "Completar" se adelantó al hallazgo rechazado
+    fixed = client.post(_url(wo, item), {"description": "Sello", "client_uuid": key}, format="json")
+    assert fixed.status_code == 201
+    again = client.post(_url(wo, item), {"description": "Sello", "client_uuid": key}, format="json")
+    assert again.status_code == 200 and again.json()["id"] == fixed.json()["id"]
+
+
+def test_legacy_route_is_an_alias(tenant_a):
+    """Teléfonos con la versión anterior de la PWA envían a `checklist/{item}/finding/`."""
+    wo, item = _finding_wo(tenant_a)
+    client = field_client(tenant_a.tech)
+    body = {"client_uuid": str(uuid.uuid4())}
+    legacy = client.post(_url(wo, item, "checklist"), body, format="json")
+    assert legacy.status_code == 201
+    canonical = client.post(_url(wo, item), body, format="json")
+    assert canonical.status_code == 200 and canonical.json() == legacy.json()
 
 
 def test_unknown_item_is_404(tenant_a):
@@ -182,11 +220,22 @@ def test_snapshot_shows_the_open_finding_and_the_variable(tenant_a):
         return row["checklist"][0]
 
     before = snapshot_item()
-    assert before["finding_code"] is None
+    assert before["finding_code"] is None and before["finding_request_number"] is None
     assert before["variable"] == "Temperatura (°C) · Rodamiento"
     created = client.post(_url(wo, item), {}, format="json").json()
-    assert snapshot_item()["finding_code"] == created["code"]
+    after = snapshot_item()
+    assert after["finding_code"] == created["code"]
+    assert after["finding_request_number"] == created["request_number"] is not None
     # Cancelada la correctiva, el ítem puede avisarse de nuevo (como en la web).
     with tenant_context(tenant_a.org):
         WorkOrder.objects.filter(pk=created["id"]).update(status=S.CANCELLED)
     assert snapshot_item()["finding_code"] is None
+    assert snapshot_item()["finding_request_number"] is None
+
+
+def test_snapshot_request_number_is_null_when_a_manager_created_the_corrective(tenant_a):
+    wo, item = _finding_wo(tenant_a)
+    field_client(tenant_a.admin).post(_url(wo, item), {}, format="json")
+    work_orders = field_client(tenant_a.tech).get(f"{FIELD_API}/snapshot/").json()["work_orders"]
+    row = next(row for row in work_orders if row["id"] == str(wo.pk))["checklist"][0]
+    assert row["finding_code"] and row["finding_request_number"] is None

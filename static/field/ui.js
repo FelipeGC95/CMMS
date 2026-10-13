@@ -5,6 +5,7 @@
 import {
   LABOR_LOCKED_STATUSES,
   LOCKED_STATUSES,
+  PROBLEM_STATUSES,
   canAnswer,
   editableDecimal,
   executionActions,
@@ -75,11 +76,15 @@ function priorityBadge(priority) {
   return tone ? badge(tone, "alert", label("priority", priority)) : null;
 }
 
-// Insignias de la cola: "Por enviar: 2" y "Con conflicto".
+// Insignias de la cola: "Por enviar: 2" y "Con conflicto". Llevan `data-queue-badge` para
+// cambiarlas en vivo (updateQueue) sin repintar el ítem ni la OT.
 function queueBadges(counts) {
   const out = [];
   if (counts && counts.pending) out.push(badge("warning", "clock", `${msg("badgePending")}: ${counts.pending}`));
   if (counts && counts.problems) out.push(badge("error", "stop", msg("badgeProblem")));
+  out.forEach((node) => {
+    node.dataset.queueBadge = "";
+  });
   return out;
 }
 
@@ -188,6 +193,7 @@ function workOrderItem(wo, bootstrap, counts) {
   if (target) meta.append(fact("box", target));
   if (wo.due_on) meta.append(fact("calendar", `${msg("dueOn")}: ${formatShortDay(wo.due_on)}`));
   const badges = slot(fragment, "badges");
+  badges.dataset.queueWo = wo.id;
   badges.append(statusBadge(wo.status, bootstrap));
   const priority = priorityBadge(wo.priority);
   if (priority) badges.append(priority);
@@ -284,36 +290,74 @@ function itemHint(item) {
   return parts.join(" · ");
 }
 
-// Hallazgo del ítem (WO-06 CA2): "por enviar" mientras espera en la cola; "avisado" con el
+// Hallazgo del ítem (WO-06 CA2): "por enviar" mientras espera en la cola; "no enviado" si el
+// servidor lo rechazó (se corrige o descarta en Conflictos, sin detener la OT); "avisado" con el
 // código de la correctiva (y la solicitud, si pasó por el aviso de falla) cuando el servidor lo creó.
-export function findingStatus(item) {
-  if (item._finding_pending) return { tone: "warning", icon: "clock", text: msg("findingPending") };
+// `entry` es el aviso en la cola para este ítem (summary.findings), si hay.
+export function findingStatus(item, entry = null) {
+  if (entry && PROBLEM_STATUSES.has(entry.status)) {
+    return { tone: "error", icon: "stop", text: msg("findingProblem"), link: "#/conflicts" };
+  }
+  if (entry || item._finding_pending) return { tone: "warning", icon: "clock", text: msg("findingPending") };
   if (!item.finding_code) return null;
-  const request = item.finding_request ? ` · ${msg("requestNumber")} ${item.finding_request}` : "";
+  const number = item.finding_request_number;
+  const request = number ? ` · ${msg("requestNumber")} ${number}` : "";
   return { tone: "success", icon: "check", text: `${msg("findingDone")} · ${item.finding_code}${request}` };
 }
 
-function showFinding(node, item) {
-  const state = findingStatus(item);
+function showFinding(node, item, entry = null) {
+  const state = findingStatus(item, entry);
   if (!state) {
     node.hidden = true;
     return false;
   }
   node.className = `field-finding__state field-finding__state--${state.tone}`;
-  node.replaceChildren(icon(state.icon), document.createTextNode(state.text));
+  const textNode = document.createElement("span");
+  textNode.textContent = state.text;
+  if (state.link) {
+    const link = document.createElement("a");
+    link.href = state.link;
+    link.textContent = msg("actionReview");
+    textNode.append(" ", link);
+  }
+  node.replaceChildren(icon(state.icon), textNode);
   node.hidden = false;
   return true;
 }
 
-// Al enviarse el hallazgo con la OT a la vista: se actualiza solo su estado (sin repintar el ítem,
-// así no se pierde lo que se esté escribiendo).
-export function updateFinding(li, item) {
+// Al cambiar el hallazgo con la OT a la vista (enviado o rechazado): se actualiza solo su estado
+// (sin repintar el ítem, así no se pierde lo que se esté escribiendo).
+export function updateFinding(li, item, entry = null) {
   const node = slot(li, "finding-state");
-  if (!node || !showFinding(node, item)) return;
+  if (!node || !showFinding(node, item, entry)) return;
   const box = slot(li, "finding");
   if (box) box.hidden = false;
+  const opener = slot(li, "finding-open");
+  if (opener) opener.hidden = true;
   const saved = slot(li, "saved");
-  if (saved) saved.replaceChildren(); // "guardado en el teléfono" ya no aplica
+  if (saved && !entry) saved.replaceChildren(); // "guardado en el teléfono" ya no aplica
+}
+
+// Cambios de la cola con la lista o una OT a la vista (encolar, enviar, rechazar, descartar):
+// insignias "Por enviar: N" de cada OT e ítem, el aviso de conflictos y el estado de los
+// hallazgos en cola, sin repintar nada más (lo que se esté escribiendo no se pierde).
+export function updateQueue(view, summary) {
+  view.querySelectorAll("[data-queue-item], [data-queue-wo]").forEach((node) => {
+    const { queueItem, queueWo } = node.dataset;
+    const counts = queueItem ? summary.byItem.get(queueItem) : summary.byWorkOrder.get(queueWo);
+    node.querySelectorAll(":scope > [data-queue-badge]").forEach((old) => old.remove());
+    node.append(...queueBadges(counts));
+    const entry = queueItem && summary.findings.get(queueItem);
+    if (entry) updateFinding(node.closest("li"), {}, entry);
+  });
+  const article = view.querySelector("[data-wo-id]");
+  const problem = slot(view, "problem");
+  if (article && problem) {
+    const counts = summary.byWorkOrder.get(article.dataset.woId);
+    problem.hidden = !(counts && counts.problems);
+  }
+  const conflicts = slot(view, "conflicts");
+  if (conflicts) conflicts.hidden = !summary.problems;
 }
 
 // Variable de condición que alimenta un ítem de medición (CBM-06): «Alimenta Temperatura (°C) · Rodamiento».
@@ -321,29 +365,37 @@ function showVariable(node, item) {
   if (node && item.variable) show(node, `${msg("feedsVariable")} ${item.variable}`);
 }
 
-// "Avisar hallazgo" solo en un ítem No OK (verificación o medición fuera de rango), una vez.
-export function canReportFinding(item, wo, bootstrap) {
+// "Avisar hallazgo" solo en un ítem No OK (verificación o medición fuera de rango), una vez, y
+// con la OT abierta (como en la web; un aviso ya en cola sí puede llegar después de completar).
+export function canReportFinding(item, wo, bootstrap, entry = null) {
   return (
     item.result === "not_ok" &&
     ["check", "measurement"].includes(item.item_type) &&
     Boolean(bootstrap.permissions.request_create) &&
     !LOCKED_STATUSES.has(wo.status) &&
-    !findingStatus(item)
+    !findingStatus(item, entry)
   );
 }
 
-function readOnlyItem(item, index, counts) {
+// Insignias del ítem: su resultado y, aparte (para cambiarlas en vivo), las de la cola.
+function itemBadges(fragment, item, counts) {
+  const node = slot(fragment, "badges");
+  node.dataset.queueItem = item.id;
+  node.append(itemBadge(item), ...queueBadges(counts));
+}
+
+function readOnlyItem(item, index, counts, finding) {
   const fragment = clone("tpl-check-item");
   const li = fragment.firstElementChild;
   li.id = `item-${item.id}`;
   if (item.result) li.classList.add(`check-item--${item.result}`);
   slot(fragment, "num").textContent = `${index}.`;
   slot(fragment, "text").textContent = item.text;
-  slot(fragment, "badges").append(itemBadge(item), ...queueBadges(counts));
+  itemBadges(fragment, item, counts);
   show(slot(fragment, "hint"), itemHint(item));
   show(slot(fragment, "note"), item.note);
   showVariable(slot(fragment, "variable"), item);
-  showFinding(slot(fragment, "finding-state"), item);
+  showFinding(slot(fragment, "finding-state"), item, finding);
   return fragment;
 }
 
@@ -357,7 +409,9 @@ function bind(root, labelSlot, fieldSlot, id) {
   return field;
 }
 
-export function editableItem(item, index, counts, wo, bootstrap) {
+// `queued`: lo que el ítem tiene en la cola ({counts, finding}, de queue.summarize).
+export function editableItem(item, index, queued, wo, bootstrap) {
+  const { counts, finding } = queued || {};
   const fragment = clone("tpl-check-edit");
   const li = fragment.firstElementChild;
   li.dataset.itemId = item.id;
@@ -365,7 +419,7 @@ export function editableItem(item, index, counts, wo, bootstrap) {
   if (item.result) li.classList.add(`check-item--${item.result}`);
   slot(fragment, "num").textContent = `${index}.`;
   slot(fragment, "text").textContent = item.text;
-  slot(fragment, "badges").append(itemBadge(item), ...queueBadges(counts));
+  itemBadges(fragment, item, counts);
   const type = ["measurement", "text", "signature", "photo"].includes(item.item_type) ? item.item_type : "check";
   fragment.querySelectorAll("[data-type]").forEach((node) => {
     if (node.dataset.type !== type) node.remove();
@@ -405,8 +459,8 @@ export function editableItem(item, index, counts, wo, bootstrap) {
   slot(fragment, "note-save").hidden = !(item.result && (type !== "signature" || item._signature));
   const photo = bind(fragment, "photo-label", "photo-input", `photo-${item.id}`);
   photo.dataset.itemId = item.id;
-  const reported = showFinding(slot(fragment, "finding-state"), item);
-  const canReport = canReportFinding(item, wo, bootstrap);
+  const reported = showFinding(slot(fragment, "finding-state"), item, finding);
+  const canReport = canReportFinding(item, wo, bootstrap, finding);
   slot(fragment, "finding").hidden = !(reported || canReport);
   slot(fragment, "finding-open").hidden = !canReport;
   if (canReport) {
@@ -430,6 +484,7 @@ export function renderDetail(view, { session, workOrder: wo, summary, timer, fla
   slot(fragment, "title").textContent = wo.title;
   const counts = summary.byWorkOrder.get(wo.id);
   const badges = slot(fragment, "badges");
+  badges.dataset.queueWo = wo.id;
   badges.append(statusBadge(wo.status, bootstrap));
   const priority = priorityBadge(wo.priority);
   if (priority) badges.append(priority);
@@ -489,9 +544,11 @@ export function renderDetail(view, { session, workOrder: wo, summary, timer, fla
       list.append(header);
     }
     section = item.section;
-    const itemCounts = summary.byItem.get(item.id);
+    const queued = { counts: summary.byItem.get(item.id), finding: summary.findings.get(item.id) };
     list.append(
-      editable ? editableItem(item, index + 1, itemCounts, wo, bootstrap) : readOnlyItem(item, index + 1, itemCounts),
+      editable
+        ? editableItem(item, index + 1, queued, wo, bootstrap)
+        : readOnlyItem(item, index + 1, queued.counts, queued.finding),
     );
   });
   if (items.length) {

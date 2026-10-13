@@ -204,8 +204,9 @@ Proveedor de correo (SMTP, ambos con plan gratuito para empezar):
 - **Demo:** `seed_demo --reset` carga bodega principal y un pañol por sitio,
   unos 30 repuestos, planes con repuestos enlazados, reservas, consumos de los
   últimos meses (para los indicadores), un repuesto bajo mínimo y uno en
-  negativo; la demo queda reconciliada. Una base demo que ya existía (Render
-  corre `seed_demo` sin `--reset`) no recibe el inventario hasta recrearla.
+  negativo; la demo queda reconciliada. Una base demo cargada antes del
+  inventario se recrea sola en Render (`seed_demo --reset-if-stale` al
+  arrancar); se pierde lo creado a mano en ella.
 
 ## 3f. Mantenimiento por condición (CBM, ADR-029)
 
@@ -224,10 +225,9 @@ Proveedor de correo (SMTP, ambos con plan gratuito para empezar):
 - **Demo:** `seed_demo --reset` carga en Alimentos del Sur 15 variables
   (temperatura, vibración, presión, corriente), reglas por clase y por
   activo, 90 días de lecturas y alertas abiertas, reconocida, normalizada y
-  cerrada, con OT predictivas; tarda unos segundos más. Una base demo que ya
-  existía (Render corre `seed_demo` sin `--reset`) no recibe estos datos
-  hasta recrearla (`seed_demo --reset` en la shell de Render o al recrear la
-  base gratuita).
+  cerrada, con OT predictivas; tarda unos segundos más. Una base demo cargada
+  antes de condición se recrea sola en Render (`seed_demo --reset-if-stale`
+  al arrancar); en local, `seed_demo --reset`.
 
 ## 4. Checklist para activar producción
 

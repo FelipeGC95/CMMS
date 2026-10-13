@@ -5,10 +5,12 @@
 //   2xx → hecho · 401 / mfa_required → pausa todo · 409 / 404 → conflicto (bloquea lo que
 //   sigue de esa OT) · 400 → rechazado, se corrige y reenvía con el mismo client_uuid ·
 //   red / 5xx → reintento con espera exponencial.
+//   Excepción: un aviso de hallazgo rechazado o en conflicto es accesorio y sale del carril:
+//   lo que sigue de la OT (p. ej. "Completar") se envía igual y el aviso espera en Conflictos.
 
 import * as api from "./api.js";
 import * as db from "./db.js";
-import { owns } from "./queue.js";
+import { PROBLEM_STATUSES, owns } from "./queue.js";
 
 const PERIOD_MS = 60 * 1000;
 const RETRY_BASE_MS = 5 * 1000;
@@ -55,8 +57,10 @@ export function nextEntry(entries, identity, now = Date.now()) {
     if (!owns(entry, identity)) continue;
     const lane = entry.wo_id || entry.client_uuid;
     if (blocked.has(lane)) continue;
+    // Un hallazgo que el servidor no aceptó no detiene la OT (ADR-011): no bloquea su carril.
+    if (entry.kind === "finding" && PROBLEM_STATUSES.has(entry.status)) continue;
     blocked.add(lane); // lo que sigue de esta OT espera a este cambio
-    if (entry.status === "conflict" || entry.status === "rejected") continue;
+    if (PROBLEM_STATUSES.has(entry.status)) continue;
     if (entry.next_at && entry.next_at > now) continue;
     return entry;
   }
@@ -106,7 +110,7 @@ async function send(entry) {
       return api.postJson(`${wo}parts/`, { ...payload, client_uuid: entry.client_uuid }, org);
     case "finding":
       // Va detrás de la respuesta del ítem y antes de "Completar": la cola es FIFO por OT.
-      return api.postJson(`${wo}checklist/${entry.item_id}/finding/`, { ...payload, client_uuid: entry.client_uuid }, org);
+      return api.postJson(`${wo}${item}finding/`, { ...payload, client_uuid: entry.client_uuid }, org);
     case "reading":
       return api.postJson("readings/", { ...payload, client_uuid: entry.client_uuid }, org);
     case "request":

@@ -7473,7 +7473,7 @@ msgstr ""
 msgid "Guardar lectura"
 msgstr ""
 
-msgid "Cambios que el servidor no aceptó. Lo que sigue de la misma OT espera hasta que los resuelvas."
+msgid "Cambios que el servidor no aceptó. Lo que sigue de la misma OT espera hasta que los resuelvas, salvo un aviso de hallazgo: ese no detiene la OT."
 msgstr ""
 
 msgid "No hay cambios con conflicto ni rechazados."
@@ -9950,4 +9950,36 @@ msgstr ""
 
 #: templates/ui/design_system.html
 msgid "Revisar fugas de aire en líneas"
+msgstr ""
+
+#: templates/field/shell.html
+msgid "Hallazgo no enviado: el servidor no lo aceptó. No detiene la OT."
+msgstr ""
+
+#: templates/field/shell.html
+msgid "La OT fue cancelada: el hallazgo ya no puede avisarse desde ella. Descártalo; si la falla sigue, avísala con una solicitud nueva."
+msgstr ""
+
+#: templates/field/shell.html
+msgid "Este aviso se confundió con otro cambio. Reenvíalo: sale como un aviso nuevo y no duplica la correctiva del ítem."
+msgstr ""
+
+#: templates/field/shell.html
+msgid "No detiene la OT: lo demás de ella se envía igual, también el cierre."
+msgstr ""
+
+#: templates/field/shell.html
+msgid "Corregir aviso de hallazgo"
+msgstr ""
+
+#: templates/field/shell.html
+msgid "Se reenvía sin duplicar: si la correctiva del ítem ya existe, se usa esa."
+msgstr ""
+
+#: templates/ui/design_system.html
+msgid "Desde Conflictos: se edita la descripción o «equipo detenido» y se reenvía sin duplicar. El ítem muestra «Hallazgo no enviado» mientras tanto."
+msgstr ""
+
+#: templates/ui/design_system.html
+msgid "Escribe hasta 2.000 caracteres."
 msgstr ""

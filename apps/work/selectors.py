@@ -652,7 +652,7 @@ def field_work_orders(*, membership, days: int = FIELD_DEFAULT_DAYS) -> FieldSna
 
     Cada OT trae lo que el teléfono necesita sin más consultas: activo y ubicación,
     `assigned_to_me`, `helpers`, `field_checklist` (ítems con `photo_count` y la correctiva
-    abierta del hallazgo, `finding_number`/`finding_type`),
+    abierta del hallazgo, `finding_number`/`finding_type`/`finding_request_number`),
     `field_meter` y `meter_required` (lectura al completar). Las transiciones
     permitidas se calculan con `services.allowed_transitions` (sin consultas).
     """
@@ -681,6 +681,8 @@ def field_work_orders(*, membership, days: int = FIELD_DEFAULT_DAYS) -> FieldSna
             photo_count=Coalesce(Subquery(photos, output_field=IntegerField()), 0),
             finding_number=Subquery(findings.values("number")[:1]),
             finding_type=Subquery(findings.values("work_type")[:1]),
+            # N° de la solicitud cuando la correctiva vino del aviso de falla (técnico).
+            finding_request_number=Subquery(findings.values("request__number")[:1]),
         )
         .order_by("order", "created_at")
     )
