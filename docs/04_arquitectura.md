@@ -1302,5 +1302,34 @@ lleva `{id, name, path}`; los decimales van como texto; consultas acotadas
     lectura de cada medidor, no al guardarse la regla.
   - El volumen de lecturas crece; si un cliente conecta sensores se
     particiona `meter_reading` por fecha (sin cambiar la API).
-- **Estado (2026-10-12):** aceptado, en implementación (paquetes C0–C6 y F1,
-  ver [05_roadmap.md](05_roadmap.md)).
+- **Decisiones tomadas al implementar (2026-10, C1–C6):**
+  - **Variables desactivadas** (`meter.is_active = false`, CBM-01 CA5): no
+    reciben lecturas de ninguna fuente (web, CSV, API, terreno, checklist) y
+    no se reactivan solas: un ítem de checklist enlazado a una variable
+    desactivada no registra lectura (`assets.services.ensure_variable`
+    devuelve `None`). Su historial, sus estados y sus alertas siguen visibles.
+  - **Negativos solo en variables:** el formulario, el CSV y la API aceptan
+    valores bajo cero en variables (temperaturas de cámaras de frío); los
+    medidores de uso los siguen rechazando.
+  - **Estados en la ficha del activo** (CBM-07): normal, alarma, sin reglas,
+    sin lecturas (tiene reglas pero aún no hay lecturas que evaluar) y
+    desactivada; se calculan con un número fijo de consultas
+    (`condition.selectors.asset_condition`).
+  - **Reanudación:** si hubo lecturas sin evaluar entre la última evaluada y
+    la nueva (módulo apagado o regla inactiva), el estado arranca en normal y
+    el episodio anterior queda `normalized`; desactivar una regla también
+    normaliza sus episodios y deja sus estados en normal.
+  - **Cierre de alertas por la OT:** `apps.work` llama explícitamente a
+    `condition.services.close_alerts_for_work_order` al cerrar o cancelar la
+    OT (sin signals).
+  - **Idempotencia de reglas por API:** `POST /api/v1/condition-rules/` acepta
+    `client_uuid` y se apoya en `ApiIdempotencyKey` (sin columna nueva en
+    `condition_rule`, sin migración).
+  - **Datos demo** (CBM-10): `seed_demo` carga la historia antigua en rango
+    con `bulk_create` antes de crear las reglas (no se evalúa ni deja
+    estados) y los últimos días por `record_meter_reading`, de modo que los
+    estados y los episodios (alertas y OT predictivas) los crea la
+    evaluación real.
+- **Estado (2026-10):** aceptado e implementado (paquetes C0–C6); queda el
+  paquete F1 (correctiva desde hallazgo sin conexión, WO-06 CA2), ver
+  [05_roadmap.md](05_roadmap.md).

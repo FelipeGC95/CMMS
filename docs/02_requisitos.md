@@ -595,8 +595,9 @@ asistente de puesta en marcha.
 
 ## 7. Mantenimiento por condición (`CBM`, F2)
 
-**Estado:** en construcción (F2). Diseño aprobado el 2026-10-12; paquetes
-C0–C6 y F1 en [05_roadmap.md](05_roadmap.md) y decisiones en
+**Estado:** hecho (F2, 2026-10, paquetes C0–C6); queda el paquete F1
+(correctiva desde hallazgo sin conexión, WO-06 CA2). Diseño aprobado el
+2026-10-12; paquetes en [05_roadmap.md](05_roadmap.md) y decisiones en
 [04_arquitectura.md](04_arquitectura.md), ADR-029. Modelo en
 [03_modelo_de_datos.md](03_modelo_de_datos.md) §2.11.
 
@@ -663,9 +664,9 @@ vibración, presión, corriente, otra, horas, km, ciclos) y `nombre`; sin ellas
 un activo con varios medidores da error por fila pidiendo tipo y nombre, y un
 `tipo` sin `nombre` con dos variables de ese tipo pide el nombre. Cada fila
 importada lleva un `client_uuid` derivado de (medidor, fecha, valor). El
-serializer `MeterReadingCreateSerializer` de la API aún tiene `min_value=0`
-y `BulkReadingRowSerializer` no expone `kind`/`name`: quedan para C5 (las
-filas de `build_reading_preview` ya leen las claves `kind` y `name`).
+serializer `MeterReadingCreateSerializer` de la API tenía `min_value=0` y
+`BulkReadingRowSerializer` no exponía `kind`/`name`: quedaron para C5 (ver
+abajo).
 
 Implementado (2026-10, paquete C5): CA3. `POST /api/v1/readings/bulk/` acepta
 `kind` y `name` por fila (mismas reglas y mensajes que el CSV) y
@@ -695,6 +696,14 @@ que el sistema me avise y cree la OT cuando se salga.
 - CA6: No se borran: `is_active`. Alta y edición auditadas; requieren
   `condition.manage`.
 
+Implementado (2026-10, paquetes C1 y C2): `condition.services.create_rule`,
+`update_rule` (el alcance no cambia: se crea otra regla) y `set_rule_active`,
+con las validaciones de CA5 en el servicio y CHECK en la base (incluida la
+prioridad 1–4). Pantallas `/condition/rules/` (lista con inactivas a pedido),
+`rules/new/`, `rules/<id>/edit/` y activar/desactivar. Los umbrales admiten
+negativos (p. ej. cámara de frío sobre −15 °C). Desactivar una regla
+normaliza sus episodios abiertos y deja sus estados en normal.
+
 **CBM-04 · Evaluación e histéresis (F2)**
 - CA1: Cada lectura nueva se evalúa al registrarse, dentro de la misma
   transacción, contra las reglas activas que aplican a su medidor (directas y
@@ -717,6 +726,15 @@ que el sistema me avise y cree la OT cuando se salga.
 - CA7: Número acotado de consultas por lectura (índices compuestos con
   `organization_id`), probado con `django_assert_max_num_queries`.
 
+Implementado (2026-10, paquete C1): `condition.services.evaluate_reading`,
+llamada por `record_meter_reading` solo para variables y solo con la lectura
+más reciente; estados con `select_for_update` en orden de regla. Si hubo
+lecturas sin evaluar entre la última evaluada y la nueva (módulo apagado o
+regla inactiva), el estado arranca en normal y el episodio anterior queda
+normalizado. Una variable desactivada rechaza lecturas, así que no se
+evalúa. CA7 en `tests/test_query_counts.py`
+(`test_condition_evaluation_queries_are_bounded`).
+
 **CBM-05 · Alertas (F2)**
 - CA1: `/condition/` lista las alertas con las abiertas primero; filtros por
   estado, sitio y activo; paginada y con el alcance por sitio de la membresía.
@@ -731,6 +749,13 @@ que el sistema me avise y cree la OT cuando se salga.
 - CA6: Aviso `condition_alert` (app y correo según preferencias) a quienes
   tienen `work_order.manage` y ven el sitio del activo; se encola con
   `on_commit`.
+
+Implementado (2026-10, paquetes C1 y C2): `/condition/` (filtros estado,
+sitio y activo; paginada), detalle `/condition/alerts/<id>/` y "Reconocer";
+contador en el inicio y enlaces en la navegación y en "Más". Al cerrar o
+cancelar la OT vinculada, `apps.work` llama a
+`condition.services.close_alerts_for_work_order` (sin signals) y sus alertas
+pendientes pasan a cerradas.
 
 **CBM-06 · El checklist alimenta variables (F2)**
 Como técnico quiero que la temperatura que anoto en la pauta quede como
@@ -820,6 +845,22 @@ API: alta y baja de variables (siguen en la ficha del activo).
   episodio de alarma con su OT predictiva.
 - CA2: Las tablas nuevas entran en la exportación completa y la purga (X-03,
   X-04, ADR-027), probado en `tests/test_org_export_delete.py`.
+
+Implementado (2026-10, paquete C6): CA1 en
+`apps/core/management/commands/_seed_condition.py` (Alimentos del Sur): 15
+variables en 10 activos (temperatura, vibración, presión, corriente), 4 reglas
+por clase (compresores, envasadoras, equipos de frío) y 6 por activo (`gt`,
+`lt`, `outside`, `rate`; una inactiva, reemplazada), 90 días de lecturas con
+ruido y episodios evaluados por el servicio real: 2 alertas abiertas (una con
+OT predictiva), 1 reconocida, 1 normalizada y 1 cerrada por su OT predictiva
+completada. En la ficha aparecen todos los estados (alarma, normal, sin
+reglas, sin lecturas, desactivada). El plan "Inspección mensual compresor"
+enlaza "Temperatura de descarga" a la variable (CBM-06). Probado en
+`tests/test_seed_demo.py` (estados coherentes con la última lectura). CA2:
+las tablas de condición y el enlace `meter_reading` de los ítems de la OT
+(PROTECT) entran en la exportación y la purga (descubren las tablas
+`TenantModel` solas; las FK diferidas permiten borrar en cualquier orden).
+Maestranza Norte (plan Prueba, con el módulo) queda sin datos de condición.
 
 **Fuera de v1:** ingesta en tiempo real (MQTT, OPC-UA, conectores SCADA);
 tablas de series de tiempo particionadas; reglas compuestas (varias

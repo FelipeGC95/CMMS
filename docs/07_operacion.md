@@ -207,6 +207,28 @@ Proveedor de correo (SMTP, ambos con plan gratuito para empezar):
   negativo; la demo queda reconciliada. Una base demo que ya existía (Render
   corre `seed_demo` sin `--reset`) no recibe el inventario hasta recrearla.
 
+## 3f. Mantenimiento por condición (CBM, ADR-029)
+
+- **Sin proceso aparte:** las reglas se evalúan dentro de la transacción de
+  cada lectura (`record_meter_reading`); el worker solo entrega el aviso
+  `condition_alert`. Sin worker las alertas y las OT predictivas se crean
+  igual (el aviso por correo sale cuando el worker vuelve).
+- **Módulo por plan:** `condition` va en Prueba, Profesional y Empresa. Con
+  el módulo apagado las lecturas se guardan pero no se evalúan; al
+  encenderlo no se reevalúa el historial: cada regla arranca en normal con la
+  próxima lectura.
+- **Alerta que no se cierra:** se cierra sola al cerrar o cancelar su OT
+  predictiva; si la regla quedó mal definida, desactivarla normaliza sus
+  episodios abiertos. No editar `ConditionState` ni `ConditionAlert` a mano
+  (el admin de Django las muestra de solo lectura).
+- **Demo:** `seed_demo --reset` carga en Alimentos del Sur 15 variables
+  (temperatura, vibración, presión, corriente), reglas por clase y por
+  activo, 90 días de lecturas y alertas abiertas, reconocida, normalizada y
+  cerrada, con OT predictivas; tarda unos segundos más. Una base demo que ya
+  existía (Render corre `seed_demo` sin `--reset`) no recibe estos datos
+  hasta recrearla (`seed_demo --reset` en la shell de Render o al recrear la
+  base gratuita).
+
 ## 4. Checklist para activar producción
 
 Cuando existan las cuentas, en este orden:
