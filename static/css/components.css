@@ -834,6 +834,8 @@ svg.chart-swatch { width: 12px; height: 12px; vertical-align: -1px; margin-right
 /* Valor de una alerta (enlace al detalle, junto a la condición de su regla) y el último valor debajo. */
 .cond-value { font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .cond-value__last { display: block; font-size: var(--text-sm); color: var(--color-text-muted); }
+/* Estado de la alerta y, debajo, "Reconocer" o quién la reconoció (sin columna de acciones aparte). */
+.cond-status { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-2); }
 /* Formulario de regla: solo los campos de la elección (alcance, condición, acción), sin JS. */
 .rule-form:has(input[name="scope"][value="class"]:checked) .rule-form__meter,
 .rule-form:has(input[name="scope"][value="meter"]:checked) .rule-form__class,

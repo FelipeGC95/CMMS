@@ -40,7 +40,7 @@
 <div class="card card--flush">
   {% if page.object_list %}
   <table class="table">
-    <thead><tr><th>{% translate "Estado" %}</th><th>{% translate "Activo" %}</th><th>{% translate "Variable" %}</th><th>{% translate "Valor" %}</th><th>{% translate "Regla" %}</th><th class="num">{% translate "Abierta" %}</th><th>{% translate "OT" %}</th><th><span class="visually-hidden">{% translate "Acciones" %}</span></th></tr></thead>
+    <thead><tr><th>{% translate "Estado" %}</th><th>{% translate "Activo" %}</th><th>{% translate "Variable" %}</th><th>{% translate "Valor" %}</th><th>{% translate "Regla" %}</th><th class="num">{% translate "Abierta" %}</th><th>{% translate "OT" %}</th></tr></thead>
     <tbody>
       {% for alert in page.object_list %}{% include "condition/_alert_row.html" %}{% endfor %}
     </tbody>

@@ -101,6 +101,8 @@
   <p class="muted">{% translate "Estados de una alerta (ícono + texto), su valor con el último debajo y el formulario de regla que muestra solo los campos de la elección (CSS :has, sin JS)." %}</p>
   <h3>{% translate "Estados de alerta" %}</h3>
   <div class="row mb-4">{% for a in alert_statuses %}{% alert_status_badge a %}{% endfor %}</div>
+  {# Celda de estado de la lista de alertas: "Reconocer" va bajo el estado (sin columna de acciones). #}
+  <div class="cond-status mb-4">{% alert_status_badge alert_statuses.0 %}<button class="btn btn--secondary" type="button">{% icon 'check' %}{% translate "Reconocer" %}</button></div>
   <h3>{% translate "Valor de una alerta" %}</h3>
   <p class="mb-4"><a class="cond-value" href="#ds-condition">86 °C</a><span class="cond-value__last">{% translate "Último" %}: 88 °C</span></p>
   <h3>{% translate "Campos según la elección" %}</h3>
