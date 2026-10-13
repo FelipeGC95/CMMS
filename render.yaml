@@ -26,9 +26,11 @@ services:
     buildCommand: pip install -r requirements.txt && python manage.py collectstatic --noinput
     # Cada arranque (también al despertar): migra, carga la demo si no existe
     # y genera los preventivos del día (reemplaza al cron del plan pagado).
+    # --reset-if-stale: si la demo se cargó antes de inventario o condición, se
+    # recrea completa una vez (se pierde lo creado a mano en la demo).
     startCommand: >-
       python manage.py migrate --noinput &&
-      python manage.py seed_demo &&
+      python manage.py seed_demo --reset-if-stale &&
       python manage.py generate_preventive_work_orders &&
       gunicorn config.wsgi:application --workers 2 --timeout 60 --access-logfile -
     healthCheckPath: /healthz

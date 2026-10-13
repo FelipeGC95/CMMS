@@ -1,6 +1,9 @@
 """Datos de demostración: una pyme de alimentos ficticia y una segunda organización.
 
-Uso: python manage.py seed_demo [--reset]
+Uso: python manage.py seed_demo [--reset | --reset-if-stale]
+
+`--reset-if-stale` (lo usa Render en cada arranque) recrea la demo solo si le faltan datos de
+módulos posteriores a su carga (inventario, condición); si está al día no toca nada.
 """
 
 import datetime
@@ -18,7 +21,9 @@ from apps.accounts.models import Membership, User
 from apps.accounts.services import create_user
 from apps.assets.models import Asset, AssetClass, AssetStatusPeriod, Meter, MeterKind
 from apps.assets.services import record_meter_reading
+from apps.condition.models import ConditionRule
 from apps.core.tenancy import platform_context, tenant_context
+from apps.inventory.models import Part
 from apps.maintenance.models import ItemType
 from apps.maintenance.services import assign_plan, create_plan, generate_due_work_orders
 from apps.organizations.models import Location, Organization, Plan
@@ -258,14 +263,22 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser):
         parser.add_argument("--reset", action="store_true", help="Vacía TODA la base antes (solo demo).")
+        parser.add_argument(
+            "--reset-if-stale",
+            action="store_true",
+            help="Como --reset, pero solo si a la demo le faltan inventario o condición (Render).",
+        )
 
     def handle(self, *args, **options):
         # Comando de plataforma (ADR-026): RLS desactivado; cada escritura igual usa tenant_context.
         with platform_context():
             self._seed(*args, **options)
 
-    def _seed(self, *args, reset=False, **options):
+    def _seed(self, *args, reset=False, reset_if_stale=False, **options):
         random.seed(42)
+        if reset_if_stale and self._is_stale():
+            self.stdout.write("La demo no tiene inventario o condición: se recrea completa.")
+            reset = True
         if reset:
             # Base de demo: se vacía completa. (El borrado de una organización real es X-04.)
             call_command("flush", interactive=False, verbosity=0)
@@ -396,6 +409,15 @@ class Command(BaseCommand):
             ).exclude(content_type__model__in=["organization", "plan"])
             | Permission.objects.filter(content_type__app_label="audit", codename__startswith="view_")
         )
+
+    @staticmethod
+    def _is_stale() -> bool:
+        """¿La demo existe pero se cargó antes de inventario o condición? (Base de demo en Render.)"""
+        org = Organization.objects.filter(slug="alimentos-del-sur").first()
+        if org is None:
+            return False  # sin demo: se carga normal, no hay nada que vaciar
+        with tenant_context(org):
+            return not (Part.objects.exists() and ConditionRule.objects.exists())
 
     def _seed_main(self, org, members):
         now = timezone.now()

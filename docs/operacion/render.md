@@ -15,7 +15,9 @@ gratuito**. Render vuelve a desplegar solo cada vez que se sube un cambio a
 | Sin tareas programadas | — | Los preventivos del día se generan en cada arranque |
 
 Al arrancar (y al despertar), el servidor ejecuta en orden: migraciones →
-`seed_demo` (solo si la base está vacía) → generación de preventivos →
+`seed_demo --reset-if-stale` (carga la demo si la base está vacía; si la demo
+existe pero se cargó antes de inventario o condición, la recrea completa una
+vez y se pierde lo creado a mano en ella) → generación de preventivos →
 gunicorn.
 
 ## Antes de empezar
