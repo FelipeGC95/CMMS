@@ -27,6 +27,7 @@ from apps.work.models import FailureCode, FailureEvent, LaborRate, WorkOrder
 from apps.work.selectors import OPEN_STATUSES
 from apps.work.services import answer_checklist_item, complete_work_order, create_work_order
 
+from . import _seed_condition as demo_condition
 from . import _seed_inventory as demo_inventory
 
 # En ambientes publicados se define DEMO_PASSWORD (la de por defecto está en el repo).
@@ -473,6 +474,8 @@ class Command(BaseCommand):
                 other=other,
             )
         self._cancelled_history(assets, members, now)
+        # Mantenimiento por condición (CBM-10): variables, reglas, 90 días de lecturas y episodios.
+        demo_condition.seed(org=org, assets=assets, classes=classes, admin=admin, tech=tech, now=now)
 
         # Situación actual: un equipo crítico detenido y una solicitud nueva.
         from apps.work.services import report_failure, transition
@@ -604,6 +607,15 @@ class Command(BaseCommand):
                     ("Revisar fugas de aire en líneas", ItemType.CHECK),
                     ("Horas de operación desde la última inspección", ItemType.TEXT),
                     ("Foto del manómetro principal", ItemType.PHOTO),
+                    # Enlazado a la variable (CBM-06): al completar la OT registra la lectura.
+                    (
+                        "Temperatura de descarga",
+                        ItemType.MEASUREMENT,
+                        "°C",
+                        70,
+                        95,
+                        (MeterKind.TEMPERATURE, "Descarga"),
+                    ),
                 ]
             ),
         )
@@ -611,9 +623,14 @@ class Command(BaseCommand):
             assign_plan(plan=monthly, asset=asset, starts_on=today + datetime.timedelta(days=3))
 
     def _items(self, items):
-        """Ítems del checklist en el formato de create_plan: (texto, tipo[, unidad, mín, máx])."""
+        """Ítems del checklist en el formato de create_plan.
+
+        (texto, tipo[, unidad, mín, máx[, (tipo de variable, nombre)]]): el último, opcional,
+        enlaza el ítem de medición a una variable de condición (CBM-06).
+        """
         result = []
         for text, item_type, *rng in items:
+            kind, name = rng[3] if len(rng) > 3 else ("", "")
             result.append(
                 {
                     "text": text,
@@ -621,6 +638,8 @@ class Command(BaseCommand):
                     "unit": rng[0] if rng else "",
                     "min_value": Decimal(str(rng[1])) if rng else None,
                     "max_value": Decimal(str(rng[2])) if rng else None,
+                    "meter_kind": kind,
+                    "meter_name": name,
                 }
             )
         return result

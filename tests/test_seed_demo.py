@@ -110,3 +110,64 @@ def test_demo_has_inventory_with_history_and_alerts():
         assert insights.consumption > 0
         assert insights.stale_count >= 1
         assert reconcile_stock() == []
+
+
+def test_demo_has_condition_variables_rules_and_alert_episodes():
+    # CBM-10 CA1: variables, reglas por clase y por activo, 90 días de historia y episodios
+    # creados por la evaluación real (estados coherentes con la última lectura).
+    from apps.accounts.models import Membership
+    from apps.assets.models import VARIABLE_KINDS, Asset, Meter
+    from apps.condition.models import ConditionAlert, ConditionRule, ConditionState
+    from apps.condition.selectors import VariableStatus, asset_condition
+    from apps.maintenance.models import PlanTaskItem
+
+    call_command("seed_demo", verbosity=0)
+
+    org = Organization.objects.get(slug="alimentos-del-sur")
+    admin = Membership.objects.get(organization=org, user__email="jefe@demo.cl")
+    with tenant_context(org):
+        variables = list(Meter.objects.filter(kind__in=VARIABLE_KINDS))
+        assert len(variables) >= 10
+        assert {m.kind for m in variables} >= {"temperature", "vibration", "pressure", "current"}
+        assert {m.organization_id for m in variables} == {org.pk}
+        rules = list(ConditionRule.objects.all())
+        assert sum(1 for r in rules if r.asset_class_id and r.is_active) >= 3
+        assert any(r.meter_id and r.is_active for r in rules)
+        assert {r.operator for r in rules} == {"gt", "lt", "outside", "rate"}
+        assert any(not r.is_active for r in rules)
+
+        alerts = list(ConditionAlert.objects.select_related("work_order"))
+        assert {a.status for a in alerts} == {"open", "acknowledged", "normalized", "closed"}
+        assert {a.work_order.work_type for a in alerts if a.work_order_id} == {WorkOrder.Type.PREDICTIVE}
+        assert any(a.status == "open" and a.work_order_id for a in alerts)
+        assert any(a.status == "closed" and a.work_order.status == WorkOrder.Status.CLOSED for a in alerts)
+
+        # Estado materializado: cada estado evaluó la última lectura de su variable y está en
+        # alarma justo cuando su alerta sigue activa.
+        active = {(a.rule_id, a.meter_id): a.pk for a in alerts if a.is_active}
+        states = list(ConditionState.objects.select_related("meter"))
+        assert states
+        for state in states:
+            assert state.last_reading_id == state.meter.readings.order_by("-read_at").first().pk
+            assert (state.status == "alarm") == ((state.rule_id, state.meter_id) in active)
+            if state.status == "alarm":
+                assert state.open_alert_id == active[(state.rule_id, state.meter_id)]
+
+        # Ficha del activo: tendencia de 90 días y todos los estados de la sección "Condición".
+        rows = {
+            code: asset_condition(membership=admin, asset=Asset.objects.get(code=code))
+            for code in ("CMP-01", "CMP-02", "GRH-01", "GRH-02")
+        }
+        descarga = next(r for r in rows["CMP-01"] if r.meter.name == "Descarga")
+        assert descarga.status == VariableStatus.ALARM
+        assert len(descarga.points) >= 80
+        assert {row.status for asset_rows in rows.values() for row in asset_rows} == {
+            VariableStatus.ALARM,
+            VariableStatus.NORMAL,
+            VariableStatus.NO_READINGS,
+            VariableStatus.INACTIVE,
+            VariableStatus.NO_RULES,
+        }
+
+        # Un ítem de medición de un plan alimenta una variable (CBM-06).
+        assert PlanTaskItem.objects.filter(meter_kind="temperature", meter_name="Descarga").exists()
