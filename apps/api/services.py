@@ -21,7 +21,7 @@ from apps.condition.services import create_rule
 from apps.inventory import services as inventory
 from apps.inventory.models import StockMovement
 from apps.inventory.services import InventoryError
-from apps.work.models import LaborEntry, PartUsage, WorkOrder
+from apps.work.models import LaborEntry, PartUsage, WorkOrder, WorkOrderChecklistItem
 from apps.work.services import (
     ERROR_CANCELLED,
     ERROR_CONFLICT,
@@ -32,6 +32,7 @@ from apps.work.services import (
     add_work_order_photo,
     answer_checklist_item,
     complete_work_order,
+    create_corrective_from_item,
     create_work_order,
     log_labor,
     parse_measurement,
@@ -240,6 +241,49 @@ def create_condition_rule_idempotent(*, membership, client_uuid=None, **data) ->
             client_uuid=client_uuid, action=CONDITION_RULE_CREATE_ACTION, target_id=rule.pk
         )
     return rule, True
+
+
+FINDING_ACTION = "checklist_item.finding"
+
+
+@transaction.atomic
+def report_finding_idempotent(
+    *, membership, item, description: str = "", asset_stopped: bool = False, client_uuid=None
+) -> tuple[WorkOrder, bool]:
+    """Hallazgo de un ítem No OK avisado sin conexión (WO-06 CA2); devuelve (correctiva, creada).
+
+    El mismo servicio que la web (`work.services.create_corrective_from_item`): quien gestiona
+    OT crea la correctiva; quien no (técnico) pasa por el aviso de falla (solicitud + correctiva).
+    Idempotente por ítem (con una correctiva abierta, la devuelve) y por `client_uuid`: reenviarlo
+    devuelve la correctiva ya creada aunque la OT de origen haya avanzado; usarlo en otra
+    operación u otro ítem → 409. Sin conexión no se avisa sobre una OT terminada: cancelada →
+    409 `cancelled`, completada o cerrada → 409 `locked`. Ítem que no está No OK → 400.
+    """
+    require_perm(membership, Perm.REQUEST_CREATE)
+    if client_uuid:
+        key = ApiIdempotencyKey.objects.filter(client_uuid=client_uuid).first()
+        if key is not None:
+            corrective = WorkOrder.objects.filter(pk=key.target_id, source_checklist_item=item).first()
+            if key.action != FINDING_ACTION or corrective is None:
+                raise Conflict(_("Este client_uuid ya se usó para otra operación."))
+            return corrective, False
+    # La OT de origen se bloquea: dos avisos simultáneos del mismo ítem crean una sola correctiva.
+    parent = WorkOrder.objects.select_for_update().get(pk=item.work_order_id)
+    _require_not_finished(parent)
+    item = WorkOrderChecklistItem.objects.select_related("work_order").get(pk=item.pk)
+    already_open = (
+        WorkOrder.objects.filter(source_checklist_item=item)
+        .exclude(status__in=WorkOrder.CLOSED_STATUSES)
+        .exists()
+    )
+    corrective = create_corrective_from_item(
+        item=item, membership=membership, description=description, asset_stopped=asset_stopped
+    )
+    if client_uuid:
+        ApiIdempotencyKey.objects.create(
+            client_uuid=client_uuid, action=FINDING_ACTION, target_id=corrective.pk
+        )
+    return corrective, not already_open
 
 
 def log_labor_idempotent(

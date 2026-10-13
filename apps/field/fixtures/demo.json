@@ -84,11 +84,11 @@
         ],
         "updated_at": "2026-09-27T19:00:00Z",
         "checklist": [
-          {"id": "0199a000-0000-7000-8000-000000000401", "position": 1, "section": "Antes de detener", "text": "Registrar presión de descarga", "item_type": "measurement", "unit": "bar", "min_value": "6.5", "max_value": "8", "required": true, "result": "ok", "value_number": "7.2", "value_text": "", "note": "", "answered_at": "2026-09-28T12:40:00Z", "photo_count": 0},
-          {"id": "0199a000-0000-7000-8000-000000000402", "position": 2, "section": "Antes de detener", "text": "Revisar ruidos y vibraciones anormales", "item_type": "check", "unit": "", "min_value": null, "max_value": null, "required": true, "result": "not_ok", "value_number": null, "value_text": "", "note": "Vibración leve en el motor; se sugiere análisis.", "answered_at": "2026-09-28T12:45:00Z", "photo_count": 1},
-          {"id": "0199a000-0000-7000-8000-000000000403", "position": 3, "section": "Con equipo detenido", "text": "Purgar condensado del estanque", "item_type": "check", "unit": "", "min_value": null, "max_value": null, "required": true, "result": "", "value_number": null, "value_text": "", "note": "", "answered_at": null, "photo_count": 0},
-          {"id": "0199a000-0000-7000-8000-000000000404", "position": 4, "section": "Con equipo detenido", "text": "Foto del filtro de aire", "item_type": "photo", "unit": "", "min_value": null, "max_value": null, "required": true, "result": "", "value_number": null, "value_text": "", "note": "", "answered_at": null, "photo_count": 0},
-          {"id": "0199a000-0000-7000-8000-000000000405", "position": 5, "section": "", "text": "Observaciones generales", "item_type": "text", "unit": "", "min_value": null, "max_value": null, "required": false, "result": "", "value_number": null, "value_text": "", "note": "", "answered_at": null, "photo_count": 0}
+          {"id": "0199a000-0000-7000-8000-000000000401", "position": 1, "section": "Antes de detener", "text": "Registrar presión de descarga", "item_type": "measurement", "unit": "bar", "min_value": "6.5", "max_value": "8", "required": true, "result": "ok", "value_number": "7.2", "value_text": "", "note": "", "answered_at": "2026-09-28T12:40:00Z", "photo_count": 0, "variable": "Presión (bar) · Descarga", "finding_code": null},
+          {"id": "0199a000-0000-7000-8000-000000000402", "position": 2, "section": "Antes de detener", "text": "Revisar ruidos y vibraciones anormales", "item_type": "check", "unit": "", "min_value": null, "max_value": null, "required": true, "result": "not_ok", "value_number": null, "value_text": "", "note": "Vibración leve en el motor; se sugiere análisis.", "answered_at": "2026-09-28T12:45:00Z", "photo_count": 1, "variable": "", "finding_code": null},
+          {"id": "0199a000-0000-7000-8000-000000000403", "position": 3, "section": "Con equipo detenido", "text": "Purgar condensado del estanque", "item_type": "check", "unit": "", "min_value": null, "max_value": null, "required": true, "result": "", "value_number": null, "value_text": "", "note": "", "answered_at": null, "photo_count": 0, "variable": "", "finding_code": null},
+          {"id": "0199a000-0000-7000-8000-000000000404", "position": 4, "section": "Con equipo detenido", "text": "Foto del filtro de aire", "item_type": "photo", "unit": "", "min_value": null, "max_value": null, "required": true, "result": "", "value_number": null, "value_text": "", "note": "", "answered_at": null, "photo_count": 0, "variable": "", "finding_code": null},
+          {"id": "0199a000-0000-7000-8000-000000000405", "position": 5, "section": "", "text": "Observaciones generales", "item_type": "text", "unit": "", "min_value": null, "max_value": null, "required": false, "result": "", "value_number": null, "value_text": "", "note": "", "answered_at": null, "photo_count": 0, "variable": "", "finding_code": null}
         ]
       },
       {
@@ -113,7 +113,7 @@
         "parts": [],
         "updated_at": "2026-09-26T15:00:00Z",
         "checklist": [
-          {"id": "0199a000-0000-7000-8000-000000000406", "position": 1, "section": "", "text": "Tableros cerrados y rotulados", "item_type": "check", "unit": "", "min_value": null, "max_value": null, "required": true, "result": "", "value_number": null, "value_text": "", "note": "", "answered_at": null, "photo_count": 0}
+          {"id": "0199a000-0000-7000-8000-000000000406", "position": 1, "section": "", "text": "Tableros cerrados y rotulados", "item_type": "check", "unit": "", "min_value": null, "max_value": null, "required": true, "result": "", "value_number": null, "value_text": "", "note": "", "answered_at": null, "photo_count": 0, "variable": "", "finding_code": null}
         ]
       },
       {
@@ -138,8 +138,8 @@
         "parts": [],
         "updated_at": "2026-09-25T10:00:00Z",
         "checklist": [
-          {"id": "0199a000-0000-7000-8000-000000000407", "position": 1, "section": "", "text": "Engrasar rodamiento lado acople", "item_type": "check", "unit": "", "min_value": null, "max_value": null, "required": true, "result": "", "value_number": null, "value_text": "", "note": "", "answered_at": null, "photo_count": 0},
-          {"id": "0199a000-0000-7000-8000-000000000408", "position": 2, "section": "", "text": "Firma del técnico", "item_type": "signature", "unit": "", "min_value": null, "max_value": null, "required": true, "result": "", "value_number": null, "value_text": "", "note": "", "answered_at": null, "photo_count": 0}
+          {"id": "0199a000-0000-7000-8000-000000000407", "position": 1, "section": "", "text": "Engrasar rodamiento lado acople", "item_type": "check", "unit": "", "min_value": null, "max_value": null, "required": true, "result": "", "value_number": null, "value_text": "", "note": "", "answered_at": null, "photo_count": 0, "variable": "", "finding_code": null},
+          {"id": "0199a000-0000-7000-8000-000000000408", "position": 2, "section": "", "text": "Firma del técnico", "item_type": "signature", "unit": "", "min_value": null, "max_value": null, "required": true, "result": "", "value_number": null, "value_text": "", "note": "", "answered_at": null, "photo_count": 0, "variable": "", "finding_code": null}
         ]
       },
       {

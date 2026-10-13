@@ -224,6 +224,8 @@ ITEM_KEYS = {
     "note",
     "answered_at",
     "photo_count",
+    "variable",
+    "finding_code",
 }
 
 

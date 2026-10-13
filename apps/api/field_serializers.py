@@ -100,6 +100,13 @@ class FieldChecklistItemSerializer(serializers.ModelSerializer):
     position = serializers.IntegerField(source="order")
     answered_at = UTCDateTimeField(allow_null=True)
     photo_count = serializers.IntegerField(help_text="Fotos subidas al ítem.")
+    variable = serializers.CharField(
+        source="variable_label",
+        help_text="Variable de condición que alimenta un ítem de medición (CBM-06); vacía si no alimenta.",
+    )
+    finding_code = serializers.SerializerMethodField(
+        help_text="Código de la correctiva abierta creada desde este ítem (WO-06); null si no hay."
+    )
 
     class Meta:
         model = WorkOrderChecklistItem
@@ -119,8 +126,17 @@ class FieldChecklistItemSerializer(serializers.ModelSerializer):
             "note",
             "answered_at",
             "photo_count",
+            "variable",
+            "finding_code",
         ]
         read_only_fields = fields
+
+    def get_finding_code(self, item) -> str | None:
+        # Anotado por `field_work_orders` (sin consultas extra); fuera del snapshot no se calcula.
+        number = getattr(item, "finding_number", None)
+        if number is None:
+            return None
+        return WorkOrder(number=number, work_type=item.finding_type).code
 
 
 class FieldPlannedPartSerializer(serializers.Serializer):
@@ -310,3 +326,31 @@ class FieldWorkRequestSerializer(s.WorkRequestSerializer):
     class Meta(s.WorkRequestSerializer.Meta):
         fields = [*s.WorkRequestSerializer.Meta.fields, "photo_warning"]
         read_only_fields = fields
+
+
+# --- hallazgo (WO-06 CA2) ----------------------------------------------------------
+
+
+class FieldFindingCreateSerializer(serializers.Serializer):
+    """Aviso de hallazgo de un ítem No OK hecho sin conexión."""
+
+    description = serializers.CharField(
+        required=False, allow_blank=True, max_length=2000, default="", help_text="Detalle opcional."
+    )
+    asset_stopped = serializers.BooleanField(
+        required=False, default=False, help_text="¿El equipo está detenido?"
+    )
+    client_uuid = serializers.UUIDField(required=False, allow_null=True)
+
+
+class FieldFindingSerializer(serializers.Serializer):
+    """Correctiva creada (o ya existente) desde el hallazgo; con la solicitud si pasó por el aviso."""
+
+    id = serializers.UUIDField(help_text="OT correctiva.")
+    code = serializers.CharField()
+    status = serializers.CharField()
+    item = serializers.UUIDField(source="source_checklist_item_id", help_text="Ítem de origen.")
+    request_number = serializers.IntegerField(
+        allow_null=True,
+        help_text="N° de la solicitud cuando la creó el aviso de falla (técnico); si no, null.",
+    )

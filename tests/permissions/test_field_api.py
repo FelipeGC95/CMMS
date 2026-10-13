@@ -201,3 +201,47 @@ def test_technician_cannot_execute_work_orders_out_of_scope(tenant_a, scoped):
         meter = Meter.objects.get(asset=outside)
     response = client.post(f"{FIELD_API}/readings/", {"meter": str(meter.pk), "value": "1"}, format="json")
     assert response.status_code == 400
+
+
+# --- Hallazgo sin conexión (WO-06 CA2) -------------------------------------------------------
+
+
+def _not_ok_item(tenant, wo):
+    with tenant_context(tenant.org):
+        return WorkOrderChecklistItem.objects.create(
+            work_order=wo, text="Revisar", item_type="check", result="not_ok"
+        )
+
+
+def _finding_url(wo, item):
+    return f"{FIELD_API}/work-orders/{wo.pk}/checklist/{item.pk}/finding/"
+
+
+def test_finding_needs_request_create_like_the_web(tenant_a):
+    """Como en la web (`request.create`): quien no gestiona OT avisa la falla, también el lector."""
+    wo = _wo(tenant_a)
+    item = _not_ok_item(tenant_a, wo)
+    response = field_client(tenant_a.viewer).post(_finding_url(wo, item), {}, format="json")
+    assert response.status_code == 201 and response.json()["request_number"] is not None
+    user = User.objects.create_user("externo-hallazgo@x.cl", PASSWORD)
+    external = tenant_a.org.memberships.create(user=user, role="external")
+    other = _not_ok_item(tenant_a, wo)
+    assert field_client(external).post(_finding_url(wo, other), {}, format="json").status_code in (403, 404)
+    with tenant_context(tenant_a.org):
+        assert not WorkOrder.objects.filter(source_checklist_item=other).exists()
+
+
+def test_finding_needs_the_work_orders_module(tenant_a):
+    wo = _wo(tenant_a)
+    item = _not_ok_item(tenant_a, wo)
+    _plan(tenant_a, ["assets", "requests"])
+    assert field_client(tenant_a.tech).post(_finding_url(wo, item), {}, format="json").status_code == 403
+
+
+def test_finding_out_of_scope_is_404(tenant_a, scoped):
+    _inside, outside = scoped
+    wo = _wo(tenant_a, outside)
+    item = _not_ok_item(tenant_a, wo)
+    assert field_client(tenant_a.tech).post(_finding_url(wo, item), {}, format="json").status_code == 404
+    with tenant_context(tenant_a.org):
+        assert not WorkOrder.objects.filter(source_checklist_item=item).exists()

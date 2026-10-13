@@ -651,7 +651,8 @@ def field_work_orders(*, membership, days: int = FIELD_DEFAULT_DAYS) -> FieldSna
     prioridad; como máximo `FIELD_WORK_ORDER_LIMIT`.
 
     Cada OT trae lo que el teléfono necesita sin más consultas: activo y ubicación,
-    `assigned_to_me`, `helpers`, `field_checklist` (ítems con `photo_count`),
+    `assigned_to_me`, `helpers`, `field_checklist` (ítems con `photo_count` y la correctiva
+    abierta del hallazgo, `finding_number`/`finding_type`),
     `field_meter` y `meter_required` (lectura al completar). Las transiciones
     permitidas se calculan con `services.allowed_transitions` (sin consultas).
     """
@@ -668,9 +669,19 @@ def field_work_orders(*, membership, days: int = FIELD_DEFAULT_DAYS) -> FieldSna
         .annotate(n=Count("pk"))
         .values("n")
     )
+    # Correctiva abierta creada desde el ítem (WO-06): el teléfono muestra "Hallazgo avisado".
+    findings = (
+        WorkOrder.objects.filter(source_checklist_item=OuterRef("pk"))
+        .exclude(status__in=WorkOrder.CLOSED_STATUSES)
+        .order_by("-created_at")
+    )
     checklist = (
         WorkOrderChecklistItem.objects.select_related("answered_by")
-        .annotate(photo_count=Coalesce(Subquery(photos, output_field=IntegerField()), 0))
+        .annotate(
+            photo_count=Coalesce(Subquery(photos, output_field=IntegerField()), 0),
+            finding_number=Subquery(findings.values("number")[:1]),
+            finding_type=Subquery(findings.values("work_type")[:1]),
+        )
         .order_by("order", "created_at")
     )
     meters = Meter.objects.filter(is_active=True).order_by("kind", "name")

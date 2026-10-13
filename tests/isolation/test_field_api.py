@@ -67,13 +67,17 @@ def test_b_cannot_touch_work_orders_of_a(tenant_a, tenant_b):
         (f"{base}/checklist-items/{item_a.pk}/photos/", {"file": jpeg}, "multipart"),
         (f"{base}/photos/", {"file": jpeg}, "multipart"),
         (f"{base}/parts/", {"description": "Huaipe", "quantity": "1"}, "json"),
+        (f"{base}/checklist/{item_a.pk}/finding/", {"description": "Fuga"}, "json"),
     ]
+    with tenant_context(tenant_a.org):
+        WorkOrderChecklistItem.objects.filter(pk=item_a.pk).update(result="not_ok")
     for url, body, fmt in writes:
         assert client.post(url, body, format=fmt).status_code == 404, url
     with tenant_context(tenant_a.org):
         wo = WorkOrder.objects.get(pk=wo_a.pk)
         assert wo.status == WorkOrder.Status.PLANNED and not LaborEntry.objects.exists()
-        assert WorkOrderChecklistItem.objects.get(pk=item_a.pk).result == ""
+        assert WorkOrderChecklistItem.objects.get(pk=item_a.pk).result == "not_ok"
+        assert not WorkOrder.objects.filter(source_checklist_item=item_a).exists()
 
 
 def test_b_cannot_reference_assets_or_meters_of_a(tenant_a, tenant_b):
@@ -150,3 +154,25 @@ def test_changes_made_in_another_organization_are_refused_after_a_switch(tenant_
     current = {"HTTP_X_FIELD_ORGANIZATION": str(tenant_b.org.pk)}
     labor = api.post(f"{FIELD_API}/work-orders/{wo_b.pk}/labor/", {"minutes": 5}, format="json", **current)
     assert labor.status_code == 201
+
+
+def test_finding_cannot_mix_work_orders_and_items_of_two_organizations(tenant_a, tenant_b):
+    """El ítem de A no se alcanza por una OT de B (ni al revés): 404 y nada se crea."""
+    _wo_a, item_a, _m = _wo(tenant_a)
+    wo_b, item_b, _m = _wo(tenant_b)
+    for tenant, item in ((tenant_a, item_a), (tenant_b, item_b)):
+        with tenant_context(tenant.org):
+            WorkOrderChecklistItem.objects.filter(pk=item.pk).update(result="not_ok")
+    client = field_client(tenant_b.tech)
+    url = f"{FIELD_API}/work-orders/{wo_b.pk}/checklist/{item_a.pk}/finding/"
+    assert client.post(url, {}, format="json").status_code == 404
+    with tenant_context(tenant_a.org):
+        assert not WorkOrder.objects.filter(source_checklist_item=item_a).exists()
+        assert not WorkRequest.objects.exists()
+    # Su propio ítem sí: la correctiva y la solicitud quedan en B.
+    own = client.post(f"{FIELD_API}/work-orders/{wo_b.pk}/checklist/{item_b.pk}/finding/", {}, format="json")
+    assert own.status_code == 201
+    with tenant_context(tenant_b.org):
+        corrective = WorkOrder.objects.get(pk=own.json()["id"])
+        assert corrective.organization_id == tenant_b.org.pk
+        assert WorkRequest.objects.get(work_order=corrective).organization_id == tenant_b.org.pk

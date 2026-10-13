@@ -5,6 +5,7 @@ Autenticación por la sesión de la web (`FieldAPIMixin`): la PWA del técnico c
 mismo origen y nunca guarda un token.
 """
 
+from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema, extend_schema_view
 from rest_framework import status
 from rest_framework.decorators import action
@@ -14,13 +15,14 @@ from rest_framework.views import APIView
 
 from apps.assets.models import MeterReading
 from apps.work import services as work_services
+from apps.work.models import WorkRequest
 from apps.work.selectors import visible_work_orders
 
 from . import field, v1
 from . import field_serializers as fs
 from . import serializers as s
 from .framework import FieldAPIMixin, TenantAPIMixin
-from .services import log_labor_idempotent
+from .services import log_labor_idempotent, report_finding_idempotent
 
 FIELD_TAG = ["field"]
 
@@ -118,6 +120,31 @@ class FieldWorkOrderViewSet(FieldAPIMixin, v1.WorkOrderActionsMixin, v1.BaseView
         )
         return Response(
             fs.LaborEntrySerializer(entry).data,
+            status=status.HTTP_201_CREATED if created else status.HTTP_200_OK,
+        )
+
+    @extend_schema(
+        request=fs.FieldFindingCreateSerializer,
+        responses={201: fs.FieldFindingSerializer, 200: fs.FieldFindingSerializer},
+        parameters=[OpenApiParameter("item_id", OpenApiTypes.UUID, OpenApiParameter.PATH)],
+    )
+    @action(detail=True, methods=["post"], url_path="checklist/<uuid:item_id>/finding")
+    def finding(self, request, pk=None, item_id=None):
+        """Avisa el hallazgo de un ítem No OK (WO-06 CA2) con el mismo servicio que la web: quien
+        gestiona OT crea la correctiva; el técnico, la solicitud y su correctiva. Idempotente por
+        ítem (201 la primera vez, 200 si ya tenía una correctiva abierta) y por `client_uuid`.
+        409 `cancelled`/`locked` si la OT se canceló, completó o cerró; 400 si el ítem no está No OK."""
+        item = self._checklist_item(item_id)
+        serializer = fs.FieldFindingCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        corrective, created = report_finding_idempotent(
+            membership=self.membership, item=item, **serializer.validated_data
+        )
+        corrective.request_number = (
+            WorkRequest.objects.filter(work_order=corrective).values_list("number", flat=True).first()
+        )
+        return Response(
+            fs.FieldFindingSerializer(corrective).data,
             status=status.HTTP_201_CREATED if created else status.HTTP_200_OK,
         )
 
