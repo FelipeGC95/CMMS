@@ -422,8 +422,19 @@ tener ingresos).
   `work.services.create_corrective_from_item` (idempotente por ítem; el
   técnico sin `work_order.manage` pasa por `report_failure`, como en la web).
   409 `cancelled`/`locked` si la OT está cancelada o cerrada; 400 si el ítem
-  no está No OK. Las fotos del ítem viajan por la cola de fotos. Sin
-  implementar aún (ver [05_roadmap.md](05_roadmap.md)).
+  no está No OK. Las fotos del ítem viajan por la cola de fotos.
+  **Implementado (2026-10):** `apps.api.services.report_finding_idempotent`
+  bloquea la OT de origen (dos avisos simultáneos crean una sola correctiva)
+  y guarda el `client_uuid` en `ApiIdempotencyKey` (acción
+  `checklist_item.finding`): reenviarlo devuelve la misma correctiva (200)
+  aunque la OT ya esté completada; usarlo en otro ítem u operación → 409
+  `conflict`. Exige `request.create`, como la web. En el teléfono, el cambio
+  `finding` va en el carril de la OT (FIFO), así que siempre sale después de
+  la respuesta del ítem y antes de "Completar"; un hallazgo pendiente cuyo
+  ítem deja de estar No OK se retira de la cola. El ítem muestra "Hallazgo
+  por enviar" o "Hallazgo avisado · OT-C-… · Solicitud N°" y no deja avisar
+  dos veces; el snapshot trae `finding_code` (correctiva abierta del ítem) y
+  `variable` (la variable de condición que alimenta un ítem de medición).
 - **Estado (2026-10):** implementado en cinco paquetes: P1 servicios en
   `apps/work` (horas del teléfono, regla de checklist, `LaborEntry.client_uuid`),
   P2 `/field/api/`, P3 shell/SW/manifest, P4 cola, sincronización, flujos y e2e,
@@ -528,7 +539,9 @@ Subclases de los viewsets de v1 con `FieldAPIMixin`: `readings/` POST,
 (+ `answered_at`; responde `answered_at` y `superseded`), `…/photos/` y
 `…/checklist-items/{item}/photos/` (+ `taken_at`), `…/complete/` (+ `at`).
 Nuevos: `work-orders/{id}/transition/` (+ `client_uuid`, `at`),
-`work-orders/{id}/labor/` (`minutes`, `client_uuid`), `bootstrap/`,
+`work-orders/{id}/labor/` (`minutes`, `client_uuid`),
+`work-orders/{id}/checklist/{item}/finding/` (`description`, `asset_stopped`,
+`client_uuid`; WO-06 CA2), `bootstrap/`,
 `snapshot/?days=N` (7 por defecto, máx. 14) y `reference/` (códigos de falla
 activos por tipo, activos visibles compactos con tope 2000 y `truncated`,
 medidores activos). Errores 409 con código `cancelled`, `locked`, `conflict`,

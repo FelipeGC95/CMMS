@@ -265,7 +265,7 @@ Como técnico quiero ejecutar el checklist desde el celular.
 **WO-06 · Correctiva desde hallazgo (M1)**
 - CA1: Desde un ítem No OK se crea una OT correctiva vinculada, con activo y
   foto precargados.
-- CA2 (F2): **Sin conexión** (`/field/`, X-06, ADR-011): un ítem No OK muestra
+- CA2 ✔ (F2, implementado 2026-10, paquete F1): **Sin conexión** (`/field/`, X-06, ADR-011): un ítem No OK muestra
   "Avisar hallazgo" (descripción opcional y "¿el equipo está detenido?"); el
   aviso se encola con `client_uuid` después de la respuesta del ítem y antes
   de "Completar", y al sincronizar llama a `POST
@@ -275,7 +275,13 @@ Como técnico quiero ejecutar el checklist desde el celular.
   correctiva), igual que en la web. OT cancelada o bloqueada → 409
   `cancelled`/`locked`; ítem que no está No OK → 400. Las fotos del ítem
   viajan por la cola de fotos de siempre y se ven en la correctiva por el
-  vínculo.
+  vínculo. Ya avisado, el ítem muestra "Hallazgo por enviar" o "Hallazgo
+  avisado · <código de la OT> · Solicitud N°" (ícono + texto) y no ofrece
+  avisar de nuevo; el snapshot trae `finding_code` (correctiva abierta del
+  ítem). Si el ítem deja de estar No OK antes de enviarse, el aviso
+  pendiente se retira. Idempotente también por `client_uuid` (reenviarlo
+  devuelve la misma correctiva aunque la OT ya se haya completado). Un aviso
+  rechazado (400) o en conflicto (409) solo se puede descartar.
 
 ## 5. Solicitudes, fallas y backlog (`REQ`)
 
@@ -992,8 +998,10 @@ servidor cuando vuelva la conexión. Implementado en `/field/` (2026-10).
   decide tras el piloto); asistente IA sin conexión. Los datos de IndexedDB no
   van cifrados en el teléfono (mitigado con el borrado al salir y el
   vencimiento de 14 días).
-- En F2 (paquete F1, sin implementar aún): correctiva desde hallazgo sin
-  conexión, WO-06 CA2.
+- ✔ Correctiva desde hallazgo sin conexión (WO-06 CA2, paquete F1,
+  2026-10): "Avisar hallazgo" en un ítem No OK, encolado antes de
+  "Completar". Los ítems de medición muestran además la variable que
+  alimentan ("Alimenta Temperatura (°C) · Rodamiento", CBM-06).
 
 **X-07 · i18n (M0)**: todos los textos marcados para traducción; español (Chile)
 completo; inglés y portugués en F3.

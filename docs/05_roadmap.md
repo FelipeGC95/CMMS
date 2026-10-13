@@ -168,7 +168,7 @@ generan solas.
   OT, varias organizaciones a la vez, horas con inicio y fin, `/field/` como
   vista por defecto (se decide con el piloto) y asistente IA sin conexión.
   Después entraron los repuestos sin conexión (INV-13) y la correctiva desde
-  hallazgo sin conexión entra con el paquete F1 de condición (WO-06 CA2).
+  hallazgo sin conexión (WO-06 CA2, paquete F1 de condición, 2026-10).
 - Asistente de diagnóstico con IA (AI-01..05, ADR-018): herramientas de
   búsqueda con alcance, conversación en el worker, citas, cupos y conjunto de
   evaluación con casos del piloto — 4 semanas.
@@ -197,11 +197,11 @@ generan solas.
     | P6 · API v1, API de terreno y PWA | INV-13, INV-17, docs/08, ADR-011, X-06 | — | P3 (y P4) | tras P3 y P4 |
     | P7 · Indicadores, seed y cierre de docs | INV-15, `seed_demo`, exportación y purga, cierre de docs 02–08 | — | P2–P6 | al final |
 - ✔ Mantenimiento por condición: umbrales, alertas, ingesta CSV/API — hecho
-  (2026-10, paquetes C0–C6) salvo el paquete F1 (correctiva desde hallazgo
-  sin conexión, pendiente). La demo (`seed_demo --reset`) trae variables,
-  reglas, 90 días de lecturas y alertas en todos sus estados. Queda fuera de
-  v1 lo listado en [02_requisitos.md](02_requisitos.md) §7 ("Fuera de v1") y
-  el enlace a la variable en el ítem de la PWA de terreno.
+  (2026-10, paquetes C0–C6 y F1, la correctiva desde hallazgo sin
+  conexión). La demo (`seed_demo --reset`) trae variables, reglas, 90 días
+  de lecturas y alertas en todos sus estados. Queda fuera de v1 lo listado
+  en [02_requisitos.md](02_requisitos.md) §7 ("Fuera de v1"). La PWA de
+  terreno muestra la variable que alimenta cada ítem de medición (F1).
   - Diseño aprobado el 2026-10-12: CBM-01..CBM-10
     ([02_requisitos.md](02_requisitos.md) §7), modelo en
     [03_modelo_de_datos.md](03_modelo_de_datos.md) §2.11 y ADR-029. Las
@@ -223,14 +223,15 @@ generan solas.
     | ✔ C4 · Ficha del activo | CBM-01 (alta de variables), CBM-02 (CSV con tipo/nombre), CBM-07 (estado y tendencia SVG) (hecho 2026-10) | assets | C1 | tras C1 (∥ C2, C3) |
     | ✔ C5 · API v1 | CBM-09 (reglas, alertas, bulk con `kind`/`name`), docs/08 (hecho 2026-10) | api | C1–C4 | tras C2–C4 |
     | ✔ C6 · Seed y cierre | CBM-10 (`seed_demo`, exportación y purga), cierre de docs, capturas (hecho 2026-10) | core, docs | C2–C5 | al final (∥ F1) |
-    | F1 · Correctiva desde hallazgo sin conexión | WO-06 CA2: endpoint de terreno, PWA, e2e, ADR-011 | api (field), field, static/field | C5 (misma app `api`) | al final (∥ C6) |
+    | ✔ F1 · Correctiva desde hallazgo sin conexión | WO-06 CA2: endpoint de terreno, PWA, e2e, ADR-011; variable del ítem en la PWA (hecho 2026-10) | api (field), field, static/field | C5 (misma app `api`) | al final (∥ C6) |
 - ✔ KPIs ampliados (KPI-02) — hecho (2026-10): `/reports/kpis/` con backlog
   en semanas en el tiempo, planificado vs. correctivo, costos por activo y
   clase, Pareto de fallas y exportación a Excel. Queda fuera: historial de
   capacidad, moneda configurable, PDF y API de estos indicadores.
 - Correctiva desde hallazgo y mejoras de UX surgidas del piloto — 1 semana.
-  La correctiva desde hallazgo sin conexión (WO-06 CA2) entra con el paquete
-  F1 de mantenimiento por condición (ver arriba).
+  La correctiva desde hallazgo sin conexión (WO-06 CA2) ya entró con el
+  paquete F1 de mantenimiento por condición (ver arriba); quedan las mejoras
+  del piloto.
 
 ## F3 · Escala comercial (~12 semanas)
 
