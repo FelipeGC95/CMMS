@@ -290,14 +290,32 @@ def test_purge_removes_immutable_inventory_rows(tenant_a, tenant_b):
 
 
 def _condition_data(tenant):
-    """Una regla, su estado, una alerta y su OT predictiva (PROTECT entre apps)."""
+    """Una regla, su estado, una alerta y su OT predictiva, y un ítem de checklist enlazado a
+    la variable con su lectura (CBM-06: `meter_reading` es PROTECT entre apps)."""
+    from decimal import Decimal
+
     from apps.condition import services as condition
+    from apps.maintenance.models import ItemType
+    from apps.work.models import WorkOrder, WorkOrderChecklistItem
+    from apps.work.services import create_work_order, record_checklist_readings
     from tests.condition_utils import read, variable
 
     with tenant_context(tenant.org):
         meter = variable(tenant.asset)
         condition.create_rule(membership=tenant.admin, meter=meter, operator="gt", threshold="80")
         read(meter, "85")
+        wo = create_work_order(work_type=WorkOrder.Type.INSPECTION, title="Termografía", asset=tenant.asset)
+        WorkOrderChecklistItem.objects.create(
+            work_order=wo,
+            order=0,
+            text="Temperatura rodamiento",
+            item_type=ItemType.MEASUREMENT,
+            unit="°C",
+            meter_kind=meter.kind,
+            meter_name=meter.name,
+            value_number=Decimal("70"),
+        )
+        assert len(record_checklist_readings(work_order=wo)) == 1
     return meter
 
 
@@ -310,10 +328,16 @@ def test_export_includes_condition_tables(tenant_a, django_capture_on_commit_cal
         assert rows[0]["meter_id"] == str(meter.pk)
     (alert,) = csv_rows(files["datos/condition_conditionalert.csv"])
     assert alert["work_order_id"]
+    # El ítem enlazado exporta su variable y la lectura que registró (CBM-06).
+    (item,) = csv_rows(files["datos/work_workorderchecklistitem.csv"])
+    assert (item["meter_kind"], item["meter_name"]) == (meter.kind, meter.name)
+    readings = {row["id"] for row in csv_rows(files["datos/assets_meterreading.csv"])}
+    assert item["meter_reading_id"] in readings
 
 
 def test_purge_removes_condition_rows(tenant_a, tenant_b):
     from apps.condition.models import ConditionAlert, ConditionRule
+    from apps.work.models import WorkOrderChecklistItem
 
     _condition_data(tenant_a)
     _condition_data(tenant_b)
@@ -322,6 +346,12 @@ def test_purge_removes_condition_rows(tenant_a, tenant_b):
     connection.check_constraints()
     for label in ("condition.conditionrule", "condition.conditionstate", "condition.conditionalert"):
         assert summary["tables"][label] == 1, label
+    # Ítem enlazado y su lectura (PROTECT): se borran juntos sin violar la FK.
+    assert summary["tables"]["work.workorderchecklistitem"] == 1
+    assert summary["tables"]["assets.meterreading"] == 2
     with platform_context():
         assert not ConditionAlert.all_tenants.filter(organization_id=org.pk).exists()
         assert ConditionRule.all_tenants.filter(organization_id=tenant_b.org.pk).count() == 1
+        assert WorkOrderChecklistItem.all_tenants.filter(
+            organization_id=tenant_b.org.pk, meter_reading__isnull=False
+        ).exists()
