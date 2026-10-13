@@ -181,6 +181,8 @@ def _demo_has_inventory_and_condition():
         return Part.objects.exists() and ConditionRule.objects.exists()
 
 
+# Transaccional: en PostgreSQL el flush (TRUNCATE) no corre dentro de la transacción del test.
+@pytest.mark.django_db(transaction=True)
 def test_reset_if_stale_recreates_demo_loaded_before_inventory_and_condition():
     # Base de Render cargada antes de inventario y condición: solo la organización demo.
     Organization.objects.create(name="Alimentos del Sur SpA", slug="alimentos-del-sur")
