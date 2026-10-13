@@ -107,6 +107,10 @@ class FieldChecklistItemSerializer(serializers.ModelSerializer):
     finding_code = serializers.SerializerMethodField(
         help_text="Código de la correctiva abierta creada desde este ítem (WO-06); null si no hay."
     )
+    finding_request_number = serializers.SerializerMethodField(
+        help_text="N° de la solicitud de esa correctiva cuando la creó el aviso de falla (técnico); "
+        "null si no hay."
+    )
 
     class Meta:
         model = WorkOrderChecklistItem
@@ -128,6 +132,7 @@ class FieldChecklistItemSerializer(serializers.ModelSerializer):
             "photo_count",
             "variable",
             "finding_code",
+            "finding_request_number",
         ]
         read_only_fields = fields
 
@@ -137,6 +142,9 @@ class FieldChecklistItemSerializer(serializers.ModelSerializer):
         if number is None:
             return None
         return WorkOrder(number=number, work_type=item.finding_type).code
+
+    def get_finding_request_number(self, item) -> int | None:
+        return getattr(item, "finding_request_number", None)
 
 
 class FieldPlannedPartSerializer(serializers.Serializer):

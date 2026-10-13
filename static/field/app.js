@@ -5,7 +5,7 @@
 //   #/request          nueva solicitud (aviso de falla) con foto
 //   #/reading          lectura de medidor
 //   #/conflicts        cambios con conflicto o rechazados
-//   #/fix/<client_uuid> corregir y reenviar un cambio rechazado
+//   #/fix/<client_uuid> corregir y reenviar un cambio rechazado (o un hallazgo con clave repetida)
 // Los datos salen de IndexedDB; se descargan de /field/api/ y los cambios esperan en la cola
 // hasta que sync.js los envía.
 import * as api from "./api.js";
@@ -89,6 +89,8 @@ async function updateSyncBar(summaryValue) {
     online: navigator.onLine,
     urls: { login: body.dataset.loginUrl, mfa: body.dataset.mfaUrl },
   });
+  // Insignias "Por enviar: N" de la lista o de la OT a la vista, en vivo y sin repintar.
+  if (app.rendered === "detail" || app.rendered === "list") ui.updateQueue(view, value);
 }
 
 async function render({ focus = true } = {}) {
@@ -148,7 +150,7 @@ async function render({ focus = true } = {}) {
 
 async function renderFix(clientUuid, params) {
   const entry = await db.getEntry(clientUuid);
-  if (!entry || !queue.owns(entry, app.identity) || entry.status !== "rejected") {
+  if (!entry || !queue.owns(entry, app.identity) || !forms.canFix(entry)) {
     app.rendered = "not-found";
     ui.renderTemplate(view, "tpl-not-found");
     return;
@@ -176,6 +178,10 @@ async function renderFix(clientUuid, params) {
     }
     parts.renderFix(view, { wo, reference, entry });
     if (entry.error) forms.showErrors(view, entry.error.details || { non_field_errors: [entry.error.message] });
+  } else if (entry.kind === "finding") {
+    // La OT pudo salir de los datos descargados (ya completada): el aviso se corrige igual.
+    const wo = await db.getWorkOrder(entry.wo_id, app.identity);
+    forms.renderFindingFix(view, { wo, entry });
   }
   view.querySelector("form").dataset.fix = entry.client_uuid;
 }
@@ -282,7 +288,7 @@ async function onSent(entry, data) {
     if (item) {
       delete item._finding_pending;
       item.finding_code = data.code;
-      item.finding_request = data.request_number;
+      item.finding_request_number = data.request_number;
       const li = view.querySelector(`[data-wo-id="${CSS.escape(wo.id)}"] #item-${CSS.escape(item.id)}`);
       if (li) ui.updateFinding(li, item);
     }
@@ -342,7 +348,9 @@ async function redrawItem(li, wo, message) {
   const items = fresh.checklist || [];
   const index = items.findIndex((row) => row.id === li.dataset.itemId);
   const current = await summary();
-  const fragment = ui.editableItem(items[index], index + 1, current.byItem.get(items[index].id), fresh, app.session.bootstrap);
+  const id = items[index].id;
+  const queued = { counts: current.byItem.get(id), finding: current.findings.get(id) };
+  const fragment = ui.editableItem(items[index], index + 1, queued, fresh, app.session.bootstrap);
   const replacement = fragment.firstElementChild;
   li.replaceWith(fragment);
   ui.setProgress(view, items);
@@ -426,11 +434,17 @@ function toggleFinding(target, open) {
 
 // Se encola detrás de la respuesta del ítem (la cola es FIFO por OT), así llega antes de "Completar".
 async function onFinding(form) {
+  const fixUuid = form.dataset.fix;
+  if (fixUuid) {
+    await onFindingFix(form, await db.getEntry(fixUuid));
+    return;
+  }
   const li = form.closest("[data-item-id]");
   const wo = await currentWorkOrder();
   if (!li || !wo) return;
   const item = itemOf(wo, li);
-  if (!item || !ui.canReportFinding(item, wo, app.session.bootstrap)) return;
+  const queued = (await summary()).findings.get(item && item.id);
+  if (!item || !ui.canReportFinding(item, wo, app.session.bootstrap, queued)) return;
   const payload = {
     description: form.elements.description.value.trim(),
     asset_stopped: Boolean(wo.asset) && form.elements.asset_stopped.checked,
@@ -441,6 +455,25 @@ async function onFinding(form) {
   const state = replacement.querySelector("[data-slot='finding-state']");
   state.tabIndex = -1;
   state.focus();
+}
+
+// "Corregir y reenviar" un aviso de hallazgo desde Conflictos. Rechazado (400): mismo client_uuid
+// (el servidor no lo guardó). Clave ya usada en otra operación (409 `conflict`): uno nuevo. Vuelve
+// a su lugar en la cola; si "Completar" ya se envió, el servidor lo acepta igual (ADR-011).
+async function onFindingFix(form, entry) {
+  if (!entry || !queue.owns(entry, app.identity) || !forms.canFix(entry)) return;
+  const wo = await db.getWorkOrder(entry.wo_id, app.identity);
+  const stopped = form.elements.asset_stopped;
+  const payload = {
+    description: form.elements.description.value.trim(),
+    asset_stopped: !stopped.closest("[hidden]") && stopped.checked,
+  };
+  const renew = entry.status === "conflict";
+  const updated = await queue.resubmit(entry, payload, { renew });
+  if (wo) await db.putWorkOrder(applyEntry(wo, updated, app.session.bootstrap));
+  view.dataset.dirty = "";
+  sync.run();
+  go(wo ? `#/wo/${encodeURIComponent(wo.id)}` : "#/conflicts", ui.msg("savedFix"));
 }
 
 // Si el ítem deja de estar No OK antes de que su hallazgo se envíe, el aviso ya no corresponde.

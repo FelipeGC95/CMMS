@@ -128,12 +128,28 @@ class FieldWorkOrderViewSet(FieldAPIMixin, v1.WorkOrderActionsMixin, v1.BaseView
         responses={201: fs.FieldFindingSerializer, 200: fs.FieldFindingSerializer},
         parameters=[OpenApiParameter("item_id", OpenApiTypes.UUID, OpenApiParameter.PATH)],
     )
-    @action(detail=True, methods=["post"], url_path="checklist/<uuid:item_id>/finding")
+    @action(detail=True, methods=["post"], url_path="checklist-items/<uuid:item_id>/finding")
     def finding(self, request, pk=None, item_id=None):
         """Avisa el hallazgo de un ítem No OK (WO-06 CA2) con el mismo servicio que la web: quien
         gestiona OT crea la correctiva; el técnico, la solicitud y su correctiva. Idempotente por
         ítem (201 la primera vez, 200 si ya tenía una correctiva abierta) y por `client_uuid`.
-        409 `cancelled`/`locked` si la OT se canceló, completó o cerró; 400 si el ítem no está No OK."""
+        Se acepta también con la OT completada o cerrada (el aviso pudo hacerse antes de
+        completar); 409 `cancelled` si la OT se canceló; 400 si el ítem no está No OK."""
+        return self._report_finding(request, item_id)
+
+    @extend_schema(
+        request=fs.FieldFindingCreateSerializer,
+        responses={201: fs.FieldFindingSerializer, 200: fs.FieldFindingSerializer},
+        parameters=[OpenApiParameter("item_id", OpenApiTypes.UUID, OpenApiParameter.PATH)],
+        deprecated=True,
+    )
+    @action(detail=True, methods=["post"], url_path="checklist/<uuid:item_id>/finding")
+    def finding_legacy(self, request, pk=None, item_id=None):
+        """Ruta anterior de `checklist-items/{item}/finding/` (la usaban los teléfonos con la
+        versión de la PWA previa); se mantiene para que su cola llegue igual."""
+        return self._report_finding(request, item_id)
+
+    def _report_finding(self, request, item_id):
         item = self._checklist_item(item_id)
         serializer = fs.FieldFindingCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)

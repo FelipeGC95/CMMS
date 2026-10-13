@@ -43,7 +43,8 @@ export function showErrors(root, errors) {
   for (const [field, messages] of Object.entries(errors || {})) {
     const list = Array.isArray(messages) ? messages : [String(messages)];
     const target = root.querySelector(`[data-field="${CSS.escape(field)}"] [data-error]`);
-    if (target && !target.closest("[hidden]")) {
+    // El error mismo empieza oculto: lo que cuenta es si su campo está a la vista.
+    if (target && !target.parentElement.closest("[hidden]")) {
       target.replaceChildren(icon("stop"), document.createTextNode(list.join(" ")));
       target.hidden = false;
     } else {
@@ -276,7 +277,16 @@ export function readLabor(form) {
 
 // ---------- Conflictos o rechazados ----------
 
-const FIXABLE = new Set(["complete", "request", "reading", "answer", "part"]);
+const FIXABLE = new Set(["complete", "request", "reading", "answer", "part", "finding"]);
+
+// ¿Se ofrece "Corregir y reenviar"? Un rechazo (400) siempre. Un aviso de hallazgo en conflicto
+// solo si su clave ya se usó en otra operación (409 `conflict`): se reenvía con una nueva. Con
+// la OT cancelada (409 `cancelled`), otro 409 o un 404, reenviar no puede funcionar: solo se descarta.
+export function canFix(entry) {
+  if (!FIXABLE.has(entry.kind)) return false;
+  if (entry.status === "rejected") return true;
+  return entry.kind === "finding" && entry.status === "conflict" && Boolean(entry.error) && entry.error.code === "conflict";
+}
 
 function detailLines(details) {
   const lines = [];
@@ -293,6 +303,34 @@ function kindKey(kind) {
     .split("_")
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join("")}`;
+}
+
+// Ayuda de la tarjeta: por qué no se aceptó y qué se puede hacer.
+function problemHelp(entry) {
+  if (entry.kind === "finding" && entry.status === "conflict") {
+    const code = entry.error && entry.error.code;
+    if (code === "cancelled") return "help-finding-cancelled";
+    if (code === "conflict") return "help-finding-renew";
+  }
+  return entry.status === "rejected" ? "help-rejected" : "help-conflict";
+}
+
+// ---------- Corregir un aviso de hallazgo ----------
+
+// La OT puede no estar en los datos descargados (ya completada): el aviso se corrige igual.
+export function renderFindingFix(view, { wo, entry }) {
+  const fragment = clone("tpl-finding-fix");
+  slot(fragment, "title").textContent = entry.label || "";
+  const form = fragment.querySelector("form");
+  form.elements.description.value = entry.payload.description || "";
+  form.elements.asset_stopped.checked = Boolean(entry.payload.asset_stopped);
+  // "Equipo detenido" solo aplica a un activo; sin la OT descargada se deja a la vista.
+  slot(fragment, "stopped-field").hidden = Boolean(wo) && !wo.asset;
+  view.replaceChildren(fragment);
+  if (entry.error) {
+    const details = entry.error.details || {};
+    showErrors(view, Object.keys(details).length ? details : { non_field_errors: [entry.error.message] });
+  }
 }
 
 export function fixHref(entry) {
@@ -326,8 +364,10 @@ export function renderConflicts(view, { session, entries, flash }) {
       }
       details.hidden = false;
     }
-    slot(card, rejected ? "help-rejected" : "help-conflict").hidden = false;
-    if (rejected && FIXABLE.has(entry.kind)) {
+    slot(card, problemHelp(entry)).hidden = false;
+    // El aviso de hallazgo es accesorio: lo que seguía de la OT ya se envió (ADR-011).
+    slot(card, "help-finding").hidden = entry.kind !== "finding";
+    if (canFix(entry)) {
       const fix = slot(card, "fix");
       fix.href = fixHref(entry);
       fix.hidden = false;

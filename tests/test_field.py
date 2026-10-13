@@ -226,6 +226,7 @@ ITEM_KEYS = {
     "photo_count",
     "variable",
     "finding_code",
+    "finding_request_number",
 }
 
 
@@ -435,3 +436,26 @@ def test_shell_has_the_parts_section_and_its_templates(client, tenant_a):
     # El repuesto se encola y se envía a work-orders/{id}/parts/ con su client_uuid.
     sync = (FIELD_STATIC / "sync.js").read_text(encoding="utf-8")
     assert 'case "part":' in sync and "parts/" in sync
+
+
+def test_shell_lets_a_rejected_finding_be_fixed_without_blocking_the_work_order(client, tenant_a):
+    """WO-06 CA2: el aviso rechazado se corrige y reenvía desde Conflictos (tpl-finding-fix) y no
+    bloquea el carril de la OT; la PWA usa la ruta canónica `checklist-items/{item}/finding/`."""
+    login(client, tenant_a.tech)
+    html = client.get(reverse("field_shell")).content.decode()
+    assert 'id="tpl-finding-fix"' in html
+    for name in ("help-finding", "help-finding-cancelled", "help-finding-renew"):
+        assert f'data-slot="{name}"' in html, name
+    assert "data-msg-finding-problem=" in html
+    sync = (FIELD_STATIC / "sync.js").read_text(encoding="utf-8")
+    assert "${wo}${item}finding/" in sync and "checklist/${" not in sync
+    assert 'entry.kind === "finding" && PROBLEM_STATUSES.has(entry.status)' in sync
+    ui = (FIELD_STATIC / "ui.js").read_text(encoding="utf-8")
+    assert "export function updateQueue" in ui and "finding_request_number" in ui
+
+
+def test_design_system_shows_the_rejected_finding(client, tenant_a):
+    login(client, tenant_a.admin)
+    html = client.get(reverse("design_system")).content.decode()
+    assert "field-finding__state--error" in html
+    assert "Corregir aviso de hallazgo" in html

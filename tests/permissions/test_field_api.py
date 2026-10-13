@@ -213,8 +213,8 @@ def _not_ok_item(tenant, wo):
         )
 
 
-def _finding_url(wo, item):
-    return f"{FIELD_API}/work-orders/{wo.pk}/checklist/{item.pk}/finding/"
+def _finding_url(wo, item, route="checklist-items"):
+    return f"{FIELD_API}/work-orders/{wo.pk}/{route}/{item.pk}/finding/"
 
 
 def test_finding_needs_request_create_like_the_web(tenant_a):
@@ -231,17 +231,21 @@ def test_finding_needs_request_create_like_the_web(tenant_a):
         assert not WorkOrder.objects.filter(source_checklist_item=other).exists()
 
 
-def test_finding_needs_the_work_orders_module(tenant_a):
+@pytest.mark.parametrize("route", ["checklist-items", "checklist"])
+def test_finding_needs_the_work_orders_module(tenant_a, route):
     wo = _wo(tenant_a)
     item = _not_ok_item(tenant_a, wo)
     _plan(tenant_a, ["assets", "requests"])
-    assert field_client(tenant_a.tech).post(_finding_url(wo, item), {}, format="json").status_code == 403
+    response = field_client(tenant_a.tech).post(_finding_url(wo, item, route), {}, format="json")
+    assert response.status_code == 403
 
 
-def test_finding_out_of_scope_is_404(tenant_a, scoped):
+@pytest.mark.parametrize("route", ["checklist-items", "checklist"])
+def test_finding_out_of_scope_is_404(tenant_a, scoped, route):
     _inside, outside = scoped
     wo = _wo(tenant_a, outside)
     item = _not_ok_item(tenant_a, wo)
-    assert field_client(tenant_a.tech).post(_finding_url(wo, item), {}, format="json").status_code == 404
+    response = field_client(tenant_a.tech).post(_finding_url(wo, item, route), {}, format="json")
+    assert response.status_code == 404
     with tenant_context(tenant_a.org):
         assert not WorkOrder.objects.filter(source_checklist_item=item).exists()

@@ -67,7 +67,8 @@ def test_b_cannot_touch_work_orders_of_a(tenant_a, tenant_b):
         (f"{base}/checklist-items/{item_a.pk}/photos/", {"file": jpeg}, "multipart"),
         (f"{base}/photos/", {"file": jpeg}, "multipart"),
         (f"{base}/parts/", {"description": "Huaipe", "quantity": "1"}, "json"),
-        (f"{base}/checklist/{item_a.pk}/finding/", {"description": "Fuga"}, "json"),
+        (f"{base}/checklist-items/{item_a.pk}/finding/", {"description": "Fuga"}, "json"),
+        (f"{base}/checklist/{item_a.pk}/finding/", {"description": "Fuga"}, "json"),  # ruta anterior
     ]
     with tenant_context(tenant_a.org):
         WorkOrderChecklistItem.objects.filter(pk=item_a.pk).update(result="not_ok")
@@ -164,13 +165,16 @@ def test_finding_cannot_mix_work_orders_and_items_of_two_organizations(tenant_a,
         with tenant_context(tenant.org):
             WorkOrderChecklistItem.objects.filter(pk=item.pk).update(result="not_ok")
     client = field_client(tenant_b.tech)
-    url = f"{FIELD_API}/work-orders/{wo_b.pk}/checklist/{item_a.pk}/finding/"
-    assert client.post(url, {}, format="json").status_code == 404
+    for route in ("checklist-items", "checklist"):  # la ruta canónica y la anterior
+        url = f"{FIELD_API}/work-orders/{wo_b.pk}/{route}/{item_a.pk}/finding/"
+        assert client.post(url, {}, format="json").status_code == 404
     with tenant_context(tenant_a.org):
         assert not WorkOrder.objects.filter(source_checklist_item=item_a).exists()
         assert not WorkRequest.objects.exists()
     # Su propio ítem sí: la correctiva y la solicitud quedan en B.
-    own = client.post(f"{FIELD_API}/work-orders/{wo_b.pk}/checklist/{item_b.pk}/finding/", {}, format="json")
+    own = client.post(
+        f"{FIELD_API}/work-orders/{wo_b.pk}/checklist-items/{item_b.pk}/finding/", {}, format="json"
+    )
     assert own.status_code == 201
     with tenant_context(tenant_b.org):
         corrective = WorkOrder.objects.get(pk=own.json()["id"])

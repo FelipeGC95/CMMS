@@ -256,8 +256,13 @@ def report_finding_idempotent(
     OT crea la correctiva; quien no (técnico) pasa por el aviso de falla (solicitud + correctiva).
     Idempotente por ítem (con una correctiva abierta, la devuelve) y por `client_uuid`: reenviarlo
     devuelve la correctiva ya creada aunque la OT de origen haya avanzado; usarlo en otra
-    operación u otro ítem → 409. Sin conexión no se avisa sobre una OT terminada: cancelada →
-    409 `cancelled`, completada o cerrada → 409 `locked`. Ítem que no está No OK → 400.
+    operación u otro ítem → 409. Ítem que no está No OK → 400.
+
+    El aviso se hace en el teléfono con la OT abierta, pero puede llegar después de "Completar"
+    (si el servidor lo rechazó, se corrige y reenvía desde Conflictos sin detener la OT): como
+    el servicio de la web, se acepta con la OT de origen completada o cerrada mientras el ítem
+    siga No OK (la correctiva es otra OT; la de origen no cambia). Solo una OT cancelada →
+    409 `cancelled`: su checklist ya no vale.
     """
     require_perm(membership, Perm.REQUEST_CREATE)
     if client_uuid:
@@ -269,7 +274,8 @@ def report_finding_idempotent(
             return corrective, False
     # La OT de origen se bloquea: dos avisos simultáneos del mismo ítem crean una sola correctiva.
     parent = WorkOrder.objects.select_for_update().get(pk=item.work_order_id)
-    _require_not_finished(parent)
+    if parent.status == WorkOrder.Status.CANCELLED:
+        raise WorkOrderError(_("La OT fue cancelada."), code=ERROR_CANCELLED)
     item = WorkOrderChecklistItem.objects.select_related("work_order").get(pk=item.pk)
     already_open = (
         WorkOrder.objects.filter(source_checklist_item=item)

@@ -3,9 +3,9 @@
 // aplica de inmediato a la copia local de la OT. sync.js los envía de a uno.
 
 import * as db from "./db.js";
-import { LIVE_STATUSES, applyEntry, updateTimer } from "./local.js";
+import { LIVE_STATUSES, PROBLEM_STATUSES, applyEntry, updateTimer } from "./local.js";
 
-export const PROBLEM_STATUSES = new Set(["conflict", "rejected"]);
+export { PROBLEM_STATUSES };
 
 // UUID v4. crypto.randomUUID solo existe en contextos seguros (https o localhost).
 export function uuid4() {
@@ -78,10 +78,14 @@ export async function enqueue({ identity, session, kind, wo = null, itemId = nul
   return entry;
 }
 
-// Vuelve a pedir el envío de un cambio rechazado tras corregirlo (mismo client_uuid).
-export async function resubmit(entry, payload) {
+// Vuelve a pedir el envío de un cambio rechazado tras corregirlo. Con el mismo client_uuid
+// (un 400 no lo deja usado en el servidor); `renew` le da uno nuevo cuando el servidor dijo que
+// esa clave ya se usó en otra operación (409 `conflict`). Conserva su lugar en la cola (seq).
+export async function resubmit(entry, payload, { renew = false } = {}) {
   const updated = { ...entry, payload, status: "pending", error: null, attempts: 0, next_at: 0 };
+  if (renew) updated.client_uuid = uuid4();
   await db.putEntry(updated);
+  if (renew) await db.deleteEntry({ ...entry, blob_ids: [] }); // las fotos pasan al cambio nuevo
   return updated;
 }
 
@@ -115,6 +119,7 @@ export function summarize(entries, identity) {
     otherPeople: 0,
     byWorkOrder: new Map(),
     byItem: new Map(),
+    findings: new Map(), // aviso de hallazgo en cola por ítem (por enviar o con problema)
     mine: [],
   };
   for (const entry of entries) {
@@ -137,6 +142,7 @@ export function summarize(entries, identity) {
       else row.pending += 1;
       summary.byWorkOrder.set(entry.wo_id, row);
     }
+    if (entry.kind === "finding" && entry.item_id) summary.findings.set(entry.item_id, entry);
     if (entry.item_id) {
       const row = summary.byItem.get(entry.item_id) || { pending: 0, problems: 0 };
       if (problem) row.problems += 1;
