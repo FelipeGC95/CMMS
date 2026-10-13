@@ -792,6 +792,22 @@ main { max-width: var(--content-max); margin: 0 auto; padding: var(--space-5) va
 .field-parts__add { margin-top: var(--space-2); }
 .field-part-form { max-width: 40rem; margin-top: var(--space-2); }
 .field-part-form .field-pair .field input { max-width: 14rem; }
+
+/* Terreno, WO-06 CA2: "Avisar hallazgo" en un ítem No OK y su estado (por enviar / avisado). */
+.field-finding { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-2); margin-top: var(--space-3); }
+.field-finding__form { align-self: stretch; max-width: 40rem; display: flex; flex-direction: column; gap: var(--space-2); }
+.field-finding__form .help { margin: 0; }
+.field-finding__state {
+  display: flex; gap: var(--space-2); align-items: flex-start; margin: var(--space-2) 0 0;
+  padding: var(--space-2) var(--space-3); border-radius: var(--radius-md); font-weight: 500; overflow-wrap: anywhere;
+}
+.field-finding .field-finding__state { margin: 0; }
+.field-finding__state svg { width: 20px; height: 20px; flex: none; margin-top: 0.1em; }
+.field-finding__state--success { color: var(--color-success); background: var(--color-success-bg); }
+.field-finding__state--warning { color: var(--color-warning); background: var(--color-warning-bg); }
+.field-finding__state:focus { outline: none; }
+.field-finding__state:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; }
+.field-variable { margin: var(--space-2) 0 0; overflow-wrap: anywhere; }
 .dialog {
   width: min(32rem, calc(100vw - 2 * var(--space-4))); max-width: 100%; max-height: calc(100vh - 2 * var(--space-4));
   padding: 0; border: 1px solid var(--color-border); border-radius: var(--radius-lg);

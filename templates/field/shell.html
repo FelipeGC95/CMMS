@@ -142,6 +142,11 @@
     data-msg-kind-request="{% translate 'Solicitud' %}"
     data-msg-kind-labor="{% translate 'Horas trabajadas' %}"
     data-msg-kind-part="{% translate 'Repuesto usado' %}"
+    data-msg-kind-finding="{% translate 'Aviso de hallazgo' %}"
+    data-msg-finding-pending="{% translate 'Hallazgo por enviar' %}"
+    data-msg-finding-done="{% translate 'Hallazgo avisado' %}"
+    data-msg-saved-finding="{% translate 'Hallazgo guardado en el teléfono: se envía al tener conexión.' %}"
+    data-msg-feeds-variable="{% translate 'Alimenta' %}"
     data-msg-part-pending="{% translate 'Falta usar' %}"
     data-msg-saved-part="{% translate 'Repuesto guardado en el teléfono: se envía al tener conexión.' %}"
     data-msg-invalid-quantity="{% translate 'Escribe una cantidad mayor que cero (coma o punto para los decimales).' %}"
@@ -310,6 +315,8 @@
       <div class="row" data-slot="badges"></div>
       <p class="muted check-item__hint" data-slot="hint" hidden></p>
       <p class="check-item__note-text" data-slot="note" hidden></p>
+      <p class="muted field-variable" data-slot="variable" hidden></p>
+      <p class="field-finding__state" data-slot="finding-state" role="status" hidden></p>
     </li>
   </template>
 
@@ -331,6 +338,7 @@
           <button class="btn btn--secondary btn--lg" type="button" data-action="answer">{% translate "Guardar" %}</button>
         </div>
         <p class="help field-item-range" data-slot="range" hidden></p>
+        <p class="muted field-variable" data-slot="variable" hidden></p>
       </div>
       <div data-type="text">
         <div class="field">
@@ -360,6 +368,28 @@
       <div class="photo-upload">
         <input class="photo-upload__input" type="file" accept="image/*" capture="environment" data-photo="item" data-slot="photo-input">
         <label class="btn btn--secondary btn--lg photo-upload__button" data-slot="photo-label">{% icon 'camera' %}{% translate "Agregar foto" %}</label>
+      </div>
+      {# Hallazgo (WO-06 CA2): solo en un ítem No OK. Se encola después de la respuesta del ítem #}
+      {# y antes de "Completar"; va a work-orders/{id}/checklist/{item}/finding/. #}
+      <div class="field-finding" data-slot="finding" hidden>
+        <p class="field-finding__state" data-slot="finding-state" hidden></p>
+        <button class="btn btn--secondary btn--lg" type="button" data-action="finding-open" data-slot="finding-open" aria-expanded="false">{% icon 'alert' %}{% translate "Avisar hallazgo" %}</button>
+        <form class="field-finding__form" novalidate data-form="finding" data-slot="finding-form" hidden>
+          <p class="help">{% translate "Crea una OT correctiva vinculada a este ítem; sus fotos se ven en ella." %}</p>
+          <div class="field" data-field="description">
+            <label data-slot="finding-description-label">{% translate "Descripción (opcional)" %}</label>
+            <textarea class="input" name="description" rows="3" maxlength="2000" autocapitalize="sentences" data-slot="finding-description"></textarea>
+            <span class="error" data-error hidden></span>
+          </div>
+          <div class="field field--check" data-slot="finding-stopped-field">
+            <input name="asset_stopped" type="checkbox" data-slot="finding-stopped">
+            <label data-slot="finding-stopped-label">{% translate "¿El equipo está detenido?" %}</label>
+          </div>
+          <div class="field-actions">
+            <button class="btn btn--primary btn--lg" type="submit">{% icon 'alert' %}{% translate "Avisar hallazgo" %}</button>
+            <button class="btn btn--ghost btn--lg" type="button" data-action="finding-cancel">{% icon 'x' %}{% translate "Cancelar" %}</button>
+          </div>
+        </form>
       </div>
       <p class="field-saved" data-slot="saved" role="status"></p>
     </li>

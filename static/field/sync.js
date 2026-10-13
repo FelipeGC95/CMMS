@@ -104,6 +104,9 @@ async function send(entry) {
       return api.postJson(`${wo}labor/`, { ...payload, client_uuid: entry.client_uuid }, org);
     case "part":
       return api.postJson(`${wo}parts/`, { ...payload, client_uuid: entry.client_uuid }, org);
+    case "finding":
+      // Va detrás de la respuesta del ítem y antes de "Completar": la cola es FIFO por OT.
+      return api.postJson(`${wo}checklist/${entry.item_id}/finding/`, { ...payload, client_uuid: entry.client_uuid }, org);
     case "reading":
       return api.postJson("readings/", { ...payload, client_uuid: entry.client_uuid }, org);
     case "request":

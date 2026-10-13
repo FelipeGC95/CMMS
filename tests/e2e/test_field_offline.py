@@ -287,6 +287,147 @@ def test_cancelled_work_order_is_a_conflict_that_can_be_discarded(browser):
     context.close()
 
 
+# ---------- F1: hallazgo sin conexión (WO-06 CA2) ----------
+
+FINDING_STATE = """
+import json
+from apps.work.models import WorkOrder, WorkRequest
+wo = WorkOrder.all_tenants.get(pk="{id}")
+children = list(WorkOrder.all_tenants.filter(source_checklist_item_id="{item}"))
+requests = WorkRequest.all_tenants.filter(work_order__in=children)
+print(json.dumps({{"status": wo.status, "correctives": len(children),
+    "parent": [str(c.parent_work_order_id) for c in children], "requests": requests.count(),
+    "stopped": [r.asset_stopped for r in requests], "description": [c.description for c in children]}}))
+"""
+
+
+CORRECTIVE_CODE = """
+import json
+from apps.work.models import WorkOrder
+print(json.dumps(WorkOrder.all_tenants.get(source_checklist_item_id="{item}").code))
+"""
+
+
+def finding_shot(page, name, locator):
+    """Capturas del hallazgo (E2E_SHOTS) a 360, 1024 y 1440 px, sin scroll horizontal."""
+    if not os.environ.get("E2E_SHOTS"):
+        return
+    for width in (360, 1024, 1440):
+        page.set_viewport_size({"width": width, "height": 900})
+        locator.scroll_into_view_if_needed()
+        locator.screenshot(path=f"{os.environ['E2E_SHOTS']}/f1-{name}-{width}.png")
+        assert page.evaluate("document.documentElement.scrollWidth <= window.innerWidth"), width
+    page.set_viewport_size({"width": 360, "height": 800})
+
+
+def test_offline_finding_is_sent_before_completing(browser, tmp_path):
+    photo_file = tmp_path / "foto.png"
+    photo_file.write_bytes(PNG)
+    context, page, errors = field_page(browser)
+    wo = pick(page, need_items=True)
+    assert wo, "seed_demo no tiene una OT planificada con checklist para el técnico"
+    target = next((row for row in wo["items"] if row["type"] == "check"), None)
+    assert target, "la OT elegida no tiene un ítem de verificación"
+
+    context.set_offline(True)
+    page.evaluate("id => { location.hash = `#/wo/${id}`; }", wo["id"])
+    page.wait_for_selector(".field-detail")
+    page.click("[data-transition='start']")
+    page.wait_for_selector("[data-transition='pause']:not([hidden])")
+    for row in wo["items"]:
+        if row is target:
+            continue
+        answer_item(page, row, photo_file)
+    li = item(page, target["id"])
+    # Sin respuesta (o con OK) no se ofrece el aviso.
+    assert li.locator("[data-action='finding-open']").is_hidden()
+    li.locator("[data-result='not_ok']").click()
+    li = item(page, target["id"])
+    li.locator("[data-slot='saved']:not(:empty)").wait_for()
+    opener = li.locator("[data-action='finding-open']")
+    opener.wait_for()
+    finding_shot(page, "button", li)
+    opener.click()
+    form = li.locator("form[data-form='finding']")
+    form.wait_for()
+    description = f"Sello dañado e2e {os.getpid()}"
+    form.locator("textarea[name='description']").fill(description)
+    stopped = form.locator("input[name='asset_stopped']")
+    if stopped.is_visible():
+        stopped.check()
+    finding_shot(page, "form", li)
+    form.locator("button[type=submit]").click()
+    li = item(page, target["id"])
+    state = li.locator(".field-finding__state--warning")
+    state.wait_for()
+    assert "Hallazgo por enviar" in state.inner_text()
+    assert li.locator("[data-action='finding-open']").is_hidden()  # no se avisa dos veces
+    finding_shot(page, "pending", li)
+
+    page.click("[data-slot='complete']")
+    page.wait_for_selector("form[data-form='complete']")
+    page.fill("#fc-labor", "20")
+    if page.locator("#fc-meter").is_visible():
+        page.fill("#fc-meter", "999999")
+    page.click("form[data-form='complete'] button[type=submit]")
+    page.wait_for_selector(".field-detail [data-slot='flash']:not([hidden])")
+
+    # El primer envío del hallazgo pierde la respuesta: el reintento no duplica la correctiva.
+    seen = set()
+    lose_first_response(page, "/finding/", seen)
+    context.set_offline(False)
+    page.evaluate("window.dispatchEvent(new Event('online'))")
+    page.wait_for_selector(".field-sync__row--success", timeout=60000)
+    assert seen == {"/finding/"}
+
+    state = manage(FINDING_STATE.format(id=wo["id"], item=target["id"]))
+    assert state["status"] in ("completed", "closed")
+    assert state["correctives"] == 1 and state["parent"] == [wo["id"]]
+    assert state["requests"] == 1  # el técnico no gestiona OT: solicitud + correctiva
+    assert description in state["description"][0]
+    assert errors == []
+    context.close()
+
+
+def test_synced_finding_shows_its_code_and_cannot_be_repeated(browser):
+    context, page, errors = field_page(browser)
+    wo = pick(page, need_items=True)
+    assert wo, "seed_demo no tiene otra OT planificada con checklist para el técnico"
+    target = next((row for row in wo["items"] if row["type"] == "check"), None)
+    assert target, "la OT elegida no tiene un ítem de verificación"
+    context.set_offline(True)
+    page.evaluate("id => { location.hash = `#/wo/${id}`; }", wo["id"])
+    page.wait_for_selector(".field-detail")
+    item(page, target["id"]).locator("[data-result='not_ok']").click()
+    li = item(page, target["id"])
+    li.locator("[data-action='finding-open']").click()
+    li.locator("form[data-form='finding'] button[type=submit]").click()
+    item(page, target["id"]).locator(".field-finding__state--warning").wait_for()
+
+    context.set_offline(False)
+    page.evaluate("window.dispatchEvent(new Event('online'))")
+    page.wait_for_selector(".field-sync__row--success", timeout=60000)
+    state = manage(FINDING_STATE.format(id=wo["id"], item=target["id"]))
+    assert state["correctives"] == 1 and state["status"] == "in_progress"
+    code = manage(CORRECTIVE_CODE.format(item=target["id"]))
+    li = item(page, target["id"])
+    done = li.locator(".field-finding__state--success")
+    done.wait_for(timeout=10000)
+    assert "Hallazgo avisado" in done.inner_text() and code in done.inner_text()
+    assert li.locator("[data-action='finding-open']").is_hidden()
+    finding_shot(page, "synced", li)
+    # Descargar de nuevo: el servidor trae el hallazgo en el snapshot (`finding_code`).
+    page.evaluate("() => { location.hash = '#/'; }")
+    page.wait_for_selector("[data-action='refresh']")
+    with page.expect_response("**/field/api/reference/"):
+        page.click("[data-action='refresh']")
+    page.wait_for_timeout(1000)
+    page.evaluate("id => { location.hash = `#/wo/${id}`; }", wo["id"])
+    item(page, target["id"]).locator(".field-finding__state--success", has_text=code).wait_for(timeout=10000)
+    assert errors == []
+    context.close()
+
+
 # ---------- Inventario P6: repuestos sin conexión (INV-13) ----------
 
 # Repuesto con stock (10 a $1.000) y reserva de 2 en la OT elegida; lo crea el test, así no

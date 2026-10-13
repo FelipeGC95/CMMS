@@ -140,6 +140,10 @@ export function applyEntry(wo, entry, bootstrap) {
     case "part":
       applyPart(wo, entry);
       break;
+    case "finding":
+      // Hallazgo avisado sin conexión (WO-06 CA2): el ítem queda "por enviar" y no se avisa dos veces.
+      if (item) item._finding_pending = entry.client_uuid;
+      break;
     default:
       break;
   }

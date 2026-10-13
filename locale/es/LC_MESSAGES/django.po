@@ -9899,3 +9899,35 @@ msgstr ""
 #: templates/ui/design_system.html
 msgid "Ver datos"
 msgstr ""
+
+#: templates/field/shell.html
+msgid "Crea una OT correctiva vinculada a este ítem; sus fotos se ven en ella."
+msgstr ""
+
+#: templates/field/shell.html
+msgid "¿El equipo está detenido?"
+msgstr ""
+
+#: templates/field/shell.html
+msgid "Avisar hallazgo"
+msgstr ""
+
+#: templates/field/shell.html
+msgid "Aviso de hallazgo"
+msgstr ""
+
+#: templates/field/shell.html
+msgid "Hallazgo por enviar"
+msgstr ""
+
+#: templates/field/shell.html
+msgid "Hallazgo avisado"
+msgstr ""
+
+#: templates/field/shell.html
+msgid "Hallazgo guardado en el teléfono: se envía al tener conexión."
+msgstr ""
+
+#: templates/field/shell.html
+msgid "Alimenta"
+msgstr ""

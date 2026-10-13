@@ -284,15 +284,66 @@ function itemHint(item) {
   return parts.join(" · ");
 }
 
+// Hallazgo del ítem (WO-06 CA2): "por enviar" mientras espera en la cola; "avisado" con el
+// código de la correctiva (y la solicitud, si pasó por el aviso de falla) cuando el servidor lo creó.
+export function findingStatus(item) {
+  if (item._finding_pending) return { tone: "warning", icon: "clock", text: msg("findingPending") };
+  if (!item.finding_code) return null;
+  const request = item.finding_request ? ` · ${msg("requestNumber")} ${item.finding_request}` : "";
+  return { tone: "success", icon: "check", text: `${msg("findingDone")} · ${item.finding_code}${request}` };
+}
+
+function showFinding(node, item) {
+  const state = findingStatus(item);
+  if (!state) {
+    node.hidden = true;
+    return false;
+  }
+  node.className = `field-finding__state field-finding__state--${state.tone}`;
+  node.replaceChildren(icon(state.icon), document.createTextNode(state.text));
+  node.hidden = false;
+  return true;
+}
+
+// Al enviarse el hallazgo con la OT a la vista: se actualiza solo su estado (sin repintar el ítem,
+// así no se pierde lo que se esté escribiendo).
+export function updateFinding(li, item) {
+  const node = slot(li, "finding-state");
+  if (!node || !showFinding(node, item)) return;
+  const box = slot(li, "finding");
+  if (box) box.hidden = false;
+  const saved = slot(li, "saved");
+  if (saved) saved.replaceChildren(); // "guardado en el teléfono" ya no aplica
+}
+
+// Variable de condición que alimenta un ítem de medición (CBM-06): «Alimenta Temperatura (°C) · Rodamiento».
+function showVariable(node, item) {
+  if (node && item.variable) show(node, `${msg("feedsVariable")} ${item.variable}`);
+}
+
+// "Avisar hallazgo" solo en un ítem No OK (verificación o medición fuera de rango), una vez.
+export function canReportFinding(item, wo, bootstrap) {
+  return (
+    item.result === "not_ok" &&
+    ["check", "measurement"].includes(item.item_type) &&
+    Boolean(bootstrap.permissions.request_create) &&
+    !LOCKED_STATUSES.has(wo.status) &&
+    !findingStatus(item)
+  );
+}
+
 function readOnlyItem(item, index, counts) {
   const fragment = clone("tpl-check-item");
   const li = fragment.firstElementChild;
+  li.id = `item-${item.id}`;
   if (item.result) li.classList.add(`check-item--${item.result}`);
   slot(fragment, "num").textContent = `${index}.`;
   slot(fragment, "text").textContent = item.text;
   slot(fragment, "badges").append(itemBadge(item), ...queueBadges(counts));
   show(slot(fragment, "hint"), itemHint(item));
   show(slot(fragment, "note"), item.note);
+  showVariable(slot(fragment, "variable"), item);
+  showFinding(slot(fragment, "finding-state"), item);
   return fragment;
 }
 
@@ -306,7 +357,7 @@ function bind(root, labelSlot, fieldSlot, id) {
   return field;
 }
 
-export function editableItem(item, index, counts) {
+export function editableItem(item, index, counts, wo, bootstrap) {
   const fragment = clone("tpl-check-edit");
   const li = fragment.firstElementChild;
   li.dataset.itemId = item.id;
@@ -337,6 +388,7 @@ export function editableItem(item, index, counts) {
       );
     }
     range.hidden = !range.textContent.trim();
+    showVariable(slot(fragment, "variable"), item);
   } else if (type === "text") {
     bind(fragment, "text-label", "value-text", `text-${item.id}`).value = item.value_text || "";
   } else if (type === "signature") {
@@ -353,6 +405,19 @@ export function editableItem(item, index, counts) {
   slot(fragment, "note-save").hidden = !(item.result && (type !== "signature" || item._signature));
   const photo = bind(fragment, "photo-label", "photo-input", `photo-${item.id}`);
   photo.dataset.itemId = item.id;
+  const reported = showFinding(slot(fragment, "finding-state"), item);
+  const canReport = canReportFinding(item, wo, bootstrap);
+  slot(fragment, "finding").hidden = !(reported || canReport);
+  slot(fragment, "finding-open").hidden = !canReport;
+  if (canReport) {
+    const form = slot(fragment, "finding-form");
+    form.id = `finding-${item.id}`;
+    slot(fragment, "finding-open").setAttribute("aria-controls", form.id);
+    bind(fragment, "finding-description-label", "finding-description", `finding-description-${item.id}`);
+    bind(fragment, "finding-stopped-label", "finding-stopped", `finding-stopped-${item.id}`);
+    // "Equipo detenido" solo aplica a un activo (una ubicación no tiene estado que detener).
+    slot(fragment, "finding-stopped-field").hidden = !wo.asset;
+  }
   return fragment;
 }
 
@@ -425,7 +490,9 @@ export function renderDetail(view, { session, workOrder: wo, summary, timer, fla
     }
     section = item.section;
     const itemCounts = summary.byItem.get(item.id);
-    list.append(editable ? editableItem(item, index + 1, itemCounts) : readOnlyItem(item, index + 1, itemCounts));
+    list.append(
+      editable ? editableItem(item, index + 1, itemCounts, wo, bootstrap) : readOnlyItem(item, index + 1, itemCounts),
+    );
   });
   if (items.length) {
     setProgress(fragment, items);

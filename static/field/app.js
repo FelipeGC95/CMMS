@@ -1,6 +1,6 @@
 // Entrada de la vista de terreno (ADR-011): módulo ES sin build. Enrutamiento por hash:
 //   #/                 OT agrupadas por día (asignadas a la persona primero)
-//   #/wo/<id>          ejecución de una OT: iniciar, pausar, checklist, fotos
+//   #/wo/<id>          ejecución de una OT: iniciar, pausar, checklist, fotos, hallazgos
 //   #/wo/<id>/complete completar con minutos, lectura, falla y firma
 //   #/request          nueva solicitud (aviso de falla) con foto
 //   #/reading          lectura de medidor
@@ -276,6 +276,16 @@ async function onSent(entry, data) {
     wo.status = data.status;
   } else if (entry.kind === "wo_photo") {
     wo._photo_count = Math.max(0, (wo._photo_count || 0) - 1);
+  } else if (entry.kind === "finding") {
+    // Correctiva creada (o ya existente): el ítem muestra "Hallazgo avisado" con su código.
+    const item = (wo.checklist || []).find((row) => row.id === entry.item_id);
+    if (item) {
+      delete item._finding_pending;
+      item.finding_code = data.code;
+      item.finding_request = data.request_number;
+      const li = view.querySelector(`[data-wo-id="${CSS.escape(wo.id)}"] #item-${CSS.escape(item.id)}`);
+      if (li) ui.updateFinding(li, item);
+    }
   } else if (entry.kind === "part") {
     // La línea ya está en el servidor; lo que falta usar se actualiza al descargar de nuevo.
     const line = (wo.parts || []).find((row) => row.client_uuid === entry.client_uuid);
@@ -332,7 +342,7 @@ async function redrawItem(li, wo, message) {
   const items = fresh.checklist || [];
   const index = items.findIndex((row) => row.id === li.dataset.itemId);
   const current = await summary();
-  const fragment = ui.editableItem(items[index], index + 1, current.byItem.get(items[index].id));
+  const fragment = ui.editableItem(items[index], index + 1, current.byItem.get(items[index].id), fresh, app.session.bootstrap);
   const replacement = fragment.firstElementChild;
   li.replaceWith(fragment);
   ui.setProgress(view, items);
@@ -390,9 +400,59 @@ async function onAnswer(button, noteOnly = false) {
     return;
   }
   await enqueue({ kind: "answer", wo, itemId: item.id, payload: body, label: `${wo.code} · ${item.text}` });
+  await withdrawFinding(wo.id, item.id);
   const replacement = await redrawItem(li, wo, ui.msg(noteOnly ? "savedNote" : "savedAnswer"));
   const target = replacement.querySelector(noteOnly ? "[data-slot='note']" : "[data-action='answer'][aria-pressed='true'], [data-action='answer']");
   if (target) target.focus();
+}
+
+// ---------- Hallazgo (WO-06 CA2) ----------
+
+function toggleFinding(target, open) {
+  const box = target.closest("[data-slot='finding']");
+  if (!box) return;
+  const form = box.querySelector("form[data-form='finding']");
+  const button = box.querySelector("[data-slot='finding-open']");
+  form.hidden = !open;
+  button.hidden = open;
+  button.setAttribute("aria-expanded", String(open));
+  if (open) {
+    form.elements.description.focus();
+  } else {
+    form.reset();
+    button.focus();
+  }
+}
+
+// Se encola detrás de la respuesta del ítem (la cola es FIFO por OT), así llega antes de "Completar".
+async function onFinding(form) {
+  const li = form.closest("[data-item-id]");
+  const wo = await currentWorkOrder();
+  if (!li || !wo) return;
+  const item = itemOf(wo, li);
+  if (!item || !ui.canReportFinding(item, wo, app.session.bootstrap)) return;
+  const payload = {
+    description: form.elements.description.value.trim(),
+    asset_stopped: Boolean(wo.asset) && form.elements.asset_stopped.checked,
+  };
+  await enqueue({ kind: "finding", wo, itemId: item.id, payload, label: `${wo.code} · ${item.text}` });
+  view.dataset.dirty = "";
+  const replacement = await redrawItem(li, wo, ui.msg("savedFinding"));
+  const state = replacement.querySelector("[data-slot='finding-state']");
+  state.tabIndex = -1;
+  state.focus();
+}
+
+// Si el ítem deja de estar No OK antes de que su hallazgo se envíe, el aviso ya no corresponde.
+async function withdrawFinding(woId, itemId) {
+  const wo = await db.getWorkOrder(woId, app.identity);
+  const item = wo && (wo.checklist || []).find((row) => row.id === itemId);
+  if (!item || item.result === "not_ok" || !item._finding_pending) return;
+  const entry = await db.getEntry(item._finding_pending);
+  if (entry && entry.status === "sending") return;
+  if (entry && queue.owns(entry, app.identity)) await queue.discard(entry);
+  delete item._finding_pending;
+  await db.putWorkOrder(wo);
 }
 
 async function onPhoto(input) {
@@ -520,6 +580,10 @@ async function onSubmit(form) {
     await onLabor(form);
     return;
   }
+  if (kind === "finding") {
+    await onFinding(form);
+    return;
+  }
   const fixUuid = form.dataset.fix;
   const fixEntry = fixUuid ? await db.getEntry(fixUuid) : null;
   if (kind === "part") {
@@ -571,12 +635,25 @@ async function onDiscard(button) {
   if (!window.confirm(ui.msg("confirmDiscard"))) return;
   const card = button.closest("[data-client-uuid]");
   const entry = await db.getEntry(card.dataset.clientUuid);
-  if (entry && queue.owns(entry, app.identity)) await queue.discard(entry);
+  if (entry && queue.owns(entry, app.identity)) {
+    await queue.discard(entry);
+    if (entry.kind === "finding") await forgetFinding(entry);
+  }
   app.flash = "";
   await render({ focus: false });
   // Lo que seguía de esa OT ya puede enviarse; luego se descarga de nuevo.
   await sync.run();
   afterDrain();
+}
+
+// Un hallazgo descartado deja de estar "por enviar": el ítem vuelve a ofrecer "Avisar hallazgo".
+async function forgetFinding(entry) {
+  const wo = await db.getWorkOrder(entry.wo_id, app.identity);
+  const item = wo && (wo.checklist || []).find((row) => row.id === entry.item_id);
+  if (item && item._finding_pending === entry.client_uuid) {
+    delete item._finding_pending;
+    await db.putWorkOrder(wo);
+  }
 }
 
 async function onDiscardOthers() {
@@ -654,6 +731,8 @@ document.addEventListener("click", (event) => {
   else if (action === "part-add") togglePartForm(true);
   else if (action === "part-cancel") togglePartForm(false);
   else if (action === "part-use") onPartUse(target);
+  else if (action === "finding-open") toggleFinding(target, true);
+  else if (action === "finding-cancel") toggleFinding(target, false);
 });
 
 view.addEventListener("submit", (event) => {
