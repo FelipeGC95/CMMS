@@ -329,7 +329,9 @@ def test_movements_filter_by_warehouse_dates_and_work_order_code(client, tenant_
     assert client.get(url, {"warehouse": ledger["north"].pk}).context["page"].paginator.count == 2
     assert client.get(url, {"work_order": ledger["wo"].code}).context["page"].paginator.count == 1
     assert client.get(url, {"work_order": str(ledger["wo"].number)}).context["page"].paginator.count == 1
-    today = timezone.localdate()
+    # El filtro usa la zona de la organización: entre las 21:00 y medianoche de Santiago la
+    # fecha UTC ya es mañana.
+    today = timezone.localdate(timezone=zoneinfo.ZoneInfo(tenant_a.org.timezone))
     assert client.get(url, {"date_from": today, "date_to": today}).context["page"].paginator.count == 5
     tomorrow = today + datetime.timedelta(days=1)
     assert client.get(url, {"date_from": tomorrow}).context["page"].paginator.count == 0
