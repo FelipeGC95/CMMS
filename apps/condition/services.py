@@ -20,6 +20,7 @@ transiciones de las alertas y las reglas quedan en la auditoría.
 """
 
 import datetime
+import zoneinfo
 from decimal import Decimal, InvalidOperation
 
 from django.core.exceptions import ValidationError
@@ -566,7 +567,10 @@ def _open_work_order(rule, *, meter, asset, reading) -> WorkOrder:
     detail = _("Lectura de %(value)s %(unit)s el %(date)s fuera de rango (%(condition)s).") % {
         "value": format_number(reading.value),
         "unit": meter.unit,
-        "date": timezone.localtime(reading.read_at).strftime("%d-%m-%Y %H:%M"),
+        # En la zona de la organización también fuera de una petición (importación, tareas, demo).
+        "date": timezone.localtime(
+            reading.read_at, zoneinfo.ZoneInfo(require_current_organization().timezone)
+        ).strftime("%d-%m-%Y %H:%M"),
         "condition": rule.condition_label,
     }
     description = "\n\n".join(part for part in (rule.work_order_instructions, detail) if part)

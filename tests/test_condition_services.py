@@ -197,6 +197,14 @@ def test_alert_and_predictive_work_order_on_crossing(in_a, temp, django_capture_
     assert AuditEvent.objects.filter(target_id=str(alert.pk), action="create", actor__isnull=True).exists()
 
 
+def test_work_order_description_uses_organization_timezone(in_a, temp):
+    # Fuera de una petición (importación, tareas, seed_demo) no hay zona activada: la fecha de
+    # la lectura va igual en la zona de la organización (BASE 08:00 UTC = 05:00 en Santiago).
+    _rule(in_a, temp)
+    read(temp, "85")
+    assert "el 01-10-2026 05:00 fuera de rango" in ConditionAlert.objects.get().work_order.description
+
+
 def test_rule_priority_and_title_override(in_a, temp):
     _rule(in_a, temp, work_order_title="Vibración alta", work_order_priority=1)
     read(temp, "85")
