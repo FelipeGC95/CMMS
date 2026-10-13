@@ -194,6 +194,7 @@ def seed(*, org, assets, classes, admin, tech, now):
         ConditionAlert.objects.filter(pk=alert.pk).update(created_at=alert.opened_at)
         if alert.work_order_id and alert.status == ConditionAlert.Status.OPEN:
             WorkOrder.objects.filter(pk=alert.work_order_id).update(created_at=alert.opened_at)
+            alert.work_order.transitions.update(created_at=alert.opened_at)
 
 
 def _asset_rule(admin, meters, spec):
