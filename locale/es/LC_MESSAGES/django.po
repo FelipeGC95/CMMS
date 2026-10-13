@@ -9931,3 +9931,23 @@ msgstr ""
 #: templates/field/shell.html
 msgid "Alimenta"
 msgstr ""
+
+#: templates/ui/design_system.html
+msgid "Hallazgo en un ítem No OK"
+msgstr ""
+
+#: templates/ui/design_system.html
+msgid "«Avisar hallazgo» abre el formulario; el aviso se encola antes de «Completar» y el ítem muestra si está por enviar o avisado. Los ítems de medición muestran la variable que alimentan."
+msgstr ""
+
+#: templates/ui/design_system.html
+msgid "Registrar temperatura del rodamiento"
+msgstr ""
+
+#: templates/ui/design_system.html
+msgid "Temperatura (°C) · Rodamiento"
+msgstr ""
+
+#: templates/ui/design_system.html
+msgid "Revisar fugas de aire en líneas"
+msgstr ""

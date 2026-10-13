@@ -413,6 +413,15 @@ def test_design_system_shows_the_field_sync_components(client, tenant_a):
     # Repuestos en la ejecución de la OT (INV-13).
     for css_class in ("field-parts__list", "field-part__use", "field-part--used", "field-parts__add"):
         assert css_class in html, css_class
+    # Hallazgo en un ítem No OK (WO-06 CA2) y variable que alimenta el ítem (CBM-06).
+    for css_class in (
+        "field-finding__form",
+        "field-finding__state--warning",
+        "field-finding__state--success",
+        "field-variable",
+    ):
+        assert css_class in html, css_class
+    assert "Avisar hallazgo" in html
 
 
 def test_shell_has_the_parts_section_and_its_templates(client, tenant_a):

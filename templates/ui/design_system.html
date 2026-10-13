@@ -684,6 +684,40 @@
       <p class="field-saved field-saved--error">{% icon 'stop' %}{% translate "Escribe un número (coma o punto para los decimales)." %}</p>
     </li>
   </ol>
+  <h3>{% translate "Hallazgo en un ítem No OK" %}</h3>
+  <p class="muted">{% translate "«Avisar hallazgo» abre el formulario; el aviso se encola antes de «Completar» y el ítem muestra si está por enviar o avisado. Los ítems de medición muestran la variable que alimentan." %}</p>
+  <ol class="checklist mb-4">
+    <li class="check-item check-item--not_ok">
+      <p class="check-item__text"><span class="check-item__num">2.</span><span>{% translate "Registrar temperatura del rodamiento" %}</span></p>
+      <div class="row field-item-badges"><span class="badge badge--error">{% icon 'stop' %}{% translate "No OK" %}</span></div>
+      <p class="muted field-variable">{% translate "Alimenta" %} {% translate "Temperatura (°C) · Rodamiento" %}</p>
+      <div class="field-finding">
+        <button class="btn btn--secondary btn--lg" type="button" aria-expanded="true" aria-controls="ds-finding-form">{% icon 'alert' %}{% translate "Avisar hallazgo" %}</button>
+        <form class="field-finding__form" id="ds-finding-form">
+          <p class="help">{% translate "Crea una OT correctiva vinculada a este ítem; sus fotos se ven en ella." %}</p>
+          <div class="field">
+            <label for="ds-finding-description">{% translate "Descripción (opcional)" %}</label>
+            <textarea class="input" id="ds-finding-description" rows="3" maxlength="2000"></textarea>
+          </div>
+          <div class="field field--check">
+            <input id="ds-finding-stopped" type="checkbox">
+            <label for="ds-finding-stopped">{% translate "¿El equipo está detenido?" %}</label>
+          </div>
+          <div class="field-actions">
+            <button class="btn btn--primary btn--lg" type="button">{% icon 'alert' %}{% translate "Avisar hallazgo" %}</button>
+            <button class="btn btn--ghost btn--lg" type="button">{% icon 'x' %}{% translate "Cancelar" %}</button>
+          </div>
+        </form>
+      </div>
+    </li>
+    <li class="check-item check-item--not_ok">
+      <p class="check-item__text"><span class="check-item__num">3.</span><span>{% translate "Revisar fugas de aire en líneas" %}</span></p>
+      <div class="field-finding">
+        <p class="field-finding__state field-finding__state--warning">{% icon 'clock' %}{% translate "Hallazgo por enviar" %}</p>
+        <p class="field-finding__state field-finding__state--success">{% icon 'check' %}{% translate "Hallazgo avisado" %} · OT-C-00021 · {% translate "Solicitud N°" %} 19</p>
+      </div>
+    </li>
+  </ol>
   <h3>{% translate "Repuestos de la OT" %}</h3>
   <p class="muted">{% translate "Previstos con «Usar» (cantidad editable) y repuestos usados; los que esperan conexión llevan «Por enviar»." %}</p>
   <section class="card mb-4 field-parts" aria-labelledby="ds-field-parts">
