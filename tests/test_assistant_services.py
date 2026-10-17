@@ -29,7 +29,8 @@ Status = AssistantMessage.Status
 
 
 @pytest.fixture(autouse=True)
-def configured(settings):
+def configured(settings, tmp_path):
+    settings.MEDIA_ROOT = tmp_path
     settings.ANTHROPIC_API_KEY = "test-key"
     settings.AI_ASSISTANT_USE_QUEUE = False
     settings.AI_ASSISTANT_MAX_TOOL_ROUNDS = 6

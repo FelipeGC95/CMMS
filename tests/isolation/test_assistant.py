@@ -26,7 +26,8 @@ from tests.inventory_utils import make_work_order
 
 
 @pytest.fixture(autouse=True)
-def configured(settings, monkeypatch):
+def configured(settings, monkeypatch, tmp_path):
+    settings.MEDIA_ROOT = tmp_path
     settings.ANTHROPIC_API_KEY = "test-key"
     settings.AI_ASSISTANT_USE_QUEUE = False
     install(monkeypatch)
