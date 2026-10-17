@@ -23,6 +23,7 @@ dependencies = [
     "drf-spectacular>=0.30.0",
     "drf-spectacular-sidecar>=2026.9.1",
     "pypdf>=6.19.0",
+    "anthropic>=1.15.0",
 ]
 
 [dependency-groups]
