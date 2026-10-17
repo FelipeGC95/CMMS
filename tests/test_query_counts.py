@@ -1720,3 +1720,38 @@ def test_assistant_conversation_does_not_grow_with_messages(
     assert (_count(client, url), _count(client, thread)) == (few, few_thread)
     with django_assert_max_num_queries(20):
         assert client.get(url).status_code == 200
+
+
+def test_webhook_screens_do_not_grow_with_rows(client, tenant_a, monkeypatch, django_assert_max_num_queries):
+    """Webhooks (X-08): la lista de destinos y las últimas entregas, paginadas y sin N+1."""
+    from apps.webhooks import services as webhooks
+    from apps.webhooks.models import Event, WebhookDelivery
+
+    monkeypatch.setattr(webhooks, "resolve_host", lambda host, port: ["93.184.216.34"])
+    with tenant_context(tenant_a.org):
+        endpoint = webhooks.create_endpoint(
+            membership=tenant_a.admin,
+            name="ERP",
+            url="https://erp.example.com/",
+            events=[Event.WORK_ORDER_CREATED],
+        )
+
+    def add(n):
+        with tenant_context(tenant_a.org):
+            for i in range(n):
+                webhooks.create_endpoint(
+                    membership=tenant_a.admin, name=f"E{i}", url="https://x.example.com/", events=Event.values
+                )
+                payload = webhooks.build_payload(event_type=Event.WORK_ORDER_CREATED, data={})
+                WebhookDelivery.objects.create(
+                    endpoint=endpoint, event_id=payload["id"], event_type=payload["type"], payload=payload
+                )
+
+    login(client, tenant_a.admin)
+    urls = [reverse("webhook_list"), reverse("webhook_detail", args=[endpoint.pk])]
+    add(1)
+    few = [_count(client, url) for url in urls]
+    add(6)
+    assert [_count(client, url) for url in urls] == few
+    with django_assert_max_num_queries(20):
+        assert client.get(urls[1]).status_code == 200
