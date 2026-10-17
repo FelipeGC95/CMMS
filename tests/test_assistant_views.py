@@ -114,7 +114,7 @@ def test_start_creates_the_conversation_and_shows_the_answer_with_sources(
     assert response.status_code == 302 and response.url == reverse(
         "assistant_conversation", args=[conversation.pk]
     )
-    assert conversation.work_order == order and conversation.client_uuid == client_uuid
+    assert conversation.work_order_id == order.pk and conversation.client_uuid == client_uuid
 
     body = client.get(response.url).text
     assert "Revisa el rodamiento" in body
