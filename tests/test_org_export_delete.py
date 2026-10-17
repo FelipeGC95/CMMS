@@ -358,33 +358,55 @@ def test_purge_removes_condition_rows(tenant_a, tenant_b):
 
 
 def _assistant_data(tenant, settings, monkeypatch):
-    """Una conversación del asistente con su pregunta y respuesta pendiente (ADR-018)."""
+    """Una conversación del asistente con su pregunta (con foto) y respuesta pendiente (ADR-018)."""
+    from django.core.files.uploadedfile import SimpleUploadedFile
+
     from apps.assistant import services as assistant
     from tests.assistant_utils import install
+    from tests.conftest import tiny_jpeg_bytes
 
     settings.ANTHROPIC_API_KEY = "test-key"
     install(monkeypatch)
+    photo = SimpleUploadedFile("placa.jpg", tiny_jpeg_bytes(), content_type="image/jpeg")
     with tenant_context(tenant.org):
-        return assistant.start_conversation(membership=tenant.tech, asset=tenant.asset, text="Ruido")
+        return assistant.start_conversation(
+            membership=tenant.tech, asset=tenant.asset, text="Ruido", photo=photo
+        )
 
 
-def test_export_and_purge_include_assistant_tables(
+def test_export_and_purge_include_assistant_tables_and_photos(
     tenant_a, tenant_b, settings, monkeypatch, django_capture_on_commit_callbacks
 ):
+    # AI-05 CA3: conversaciones, mensajes y la foto de la pregunta entran a la exportación (X-03)
+    # y se borran con la organización (X-04).
     from apps.assistant.models import AssistantConversation, AssistantMessage
+    from apps.attachments.models import Attachment, TargetType
 
     conversation = _assistant_data(tenant_a, settings, monkeypatch)
-    _assistant_data(tenant_b, settings, monkeypatch)
+    other = _assistant_data(tenant_b, settings, monkeypatch)
+    with tenant_context(tenant_a.org):
+        question = conversation.messages.get(seq=1)
+        photo = Attachment.objects.get(target_type=TargetType.ASSISTANT_MESSAGE, target_id=question.pk)
+    with tenant_context(tenant_b.org):
+        other_photo = Attachment.objects.get(target_type=TargetType.ASSISTANT_MESSAGE)
     files = read_zip(_export(tenant_a, django_capture_on_commit_callbacks).file)
     (row,) = csv_rows(files["datos/assistant_assistantconversation.csv"])
     assert row["id"] == str(conversation.pk)
-    assert len(csv_rows(files["datos/assistant_assistantmessage.csv"])) == 2
+    messages = csv_rows(files["datos/assistant_assistantmessage.csv"])
+    assert len(messages) == 2
+    assert {m["text"] for m in messages} == {"Ruido", ""}
+    assert str(photo.pk) in next(m["content"] for m in messages if m["role"] == "user")
+    assert f"archivos/adjuntos/assistant_message/photo/{photo.pk}_placa.jpg" in files
+    assert not any(str(other_photo.pk) in name for name in files)
 
     org = _request_deletion(tenant_a)
     summary = purge.purge_organization(org)
     connection.check_constraints()
     assert summary["tables"]["assistant.assistantconversation"] == 1
     assert summary["tables"]["assistant.assistantmessage"] == 2
+    assert not default_storage.exists(photo.file.name)
+    assert default_storage.exists(other_photo.file.name)
     with platform_context():
         assert not AssistantMessage.all_tenants.filter(organization_id=org.pk).exists()
-        assert AssistantConversation.all_tenants.filter(organization_id=tenant_b.org.pk).count() == 1
+        assert not Attachment.all_tenants.filter(organization_id=org.pk).exists()
+        assert AssistantConversation.all_tenants.filter(organization_id=tenant_b.org.pk).get() == other
