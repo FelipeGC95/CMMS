@@ -354,6 +354,17 @@ def seed(*, assets, classes, members, now, open_work_order):
         "man": _source_id(ulma, 3),
         "temp": f"{sealing.current_value:.0f}",
     }
+    # La respuesta depende de la última lectura que dejó la demo de condición (no se inventa).
+    if 140 <= sealing.current_value <= 170:
+        refs["temp_note"] = "dentro"
+        refs["temp_advice"] = (
+            "Como falla solo una de cada diez bolsas, apunta más a la mordaza que a la temperatura."
+        )
+    else:
+        refs["temp_note"] = "fuera"
+        refs["temp_advice"] = (
+            "Corrígela primero; pero como falla solo una de cada diez bolsas, revisa también la mordaza."
+        )
     chat = _Conversation(
         membership=tech,
         asset=env,
@@ -370,9 +381,8 @@ def seed(*, assets, classes, members, now, open_work_order):
         ],
         "Esto ya pasó en esta envasadora: hace unas semanas la mordaza vertical no sellaba y las "
         "bolsas salían abiertas, y se atendió como desgaste de la mordaza [{ot}].\n\n"
-        "La temperatura de la mordaza vertical está en {temp} °C [{med}], dentro del rango de 140 a "
-        "170 °C del manual [{man}]. Como falla solo una de cada diez bolsas, apunta más a la "
-        "mordaza que a la temperatura.\n\n"
+        "La temperatura de la mordaza vertical está en {temp} °C [{med}], {temp_note} del rango de "
+        "140 a 170 °C del manual [{man}]. {temp_advice}\n\n"
         "Revisa en este orden [{man}]:\n"
         "1. Estado del teflón de la mordaza: si tiene quemaduras o cortes, cámbialo.\n"
         "2. Presión de cierre: debe estar entre 4 y 5 bar.\n"
@@ -479,8 +489,8 @@ def seed(*, assets, classes, members, now, open_work_order):
         "Partir y cortar a los pocos segundos son ciclos cortos. El manual los asocia al presostato "
         "de baja: falta de refrigerante por fuga, evaporador con hielo, válvula de expansión "
         "obstruida o presostato mal ajustado [{protections}].\n\n"
-        "La temperatura de la cámara venía estable en las lecturas registradas [{med}], así que el "
-        "problema es reciente.\n\n"
+        "Las lecturas de temperatura de la cámara venían estables hasta la última, que ya marca la "
+        "subida [{med}]: el problema es reciente.\n\n"
         "Para seguir con la OT [{ot}]:\n"
         "1. Mira el evaporador: ¿tiene hielo?\n"
         "2. Con manómetros, anota la presión de succión justo antes del corte.\n"
