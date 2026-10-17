@@ -183,14 +183,40 @@ def _failure_initial(work_order):
     }
 
 
-def _complete_form(work_order, data=None):
+def closing_assistant(request, work_order):
+    """Conversación propia con el asistente sobre la OT, si el plan incluye el módulo (AI-04)."""
+    if not work_order.is_open or not has_module(request.organization, "assistant"):
+        return None
+    from apps.assistant.selectors import closing_conversation
+
+    return closing_conversation(membership=request.membership, work_order=work_order)
+
+
+def _mark_assistant_helpful(request, assistant, helpful) -> None:
+    """Marca "¿Te sirvió?" elegida al cerrar (AI-04 CA2); no impide completar la OT."""
+    if assistant is None or not helpful or helpful == assistant.helpful:
+        return
+    from apps.assistant.services import mark_helpful
+
+    try:
+        mark_helpful(membership=request.membership, conversation=assistant, helpful=helpful)
+    except (ValidationError, PermissionDeniedError):
+        pass
+
+
+def _complete_form(work_order, data=None, *, assistant=None, use_summary=True):
     meter = work_order_meter(work_order)
     plan = work_order.plan_assignment.plan if work_order.plan_assignment_id else None
     # Los eventos de falla son por activo: una correctiva sobre una ubicación no los pide.
     with_failure = work_order.work_type == WorkOrder.Type.CORRECTIVE and work_order.asset_id is not None
+    initial = _failure_initial(work_order) if with_failure and data is None else {}
+    if data is None and use_summary and assistant is not None and assistant.summary_status == "done":
+        # Nota de cierre propuesta por el asistente (AI-04 CA1): pre-cargada y editable.
+        initial = {**(initial or {}), "notes": assistant.summary}
     return CompleteWorkOrderForm(
         data,
-        initial=_failure_initial(work_order) if with_failure and data is None else None,
+        initial=initial or None,
+        assistant=assistant,
         with_failure=with_failure,
         meter=meter,
         meter_required=bool(plan and plan.uses_meter and meter),
@@ -283,6 +309,8 @@ def _detail_context(request, work_order, complete_form=None, assignees_form=None
     pending_required = sum(1 for i in work_order.checklist.all() if i.required and not i.result)
     transitions = [s for s in targets if s != WorkOrder.Status.COMPLETED]
     parts = parts_context(request, work_order)
+    assistant = closing_assistant(request, work_order) if can_execute else None
+    use_summary = request.GET.get("summary") != "discard"
     if can_execute and planned_form is None and parts["inventory_enabled"]:
         planned_form = _planned_form(request, work_order, parts["planned_parts"])
     # Acción principal visible arriba: en ejecución, ir a completar (o al checklist si faltan
@@ -301,7 +329,12 @@ def _detail_context(request, work_order, complete_form=None, assignees_form=None
         "helpers": list(work_order.helpers.all()),
         "assignees_form": assignees_form if can_assign else None,
         "can_execute": can_execute,
-        "complete_form": complete_form or _complete_form(work_order),
+        "complete_form": complete_form
+        or _complete_form(work_order, assistant=assistant, use_summary=use_summary),
+        "assistant": assistant,
+        "assistant_summary_used": assistant is not None
+        and assistant.summary_status == "done"
+        and (use_summary if complete_form is None else False),
         "pending_required": pending_required,
         "costs_editable": work_order.status not in COST_LOCKED_STATUSES,
         "can_manage": can_manage,
@@ -462,7 +495,8 @@ def _save_checklist_note(request, item):
 @membership_required(perm=Perm.WORK_ORDER_EXECUTE)
 def work_order_complete_view(request, pk):
     work_order = _get_detail_or_404(request, pk)
-    form = _complete_form(work_order, request.POST)
+    assistant = closing_assistant(request, work_order)
+    form = _complete_form(work_order, request.POST, assistant=assistant)
     planned_form = _planned_form(request, work_order, planned_parts(work_order=work_order), request.POST)
     if form.is_valid() and (planned_form is None or planned_form.is_valid()):
         try:
@@ -490,6 +524,7 @@ def work_order_complete_view(request, pk):
             messages.error(request, " ".join(exc.messages))
         else:
             messages.success(request, _("%(code)s completada.") % {"code": work_order.code})
+            _mark_assistant_helpful(request, assistant, form.cleaned_data.get("assistant_helpful"))
             if work_order.signature_warning:  # cupo lleno: se completó sin la firma
                 messages.warning(request, work_order.signature_warning)
             return redirect("work_order_detail", pk=pk)

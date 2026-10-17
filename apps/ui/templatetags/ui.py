@@ -40,6 +40,10 @@ _ICONS = {
     "phone": '<rect x="6.5" y="2.5" width="11" height="19" rx="2"/><path d="M11 18h2"/>',
     "sync": '<path d="M19.5 9A8 8 0 0 0 5 7.5L4 9M4.5 15A8 8 0 0 0 19 16.5l1-1.5"/>'
     '<path d="M4 4.5V9h4.5M20 19.5V15h-4.5"/>',
+    # Asistente de diagnóstico (AI-01, AI-02): pedir ayuda y fuentes de manual y de medidor.
+    "chat": '<path d="M4 5h16v11H10l-5 4v-4H4z"/><path d="M8 9.5h8M8 12.5h5"/>',
+    "book": '<path d="M5 4.5h10a3 3 0 0 1 3 3V20H8a3 3 0 0 1-3-3z"/><path d="M5 17a3 3 0 0 1 3-3h10"/>',
+    "gauge": '<path d="M4 17a8 8 0 1 1 16 0"/><path d="M12 17l4-5"/>',
 }
 
 

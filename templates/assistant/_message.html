@@ -1,0 +1,24 @@
+{% load i18n ui %}
+<li class="chat__msg chat__msg--{{ message.role }}" id="msg-{{ message.seq }}">
+  <p class="chat__who">
+    {% if message.role == "user" %}{% icon 'user' %}<span>{% if conversation.started_by_id == user.pk %}{% translate "Tú" %}{% elif conversation.started_by %}{{ conversation.started_by }}{% else %}{% translate "Usuario" %}{% endif %}</span>
+    {% else %}{% icon 'chat' %}<span>{% translate "Asistente" %}</span>{% endif %}
+    {% if message.created_at %}<time class="muted" datetime="{{ message.created_at|date:'c' }}">{{ message.created_at|date:"d M H:i" }}</time>{% endif %}
+  </p>
+  {% if message.role == "user" %}
+    {% if message.text %}<p class="chat__text">{{ message.text|linebreaksbr }}</p>{% endif %}
+    {% if message.photos %}<ul class="chat__photos">{% for photo in message.photos %}<li><a href="{% url 'attachment' photo.pk %}"><img class="thumb" src="{% url 'attachment' photo.pk %}" alt="{% translate 'Foto de la pregunta' %}" loading="lazy"></a></li>{% endfor %}</ul>{% endif %}
+  {% elif message.status == "pending" %}
+    <p class="chat__status" role="status">{% icon 'clock' %}<span>{% translate "Pensando… revisando el historial y los manuales del equipo." %}</span></p>
+  {% elif message.status == "done" %}
+    {% for segment in message.segments %}
+    <div class="chat__segment">
+      <p class="chat__text">{{ segment.text|linebreaksbr }}</p>
+      {% if segment.is_general %}<p class="source source--general">{% icon 'info' %}<span>{% translate "Conocimiento general (menor confianza)" %}</span></p>
+      {% else %}<ul class="sources" aria-label="{% translate 'Fuentes' %}">{% for source in segment.sources %}<li>{% include "assistant/_source.html" %}</li>{% endfor %}</ul>{% endif %}
+    </div>
+    {% endfor %}
+  {% else %}
+    <div class="alert alert--error" role="alert">{% icon 'stop' %}<span>{{ message.error_text }}</span></div>
+  {% endif %}
+</li>

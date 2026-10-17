@@ -1,4 +1,4 @@
-{% extends "base.html" %}{% load i18n ui attachments %}
+{% extends "base.html" %}{% load i18n ui attachments accounts_tags %}
 {% block title %}{{ asset.code }}{% endblock %}
 {% block content %}
 <div class="page-header">
@@ -11,6 +11,7 @@
     {% if can_manage and not is_retired %}<a class="btn btn--secondary btn--lg" href="{% url 'asset_status' asset.pk %}">{% icon 'contrast' %}{% translate "Cambiar estado" %}</a>{% endif %}
     {% if can_manage %}<a class="btn btn--secondary btn--lg" href="{% url 'asset_edit' asset.pk %}">{% icon 'wrench' %}{% translate "Editar" %}</a>{% endif %}
     <a class="btn btn--ghost btn--lg" href="{% url 'asset_pdf' asset.pk %}">{% icon 'print' %}{% translate "PDF" %}</a>
+    {% if not is_retired and organization|has_module:"assistant" and membership|can:"assistant.use" %}<a class="btn btn--secondary btn--lg" href="{% url 'assistant_start' %}?asset={{ asset.pk }}">{% icon 'chat' %}{% translate "Pedir ayuda" %}</a>{% endif %}
     <a class="btn btn--primary btn--lg" href="{% url 'asset_report' asset.pk %}">{% icon 'megaphone' %}{% translate "Avisar falla" %}</a>
   </div>
 </div>

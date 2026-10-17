@@ -318,6 +318,28 @@ def mark_helpful(*, membership, conversation, helpful: str) -> AssistantConversa
     return conversation
 
 
+def close_conversation(*, membership, conversation) -> AssistantConversation:
+    """Da por terminada la conversación: ya no admite preguntas (se sigue pudiendo leer y marcar).
+
+    Solo quien la inició. Idempotente: cerrar una cerrada no cambia nada.
+    """
+    _require_access(membership)
+    _require_owner(membership, conversation)
+    with transaction.atomic():
+        conversation = AssistantConversation.objects.select_for_update().get(pk=conversation.pk)
+        if conversation.status == AssistantConversation.Status.CLOSED:
+            return conversation
+        conversation.status = AssistantConversation.Status.CLOSED
+        conversation.save(update_fields=["status", "updated_at"])
+        audit.record(
+            action=AuditEvent.Action.UPDATE,
+            target=conversation,
+            membership=membership,
+            changes={"status": ["open", "closed"]},
+        )
+    return conversation
+
+
 def expire_stale_messages(*, conversation, now=None) -> int:
     """Pasa a error los mensajes pendientes hace más de `STALE_AFTER` (worker caído o reiniciado)."""
     limit = (now or timezone.now()) - STALE_AFTER

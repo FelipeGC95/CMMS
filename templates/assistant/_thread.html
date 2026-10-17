@@ -1,0 +1,64 @@
+{% load i18n ui %}
+{# Mientras haya una respuesta o una nota pendiente, htmx vuelve a pedir este bloque cada 2 s; #}
+{# el bloque nuevo ya no trae el disparador cuando todo terminó (AI-01 CA5). #}
+<div id="thread" class="chat-thread"{% if pending %} hx-get="{% url 'assistant_thread' conversation.pk %}" hx-trigger="every 2s" hx-swap="outerHTML"{% endif %}>
+  <ol class="chat" aria-label="{% translate 'Mensajes' %}">
+    {% for message in turns %}{% include "assistant/_message.html" %}{% endfor %}
+  </ol>
+
+  {% if conversation.summary_status %}
+  <section class="card chat-summary" id="summary" aria-labelledby="summary-title">
+    <h2 id="summary-title">{% icon 'list' %}{% translate "Nota de cierre propuesta" %}</h2>
+    {% if conversation.summary_status == "pending" %}
+    <p class="chat__status" role="status">{% icon 'clock' %}<span>{% translate "Preparando la nota de cierre…" %}</span></p>
+    {% elif conversation.summary_status == "done" %}
+    <p class="chat__text">{{ conversation.summary|linebreaksbr }}</p>
+    {% if conversation.work_order and conversation.work_order.is_open and is_owner %}
+    <p class="help muted">{% translate "Aparece pre-cargada en el comentario de cierre al completar la OT: ahí la puedes editar o descartar." %}</p>
+    <a class="btn btn--secondary btn--lg" href="{% url 'work_order_detail' conversation.work_order.pk %}#complete-section">{% icon 'check' %}{% translate "Ir a completar la OT" %}</a>
+    {% endif %}
+    {% elif conversation.summary_status == "error" %}
+    <div class="alert alert--error" role="alert">{% icon 'stop' %}<span>{{ summary_error }}</span></div>
+    {% endif %}
+  </section>
+  {% endif %}
+
+  {% if is_owner and answered %}
+  <section class="card chat-actions" aria-labelledby="helpful-title">
+    <form method="post" action="{% url 'assistant_helpful' conversation.pk %}">
+      {% csrf_token %}
+      <fieldset class="helpful">
+        <legend id="helpful-title">{% translate "¿Te sirvió la ayuda?" %}</legend>
+        <div class="helpful__options">
+          {% for value, label in helpful_choices %}
+          <button class="btn btn--lg {% if conversation.helpful == value %}btn--primary{% else %}btn--secondary{% endif %}" type="submit" name="helpful" value="{{ value }}" aria-pressed="{% if conversation.helpful == value %}true{% else %}false{% endif %}">{% if value == "yes" %}{% icon 'check' %}{% elif value == "partial" %}{% icon 'dot' %}{% else %}{% icon 'x' %}{% endif %}{{ label }}</button>
+          {% endfor %}
+        </div>
+      </fieldset>
+    </form>
+    {% if configured and not pending and conversation.summary_status != "done" %}
+    <form method="post" action="{% url 'assistant_summary' conversation.pk %}" class="mt-4">
+      {% csrf_token %}
+      <button class="btn btn--secondary btn--lg btn--block" type="submit">{% icon 'list' %}{% translate "Proponer nota de cierre" %}</button>
+      <p class="help muted">{% translate "Resume el síntoma, la causa y la acción para dejarlos en el historial del equipo." %}</p>
+    </form>
+    {% endif %}
+  </section>
+  {% elif not is_owner %}
+  <p class="muted">{% icon 'info' %} {% translate "Estás consultando la conversación de otra persona: solo quien la inició puede preguntar." %}</p>
+  {% endif %}
+
+  {% if is_owner and is_open %}
+    {% if not configured %}
+    <div class="alert alert--warning" role="status" id="composer">{% icon 'alert' %}<span>{% translate "El asistente no está configurado. Avísale al administrador." %}</span></div>
+    {% elif pending %}
+    <p class="chat__status card" id="composer" role="status">{% icon 'clock' %}<span>{% translate "Espera la respuesta para volver a preguntar." %}</span></p>
+    {% elif form %}
+    <form class="card composer" id="composer" method="post" action="{% url 'assistant_ask' conversation.pk %}" enctype="multipart/form-data" novalidate>
+      {% csrf_token %}
+      {% include "assistant/_question_fields.html" %}
+      <button class="btn btn--primary btn--lg btn--block" type="submit">{% icon 'chat' %}{% translate "Enviar pregunta" %}</button>
+    </form>
+    {% endif %}
+  {% endif %}
+</div>
