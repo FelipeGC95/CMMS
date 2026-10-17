@@ -52,6 +52,7 @@ INSTALLED_APPS = [
     "apps.audit",
     "apps.notifications",
     "apps.api",
+    "apps.webhooks",
     "apps.ui",
     "apps.onboarding",
     "apps.field",
@@ -115,6 +116,9 @@ DOCUMENT_TEXT_USE_QUEUE = env_bool("DOCUMENT_TEXT_USE_QUEUE", False) and TASK_QU
 # Exportación completa (X-03): con DATA_EXPORT_USE_QUEUE=1 el ZIP lo arma el worker; si no, al pedirlo.
 DATA_EXPORT_USE_QUEUE = env_bool("DATA_EXPORT_USE_QUEUE", False) and TASK_QUEUE_ENABLED
 DATA_EXPORT_TTL_DAYS = 7
+# Webhooks salientes (X-08, ADR-030): con WEBHOOKS_USE_QUEUE=1 los envía el worker, con
+# reintentos y backoff; si no, un solo intento al confirmar la escritura (demo sin worker).
+WEBHOOKS_USE_QUEUE = env_bool("WEBHOOKS_USE_QUEUE", False) and TASK_QUEUE_ENABLED
 # Asistente de diagnóstico con IA (AI-01..05, ADR-018). Sin ANTHROPIC_API_KEY el asistente queda
 # "no configurado": se muestra, avisa y no falla. Con AI_ASSISTANT_USE_QUEUE=1 cada turno corre en
 # el worker; si no, en la misma petición (demo sin worker).

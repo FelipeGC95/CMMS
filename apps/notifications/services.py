@@ -429,6 +429,28 @@ def _deliver_condition_alert(*, alert_id) -> int:
     return len(created)
 
 
+def notify_webhook_disabled(*, endpoint) -> None:
+    """A quienes administran integraciones: el webhook se desactivó por fallas seguidas (X-08)."""
+    _on_commit(_deliver_webhook_disabled, endpoint_id=endpoint.pk)
+
+
+def _deliver_webhook_disabled(*, endpoint_id) -> int:
+    from apps.webhooks.models import WebhookEndpoint
+
+    endpoint = WebhookEndpoint.objects.filter(pk=endpoint_id).first()
+    if endpoint is None:
+        return 0
+    created = deliver(
+        kind=Kind.WEBHOOK_DISABLED,
+        memberships=[m for m in active_memberships() if has_perm(m, Perm.API_TOKEN_MANAGE)],
+        title=_("Webhook «%(name)s» desactivado") % {"name": endpoint.name},
+        body=_("%(count)s eventos seguidos sin respuesta correcta de %(url)s.")
+        % {"count": endpoint.consecutive_failures, "url": endpoint.url},
+        url=reverse("webhook_detail", args=[endpoint.pk]),
+    )
+    return len(created)
+
+
 # --- Vencimientos (resumen diario) ------------------------------------------------
 
 DUE_SOON_DAYS = 1  # "por vencer": vence hoy o mañana (dentro de ~24 h)

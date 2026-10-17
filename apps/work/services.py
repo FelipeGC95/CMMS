@@ -34,6 +34,8 @@ from apps.notifications.services import notify_work_order_scheduled as notify_sc
 from apps.organizations.models import Location
 from apps.organizations.modules import ModuleNotIncludedError, has_module
 from apps.ui.templatetags.ui import work_order_status_label
+from apps.webhooks.models import Event as WebhookEvent
+from apps.webhooks.services import emit_event
 
 from .models import (
     FailureCode,
@@ -262,6 +264,7 @@ def create_work_order(
         ),
     )
     notify_assignment(work_order=work_order, users=[assigned_to, *helpers], actor=by)
+    emit_event(event_type=WebhookEvent.WORK_ORDER_CREATED, instance=work_order)  # X-08
     return work_order
 
 
@@ -457,6 +460,7 @@ def report_failure(
         },
     )
     notify_request_created(work_request=request, actor=user)
+    emit_event(event_type=WebhookEvent.WORK_REQUEST_CREATED, instance=request)  # X-08
     if asset_stopped:
         failure = FailureEvent.objects.create(
             asset=asset,
@@ -518,6 +522,7 @@ def report_anonymous_failure(
         changes=audit.snapshot(request, fields={"number", "asset", "asset_stopped", "is_anonymous"}),
     )
     notify_request_created(work_request=request)
+    emit_event(event_type=WebhookEvent.WORK_REQUEST_CREATED, instance=request)  # X-08
     request.photo_warning = ""
     if photo is not None:
         try:
@@ -665,6 +670,7 @@ def transition(*, work_order: WorkOrder, to_status: str, membership, comment: st
             work_order=work_order, status__in=(R.PENDING, R.ACCEPTED)
         ):
             notify_request_resolved(work_request=work_request, actor=user)
+        emit_event(event_type=WebhookEvent.WORK_ORDER_COMPLETED, instance=work_order)  # X-08
     if to_status == S.COMPLETED and not work_order.organization.require_close_approval:
         _close(work_order=work_order, user=user, at=now)
     elif to_status == S.CLOSED:

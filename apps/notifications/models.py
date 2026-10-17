@@ -18,6 +18,7 @@ class Kind(models.TextChoices):
     DATA_EXPORT_READY = "data_export_ready", _("Exportación de datos lista")
     STOCK_LOW = "stock_low", _("Repuesto bajo mínimo")
     CONDITION_ALERT = "condition_alert", _("Alerta de condición")
+    WEBHOOK_DISABLED = "webhook_disabled", _("Webhook desactivado por fallas")
 
 
 class Notification(TenantModel):

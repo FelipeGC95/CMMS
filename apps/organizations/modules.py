@@ -51,6 +51,8 @@ MODULE_ROUTES = [
     (re.compile(r"^/reports/kpis/export\.xlsx$"), "exports"),
     (re.compile(r"^/reports/"), "kpis"),
     (re.compile(r"^/settings/api-tokens/"), "api"),
+    # Webhooks salientes (X-08, ADR-030): van con la API (Profesional y Empresa).
+    (re.compile(r"^/settings/webhooks/"), "api"),
     # Vista de terreno (ADR-011); el Service Worker y el manifest no llevan datos y quedan fuera.
     # /field/api/ responde en JSON: su módulo (`work_orders` o `requests`) lo revisa `FieldModule`.
     (re.compile(r"^/field/(?!sw\.js$|manifest\.webmanifest$|api/)"), "work_orders"),
