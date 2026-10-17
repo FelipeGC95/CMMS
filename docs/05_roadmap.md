@@ -264,7 +264,9 @@ KPIs ampliados están hechos.
 - Roles personalizados.
 - Cobro recurrente (Stripe, Mercado Pago o Flow) y autogestión del plan.
 - Traducción a inglés y portugués.
-- API ampliada, webhooks y tokens con más alcances.
+- API ampliada, webhooks y tokens con más alcances. *Parcial (2026-10):* webhooks
+  salientes v1 hechos (OT creada y completada, solicitud creada; X-08, ADR-030);
+  quedan la API ampliada, más eventos y tokens con más alcances.
 - Base de datos dedicada para el plan Empresa (si hay demanda).
 
 ## Riesgos del roadmap

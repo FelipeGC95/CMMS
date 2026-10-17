@@ -78,6 +78,7 @@ apps/
   reporting/            KPIs, exportaciones Excel/PDF
   audit/                AuditLog y registro automático
   notifications/        Notification, preferencias, envío de correo
+  webhooks/             (F3, ADR-030) WebhookEndpoint, WebhookDelivery, envío firmado con reintentos
   files/                Attachment, subida, compresión, URLs firmadas, uso por tenant
   api/                  routers DRF, autenticación por token, versión v1
   ui/                   layout base, componentes de plantilla, /design-system/
@@ -1455,3 +1456,64 @@ lleva `{id, name, path}`; los decimales van como texto; consultas acotadas
 - **Estado (2026-10):** aceptado e implementado (paquetes C0–C6); queda el
   paquete F1 (correctiva desde hallazgo sin conexión, WO-06 CA2), ver
   [05_roadmap.md](05_roadmap.md).
+
+### ADR-030 · Webhooks salientes firmados, con entregas registradas y defensa contra SSRF
+- **Contexto:** F3 pide webhooks ([05_roadmap.md](05_roadmap.md)). Hoy un ERP
+  o un chat que quiere enterarse de una OT nueva consulta la API cada cierto
+  tiempo (docs/08, "Lo que la API aún no hace"). Una sola persona opera el
+  sistema: el envío debe ser aburrido, observable y no abrir una puerta a la
+  red interna (SSRF), porque la URL la escribe el cliente.
+- **Decisión:**
+  1. **App `apps/webhooks`** con dos `TenantModel`: `WebhookEndpoint` (nombre,
+     URL https, `secret`, `events` como lista JSON, `is_active`,
+     `consecutive_failures`, `disabled_at`) y `WebhookDelivery` (una fila por
+     evento y destino: `event_id`, `event_type`, `payload`, `status`
+     pending/succeeded/failed, `attempts`, `response_status`, `last_error`,
+     `last_attempt_at`, `next_attempt_at`). Sin borrado físico: el destino se
+     desactiva. Índices que empiezan por `organization_id`;
+     `UNIQUE(organization_id, endpoint_id, event_id)`.
+  2. **Eventos v1:** `work_order.created`, `work_order.completed`,
+     `work_request.created`. `apps.work.services` llama explícitamente a
+     `webhooks.services.emit_event` (sin signals) en `create_work_order`,
+     `transition(... completed)`, `report_failure` y
+     `report_anonymous_failure`; el evento se arma en
+     `transaction.on_commit` dentro de `tenant_context`, con `data` serializado
+     con los serializers de la API v1 (mismos campos y formato). El estado en
+     `data` es el del momento del commit: una OT completada sin aprobación de
+     cierre llega como `closed`.
+  3. **Firma estilo Stripe:** `X-Galbust-Signature: t=<unix>,v1=<hex>` con
+     HMAC-SHA256 de `"<t>.<cuerpo>"` y el secreto del destino (`whsec_…`,
+     guardado en claro porque se necesita para firmar; nunca va a la
+     auditoría ni a la exportación X-03, que omiten campos `secret`). Además
+     `X-Galbust-Event` y `X-Galbust-Event-Id` (idempotencia en el receptor).
+  4. **Entrega:** `http.client` de la biblioteca estándar (sin dependencias
+     nuevas), timeout 5 s, 2xx = entregado, sin seguir redirecciones. Con
+     `WEBHOOKS_USE_QUEUE` (PostgreSQL + worker) cada intento es una tarea
+     Procrastinate `webhooks.deliver` que recibe `organization_id`; el
+     servicio programa el siguiente con `schedule_in` (1 min, 5 min, 30 min,
+     2 h; 5 intentos). Sin cola, igual que las demás tareas del repo
+     (`*_USE_QUEUE`), se intenta una vez al confirmar, sin reintentos.
+  5. **Desactivación:** 5 entregas agotadas seguidas desactivan el destino
+     (`disabled_at`), se audita y se avisa a los administradores con el tipo
+     de notificación `webhook_disabled` (X-02). Una entrega exitosa reinicia
+     el contador; reactivarlo desde la pantalla también.
+  6. **SSRF:** solo `https`; se rechazan `localhost`, `.local`, `.internal`,
+     `.lan`, `.home.arpa` y todo dominio que resuelva a alguna dirección no
+     global (`ipaddress.is_global`: privadas, loopback, link-local como
+     169.254.169.254, CGNAT, reservadas, multicast; también IPv4 mapeada en
+     IPv6). Se valida al guardar y en cada envío, y la conexión TLS va a la IP
+     ya validada con el SNI y el certificado del dominio (evita DNS
+     rebinding). Un destino inseguro al enviar falla sin reintento.
+  7. **Permiso y plan:** se reutiliza `api_token.manage` (solo
+     administradores: es la misma superficie de integración) y el módulo de
+     plan `api` (Profesional y Empresa), sin módulo ni migración de planes
+     nuevos. Sin el módulo no se disparan eventos ni se ve la pantalla.
+- **Consecuencias:**
+  - "Enviar prueba" (`webhook.test`) no reintenta ni cuenta para la
+    desactivación.
+  - La tabla de entregas crece con el uso; depurar entregas antiguas queda
+    para cuando haga falta (el listado está paginado e indexado).
+  - Sin worker (demo) un receptor lento suma hasta 5 s a la petición que
+    disparó el evento; en producción se activa `WEBHOOKS_USE_QUEUE`.
+- **Estado (2026-10):** aceptado e implementado (X-08). Fuera de v1: más
+  eventos, regenerar el secreto, reenviar a mano y ver el cuerpo enviado.

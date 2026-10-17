@@ -546,6 +546,77 @@ La forma completa de `bootstrap` y `snapshot` está en `apps/field/fixtures/demo
 
 `at`, `answered_at`, `taken_at` y `reported_at` (también en la v1, opcionales) se acotan a lo creíble: vacía o futura → ahora (2 minutos de tolerancia de reloj); más de 30 días atrás → ahora; anterior a la creación de la OT → la creación. Cuando se ajusta, la auditoría guarda la hora informada y el motivo.
 
+## Webhooks salientes (X-08)
+
+En vez de consultar la API cada cierto tiempo, tu sistema puede recibir un `POST` al instante cuando pasa algo. Se configuran en la web: **Más → Webhooks** (`/settings/webhooks/`), solo administradores y con el módulo `api` (planes Profesional y Empresa). Decisión y detalle: ADR-030.
+
+### Eventos
+
+| Evento | Cuándo sale | `data` |
+| --- | --- | --- |
+| `work_order.created` | Se crea una OT (web, API, terreno, preventiva automática, aviso de falla). | Igual que `GET /work-orders/{id}/` |
+| `work_order.completed` | Una OT pasa a completada. Si la organización no exige aprobación, `status` ya llega como `closed`. | Igual que `GET /work-orders/{id}/` |
+| `work_request.created` | Llega una solicitud (aviso de falla, con o sin cuenta). | Igual que `GET /requests/{id}/` |
+| `webhook.test` | Botón "Enviar prueba" de la pantalla. | `{"message": "GALBUST CMMS webhook test"}` |
+
+El evento sale cuando la escritura se confirma: si se revierte, no sale nada.
+
+### Cuerpo y cabeceras
+
+```http
+POST /tu-endpoint HTTP/1.1
+Content-Type: application/json
+User-Agent: GALBUST-CMMS-Webhooks/1
+X-Galbust-Event: work_order.created
+X-Galbust-Event-Id: 6b0f3a52-2f7e-4a8e-9a43-0c9d4c1f6a10
+X-Galbust-Signature: t=1760700000,v1=5f2c…e9
+
+{"id": "6b0f3a52-2f7e-4a8e-9a43-0c9d4c1f6a10",
+ "type": "work_order.created",
+ "created_at": "2026-10-17T14:20:00.123456Z",
+ "organization": {"id": "0192…", "slug": "planta-norte", "name": "Planta Norte"},
+ "data": {"id": "0192…", "code": "OT-C-0042", "status": "planned", "...": "..."}}
+```
+
+- `id` es único por evento y se repite en cada reintento: úsalo para no procesar dos veces lo mismo.
+- `created_at` va en UTC (ISO 8601 con `Z`).
+- Responde **2xx en menos de 5 segundos** (encola el trabajo pesado de tu lado). Las redirecciones no se siguen.
+
+### Verificar la firma
+
+`X-Galbust-Signature` trae `t` (segundos Unix del envío) y `v1`: HMAC-SHA256 en hexadecimal de `"<t>.<cuerpo crudo>"` con el secreto del webhook (`whsec_…`, visible solo para el administrador en la pantalla del webhook). Verifica sobre los bytes recibidos, antes de parsear el JSON, y rechaza firmas viejas:
+
+```python
+import hashlib
+import hmac
+import time
+
+TOLERANCE_SECONDS = 300
+
+
+def verify(secret: str, body: bytes, header: str) -> bool:
+    parts = dict(item.split("=", 1) for item in header.split(","))
+    timestamp, received = parts.get("t", ""), parts.get("v1", "")
+    if not timestamp.isdigit() or abs(time.time() - int(timestamp)) > TOLERANCE_SECONDS:
+        return False
+    expected = hmac.new(secret.encode(), f"{timestamp}.".encode() + body, hashlib.sha256).hexdigest()
+    return hmac.compare_digest(expected, received)
+
+
+# Django: verify(SECRET, request.body, request.headers["X-Galbust-Signature"])
+```
+
+### Reintentos y desactivación
+
+- Con el worker activo (`WEBHOOKS_USE_QUEUE=1`, docs/07) cada evento se intenta hasta 5 veces: inmediato y luego a 1 min, 5 min, 30 min y 2 h. Sin worker (demo) se intenta una sola vez.
+- Cuenta como falla todo lo que no sea 2xx, un timeout o un error de red.
+- Tras **5 eventos fallidos seguidos** el webhook se desactiva y los administradores reciben un aviso. Se reactiva desde su pantalla (marcar "Activo"), lo que reinicia el contador.
+- "Últimas entregas" muestra cada evento con su estado, intentos, código HTTP y último error.
+
+### URL permitidas
+
+Solo `https` y dominios públicos. Se rechazan, al guardar y en cada envío, `localhost`, `.local`/`.internal` y cualquier dominio que resuelva a una IP privada, de loopback, link-local (p. ej. `169.254.169.254`) o reservada.
+
 ## Lo que la API aún no hace
 
 La v1 cubre el flujo del técnico y las integraciones de datos; la configuración y la planificación siguen solo en la web.
@@ -558,7 +629,7 @@ La v1 cubre el flujo del técnico y las integraciones de datos; la configuració
 | Gestionar solicitudes | No se aceptan, rechazan ni fusionan avisos por la API. | Web (bandeja del planificador). |
 | Descargar archivos | Los adjuntos devuelven solo metadatos, nunca una URL. | Descarga desde la web con URL firmada. |
 | Borrado | No hay `DELETE` en ningún recurso (sin borrado físico por diseño). | Cancelar una OT con `transition` a `cancelled`. |
-| Notificaciones salientes | No hay webhooks: un sistema externo debe consultar periódicamente. | Consultar `GET /work-orders/?scope=open` o `GET /condition-alerts/?status=active` cada cierto tiempo. |
+| Más eventos salientes | Los webhooks v1 cubren solo OT creada, OT completada y solicitud creada (ver arriba). | Para alertas de condición u otros cambios, consultar `GET /condition-alerts/?status=active` o `GET /work-orders/?scope=open` cada cierto tiempo. |
 | Variables de condición | No se crean ni desactivan variables por la API (`GET /meters/` las lista). | Web (ficha del activo) o un ítem de medición del checklist enlazado a la variable. |
 | Bodegas, mínimos, reservas y devoluciones | Solo lectura de bodegas y stock; no se crean bodegas, no se fijan mínimos, no se reservan ni se devuelven repuestos por la API. | Web (`/inventory/` y el detalle de la OT). |
 | Token por usuario | El token actúa como integración (rol planificador), no como un técnico concreto. | Un token por app o integración, con nombre claro. |
@@ -567,4 +638,4 @@ La v1 cubre el flujo del técnico y las integraciones de datos; la configuració
 
 - Swagger UI: `/api/docs/` · esquema OpenAPI: `/api/schema/`.
 - Decisión y detalle técnico: ADR-005 en `docs/04_arquitectura.md`.
-- Código: `apps/api/v1.py` (endpoints), `apps/api/serializers.py` (campos), `apps/api/services.py` (tokens e idempotencia); terreno en `apps/api/field_views.py`, `apps/api/field.py` y `apps/api/field_serializers.py` (ADR-011).
+- Código: `apps/api/v1.py` (endpoints), `apps/api/serializers.py` (campos), `apps/api/services.py` (tokens e idempotencia); terreno en `apps/api/field_views.py`, `apps/api/field.py` y `apps/api/field_serializers.py` (ADR-011); webhooks en `apps/webhooks/services.py` (ADR-030).
