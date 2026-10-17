@@ -123,8 +123,8 @@ AI_ASSISTANT_MODEL = os.environ.get("AI_ASSISTANT_MODEL", "claude-opus-5-5")
 AI_ASSISTANT_EFFORT = os.environ.get("AI_ASSISTANT_EFFORT", "medium")
 AI_ASSISTANT_USE_QUEUE = env_bool("AI_ASSISTANT_USE_QUEUE", False) and TASK_QUEUE_ENABLED
 AI_ASSISTANT_MAX_TOKENS = int(os.environ.get("AI_ASSISTANT_MAX_TOKENS", "16000"))
-AI_ASSISTANT_MAX_TOOL_ROUNDS = 6
-AI_ASSISTANT_TIMEOUT_SECONDS = 300
+AI_ASSISTANT_MAX_TOOL_ROUNDS = int(os.environ.get("AI_ASSISTANT_MAX_TOOL_ROUNDS", "6"))
+AI_ASSISTANT_TIMEOUT_SECONDS = int(os.environ.get("AI_ASSISTANT_TIMEOUT_SECONDS", "300"))
 # USD por millón de tokens, para el costo estimado (AI-05 CA2). Se revisan al cambiar de modelo o
 # de precio; escribir al caché cuesta 1,25 veces la entrada (TTL de 5 minutos).
 AI_MODEL_PRICES_USD = {

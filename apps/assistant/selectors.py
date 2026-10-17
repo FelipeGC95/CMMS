@@ -13,16 +13,20 @@ sin índice GIN en v1); otros motores (SQLite local), `icontains`.
 
 import datetime
 import zoneinfo
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from decimal import Decimal
 
+from django.conf import settings
 from django.db import connection
-from django.db.models import Case, Q, Value, When
+from django.db.models import Case, Count, Q, Sum, Value, When
+from django.db.models.functions import TruncMonth
 from django.utils import timezone
 
 from apps.accounts.permissions import Perm, PermissionDeniedError, has_perm
 from apps.assets.models import Asset, MeterReading
 from apps.assets.selectors import visible_assets
 from apps.attachments.selectors import search_manual_pages, search_terms
+from apps.organizations.models import Organization
 from apps.work.models import FailureEvent, WorkOrder
 from apps.work.selectors import visible_work_orders
 
@@ -244,3 +248,111 @@ def open_work_orders(*, membership, asset, limit: int = RESULT_LIMIT):
         .filter(asset=asset, status__in=open_statuses)
         .order_by("-created_at")[:limit]
     )
+
+
+# --- Costo por organización y mes (AI-05 CA2) -------------------------------------------------
+
+MILLION = Decimal(1_000_000)
+USAGE_MONTHS = 12
+TOKEN_FIELDS = ("input_tokens", "output_tokens", "cache_read_tokens", "cache_creation_tokens")
+
+
+def message_cost_usd(
+    *, model: str, input_tokens: int, output_tokens: int, cache_read_tokens: int, cache_creation_tokens: int
+) -> Decimal | None:
+    """Costo estimado en USD con los precios por millón de `AI_MODEL_PRICES_USD`; None sin precio.
+
+    `input_tokens` de la API no incluye lo leído ni lo escrito en el caché: cada parte tiene su precio.
+    """
+    prices = settings.AI_MODEL_PRICES_USD.get(model)
+    if prices is None:
+        return None
+    total = (
+        input_tokens * Decimal(str(prices["input"]))
+        + output_tokens * Decimal(str(prices["output"]))
+        + cache_read_tokens * Decimal(str(prices["cache_read"]))
+        + cache_creation_tokens * Decimal(str(prices["cache_write"]))
+    )
+    return total / MILLION
+
+
+@dataclass
+class UsageRow:
+    organization_id: object
+    month: datetime.date
+    organization: str = ""
+    conversations: int = 0
+    replies: int = 0
+    input_tokens: int = 0
+    output_tokens: int = 0
+    cache_read_tokens: int = 0
+    cache_creation_tokens: int = 0
+    cost_usd: Decimal = Decimal(0)
+    models: list = field(default_factory=list)
+    unpriced: list = field(default_factory=list)  # modelos sin precio: el costo queda incompleto
+
+
+def usage_months_start(now=None, months: int = USAGE_MONTHS) -> datetime.datetime:
+    """Inicio (UTC) del mes calendario de hace `months - 1` meses."""
+    start = (now or timezone.now()).astimezone(datetime.UTC)
+    start = start.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    for _month in range(months - 1):
+        start = (start - datetime.timedelta(days=1)).replace(day=1)
+    return start
+
+
+def usage_by_organization_month(*, months: int = USAGE_MONTHS, now=None) -> list[UsageRow]:
+    """Tokens y costo estimado por organización y mes calendario (UTC), del mes más reciente al
+    más antiguo y, dentro del mes, de mayor a menor costo.
+
+    Solo para el superadmin de plataforma (admin de Django). Suma todas las respuestas del
+    asistente con tokens (turnos y notas de cierre, también las fallidas: la API las cobra igual).
+    """
+    start = usage_months_start(now, months)
+    month = TruncMonth("created_at", tzinfo=datetime.UTC)
+    # Plataforma (AI-05 CA2): el superadmin ve el costo de todas las organizaciones, a propósito
+    # sin contexto de tenant; `all_tenants` desactiva RLS solo para estas lecturas agregadas.
+    messages = (
+        AssistantMessage.all_tenants.filter(created_at__gte=start, role=AssistantMessage.Role.ASSISTANT)
+        .annotate(month=month)
+        .values("organization_id", "month", "model")
+        .annotate(replies=Count("pk"), **{name: Sum(name) for name in TOKEN_FIELDS})
+        .order_by()
+    )
+    conversations = (
+        AssistantConversation.all_tenants.filter(created_at__gte=start)
+        .annotate(month=month)
+        .values("organization_id", "month")
+        .annotate(count=Count("pk"))
+        .order_by()
+    )
+    rows: dict = {}
+
+    def row_for(organization_id, month_start) -> UsageRow:
+        key = (organization_id, month_start.date())
+        if key not in rows:
+            rows[key] = UsageRow(organization_id=organization_id, month=key[1])
+        return rows[key]
+
+    for item in messages:
+        row = row_for(item["organization_id"], item["month"])
+        tokens = {name: item[name] or 0 for name in TOKEN_FIELDS}
+        row.replies += item["replies"]
+        for name, value in tokens.items():
+            setattr(row, name, getattr(row, name) + value)
+        model = item["model"] or ""
+        if model and model not in row.models:
+            row.models.append(model)
+        cost = message_cost_usd(model=model, **tokens)
+        if cost is not None:
+            row.cost_usd += cost
+        elif any(tokens.values()):
+            row.unpriced.append(model or "?")
+    for item in conversations:
+        row_for(item["organization_id"], item["month"]).conversations += item["count"]
+
+    names = dict(Organization.objects.filter(pk__in={key[0] for key in rows}).values_list("pk", "name"))
+    for row in rows.values():
+        row.organization = names.get(row.organization_id, str(row.organization_id))
+        row.models.sort()
+    return sorted(rows.values(), key=lambda row: (-row.month.toordinal(), -row.cost_usd, row.organization))

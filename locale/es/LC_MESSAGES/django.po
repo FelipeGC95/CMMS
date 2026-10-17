@@ -10372,3 +10372,61 @@ msgstr ""
 
 msgid "¿Te sirvió la ayuda?"
 msgstr ""
+
+msgid "costo del asistente"
+msgstr ""
+
+msgid "Costo del asistente por organización y mes"
+msgstr ""
+
+msgid "Último mes calendario (UTC), por organización."
+msgid_plural "Últimos %(months)s meses calendario (UTC), por organización."
+msgstr[0] ""
+msgstr[1] ""
+
+msgid ""
+"Costo estimado con los precios por millón de tokens de AI_MODEL_PRICES_USD; "
+"la factura del proveedor es la referencia."
+msgstr ""
+
+msgid "Conversaciones"
+msgstr ""
+
+msgid "Respuestas"
+msgstr ""
+
+msgid "Tokens de entrada"
+msgstr ""
+
+msgid "Tokens de salida"
+msgstr ""
+
+msgid "Leídos del caché"
+msgstr ""
+
+msgid "Escritos al caché"
+msgstr ""
+
+msgid "Costo estimado (USD)"
+msgstr ""
+
+msgid "Modelos"
+msgstr ""
+
+msgid "incompleto: sin precio para"
+msgstr ""
+
+msgid "Aún no hay uso del asistente en este período."
+msgstr ""
+
+msgid "Precios usados (USD por millón de tokens)"
+msgstr ""
+
+msgid "Salida"
+msgstr ""
+
+msgid "Lectura de caché"
+msgstr ""
+
+msgid "Escritura de caché"
+msgstr ""

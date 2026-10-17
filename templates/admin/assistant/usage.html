@@ -1,0 +1,81 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+  <a href="{% url 'admin:index' %}">{% translate "Inicio" %}</a>
+  &rsaquo; <a href="{% url 'admin:app_list' app_label=opts.app_label %}">{{ opts.app_config.verbose_name }}</a>
+  &rsaquo; {{ opts.verbose_name_plural|capfirst }}
+</div>
+{% endblock %}
+
+{% block content %}
+<div id="content-main">
+  <p>{% blocktranslate trimmed count months=months %}Último mes calendario (UTC), por organización.{% plural %}Últimos {{ months }} meses calendario (UTC), por organización.{% endblocktranslate %}
+    {% translate "Costo estimado con los precios por millón de tokens de AI_MODEL_PRICES_USD; la factura del proveedor es la referencia." %}</p>
+  {% if rows %}
+  <div class="results">
+    <table id="result_list">
+      <thead>
+        <tr>
+          <th scope="col">{% translate "Mes" %}</th>
+          <th scope="col">{% translate "Organización" %}</th>
+          <th scope="col">{% translate "Conversaciones" %}</th>
+          <th scope="col">{% translate "Respuestas" %}</th>
+          <th scope="col">{% translate "Tokens de entrada" %}</th>
+          <th scope="col">{% translate "Tokens de salida" %}</th>
+          <th scope="col">{% translate "Leídos del caché" %}</th>
+          <th scope="col">{% translate "Escritos al caché" %}</th>
+          <th scope="col">{% translate "Costo estimado (USD)" %}</th>
+          <th scope="col">{% translate "Modelos" %}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+        <tr>
+          <td>{{ row.month|date:"Y-m" }}</td>
+          <td>{{ row.organization }}</td>
+          <td>{{ row.conversations|floatformat:"0g" }}</td>
+          <td>{{ row.replies|floatformat:"0g" }}</td>
+          <td>{{ row.input_tokens|floatformat:"0g" }}</td>
+          <td>{{ row.output_tokens|floatformat:"0g" }}</td>
+          <td>{{ row.cache_read_tokens|floatformat:"0g" }}</td>
+          <td>{{ row.cache_creation_tokens|floatformat:"0g" }}</td>
+          <td>{{ row.cost_usd|floatformat:"2g" }}{% if row.unpriced %} <strong>({% translate "incompleto: sin precio para" %} {{ row.unpriced|join:", " }})</strong>{% endif %}</td>
+          <td>{{ row.models|join:", " }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p>{% translate "Aún no hay uso del asistente en este período." %}</p>
+  {% endif %}
+
+  <h2>{% translate "Precios usados (USD por millón de tokens)" %}</h2>
+  <div class="results">
+    <table>
+      <thead>
+        <tr>
+          <th scope="col">{% translate "Modelo" %}</th>
+          <th scope="col">{% translate "Entrada" %}</th>
+          <th scope="col">{% translate "Salida" %}</th>
+          <th scope="col">{% translate "Lectura de caché" %}</th>
+          <th scope="col">{% translate "Escritura de caché" %}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for model, price in prices %}
+        <tr>
+          <td>{{ model }}</td>
+          <td>{{ price.input }}</td>
+          <td>{{ price.output }}</td>
+          <td>{{ price.cache_read }}</td>
+          <td>{{ price.cache_write }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
