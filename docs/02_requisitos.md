@@ -1013,9 +1013,9 @@ completo; inglés y portugués en F3.
 
 ## 10. Asistente de diagnóstico con IA (`AI`, F2)
 
-**Estado:** en curso (F2, 2026-10). Núcleo hecho (paquete A1: modelos,
-herramientas, servicios, cupo, permisos, tarea); faltan las pantallas (A2) y
-el seed, la vista de costo y el cierre de docs (A3). Decisiones en
+**Estado:** hecho (F2, 2026-10, paquetes A1–A3: núcleo, pantallas, demo y
+vista de costo). Lo que no entró está en "Fuera de v1" al final de esta
+sección y en ADR-018. Decisiones en
 [04_arquitectura.md](04_arquitectura.md), ADR-018; modelo en
 [03_modelo_de_datos.md](03_modelo_de_datos.md) §2.12; paquetes en
 [05_roadmap.md](05_roadmap.md).
@@ -1101,6 +1101,21 @@ historial y los manuales de ese equipo.
 - CA3: Conversaciones consultables por el administrador, incluidas en la
   exportación completa (X-03) y en el borrado de organización (X-04). Abrir
   una conversación y marcar si sirvió quedan en la auditoría.
+
+Implementado (2026-10, paquetes A1–A3): AI-01..AI-04 en `apps/assistant`
+(servicios, herramientas, `llm.py`, pantallas `/assistant/` y nota de cierre
+en el formulario de completar OT). AI-05 CA1 en `selectors.quota_status` y
+`Plan.max_assistant_conversations`; CA2 en el admin de Django → "Costo del
+asistente" (solo superadmin: tokens y costo estimado en USD por organización
+y mes calendario UTC, últimos 12 meses, con `AI_MODEL_PRICES_USD` incluida la
+lectura y escritura de caché; `selectors.usage_by_organization_month`); CA3:
+conversaciones, mensajes y la foto de la pregunta entran a la exportación y
+se borran en la purga (`tests/test_org_export_delete.py`). Demo (D3):
+`apps/core/management/commands/_seed_assistant.py` carga 3 manuales PDF con
+texto y 4 conversaciones ya respondidas en Alimentos del Sur (plan
+Profesional, que ya incluye el módulo: no se cambió el plan), con citas a OT,
+manuales y medidores validadas como en una respuesta real; una base demo sin
+asistente se recrea sola en Render (`seed_demo --reset-if-stale`).
 
 **Fuera de v1:** asistente sin conexión o dentro de la PWA `/field/` (a lo más
 un enlace cuando hay conexión); endpoints del asistente en la API v1;

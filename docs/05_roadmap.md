@@ -161,6 +161,10 @@ generan solas.
 
 ## F2 · Terreno y stock (~20 semanas, el orden se decide con el piloto)
 
+**Estado (2026-10-17):** F2 completa salvo las mejoras de UX que salgan del
+piloto: PWA offline, asistente IA, inventario, mantenimiento por condición y
+KPIs ampliados están hechos.
+
 - ✔ PWA offline para técnicos (X-06, ADR-011) — hecha (2026-10): `/field/`
   con cola, sincronización, conflictos, borrado al salir, horas de apoyo y
   e2e. Queda fuera de v1: QR, repuestos y correctiva desde hallazgo sin
@@ -169,9 +173,15 @@ generan solas.
   vista por defecto (se decide con el piloto) y asistente IA sin conexión.
   Después entraron los repuestos sin conexión (INV-13) y la correctiva desde
   hallazgo sin conexión (WO-06 CA2, paquete F1 de condición, 2026-10).
-- Asistente de diagnóstico con IA (AI-01..05, ADR-018): herramientas de
-  búsqueda con alcance, conversación en el worker, citas, cupos y conjunto de
-  evaluación con casos del piloto — 4 semanas. **En curso** (2026-10).
+- ✔ Asistente de diagnóstico con IA (AI-01..05, ADR-018) — hecho (2026-10,
+  paquetes A1–A3): herramientas de búsqueda con alcance, conversación en el
+  worker, citas validadas, foto, nota de cierre, "¿Te sirvió?", cupos por
+  plan, costo por organización y mes en el admin y demo con conversaciones
+  de ejemplo. Queda fuera de v1 (ver ADR-018): asistente sin conexión o en
+  `/field/`, endpoints en la API v1, voz propia, `pgvector`, índices GIN, OCR
+  de manuales escaneados, respuesta token a token, varias fotos o PDF por
+  pregunta y compartir conversaciones. El conjunto de evaluación se arma con
+  las marcas del piloto (comparar Opus 5.5 con Sonnet 5.5).
   - Diseño aprobado el 2026-10-17: AI-01..05 afinados
     ([02_requisitos.md](02_requisitos.md) §10), modelo en
     [03_modelo_de_datos.md](03_modelo_de_datos.md) §2.12 y ADR-018
@@ -184,9 +194,9 @@ generan solas.
 
     | Paquete | Contenido | Apps | Depende de | Inicio |
     |---|---|---|---|---|
-    | A1 · Docs + núcleo (en curso) | Docs 02/03/04/05; `apps/assistant` (modelos, migraciones, RLS), cupo en `Plan` + migración de datos, módulo y permisos, `TargetType` de la foto, selectores de búsqueda, herramientas, `llm.py`, servicios, tarea, ajustes; tests de servicio (cliente falso), aislamiento, RLS y permisos | assistant, organizations, accounts (permisos), attachments | — | al inicio |
-    | A2 · Pantallas | "Pedir ayuda" en la ficha del activo, por QR y en la OT; conversación (texto ≥ 16 px, foto, fuentes con ícono + texto, aviso de seguridad, consulta htmx, no configurado / cupo agotado); lista (propias; todas para el administrador) paginada; "Más"; design system; nota de cierre y "¿Te sirvió?" en el formulario de completar OT; query counts; capturas 360/1024/1440 | assistant (vistas), work, ui | A1 | tras A1 |
-    | A3 · Seed y cierre | `seed_demo` con conversaciones de ejemplo y plan con el módulo para la organización demo; exportación y purga; vista de costo en el admin; docs 07 (variables `ANTHROPIC_API_KEY`, `AI_ASSISTANT_*`), 08 si aplica y cierre de 02/03/05; recrear la demo de Render si hace falta | core, organizations, docs | A2 | al final |
+    | ✔ A1 · Docs + núcleo | Docs 02/03/04/05; `apps/assistant` (modelos, migraciones, RLS), cupo en `Plan` + migración de datos, módulo y permisos, `TargetType` de la foto, selectores de búsqueda, herramientas, `llm.py`, servicios, tarea, ajustes; tests de servicio (cliente falso), aislamiento, RLS y permisos (hecho 2026-10) | assistant, organizations, accounts (permisos), attachments | — | al inicio |
+    | ✔ A2 · Pantallas | "Pedir ayuda" en la ficha del activo, por QR y en la OT; conversación (texto ≥ 16 px, foto, fuentes con ícono + texto, aviso de seguridad, consulta htmx, no configurado / cupo agotado); lista (propias; todas para el administrador) paginada; "Más"; design system; nota de cierre y "¿Te sirvió?" en el formulario de completar OT; query counts; capturas 360/1024/1440 (hecho 2026-10) | assistant (vistas), work, ui | A1 | tras A1 |
+    | ✔ A3 · Seed y cierre | `seed_demo` con conversaciones de ejemplo y plan con el módulo para la organización demo; exportación y purga; vista de costo en el admin; docs 07 (variables `ANTHROPIC_API_KEY`, `AI_ASSISTANT_*`), 08 si aplica y cierre de 02/03/05; recrear la demo de Render si hace falta (hecho 2026-10) | core, organizations, docs | A2 | al final |
 - ✔ Inventario: repuestos, bodegas, stock mínimo, reservas y consumos — hecho
   (2026-10, paquetes P0–P7). Queda fuera de v1: órdenes de compra,
   proveedores como entidad, lotes y series, conversión de unidades, FIFO,

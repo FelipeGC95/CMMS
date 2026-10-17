@@ -253,7 +253,7 @@ Se **copian** a la organización al adoptarlas; nunca se referencian en vivo (un
 | Módulo | Tablas | Punto de enganche en el MVP |
 |---|---|---|
 | Condición (F2, implementado; §2.11, ADR-029) | Medidores (`meter`) con tipos variable (temperature, vibration, pressure, current, variable) y sus `meter_reading`; `condition_rule`, `condition_state`, `condition_alert`. Ya no `measurement_point`/`measurement`. | `meter` y `meter_reading` existentes (lecturas, CSV, API bulk, cierre de OT, terreno); `work_order.work_type = predictive`. |
-| Asistente IA (F2, en curso; §2.12, ADR-018) | `assistant_conversation`, `assistant_message` (núcleo implementado en el paquete A1). | `failure_event.description` (síntoma) y `work_order.completion_notes` (acción) capturados desde el MVP; `document_page` desde M1; búsqueda de texto completo calculada al consultar (sin índices GIN en v1). |
+| Asistente IA (F2, implementado; §2.12, ADR-018) | `assistant_conversation`, `assistant_message`. | `failure_event.description` (síntoma) y `work_order.completion_notes` (acción) capturados desde el MVP; `document_page` desde M1; búsqueda de texto completo calculada al consultar (sin índices GIN en v1). |
 | Offline (F2) | `sync_batch` (registro de lotes recibidos) | `client_uuid` en todas las tablas que escribe el técnico. |
 | SSO (F3) | tablas de allauth (`socialaccount`, config SAML por organización) | `user` global + `membership`. |
 | Facturación (F3) | `subscription`, `invoice` | `organization.plan_id`, cupos. |
@@ -329,13 +329,13 @@ CHECK alcance exactamente uno (`condition_rule_scope_exclusive`): `(meter_id IS 
 
 **Orden de migraciones:** `assets/00NN` (choices y largo de `meter.kind`) → `condition/0001` (rule, state, alert; depende de assets, work y la última de organizations) → `maintenance/00NN` (`plan_task_item.meter_kind`/`meter_name`, largo de `plan_version.meter_kind`) → `work/00NN` (campos del checklist de la OT) → `organizations/00NN` (datos: módulo `condition` en los planes) y `notifications/00NN` (choices).
 
-### 2.12 Asistente de diagnóstico con IA (F2, en curso)
+### 2.12 Asistente de diagnóstico con IA (F2, implementado)
 
 App nueva `apps/assistant` (ADR-018); las dos tablas heredan de `TenantModel`
 (RLS como el resto, ADR-026). Requisitos AI-01..AI-05 en
-[02_requisitos.md](02_requisitos.md) §10. Estado (2026-10-17): núcleo implementado
-(paquete A1, migración `assistant/0001`); pantallas (A2) y seed, exportación y costo (A3)
-pendientes.
+[02_requisitos.md](02_requisitos.md) §10. Estado (2026-10-17): implementado (paquetes
+A1–A3, migraciones `assistant/0001` y `assistant/0002`). Las dos tablas entran a la
+exportación completa y a la purga (X-03, X-04) como todo `TenantModel`; la foto, como adjunto.
 
 **`assistant_conversation`** (AI-01) — una consulta sobre un activo.
 `organization_id` · `asset_id` (PROTECT) · `work_order_id` (null, PROTECT; debe ser una OT del mismo activo) · `started_by_id` (null, SET_NULL) · `title` (200; primera línea de la pregunta) · `status` (open, closed) · `model` (80; fijo durante la conversación: el caché y el razonamiento preservado son por modelo) · `helpful` (yes, partial, no o vacío; AI-04 CA2) · `helpful_marked_at` · `summary` (texto; nota de cierre propuesta, AI-04 CA1) · `summary_status` (vacío, pending, done, error) · `client_uuid`.
@@ -362,13 +362,19 @@ pendientes.
   se sirve si la conversación es visible para quien la pide.
 - **Cupo:** conversaciones con `created_at` desde el inicio del mes calendario en la zona de
   la organización, contra `plan.max_assistant_conversations` (§2.1).
+- **Costo (AI-05 CA2):** sin tabla propia. `AssistantUsage` es un modelo *proxy* de
+  `assistant_message` (`assistant/0002`, sin cambios en la base) solo para la entrada del admin
+  de Django; el informe agrega `assistant_message` (respuestas) y `assistant_conversation` con
+  `all_tenants` por organización y mes calendario UTC (`TruncMonth`, sobre el índice
+  `(organization_id, created_at)`) y calcula el costo con `AI_MODEL_PRICES_USD`. Los proxies no
+  entran a RLS, exportación ni purga (se descubren solo modelos concretos).
 
 **Cambios en tablas existentes:** `plan.max_assistant_conversations` y módulo `assistant` en
 `plan.features` (§2.1), `attachment.target_type = assistant_message` (§2.7).
 
 **Orden de migraciones:** `organizations/0016` (cupo en `plan`) → `organizations/0017`
 (datos: módulo y cupos) · `attachments/0006` (choices) · `assistant/0001` (depende de
-assets, work y `organizations/0016`).
+assets, work y `organizations/0016`) → `assistant/0002` (proxy `AssistantUsage`, solo estado).
 
 ## 3. Diagrama ER (núcleo MVP + inventario F2)
 
