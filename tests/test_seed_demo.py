@@ -202,3 +202,145 @@ def test_reset_if_stale_keeps_up_to_date_demo():
     # Sin recrear: la misma organización (un flush la habría cambiado).
     assert Organization.objects.get(slug="alimentos-del-sur").pk == org_id
     assert _demo_has_inventory_and_condition()
+
+
+# --- Asistente de diagnóstico (AI-01..05, D3) ---------------------------------------------------
+
+
+@pytest.fixture(autouse=True)
+def media(settings, tmp_path):
+    # La demo sube los manuales PDF del asistente: a una carpeta temporal, no a media/ (todo el archivo).
+    settings.MEDIA_ROOT = tmp_path
+    return tmp_path
+
+
+def _demo():
+    from apps.accounts.models import Membership
+
+    org = Organization.objects.get(slug="alimentos-del-sur")
+    tech = Membership.objects.get(organization=org, user__email="tecnico@demo.cl")
+    return org, tech
+
+
+def test_demo_has_answered_assistant_conversations_with_valid_sources(media):
+    # D3: conversaciones ya respondidas, sin llamar a la API, con citas a OT, manuales y
+    # medidores del seed que pasan la misma validación que una respuesta real (AI-02 CA4).
+    from apps.assistant.citations import validate_citations
+    from apps.assistant.models import AssistantConversation, AssistantMessage
+    from apps.assistant.services import allowed_sources, module_enabled
+    from apps.attachments.models import DocumentPage
+    from apps.organizations.modules import has_module
+
+    call_command("seed_demo", verbosity=0)
+
+    org, _tech = _demo()
+    # D2: la organización demo sigue en Profesional, que incluye el módulo (y inventario y condición).
+    assert org.plan.code == "pro"
+    assert {"assistant", "inventory", "condition"} <= set(org.plan.features)
+    assert has_module(org, "assistant")
+    with tenant_context(org):
+        assert module_enabled()
+        conversations = list(AssistantConversation.objects.select_related("work_order"))
+        assert len(conversations) == 4
+        assert {"yes", "partial"} <= {c.helpful for c in conversations}
+        assert {c.status for c in conversations} == {"open", "closed"}
+        assert any(
+            c.status == "open"
+            and c.summary_status == "done"
+            and c.summary
+            and c.work_order
+            and c.work_order.status in OPEN_STATUSES
+            for c in conversations
+        )
+
+        types = set()
+        replies = AssistantMessage.objects.filter(role="assistant", kind="turn").select_related(
+            "conversation"
+        )
+        assert replies.exists()
+        for message in replies:
+            assert message.status == "done"
+            assert message.model == "claude-opus-5-5"
+            assert message.input_tokens and message.output_tokens
+            allowed = allowed_sources(conversation=message.conversation)
+            text, cited = validate_citations(message.text, allowed)
+            assert text == message.text  # ningún marcador inventado
+            assert cited == message.sources
+            for source in message.sources:
+                types.add(source["type"])
+                if source["type"] == "manual":
+                    assert DocumentPage.objects.filter(
+                        attachment_id=source["attachment_id"], page_number=source["page"]
+                    ).exists()
+        assert types == {"work_order", "manual", "meter"}
+        assert AssistantMessage.objects.filter(cache_read_tokens__gt=0).exists()
+        assert AssistantMessage.objects.filter(cache_creation_tokens__gt=0).exists()
+
+
+def test_demo_conversation_shows_linked_sources_and_closing_note(client, media):
+    from django.urls import reverse
+
+    from apps.assistant.models import AssistantConversation
+    from apps.assistant.selectors import closing_conversation
+
+    call_command("seed_demo", verbosity=0)
+
+    org, tech = _demo()
+    with tenant_context(org):
+        conversation = AssistantConversation.objects.get(status="open", summary_status="done")
+        work_order = conversation.work_order
+        manual_id = next(
+            s["attachment_id"]
+            for m in conversation.messages.filter(role="assistant")
+            for s in m.sources
+            if s["type"] == "manual"
+        )
+        assert closing_conversation(membership=tech, work_order=work_order) == conversation
+    client.force_login(tech.user)
+
+    page = client.get(reverse("assistant_conversation", args=[conversation.pk])).content.decode()
+    assert reverse("work_order_detail", args=[work_order.pk]) in page
+    assert reverse("attachment", args=[manual_id]) in page
+    assert "Conocimiento general" in page
+    assert client.get(reverse("attachment", args=[manual_id])).status_code == 200
+
+    # AI-04 CA1: al completar la OT aparece la nota de cierre propuesta.
+    page = client.get(reverse("work_order_detail", args=[work_order.pk])).content.decode()
+    assert "falta de refrigerante por fuga" in page
+
+
+def test_rerun_restores_missing_demo_manual_files(media):
+    # Render no tiene disco: los PDF de los manuales se pierden al dormir y el arranque los repone.
+    from apps.attachments.models import Attachment, Purpose
+
+    call_command("seed_demo", verbosity=0)
+    org, _tech = _demo()
+    with tenant_context(org):
+        manuals = list(Attachment.objects.filter(purpose=Purpose.MANUAL))
+    assert len(manuals) == 3
+    for manual in manuals:
+        manual.file.storage.delete(manual.file.name)
+
+    call_command("seed_demo", verbosity=0)
+
+    for manual in manuals:
+        assert manual.file.storage.exists(manual.file.name)
+        assert manual.file.storage.size(manual.file.name) == manual.size_bytes
+
+
+@pytest.mark.django_db(transaction=True)
+def test_reset_if_stale_recreates_demo_loaded_before_the_assistant(media):
+    from apps.assistant.models import AssistantConversation, AssistantMessage
+
+    call_command("seed_demo", verbosity=0)
+    org, _tech = _demo()
+    with tenant_context(org):
+        AssistantMessage.objects.all().delete()
+        AssistantConversation.objects.all().delete()
+
+    call_command("seed_demo", "--reset-if-stale", verbosity=0)
+
+    new_org, _tech = _demo()
+    assert new_org.pk != org.pk
+    with tenant_context(new_org):
+        assert AssistantConversation.objects.count() == 4
