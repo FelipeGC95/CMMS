@@ -28,6 +28,7 @@ Los nombres de tablas y campos están en inglés (convención de código, ver
 `code` (basic, pro, enterprise, trial) · `name` · `max_assets` · `max_users` (null = ilimitado) · `max_storage_mb` · `features JSONB` (lista de códigos de módulo) · `is_active`.
 Inventario (F2): una migración de datos agrega el módulo `inventory` a los planes Prueba, Profesional y Empresa (y a `plans.DEFAULT_PLANS`); Básico no lo incluye.
 Condición (F2, CBM-08): igual con el módulo `condition` (Prueba, Profesional y Empresa; Básico no).
+Asistente IA (F2, AI-05): `max_assistant_conversations` (conversaciones nuevas por mes calendario en la zona de la organización; null = sin límite) y módulo `assistant` solo en Profesional (100) y Empresa (500); la migración de datos `organizations/0017` los fija en los planes existentes sin pisar un cupo ya editado.
 
 **`organization`** (tenant raíz)
 `name` · `slug` (único) · `plan_id` · `status` (trial, active, suspended, pending_deletion, deleted) · `trial_ends_at` · `timezone` (IANA, ej. `America/Santiago`) · `locale` (`es-CL`) · `currency` · `primary_color` (#RRGGBB o vacío, ORG-09) · `mfa_policy` (admins_only, everyone, optional; ORG-08) · `logo` (clave de objeto) · `allow_anonymous_reports` (aviso por QR sin cuenta, REQ-02; columna propia, apagado por defecto) · `limits_override JSONB` · `settings JSONB` (ej. `require_close_approval`, `planning_horizon_days`, `status_labels`) · `storage_used_bytes BIGINT` · `deletion_requested_at` · `deletion_scheduled_for` · `deletion_requested_by_id` · `deleted_at` · `purge_summary JSONB` (borrado X-04: tras la purga la fila queda como lápida anonimizada, ADR-027).
@@ -191,7 +192,7 @@ MTBF/MTTR; si el problema resulta ser de un equipo, la OT se crea sobre él.
 ### 2.7 Transversales
 
 **`attachment`**
-`organization_id` · `target_type` (asset, asset_class, work_order, checklist_item, work_request) · `target_id` · `purpose` (photo, document, manual, signature; el logo es `organization.logo`, no un adjunto) · `storage_key` (campo `file`: `org/<org_id>/<uuid>.<ext>`) · `filename` · `content_type` · `size_bytes` · `width` · `height` · `sha256` · `uploaded_by_id` · `client_uuid`.
+`organization_id` · `target_type` (asset, asset_class, work_order, checklist_item, work_request, assistant_message) · `target_id` · `purpose` (photo, document, manual, signature; el logo es `organization.logo`, no un adjunto) · `storage_key` (campo `file`: `org/<org_id>/<uuid>.<ext>`) · `filename` · `content_type` · `size_bytes` · `width` · `height` · `sha256` · `uploaded_by_id` · `client_uuid`.
 Índice `(organization_id, target_type, target_id)`. Se usa referencia genérica (`target_type` + `target_id`) y no `GenericForeignKey` de Django, para mantener simple la exportación.
 
 **`document_page`** (M1, AST-06 CA3) — texto extraído de un manual, una fila por página.
@@ -252,7 +253,7 @@ Se **copian** a la organización al adoptarlas; nunca se referencian en vivo (un
 | Módulo | Tablas | Punto de enganche en el MVP |
 |---|---|---|
 | Condición (F2, implementado; §2.11, ADR-029) | Medidores (`meter`) con tipos variable (temperature, vibration, pressure, current, variable) y sus `meter_reading`; `condition_rule`, `condition_state`, `condition_alert`. Ya no `measurement_point`/`measurement`. | `meter` y `meter_reading` existentes (lecturas, CSV, API bulk, cierre de OT, terreno); `work_order.work_type = predictive`. |
-| Asistente IA (F2, ADR-018) | `assistant_conversation` (`asset_id`, `work_order_id`, `started_by_id`, `helpful`: yes/partial/no), `assistant_message` (`role`, `content JSONB`, `sources JSONB`, `model`, `input_tokens`, `output_tokens`, `cache_read_tokens`) | `failure_event.description` (síntoma) y `work_order.completion_notes` (acción) capturados desde el MVP; `document_page` desde M1; índices de texto completo sobre OT y fallas cuando se construya. |
+| Asistente IA (F2, en curso; §2.12, ADR-018) | `assistant_conversation`, `assistant_message` (núcleo implementado en el paquete A1). | `failure_event.description` (síntoma) y `work_order.completion_notes` (acción) capturados desde el MVP; `document_page` desde M1; búsqueda de texto completo calculada al consultar (sin índices GIN en v1). |
 | Offline (F2) | `sync_batch` (registro de lotes recibidos) | `client_uuid` en todas las tablas que escribe el técnico. |
 | SSO (F3) | tablas de allauth (`socialaccount`, config SAML por organización) | `user` global + `membership`. |
 | Facturación (F3) | `subscription`, `invoice` | `organization.plan_id`, cupos. |
@@ -327,6 +328,47 @@ CHECK alcance exactamente uno (`condition_rule_scope_exclusive`): `(meter_id IS 
 **Cambios en tablas existentes:** `meter.kind` (tipos variable, 20 caracteres; §2.3), `plan_version.meter_kind` (mismas choices: también pasa a 20 caracteres aunque el servicio rechace los tipos variable; §2.4), `plan_task_item.meter_kind`/`meter_name` (§2.4), `work_order_checklist_item.meter_kind`/`meter_name`/`meter_reading_id` (§2.5), `notification.kind = condition_alert` (§2.7) y módulo `condition` en `plan.features` (§2.1).
 
 **Orden de migraciones:** `assets/00NN` (choices y largo de `meter.kind`) → `condition/0001` (rule, state, alert; depende de assets, work y la última de organizations) → `maintenance/00NN` (`plan_task_item.meter_kind`/`meter_name`, largo de `plan_version.meter_kind`) → `work/00NN` (campos del checklist de la OT) → `organizations/00NN` (datos: módulo `condition` en los planes) y `notifications/00NN` (choices).
+
+### 2.12 Asistente de diagnóstico con IA (F2, en curso)
+
+App nueva `apps/assistant` (ADR-018); las dos tablas heredan de `TenantModel`
+(RLS como el resto, ADR-026). Requisitos AI-01..AI-05 en
+[02_requisitos.md](02_requisitos.md) §10. Estado (2026-10-17): núcleo implementado
+(paquete A1, migración `assistant/0001`); pantallas (A2) y seed, exportación y costo (A3)
+pendientes.
+
+**`assistant_conversation`** (AI-01) — una consulta sobre un activo.
+`organization_id` · `asset_id` (PROTECT) · `work_order_id` (null, PROTECT; debe ser una OT del mismo activo) · `started_by_id` (null, SET_NULL) · `title` (200; primera línea de la pregunta) · `status` (open, closed) · `model` (80; fijo durante la conversación: el caché y el razonamiento preservado son por modelo) · `helpful` (yes, partial, no o vacío; AI-04 CA2) · `helpful_marked_at` · `summary` (texto; nota de cierre propuesta, AI-04 CA1) · `summary_status` (vacío, pending, done, error) · `client_uuid`.
+`UNIQUE (organization_id, client_uuid)`. Índices `(organization_id, created_at DESC)` (cupo mensual y lista del administrador), `(organization_id, started_by_id, created_at DESC)`, `(organization_id, asset_id, created_at DESC)`, `(organization_id, work_order_id) WHERE work_order_id IS NOT NULL`. No se borra.
+
+**`assistant_message`** (AI-01..AI-05) — pregunta, respuesta o nota de cierre.
+`organization_id` · `conversation_id` (PROTECT) · `role` (user, assistant) · `kind` (turn, summary) · `seq` (orden en la conversación) · `text` (lo visible; en el asistente, sin los marcadores de fuente inválidos) · `content JSONB` (mensajes de la API tal cual) · `sources JSONB` · `tool_sources JSONB` · `status` (pending, done, error, refused) · `error_code` (40) · `model` (80; el que respondió, también tras un fallback) · `input_tokens` · `output_tokens` · `cache_read_tokens` · `cache_creation_tokens` · `tool_calls` · `completed_at` · `client_uuid`.
+`UNIQUE (organization_id, conversation_id, seq)`, `UNIQUE (organization_id, client_uuid)`. Índices `(organization_id, created_at)` (costo por mes, AI-05 CA2) y `(organization_id, status) WHERE status = 'pending'`.
+
+- **Historial append-only:** `content` de una pregunta es la lista de bloques enviada (el
+  contexto del activo como primer bloque con `cache_control` en la primera pregunta; la foto
+  como `{"type": "galbust_photo", "attachment_id": …}`, que se expande a imagen base64 al
+  enviar); el de una respuesta es la lista de mensajes `assistant` / `user` (resultados de
+  herramientas) de todo el turno, con los bloques de razonamiento, tal como se recibieron.
+  Cada turno reenvía los anteriores **sin editar** (Opus 5.5 invalida el razonamiento si se
+  edita el historial). Una respuesta con error o rechazada queda con `content` vacío y no se
+  reenvía; la nota de cierre (`kind = summary`) es una llamada aparte que no entra al historial.
+- **Fuentes:** en una pregunta, `sources` son las que el backend puso en el contexto del
+  activo; en una respuesta, `tool_sources` son las que devolvieron las herramientas en ese
+  turno y `sources` las citadas que se validaron contra todo lo entregado en la conversación
+  (las inventadas se descartan). Cada fuente: `id` (`OT-C-00012`, `MAN:<adjunto>:<página>`,
+  `MED:<medidor>`), `type` (work_order, manual, meter), `label` e ids para enlazar.
+- **Foto:** adjunto con `target_type = assistant_message` y `target_id` = la pregunta;
+  se sirve si la conversación es visible para quien la pide.
+- **Cupo:** conversaciones con `created_at` desde el inicio del mes calendario en la zona de
+  la organización, contra `plan.max_assistant_conversations` (§2.1).
+
+**Cambios en tablas existentes:** `plan.max_assistant_conversations` y módulo `assistant` en
+`plan.features` (§2.1), `attachment.target_type = assistant_message` (§2.7).
+
+**Orden de migraciones:** `organizations/0016` (cupo en `plan`) → `organizations/0017`
+(datos: módulo y cupos) · `attachments/0006` (choices) · `assistant/0001` (depende de
+assets, work y `organizations/0016`).
 
 ## 3. Diagrama ER (núcleo MVP + inventario F2)
 
