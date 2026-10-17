@@ -204,9 +204,18 @@ class CompleteWorkOrderForm(forms.Form):
 
     def __init__(
         self, *args, with_failure=False, meter=None, meter_required=False, require_failure_details=False,
-        asset=None, **kwargs,
+        asset=None, assistant=None, **kwargs,
     ):  # fmt: skip
         super().__init__(*args, **kwargs)
+        if assistant is not None:
+            # Conversación con el asistente sobre la OT (AI-04 CA2): ¿sirvió? también al cerrar.
+            self.fields["assistant_helpful"] = forms.ChoiceField(
+                label=_("¿Te sirvió el asistente?"),
+                choices=type(assistant).Helpful.choices,
+                required=False,
+                widget=forms.RadioSelect,
+                initial=assistant.helpful or None,
+            )
         if meter is None:
             del self.fields["meter_value"]
         else:

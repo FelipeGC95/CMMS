@@ -1,4 +1,4 @@
-{% extends "base.html" %}{% load i18n static ui %}
+{% extends "base.html" %}{% load i18n static ui accounts_tags %}
 {% block title %}{{ wo.code }}{% endblock %}
 {% block extra_head %}{% if can_execute %}<script src="{% static 'js/signature-pad.js' %}" defer></script>{% endif %}{% endblock %}
 {% block content %}
@@ -11,7 +11,10 @@
       {% if wo.due_on %}<span class="badge badge--neutral">{% icon 'calendar' %}{% translate "Límite" %} {{ wo.due_on|date:"d M Y" }}</span>{% endif %}
       {% if wo.due_meter_value is not None %}<span class="badge badge--neutral">{% icon 'clock' %}{% translate "Vence a" %} {{ wo.due_meter_value|num }} {{ wo.plan_assignment.meter.unit }}</span>{% endif %}
     </div>
-    <div class="row mt-2"><a class="btn btn--ghost" href="{% url 'work_order_pdf' wo.pk %}">{% icon 'print' %}{% translate "PDF" %}</a></div>
+    <div class="row mt-2"><a class="btn btn--ghost" href="{% url 'work_order_pdf' wo.pk %}">{% icon 'print' %}{% translate "PDF" %}</a>
+      {% if wo.asset_id and wo.is_open and organization|has_module:"assistant" and membership|can:"assistant.use" %}<a class="btn btn--secondary" href="{% url 'assistant_start' %}?asset={{ wo.asset_id }}&amp;work_order={{ wo.pk }}">{% icon 'chat' %}{% translate "Pedir ayuda" %}</a>{% endif %}
+      {% if assistant %}<a class="btn btn--ghost" href="{% url 'assistant_conversation' assistant.pk %}">{% icon 'chat' %}{% translate "Ver conversación" %}</a>{% endif %}
+    </div>
   </div>
   {% if complete_action or primary_transition or transitions %}
   {# Acción principal del estado actual arriba (también en el teléfono); transiciones secundarias al lado. #}
@@ -200,7 +203,16 @@
     {% if complete_form.symptom %}
     <div class="alert alert--info" role="note">{% icon 'info' %}<span>{% translate "¿Qué viste? ¿Qué hiciste? Escríbelo o díctalo con el micrófono del teclado: queda en el historial del equipo para la próxima falla." %}</span></div>
     {% endif %}
+    {% if assistant_summary_used %}
+    <div class="alert alert--info" role="note">{% icon 'chat' %}<span>{% translate "El comentario de cierre trae la nota que propuso el asistente. Revísala y corrígela antes de completar." %} <a href="?summary=discard#complete-section">{% translate "Descartar nota propuesta" %}</a> · <a href="{% url 'assistant_conversation' assistant.pk %}">{% translate "Ver conversación" %}</a></span></div>
+    {% endif %}
     {% for field in complete_form.visible_fields %}
+    {% if field.name == "assistant_helpful" %}
+    <fieldset class="check-group mt-4">
+      <legend>{% icon 'chat' %} {{ field.label }} <span class="muted">({% translate "opcional" %})</span></legend>
+      <div class="check-group__options">{% for choice in field %}<label class="check-group__option" for="{{ choice.id_for_label }}">{{ choice.tag }}<span>{{ choice.choice_label }}</span></label>{% endfor %}</div>
+    </fieldset>
+    {% else %}
     {% if field.name == "impact" %}<h3 class="mt-4">{% translate "Registro de falla" %}</h3>{% endif %}
     {% if field.name == "failure_started_at" %}<div class="field-pair">{% endif %}
     <div class="field{% if field.name == 'symptom' or field.name == 'notes' %} field--dictation{% endif %}">
@@ -210,6 +222,7 @@
       {% for error in field.errors %}<span class="error">{% icon 'stop' %}{{ error }}</span>{% endfor %}
     </div>
     {% if field.name == "failure_ended_at" %}</div>{% endif %}
+    {% endif %}
     {% endfor %}
     {% if planned_form and planned_form.planned %}
     <fieldset class="fieldset">

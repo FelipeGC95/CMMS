@@ -10205,3 +10205,170 @@ msgstr ""
 #: apps/organizations/models.py
 msgid "conversaciones del asistente por mes"
 msgstr ""
+
+#, python-format
+msgid "%(n)s conversación de la organización"
+msgid_plural "%(n)s conversaciones de la organización"
+msgstr[0] ""
+msgstr[1] ""
+msgstr[2] ""
+
+#, python-format
+msgid "%(n)s conversación tuya"
+msgid_plural "%(n)s conversaciones tuyas"
+msgstr[0] ""
+msgstr[1] ""
+msgstr[2] ""
+
+msgid "Antes de intervenir, aísla las energías con bloqueo y etiquetado (LOTO) y verifica energía cero. Nunca anules protecciones ni enclavamientos. La orientación del asistente no reemplaza tu criterio ni los procedimientos de la empresa: la decisión es tuya."
+msgstr ""
+
+msgid "Aparece pre-cargada en el comentario de cierre al completar la OT: ahí la puedes editar o descartar."
+msgstr ""
+
+msgid "Aún no hay conversaciones. Pide ayuda desde la ficha de un activo o desde una OT: el asistente busca en el historial y los manuales del equipo."
+msgstr ""
+
+msgid "Conocimiento general (menor confianza)"
+msgstr ""
+
+msgid "Conversación"
+msgstr ""
+
+msgid "Conversación cerrada."
+msgstr ""
+
+msgid "Conversación sobre un activo: aviso de seguridad siempre visible, pregunta sobre fondo hundido y respuesta por párrafos, cada uno con sus fuentes (ícono + texto, enlazadas) o marcado como conocimiento general. Pendiente y error con texto claro."
+msgstr ""
+
+msgid "Cuéntale qué mediste o revisaste. Puedes dictarlo."
+msgstr ""
+
+msgid "Descartar nota propuesta"
+msgstr ""
+
+msgid "Describe el síntoma con tus palabras. Puedes dictarlo con el micrófono del teclado."
+msgstr ""
+
+msgid "Ej: el motor hace ruido al partir y se calienta"
+msgstr ""
+
+msgid "Ej: revisé el rodamiento y está bien"
+msgstr ""
+
+msgid "El asistente ya conoce este equipo: clase, modelo, ubicación, medidores, fallas y OT recientes. Busca en el historial y los manuales de tu empresa y cita de dónde sale cada recomendación."
+msgstr ""
+
+msgid "El comentario de cierre trae la nota que propuso el asistente. Revísala y corrígela antes de completar."
+msgstr ""
+
+msgid "Elegir un activo"
+msgstr ""
+
+msgid "Enviar pregunta"
+msgstr ""
+
+msgid "Espera la respuesta para volver a preguntar."
+msgstr ""
+
+msgid "Estás consultando la conversación de otra persona: solo quien la inició puede preguntar."
+msgstr ""
+
+msgid "Foto de la pregunta"
+msgstr ""
+
+msgid "Fuentes"
+msgstr ""
+
+msgid "Gracias, quedó registrado si te sirvió."
+msgstr ""
+
+msgid "Iniciada por"
+msgstr ""
+
+msgid "Ir a completar la OT"
+msgstr ""
+
+#, python-format
+msgid "La conversación queda asociada a la %(code)s · %(title)s."
+msgstr ""
+
+msgid "Mensajes"
+msgstr ""
+
+msgid "Mis conversaciones"
+msgstr ""
+
+msgid "Mías"
+msgstr ""
+
+msgid "No sirvió"
+msgstr ""
+
+msgid "Nota de cierre propuesta"
+msgstr ""
+
+msgid "Pedir ayuda"
+msgstr ""
+
+#, python-format
+msgid "Pedir ayuda con %(name)s"
+msgstr ""
+
+msgid "Pensando… revisando el historial y los manuales del equipo."
+msgstr ""
+
+msgid "Placa, alarma o pieza dañada: una por pregunta."
+msgstr ""
+
+msgid "Preparando la nota de cierre…"
+msgstr ""
+
+msgid "Proponer nota de cierre"
+msgstr ""
+
+#, python-format
+msgid "Queda %(n)s conversación este mes."
+msgid_plural "Quedan %(n)s conversaciones este mes."
+msgstr[0] ""
+msgstr[1] ""
+msgstr[2] ""
+
+msgid "Qué conversaciones ver"
+msgstr ""
+
+msgid "Resume el síntoma, la causa y la acción para dejarlos en el historial del equipo."
+msgstr ""
+
+msgid "Sirvió"
+msgstr ""
+
+msgid "Sirvió en parte"
+msgstr ""
+
+msgid "Terminar conversación"
+msgstr ""
+
+msgid "Tu pregunta"
+msgstr ""
+
+msgid "Tus conversaciones sobre este equipo"
+msgstr ""
+
+msgid "Tú"
+msgstr ""
+
+msgid "Ver conversación"
+msgstr ""
+
+msgid "¿Necesitas orientación? Pedir ayuda al asistente"
+msgstr ""
+
+msgid "¿Qué pasa con el equipo?"
+msgstr ""
+
+msgid "¿Te sirvió el asistente?"
+msgstr ""
+
+msgid "¿Te sirvió la ayuda?"
+msgstr ""

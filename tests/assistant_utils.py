@@ -112,3 +112,33 @@ def install(monkeypatch, *outcomes) -> FakeClient:
     client = FakeClient(*outcomes)
     monkeypatch.setattr(llm, "get_client", lambda: client)
     return client
+
+
+def answered_conversation(tenant, monkeypatch, *, membership=None, work_order=None, answer=None):
+    """Conversación ya respondida con el cliente falso (sin cola ni on_commit).
+
+    Por defecto la respuesta cita la OT (abierta, va en el contexto del activo) en el primer
+    párrafo y deja un segundo párrafo sin fuente (conocimiento general).
+    """
+    from apps.assistant import services
+    from apps.assistant.models import AssistantMessage
+    from apps.core.tenancy import tenant_context
+
+    from .inventory_utils import make_work_order
+
+    membership = membership or tenant.tech
+    with tenant_context(tenant.org):
+        if work_order is None:
+            work_order = make_work_order(tenant, title="Ruido en rodamiento")
+        if answer is None:
+            answer = (
+                f"Revisa el rodamiento lado acople [{work_order.code}].\n\nTambién puede ser desalineación."
+            )
+        install(monkeypatch, reply(text(answer)))
+        conversation = services.start_conversation(
+            membership=membership, asset=work_order.asset, work_order=work_order, text="Hace ruido al partir"
+        )
+        pending = AssistantMessage.objects.get(conversation=conversation, seq=2)
+        services.run_turn(message=pending)
+        conversation.refresh_from_db()
+    return conversation

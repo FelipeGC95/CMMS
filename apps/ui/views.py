@@ -1,4 +1,5 @@
 import datetime
+import uuid
 from decimal import Decimal
 
 from django.contrib.auth.decorators import login_required
@@ -30,6 +31,7 @@ def design_system_view(request):
             "priorities": [WorkOrder(priority=p) for p in WorkOrder.Priority.values],
             "alert_statuses": [ConditionAlert(status=s) for s in ConditionAlert.Status.values],
             "variable_sample": _variable_sample(),
+            "assistant_sample": _assistant_sample(),
             "variable_statuses": [
                 VariableCondition(meter=Meter(), status=s)
                 for s in (
@@ -72,6 +74,54 @@ def _variable_sample() -> VariableCondition:
         since=since,
         until=until,
     )
+
+
+def _assistant_sample() -> dict:
+    """Conversación de ejemplo (sin guardar): respuesta con fuentes, general, pendiente y error."""
+    from apps.assistant.models import AssistantConversation, AssistantMessage
+    from apps.assistant.views import with_display
+
+    ids = [str(uuid.UUID(int=n)) for n in range(1, 4)]
+    sources = [
+        {
+            "id": "OT-C-00012",
+            "type": "work_order",
+            "label": "OT-C-00012 · Cambio de rodamiento",
+            "work_order_id": ids[0],
+        },
+        {
+            "id": f"MAN:{ids[1]}:14",
+            "type": "manual",
+            "label": "Manual bomba.pdf, p. 14",
+            "attachment_id": ids[1],
+            "page": 14,
+        },
+        {
+            "id": f"MED:{ids[2]}",
+            "type": "meter",
+            "label": "Temperatura rodamiento (°C)",
+            "meter_id": ids[2],
+            "asset_id": ids[2],
+        },
+    ]
+    text = (
+        "Revisa primero el rodamiento del lado acople: en marzo tuvo el mismo ruido [OT-C-00012].\n\n"
+        f"El manual pide reengrasar cada 2.000 h [MAN:{ids[1]}:14] y la temperatura sube "
+        f"[MED:{ids[2]}].\n\n"
+        "Si el ruido sigue con el equipo en vacío, puede ser desalineación."
+    )
+    Message = AssistantMessage
+    turns = [
+        Message(role="user", seq=1, text="El motor hace ruido al partir y se calienta."),
+        Message(role="assistant", seq=2, status="done", text=text, sources=sources),
+        Message(role="user", seq=3, text="¿Cómo reviso la alineación?"),
+        Message(role="assistant", seq=4, status="error", error_code="rate_limited"),
+        Message(role="assistant", seq=5, status="pending"),
+    ]
+    return {
+        "conversation": AssistantConversation(title="Ruido al partir", status="open", helpful="partial"),
+        "turns": with_display(turns),
+    }
 
 
 @cache_control(max_age=300)

@@ -1,0 +1,5 @@
+{% load i18n ui %}{# Fuente de una respuesta (AI-02 CA1): ícono + texto, enlazada. #}
+{% if source.type == "work_order" %}<a class="source" href="{% url 'work_order_detail' source.work_order_id %}">{% icon 'wrench' %}<span><span class="source__kind">{% translate "Historial" %}</span> {{ source.label }}</span></a>
+{% elif source.type == "manual" %}<a class="source" href="{% url 'attachment' source.attachment_id %}#page={{ source.page }}">{% icon 'book' %}<span><span class="source__kind">{% translate "Manual" %}</span> {{ source.label }}</span></a>
+{% elif source.type == "meter" %}<a class="source" href="{% url 'asset_detail' source.asset_id %}">{% icon 'gauge' %}<span><span class="source__kind">{% translate "Lecturas" %}</span> {{ source.label }}</span></a>
+{% endif %}

@@ -1,0 +1,35 @@
+{% extends "base.html" %}{% load i18n ui %}
+{% block title %}{% translate "Pedir ayuda" %}{% endblock %}
+{% block content %}
+<div class="narrow narrow--chat">
+  <p class="muted mono">{{ asset.code }}{% if work_order %} · {{ work_order.code }}{% endif %}</p>
+  <h1>{% blocktranslate with name=asset.name %}Pedir ayuda con {{ name }}{% endblocktranslate %}</h1>
+  <div class="row mb-4">{% status_badge asset %}{% if asset.location %}<span class="muted">{{ asset.location }}</span>{% endif %}</div>
+  {% if work_order %}<p class="muted">{% icon 'wrench' %} {% blocktranslate with code=work_order.code title=work_order.title %}La conversación queda asociada a la {{ code }} · {{ title }}.{% endblocktranslate %}</p>{% endif %}
+
+  {% include "assistant/_safety.html" %}
+
+  {% if not configured %}
+  <div class="alert alert--warning" role="status">{% icon 'alert' %}<span>{% translate "El asistente no está configurado. Avísale al administrador." %}</span></div>
+  {% elif quota.exhausted %}
+  <div class="alert alert--warning" role="status">{% icon 'alert' %}<span>{% blocktranslate with limit=quota.limit %}Se usaron las {{ limit }} conversaciones del asistente de este mes. El resto del sistema sigue funcionando; pide al administrador ampliar el plan.{% endblocktranslate %}</span></div>
+  {% else %}
+  <form class="card composer" method="post" enctype="multipart/form-data" novalidate>
+    {% csrf_token %}
+    <p class="muted">{% translate "El asistente ya conoce este equipo: clase, modelo, ubicación, medidores, fallas y OT recientes. Busca en el historial y los manuales de tu empresa y cita de dónde sale cada recomendación." %}</p>
+    {% include "assistant/_question_fields.html" %}
+    <button class="btn btn--primary btn--lg btn--block" type="submit">{% icon 'chat' %}{% translate "Pedir ayuda" %}</button>
+    {% if quota.limit is not None %}<p class="help muted mt-2">{% blocktranslate count n=quota.remaining %}Queda {{ n }} conversación este mes.{% plural %}Quedan {{ n }} conversaciones este mes.{% endblocktranslate %}</p>{% endif %}
+  </form>
+  {% endif %}
+
+  {% if recent %}
+  <section class="card mt-4" aria-labelledby="recent-title">
+    <h2 id="recent-title">{% translate "Tus conversaciones sobre este equipo" %}</h2>
+    <ul class="list list--nav">
+      {% for conversation in recent %}<li><a href="{% url 'assistant_conversation' conversation.pk %}">{% icon 'chat' %}<span>{{ conversation.title }} <span class="muted">· {{ conversation.created_at|date:"d M Y" }}</span></span></a></li>{% endfor %}
+    </ul>
+  </section>
+  {% endif %}
+</div>
+{% endblock %}

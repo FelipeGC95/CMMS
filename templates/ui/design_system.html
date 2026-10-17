@@ -151,6 +151,30 @@
   {% endwith %}
 </section>
 
+<section class="card mb-4" aria-labelledby="ds-assistant">
+  <h2 id="ds-assistant">{% translate "Asistente de diagnóstico" %}</h2>
+  <p class="muted">{% translate "Conversación sobre un activo: aviso de seguridad siempre visible, pregunta sobre fondo hundido y respuesta por párrafos, cada uno con sus fuentes (ícono + texto, enlazadas) o marcado como conocimiento general. Pendiente y error con texto claro." %}</p>
+  <div class="row mb-4"><a class="btn btn--secondary btn--lg" href="#ds-assistant">{% icon 'chat' %}{% translate "Pedir ayuda" %}</a>{% with conversation=assistant_sample.conversation %}{% include "assistant/_badges.html" %}{% endwith %}</div>
+  <div class="narrow--chat">
+    {% include "assistant/_safety.html" %}
+    {% with conversation=assistant_sample.conversation %}
+    <ol class="chat mb-4" aria-label="{% translate 'Mensajes' %}">
+      {% for message in assistant_sample.turns %}{% include "assistant/_message.html" %}{% endfor %}
+    </ol>
+    <section class="card chat-actions" aria-labelledby="ds-helpful">
+      <fieldset class="helpful">
+        <legend id="ds-helpful">{% translate "¿Te sirvió la ayuda?" %}</legend>
+        <div class="helpful__options">
+          <button class="btn btn--lg btn--secondary" type="button" aria-pressed="false">{% icon 'check' %}{% translate "Sí" %}</button>
+          <button class="btn btn--lg btn--primary" type="button" aria-pressed="true">{% icon 'dot' %}{% translate "En parte" %}</button>
+          <button class="btn btn--lg btn--secondary" type="button" aria-pressed="false">{% icon 'x' %}{% translate "No" %}</button>
+        </div>
+      </fieldset>
+    </section>
+    {% endwith %}
+  </div>
+</section>
+
 <section class="card mb-4" aria-labelledby="ds-wizard">
   <h2 id="ds-wizard">{% translate "Pasos de un asistente" %}</h2>
   <p class="muted">{% translate "Puesta en marcha: hecho, saltado o pendiente, con ícono + texto; el paso abierto lleva borde." %}</p>

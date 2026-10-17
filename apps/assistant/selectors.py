@@ -16,7 +16,7 @@ import zoneinfo
 from dataclasses import dataclass
 
 from django.db import connection
-from django.db.models import Q
+from django.db.models import Case, Q, Value, When
 from django.utils import timezone
 
 from apps.accounts.permissions import Perm, PermissionDeniedError, has_perm
@@ -71,6 +71,22 @@ def conversation_for(*, membership, pk) -> AssistantConversation | None:
         visible_conversations(membership=membership)
         .select_related("asset__asset_class", "asset__location", "work_order", "started_by")
         .filter(pk=pk)
+        .first()
+    )
+
+
+def closing_conversation(*, membership, work_order) -> AssistantConversation | None:
+    """Conversación propia sobre la OT que aporta al cierre (AI-04): la más reciente con nota
+    propuesta o, si ninguna la tiene, la más reciente. None sin permiso o sin conversación."""
+    if not can_use(membership) or work_order.asset_id is None:
+        return None
+    with_summary = Case(
+        When(summary_status=AssistantConversation.SummaryStatus.DONE, then=Value(0)), default=Value(1)
+    )
+    return (
+        visible_conversations(membership=membership)
+        .filter(work_order=work_order, started_by=membership.user)
+        .order_by(with_summary, "-created_at")
         .first()
     )
 

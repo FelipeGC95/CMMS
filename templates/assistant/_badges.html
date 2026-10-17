@@ -1,0 +1,3 @@
+{% load i18n ui %}{# Estado de la conversación y marca "¿Te sirvió?" (ícono + texto). #}
+{% if conversation.status == "open" %}<span class="badge badge--info">{% icon 'chat' %}{{ conversation.get_status_display }}</span>{% else %}<span class="badge badge--neutral">{% icon 'check' %}{{ conversation.get_status_display }}</span>{% endif %}
+{% if conversation.helpful == "yes" %}<span class="badge badge--success">{% icon 'check' %}{% translate "Sirvió" %}</span>{% elif conversation.helpful == "partial" %}<span class="badge badge--warning">{% icon 'dot' %}{% translate "Sirvió en parte" %}</span>{% elif conversation.helpful == "no" %}<span class="badge badge--neutral">{% icon 'x' %}{% translate "No sirvió" %}</span>{% endif %}

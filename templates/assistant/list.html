@@ -1,0 +1,42 @@
+{% extends "base.html" %}{% load i18n ui %}
+{% block title %}{% translate "Asistente de diagnóstico" %}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>{% translate "Asistente de diagnóstico" %}</h1>
+    <p class="muted">{% if show_all %}{% blocktranslate count n=page.paginator.count %}{{ n }} conversación de la organización{% plural %}{{ n }} conversaciones de la organización{% endblocktranslate %}{% else %}{% blocktranslate count n=page.paginator.count %}{{ n }} conversación tuya{% plural %}{{ n }} conversaciones tuyas{% endblocktranslate %}{% endif %}</p>
+  </div>
+  {% if can_view_all %}
+  <nav class="page-actions" aria-label="{% translate 'Qué conversaciones ver' %}">
+    <a class="btn {% if show_all %}btn--ghost{% else %}btn--secondary{% endif %}" href="{% url 'assistant_list' %}"{% if not show_all %} aria-current="page"{% endif %}>{% icon 'user' %}{% translate "Mías" %}</a>
+    <a class="btn {% if show_all %}btn--secondary{% else %}btn--ghost{% endif %}" href="{% url 'assistant_list' %}?scope=all"{% if show_all %} aria-current="page"{% endif %}>{% icon 'list' %}{% translate "Todas" %}</a>
+  </nav>
+  {% endif %}
+</div>
+
+<div class="card card--flush">
+  {% if page.object_list %}
+  <table class="table">
+    <thead><tr><th>{% translate "Conversación" %}</th><th>{% translate "Activo" %}</th><th>{% translate "OT" %}</th>{% if show_all %}<th>{% translate "Iniciada por" %}</th>{% endif %}<th>{% translate "Estado" %}</th><th class="num">{% translate "Fecha" %}</th></tr></thead>
+    <tbody>
+      {% for conversation in page.object_list %}
+      <tr>
+        <td data-label=""><a href="{% url 'assistant_conversation' conversation.pk %}">{{ conversation.title }}</a></td>
+        <td data-label="{% translate 'Activo' %}"><span class="mono">{{ conversation.asset.code }}</span> {{ conversation.asset.name }}</td>
+        <td data-label="{% translate 'OT' %}">{% if conversation.work_order %}<span class="mono">{{ conversation.work_order.code }}</span>{% else %}—{% endif %}</td>
+        {% if show_all %}<td data-label="{% translate 'Iniciada por' %}">{{ conversation.started_by|default:"—" }}</td>{% endif %}
+        <td data-label=""><div class="row">{% include "assistant/_badges.html" %}</div></td>
+        <td class="num" data-label="{% translate 'Fecha' %}">{{ conversation.created_at|date:"d M Y H:i" }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty">
+    <p>{% icon 'chat' %} {% translate "Aún no hay conversaciones. Pide ayuda desde la ficha de un activo o desde una OT: el asistente busca en el historial y los manuales del equipo." %}</p>
+    {% if can_use %}<a class="btn btn--primary btn--lg" href="{% url 'asset_list' %}">{% icon 'box' %}{% translate "Elegir un activo" %}</a>{% endif %}
+  </div>
+  {% endif %}
+</div>
+{% include "_pagination.html" %}
+{% endblock %}

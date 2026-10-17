@@ -1,0 +1,15 @@
+{% load i18n ui %}{# Pregunta: texto (dictado del teclado) y foto de la cámara; client_uuid evita duplicados. #}
+{{ form.client_uuid }}
+{% for error in form.non_field_errors %}<div class="alert alert--error" role="alert">{% icon 'stop' %}<span>{{ error }}</span></div>{% endfor %}
+<div class="field field--dictation chat-input">
+  <label for="{{ form.text.id_for_label }}">{{ form.text.label }}</label>
+  {{ form.text }}
+  <span class="help">{{ form.text.help_text }}</span>
+  {% for error in form.text.errors %}<span class="error">{% icon 'stop' %}{{ error }}</span>{% endfor %}
+</div>
+<div class="field">
+  <label for="{{ form.photo.id_for_label }}">{% icon 'camera' %} {{ form.photo.label }}</label>
+  {{ form.photo }}
+  <span class="help">{{ form.photo.help_text }}</span>
+  {% for error in form.photo.errors %}<span class="error">{% icon 'stop' %}{{ error }}</span>{% endfor %}
+</div>

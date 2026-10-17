@@ -27,6 +27,9 @@
     <button class="btn btn--primary btn--lg btn--block" type="submit">{% icon 'megaphone' %}{% translate "Enviar aviso" %}</button>
     <p class="help muted mt-2">{% translate "Se creará una orden de trabajo correctiva y se avisará a mantención." %}</p>
   </form>
+  {% if organization|has_module:"assistant" and membership|can:"assistant.use" %}
+  <a class="btn btn--secondary btn--lg btn--block mt-4" href="{% url 'assistant_start' %}?asset={{ asset.pk }}">{% icon 'chat' %}{% translate "¿Necesitas orientación? Pedir ayuda al asistente" %}</a>
+  {% endif %}
   {% if membership|can:"request.create" %}
   <p class="mt-4"><a href="{% url 'location_report' %}{% if asset.location_id %}?location={{ asset.location_id }}{% endif %}">{% icon 'megaphone' %}{% translate "¿No es un equipo? Avisar problema en una ubicación" %}</a></p>
   {% endif %}

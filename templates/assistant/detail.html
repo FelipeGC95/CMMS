@@ -1,0 +1,32 @@
+{% extends "base.html" %}{% load i18n ui %}
+{% block title %}{{ conversation.title }}{% endblock %}
+{% block content %}
+<div class="narrow narrow--chat">
+  <div class="page-header">
+    <div>
+      <p class="muted mono">{{ conversation.asset.code }}{% if conversation.work_order %} · {{ conversation.work_order.code }}{% endif %}</p>
+      <h1>{{ conversation.title }}</h1>
+      <div class="row">{% include "assistant/_badges.html" %}</div>
+    </div>
+  </div>
+  <dl class="dl chat-context">
+    <dt>{% translate "Activo" %}</dt><dd><a href="{% url 'asset_detail' conversation.asset.pk %}"><span class="mono">{{ conversation.asset.code }}</span> {{ conversation.asset.name }}</a></dd>
+    {% if conversation.work_order %}<dt>{% translate "OT" %}</dt><dd><a href="{% url 'work_order_detail' conversation.work_order.pk %}"><span class="mono">{{ conversation.work_order.code }}</span> {{ conversation.work_order.title }}</a></dd>{% endif %}
+    {% if not is_owner %}<dt>{% translate "Iniciada por" %}</dt><dd>{{ conversation.started_by|default:"—" }}</dd>{% endif %}
+  </dl>
+
+  {% include "assistant/_safety.html" %}
+
+  {% include "assistant/_thread.html" %}
+
+  <div class="row mt-4">
+    <a class="btn btn--ghost" href="{% url 'assistant_list' %}">{% icon 'list' %}{% translate "Mis conversaciones" %}</a>
+    {% if is_owner and is_open %}
+    <form method="post" action="{% url 'assistant_close' conversation.pk %}">
+      {% csrf_token %}
+      <button class="btn btn--ghost" type="submit">{% icon 'check' %}{% translate "Terminar conversación" %}</button>
+    </form>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
