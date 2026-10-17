@@ -26,6 +26,8 @@ class TargetType(models.TextChoices):
     ASSET_CLASS = "asset_class", _("Clase de activo")
     # Foto de un aviso anónimo por QR (REQ-02) hasta que se acepta; entonces pasa a la OT.
     WORK_REQUEST = "work_request", _("Solicitud")
+    # Foto de una pregunta al asistente de diagnóstico (AI-01 CA3): placa, alarma, pieza dañada.
+    ASSISTANT_MESSAGE = "assistant_message", _("Mensaje del asistente")
 
 
 class Purpose(models.TextChoices):

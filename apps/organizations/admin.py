@@ -30,7 +30,15 @@ class PlatformOnlyAdmin(admin.ModelAdmin):
 
 @admin.register(Plan)
 class PlanAdmin(PlatformOnlyAdmin):
-    list_display = ["name", "code", "max_assets", "max_users", "max_storage_mb", "is_active"]
+    list_display = [
+        "name",
+        "code",
+        "max_assets",
+        "max_users",
+        "max_storage_mb",
+        "max_assistant_conversations",
+        "is_active",
+    ]
 
 
 class OrganizationAdminForm(forms.ModelForm):

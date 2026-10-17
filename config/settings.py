@@ -47,6 +47,7 @@ INSTALLED_APPS = [
     "apps.work",
     "apps.inventory",
     "apps.condition",
+    "apps.assistant",
     "apps.reporting",
     "apps.audit",
     "apps.notifications",
@@ -114,6 +115,22 @@ DOCUMENT_TEXT_USE_QUEUE = env_bool("DOCUMENT_TEXT_USE_QUEUE", False) and TASK_QU
 # Exportación completa (X-03): con DATA_EXPORT_USE_QUEUE=1 el ZIP lo arma el worker; si no, al pedirlo.
 DATA_EXPORT_USE_QUEUE = env_bool("DATA_EXPORT_USE_QUEUE", False) and TASK_QUEUE_ENABLED
 DATA_EXPORT_TTL_DAYS = 7
+# Asistente de diagnóstico con IA (AI-01..05, ADR-018). Sin ANTHROPIC_API_KEY el asistente queda
+# "no configurado": se muestra, avisa y no falla. Con AI_ASSISTANT_USE_QUEUE=1 cada turno corre en
+# el worker; si no, en la misma petición (demo sin worker).
+ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
+AI_ASSISTANT_MODEL = os.environ.get("AI_ASSISTANT_MODEL", "claude-opus-5-5")
+AI_ASSISTANT_EFFORT = os.environ.get("AI_ASSISTANT_EFFORT", "medium")
+AI_ASSISTANT_USE_QUEUE = env_bool("AI_ASSISTANT_USE_QUEUE", False) and TASK_QUEUE_ENABLED
+AI_ASSISTANT_MAX_TOKENS = int(os.environ.get("AI_ASSISTANT_MAX_TOKENS", "16000"))
+AI_ASSISTANT_MAX_TOOL_ROUNDS = 6
+AI_ASSISTANT_TIMEOUT_SECONDS = 300
+# USD por millón de tokens, para el costo estimado (AI-05 CA2). Se revisan al cambiar de modelo o
+# de precio; escribir al caché cuesta 1,25 veces la entrada (TTL de 5 minutos).
+AI_MODEL_PRICES_USD = {
+    "claude-opus-5-5": {"input": 4.0, "output": 20.0, "cache_read": 0.20, "cache_write": 5.0},
+    "claude-sonnet-5-5": {"input": 2.0, "output": 10.0, "cache_read": 0.20, "cache_write": 2.5},
+}
 # Borrado de organización (X-04): días de gracia antes de la purga.
 ORGANIZATION_DELETION_GRACE_DAYS = 30
 
