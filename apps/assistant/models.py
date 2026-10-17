@@ -176,3 +176,16 @@ class AssistantMessage(TenantModel):
     @property
     def is_pending(self) -> bool:
         return self.status == self.Status.PENDING
+
+
+class AssistantUsage(AssistantMessage):
+    """Entrada del admin de Django con el costo por organización y mes (AI-05 CA2), solo superadmin.
+
+    Proxy sin tabla propia: no entra a la exportación, la purga ni RLS (que descubren los modelos
+    concretos).
+    """
+
+    class Meta:
+        proxy = True
+        verbose_name = _("costo del asistente")
+        verbose_name_plural = _("costo del asistente")

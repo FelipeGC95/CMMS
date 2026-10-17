@@ -3,7 +3,7 @@
 Uso: python manage.py seed_demo [--reset | --reset-if-stale]
 
 `--reset-if-stale` (lo usa Render en cada arranque) recrea la demo solo si le faltan datos de
-módulos posteriores a su carga (inventario, condición); si está al día no toca nada.
+módulos posteriores a su carga (inventario, condición, asistente); si está al día no toca nada.
 """
 
 import datetime
@@ -21,6 +21,7 @@ from apps.accounts.models import Membership, User
 from apps.accounts.services import create_user
 from apps.assets.models import Asset, AssetClass, AssetStatusPeriod, Meter, MeterKind
 from apps.assets.services import record_meter_reading
+from apps.assistant.models import AssistantConversation
 from apps.condition.models import ConditionRule
 from apps.core.tenancy import platform_context, tenant_context
 from apps.inventory.models import Part
@@ -32,6 +33,7 @@ from apps.work.models import FailureCode, FailureEvent, LaborRate, WorkOrder
 from apps.work.selectors import OPEN_STATUSES
 from apps.work.services import answer_checklist_item, complete_work_order, create_work_order
 
+from . import _seed_assistant as demo_assistant
 from . import _seed_condition as demo_condition
 from . import _seed_inventory as demo_inventory
 
@@ -266,7 +268,7 @@ class Command(BaseCommand):
         parser.add_argument(
             "--reset-if-stale",
             action="store_true",
-            help="Como --reset, pero solo si a la demo le faltan inventario o condición (Render).",
+            help="Como --reset, pero solo si a la demo le faltan inventario, condición o asistente (Render).",
         )
 
     def handle(self, *args, **options):
@@ -277,7 +279,7 @@ class Command(BaseCommand):
     def _seed(self, *args, reset=False, reset_if_stale=False, **options):
         random.seed(42)
         if reset_if_stale and self._is_stale():
-            self.stdout.write("La demo no tiene inventario o condición: se recrea completa.")
+            self.stdout.write("La demo no tiene inventario, condición o asistente: se recrea completa.")
             reset = True
         if reset:
             # Base de demo: se vacía completa. (El borrado de una organización real es X-04.)
@@ -287,7 +289,11 @@ class Command(BaseCommand):
             # día aunque los datos ya existan (modelos nuevos como versiones o auditoría).
             if admin := User.objects.filter(email="jefe@demo.cl").first():
                 self._grant_admin_permissions(admin)
-            self._assign_open_work_orders(Organization.objects.get(slug="alimentos-del-sur"))
+            demo = Organization.objects.get(slug="alimentos-del-sur")
+            self._assign_open_work_orders(demo)
+            # Render no tiene disco: los PDF de los manuales demo se pierden al dormir.
+            with tenant_context(demo):
+                demo_assistant.restore_manual_files()
             # Demo con usuarios compartidos: sin segundo factor obligatorio (ORG-08).
             Organization.objects.filter(slug__in=["alimentos-del-sur", "maestranza-norte"]).update(
                 mfa_policy=Organization.MfaPolicy.OPTIONAL
@@ -412,12 +418,16 @@ class Command(BaseCommand):
 
     @staticmethod
     def _is_stale() -> bool:
-        """¿La demo existe pero se cargó antes de inventario o condición? (Base de demo en Render.)"""
+        """¿La demo existe pero se cargó antes de inventario, condición o el asistente? (Render.)"""
         org = Organization.objects.filter(slug="alimentos-del-sur").first()
         if org is None:
             return False  # sin demo: se carga normal, no hay nada que vaciar
         with tenant_context(org):
-            return not (Part.objects.exists() and ConditionRule.objects.exists())
+            return not (
+                Part.objects.exists()
+                and ConditionRule.objects.exists()
+                and AssistantConversation.objects.exists()
+            )
 
     def _seed_main(self, org, members):
         now = timezone.now()
@@ -551,6 +561,10 @@ class Command(BaseCommand):
         # Preventivos vigentes (próximos 14 días y atrasados): reservan sus repuestos previstos.
         generate_due_work_orders(today=today)
         demo_inventory.finish()
+        # Asistente de diagnóstico (D3): manuales y conversaciones ya respondidas, sin la API.
+        demo_assistant.seed(
+            assets=assets, classes=classes, members=members, now=now, open_work_order=stopped.work_order
+        )
 
     def _corrective_checklist(self, work_order, members):
         """Checklist de la correctiva abierta (MVP-0: aviso por QR → OT → checklist en el celular)."""

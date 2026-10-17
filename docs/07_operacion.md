@@ -27,6 +27,14 @@ lo único nuevo que expone es `/readyz`. Decisión en ADR-020
 | `BACKUPS_ENABLED=1` | Respaldo diario (07:00 UTC) desde el worker. | La tarea diaria no hace nada. |
 | `BACKUP_DIR`, `BACKUP_RETENTION_DAYS` | Carpeta local de respaldos (sin R2) y retención. | `./backups`, `30`. |
 | `ACCOUNT_EMAIL_VERIFICATION` | Quitarla (queda `mandatory`) al tener proveedor de correo. | `mandatory`. |
+| `ANTHROPIC_API_KEY` | Clave de la API de Anthropic para el asistente de diagnóstico (AI, ADR-018). Secreto: solo en el panel de Render, nunca en el repo. | El asistente se muestra pero avisa "El asistente no está configurado" y no llama a la API (la demo). |
+| `AI_ASSISTANT_MODEL` | Modelo de las conversaciones nuevas (cada conversación guarda el suyo). Debe tener precio en `AI_MODEL_PRICES_USD`. | `claude-opus-5-5`. |
+| `AI_ASSISTANT_EFFORT` | Esfuerzo del modelo (`low`, `medium`, `high`…): más esfuerzo, respuestas más pensadas, más tokens y más espera. | `medium`. |
+| `AI_ASSISTANT_USE_QUEUE=1` | Cada turno del asistente corre en el worker (cola `assistant`). Requiere PostgreSQL y worker corriendo, en web y worker. | El turno corre en la misma petición (la página espera la respuesta). |
+| `AI_ASSISTANT_MAX_TOKENS` | Tope de tokens de salida por llamada (incluye el razonamiento). | `16000`. |
+| `AI_ASSISTANT_MAX_TOOL_ROUNDS` | Rondas de herramientas por turno; pasado el límite el modelo debe responder con lo reunido. | `6`. |
+| `AI_ASSISTANT_TIMEOUT_SECONDS` | Tiempo máximo de cada llamada a la API (con 2 reintentos del SDK). | `300`. |
+| `AI_MODEL_PRICES_USD` | No es variable de entorno: diccionario en `config/settings.py` con los USD por millón de tokens de cada modelo (entrada, salida, lectura y escritura de caché) para la vista de costo (§3g). Se actualiza en el código al cambiar de modelo o de precio. | — |
 | `API_RATE_LIMIT`, `FIELD_API_RATE_LIMIT` | Límite de peticiones de la API v1 (por token) y de la API de terreno `/field/api/` (por persona; formato DRF, p. ej. `600/min`). Una sincronización envía un cambio por petición: subirlo si un técnico con muchos cambios recibe 429 (el teléfono reintenta solo). | `600/min` y `600/min`. |
 
 Proveedor de correo (SMTP, ambos con plan gratuito para empezar):
@@ -53,6 +61,12 @@ Proveedor de correo (SMTP, ambos con plan gratuito para empezar):
   - lunes 09:00 UTC, `inventory.enqueue_reconciliation`: una tarea por
     organización activa que compara el stock con el libro de movimientos,
     sin corregir (INV-14, sección 3e).
+
+  Además atiende las colas de tareas a pedido (`email`, `documents`,
+  `notifications`, `assistant`…). El worker por defecto escucha todas; si los
+  turnos del asistente (hasta un par de minutos cada uno) atrasan al resto, se
+  levanta un segundo worker solo para él:
+  `python manage.py procrastinate worker --queues=assistant` (sección 3g).
 - **Migraciones:** `python manage.py migrate` en el *pre-deploy command*.
 - Diagnóstico de la cola: `python manage.py procrastinate healthchecks`.
 
@@ -229,6 +243,49 @@ Proveedor de correo (SMTP, ambos con plan gratuito para empezar):
   antes de condición se recrea sola en Render (`seed_demo --reset-if-stale`
   al arrancar); en local, `seed_demo --reset`.
 
+## 3g. Asistente de diagnóstico con IA (AI, ADR-018)
+
+- **Apagado hasta tener la clave:** sin `ANTHROPIC_API_KEY` el asistente se
+  ve (botón "Pedir ayuda", lista y conversaciones guardadas) pero avisa que no
+  está configurado; no falla ni llama a la API. Así queda la demo de Render.
+- **Activar (producción):**
+  1. Crear la clave en la consola de Anthropic (organización de GALBUST, con
+     límite de gasto mensual) y definir `ANTHROPIC_API_KEY` en el grupo de
+     variables de web y worker (`render.production.example.yaml` ya la pide,
+     `sync: false`).
+  2. Definir `AI_ASSISTANT_USE_QUEUE=1` en web y worker: el turno corre en el
+     worker (cola `assistant`) y la página consulta cada ~2 s. Sin worker, dejarla
+     en blanco: el turno corre dentro de la petición (gunicorn necesita
+     `--timeout` mayor que la respuesta más lenta; con 60 s una respuesta larga
+     se corta).
+  3. Probar con un usuario técnico: "Pedir ayuda" en la ficha de un activo con
+     historial; la respuesta debe citar OT o manuales con enlace.
+  4. Revisar el costo al día siguiente en el admin de Django → "Asistente de
+     diagnóstico" → "Costo del asistente".
+- **Módulo y cupo por plan:** `assistant` va solo en Profesional y Empresa,
+  con un cupo mensual de conversaciones nuevas por organización (100 y 500;
+  `Plan.max_assistant_conversations` en el admin, en blanco = sin límite). Al
+  agotarse se avisa y no se crea la conversación; el resto sigue igual.
+- **Costo (AI-05 CA2):** cada respuesta guarda modelo y tokens (entrada,
+  salida, leídos y escritos en caché). El admin de Django muestra al
+  superadmin de plataforma (solo a él) tokens y costo estimado en USD por
+  organización y mes calendario UTC de los últimos 12 meses, con los precios
+  por millón de tokens de `AI_MODEL_PRICES_USD` (`config/settings.py`). Al
+  cambiar de modelo o de precio se actualiza ese diccionario en el mismo
+  cambio; un modelo sin precio aparece como "incompleto". La factura del
+  proveedor es la referencia.
+- **Turno colgado:** si el worker se cae, el mensaje queda "Pensando…" y a
+  los 15 minutos pasa a error al abrir la conversación; el técnico vuelve a
+  preguntar. Las tareas no se reintentan solas (cobrarían dos veces).
+- **Demo:** `seed_demo` carga 3 manuales PDF con texto (envasadora, compresor
+  y unidad de frío) y 4 conversaciones ya respondidas con citas reales a OT,
+  manuales y medidores, en distintos estados (una abierta con nota de cierre
+  sobre la correctiva abierta de la cámara 1, que se ve al completarla como
+  `tecnico@demo.cl`), con tokens de ejemplo para la vista de costo. No llama
+  a la API. Render no tiene disco: cada arranque repone los PDF de los
+  manuales si faltan. Una base demo cargada antes del asistente se recrea sola
+  en Render (`seed_demo --reset-if-stale`).
+
 ## 4. Checklist para activar producción
 
 Cuando existan las cuentas, en este orden:
@@ -256,3 +313,6 @@ Cuando existan las cuentas, en este orden:
    archivo en `backups/` y hacer la primera prueba de restauración (§3).
 9. **Health check** de Render en `/readyz` para el web (o mantener
    `/healthz` si se prefiere no reiniciar ante caídas breves de la base).
+10. **Asistente IA (opcional):** `ANTHROPIC_API_KEY` y
+    `AI_ASSISTANT_USE_QUEUE=1` en web y worker; probar y revisar el costo
+    (§3g).

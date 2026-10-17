@@ -1,0 +1,65 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+  <a href="{% url 'admin:index' %}">{% translate "Inicio" %}</a>
+  &rsaquo; <a href="{% url 'admin:app_list' app_label=opts.app_label %}">{{ opts.app_config.verbose_name }}</a>
+  &rsaquo; {{ opts.verbose_name_plural|capfirst }}
+</div>
+{% endblock %}
+
+{% block content %}
+<div id="content-main">
+  <p>{% blocktranslate trimmed count months=months %}Último mes calendario (UTC), por organización.{% plural %}Últimos {{ months }} meses calendario (UTC), por organización.{% endblocktranslate %}
+    {% translate "Costo estimado con los precios por millón de tokens de AI_MODEL_PRICES_USD; la factura del proveedor es la referencia." %}</p>
+  {% if rows %}
+  {# Un bloque de dos columnas por organización y mes: cabe en 360 px sin scroll horizontal (ADR-017). #}
+  {% for row in rows %}
+  <div class="module">
+    <table>
+      <caption>{{ row.month|date:"Y-m" }} · {{ row.organization }}</caption>
+      <tbody>
+        <tr><th scope="row">{% translate "Costo estimado (USD)" %}</th><td><strong>{{ row.cost_usd|floatformat:"2g" }}</strong>{% if row.unpriced %} ({% translate "incompleto: sin precio para" %} {{ row.unpriced|join:", " }}){% endif %}</td></tr>
+        <tr><th scope="row">{% translate "Conversaciones" %}</th><td>{{ row.conversations|floatformat:"0g" }}</td></tr>
+        <tr><th scope="row">{% translate "Respuestas" %}</th><td>{{ row.replies|floatformat:"0g" }}</td></tr>
+        <tr><th scope="row">{% translate "Tokens de entrada" %}</th><td>{{ row.input_tokens|floatformat:"0g" }}</td></tr>
+        <tr><th scope="row">{% translate "Tokens de salida" %}</th><td>{{ row.output_tokens|floatformat:"0g" }}</td></tr>
+        <tr><th scope="row">{% translate "Leídos del caché" %}</th><td>{{ row.cache_read_tokens|floatformat:"0g" }}</td></tr>
+        <tr><th scope="row">{% translate "Escritos al caché" %}</th><td>{{ row.cache_creation_tokens|floatformat:"0g" }}</td></tr>
+        <tr><th scope="row">{% translate "Modelos" %}</th><td>{{ row.models|join:", " }}</td></tr>
+      </tbody>
+    </table>
+  </div>
+  {% endfor %}
+  {% else %}
+  <p>{% translate "Aún no hay uso del asistente en este período." %}</p>
+  {% endif %}
+
+  <h2>{% translate "Precios usados (USD por millón de tokens)" %}</h2>
+  <div class="results">
+    <table>
+      <thead>
+        <tr>
+          <th scope="col">{% translate "Modelo" %}</th>
+          <th scope="col">{% translate "Entrada" %}</th>
+          <th scope="col">{% translate "Salida" %}</th>
+          <th scope="col">{% translate "Lectura de caché" %}</th>
+          <th scope="col">{% translate "Escritura de caché" %}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for model, price in prices %}
+        <tr>
+          <td>{{ model }}</td>
+          <td>{{ price.input }}</td>
+          <td>{{ price.output }}</td>
+          <td>{{ price.cache_read }}</td>
+          <td>{{ price.cache_write }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

@@ -915,6 +915,23 @@ lleva `{id, name, path}`; los decimales van como texto; consultas acotadas
     la biblioteca de clases de activo de GALBUST hasta acumular OT propias.
   - Conversaciones y mensajes son modelos con tenant, en la auditoría y en
     la exportación completa (X-03).
+- **Estado (2026-10-17): implementado** (paquetes A1–A3). El costo estimado
+  por organización y mes (UTC, últimos 12 meses) es un informe del admin de
+  Django solo para el superadmin, sobre un modelo *proxy* de
+  `assistant_message` (sin tabla) que lee con `all_tenants`; los precios por
+  millón de tokens (entrada, salida, lectura y escritura de caché) están en
+  `AI_MODEL_PRICES_USD` y se actualizan en el código. La demo de Render no
+  tiene clave ni worker: `seed_demo` siembra manuales y conversaciones ya
+  respondidas armadas con el contexto y las herramientas reales (sin llamar
+  a la API) y "Pedir ayuda" avisa que no está configurado. Quedó fuera de v1:
+  asistente sin conexión o en `/field/` (a lo más un enlace), endpoints en la
+  API v1, reconocimiento de voz propio, `pgvector` y búsqueda semántica,
+  índices GIN de texto completo, OCR de manuales escaneados, respuesta token a
+  token en pantalla, varias fotos o PDF por pregunta, compartir
+  conversaciones entre técnicos, el conjunto de evaluación automatizado (se
+  arma con las marcas "¿Te sirvió?" del piloto para comparar Opus 5.5 con
+  Sonnet 5.5) y el costo en la moneda del cliente o con alertas de gasto (el
+  límite de gasto se fija en la consola del proveedor).
 
 ### ADR-019 · PDF con reportlab (Python puro), no WeasyPrint
 - **Contexto:** AST-05 CA2 pide etiquetas QR en lote, en PDF y varias por

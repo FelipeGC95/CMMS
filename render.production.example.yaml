@@ -45,6 +45,12 @@ envVarGroups:
         sync: false
       - key: DEFAULT_FROM_EMAIL
         sync: false
+      # Asistente de diagnóstico (AI, ADR-018): sin la clave se muestra y avisa
+      # "no configurado". Los turnos corren en el worker (cola `assistant`).
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: AI_ASSISTANT_USE_QUEUE
+        value: "1"
 
 services:
   - type: web
