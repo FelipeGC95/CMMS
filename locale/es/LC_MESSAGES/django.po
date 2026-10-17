@@ -9983,3 +9983,225 @@ msgstr ""
 #: templates/ui/design_system.html
 msgid "Escribe hasta 2.000 caracteres."
 msgstr ""
+
+#: apps/assistant/apps.py apps/organizations/modules.py
+msgid "Asistente de diagnóstico"
+msgstr ""
+
+#: apps/assistant/models.py
+msgid "¿sirvió?"
+msgstr ""
+
+#: apps/assistant/models.py
+msgid "marcada el"
+msgstr ""
+
+#: apps/assistant/models.py
+msgid "nota de cierre propuesta"
+msgstr ""
+
+#: apps/assistant/models.py
+msgid "estado de la nota"
+msgstr ""
+
+#: apps/assistant/models.py
+msgid "conversación del asistente"
+msgstr ""
+
+#: apps/assistant/models.py
+msgid "conversaciones del asistente"
+msgstr ""
+
+#: apps/assistant/models.py
+msgid "contenido de la API"
+msgstr ""
+
+#: apps/assistant/models.py
+msgid "fuentes"
+msgstr ""
+
+#: apps/assistant/models.py
+msgid "fuentes consultadas"
+msgstr ""
+
+#: apps/assistant/models.py
+msgid "código de error"
+msgstr ""
+
+#: apps/assistant/models.py
+msgid "tokens de entrada"
+msgstr ""
+
+#: apps/assistant/models.py
+msgid "tokens de salida"
+msgstr ""
+
+#: apps/assistant/models.py
+msgid "tokens leídos del caché"
+msgstr ""
+
+#: apps/assistant/models.py
+msgid "tokens escritos al caché"
+msgstr ""
+
+#: apps/assistant/models.py
+msgid "consultas a herramientas"
+msgstr ""
+
+#: apps/assistant/models.py
+msgid "terminado el"
+msgstr ""
+
+#: apps/assistant/models.py
+msgid "mensaje del asistente"
+msgstr ""
+
+#: apps/assistant/models.py
+msgid "mensajes del asistente"
+msgstr ""
+
+#: apps/assistant/models.py
+msgid "En parte"
+msgstr ""
+
+#: apps/assistant/models.py
+msgid "Sin nota propuesta"
+msgstr ""
+
+#: apps/assistant/models.py
+msgid "Nota en preparación"
+msgstr ""
+
+#: apps/assistant/models.py
+msgid "Nota propuesta"
+msgstr ""
+
+#: apps/assistant/models.py
+msgid "No se pudo proponer la nota"
+msgstr ""
+
+#: apps/assistant/models.py
+msgid "iniciada por"
+msgstr ""
+
+#: apps/assistant/models.py
+msgid "Asistente"
+msgstr ""
+
+#: apps/assistant/models.py
+msgid "Turno"
+msgstr ""
+
+#: apps/assistant/models.py
+msgid "Nota de cierre"
+msgstr ""
+
+#: apps/assistant/models.py
+msgid "Pensando"
+msgstr ""
+
+#: apps/assistant/models.py
+msgid "conversación"
+msgstr ""
+
+#: apps/assistant/services.py
+msgid "El asistente no está configurado. Avísale al administrador."
+msgstr ""
+
+#: apps/assistant/services.py
+msgid "El asistente está con mucha demanda. Inténtalo de nuevo en un minuto."
+msgstr ""
+
+#: apps/assistant/services.py
+msgid "El servicio del asistente no está disponible. Inténtalo de nuevo más tarde."
+msgstr ""
+
+#: apps/assistant/services.py
+msgid "El asistente no pudo responder esta pregunta. Inténtalo de nuevo."
+msgstr ""
+
+#: apps/assistant/services.py
+msgid "No hubo conexión con el servicio del asistente. Inténtalo de nuevo."
+msgstr ""
+
+#: apps/assistant/services.py
+msgid "La respuesta quedó demasiado larga. Haz una pregunta más acotada."
+msgstr ""
+
+#: apps/assistant/services.py
+msgid "El asistente no llegó a una respuesta. Reformula la pregunta."
+msgstr ""
+
+#: apps/assistant/services.py
+msgid "El asistente no puede responder esta pregunta."
+msgstr ""
+
+#: apps/assistant/services.py
+msgid "Ya no tienes acceso al asistente en esta organización."
+msgstr ""
+
+#: apps/assistant/services.py
+msgid "El asistente no está incluido en el plan de la organización."
+msgstr ""
+
+#: apps/assistant/services.py
+msgid "La respuesta tardó demasiado. Inténtalo de nuevo."
+msgstr ""
+
+#: apps/assistant/services.py
+msgid "Ocurrió un error inesperado. Inténtalo de nuevo."
+msgstr ""
+
+#: apps/assistant/services.py
+#, python-format
+msgid "Consulta sobre %(asset)s"
+msgstr ""
+
+#: apps/assistant/services.py
+msgid "Describe el síntoma o agrega una foto."
+msgstr ""
+
+#: apps/assistant/services.py
+msgid "Escribe tu pregunta o agrega una foto."
+msgstr ""
+
+#: apps/assistant/services.py
+msgid "La foto debe ser una imagen (JPEG, PNG o WebP)."
+msgstr ""
+
+#: apps/assistant/services.py
+msgid "Elige sí, en parte o no."
+msgstr ""
+
+#: apps/assistant/services.py
+msgid "La OT no corresponde a este activo."
+msgstr ""
+
+#: apps/assistant/services.py
+msgid "La conversación está cerrada."
+msgstr ""
+
+#: apps/assistant/services.py
+msgid "Espera la respuesta anterior antes de preguntar de nuevo."
+msgstr ""
+
+#: apps/assistant/services.py
+msgid "Espera la respuesta anterior antes de pedir la nota."
+msgstr ""
+
+#: apps/assistant/services.py
+msgid "Aún no hay respuestas para resumir."
+msgstr ""
+
+#: apps/assistant/services.py
+#, python-format
+msgid "Se usaron las %(limit)s conversaciones del asistente de este mes. El resto del sistema sigue funcionando; pide al administrador ampliar el plan."
+msgstr ""
+
+#: apps/attachments/models.py
+msgid "Mensaje del asistente"
+msgstr ""
+
+#: apps/organizations/models.py
+msgid "conversaciones del asistente por mes"
+msgstr ""

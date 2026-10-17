@@ -19,6 +19,10 @@ class Plan(TimeStampedModel):
     max_assets = models.PositiveIntegerField(_("máximo de activos"), null=True, blank=True)
     max_users = models.PositiveIntegerField(_("máximo de usuarios"), null=True, blank=True)
     max_storage_mb = models.PositiveIntegerField(_("almacenamiento máximo (MB)"), null=True, blank=True)
+    # Conversaciones nuevas del asistente por mes calendario (AI-05 CA1); en blanco = sin límite.
+    max_assistant_conversations = models.PositiveIntegerField(
+        _("conversaciones del asistente por mes"), null=True, blank=True
+    )
     features = models.JSONField(_("módulos incluidos"), default=list, blank=True)
     is_active = models.BooleanField(_("activo"), default=True)
 

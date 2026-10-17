@@ -40,6 +40,10 @@ def _target_is_visible(*, target_type: str, target_id, membership) -> bool:
         return visible_assets(membership=membership).filter(pk=target_id).exists()
     if target_type == TargetType.ASSET_CLASS:
         return selectors.visible_manuals(membership=membership).filter(target_id=target_id).exists()
+    if target_type == TargetType.ASSISTANT_MESSAGE:
+        from apps.assistant.selectors import message_is_visible
+
+        return message_is_visible(membership=membership, message_id=target_id)
     return False
 
 

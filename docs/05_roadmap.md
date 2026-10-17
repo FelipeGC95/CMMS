@@ -171,7 +171,22 @@ generan solas.
   hallazgo sin conexión (WO-06 CA2, paquete F1 de condición, 2026-10).
 - Asistente de diagnóstico con IA (AI-01..05, ADR-018): herramientas de
   búsqueda con alcance, conversación en el worker, citas, cupos y conjunto de
-  evaluación con casos del piloto — 4 semanas.
+  evaluación con casos del piloto — 4 semanas. **En curso** (2026-10).
+  - Diseño aprobado el 2026-10-17: AI-01..05 afinados
+    ([02_requisitos.md](02_requisitos.md) §10), modelo en
+    [03_modelo_de_datos.md](03_modelo_de_datos.md) §2.12 y ADR-018
+    actualizado. Claude Opus 5.5 con esfuerzo `medium` (se compara con
+    Sonnet 5.5 con las marcas del piloto); módulo `assistant` solo en
+    Profesional (100 conversaciones/mes) y Empresa (500); la demo trae
+    conversaciones ya respondidas y, sin clave de la API, avisa que no está
+    configurado.
+  - Paquetes (uno a la vez, por rama). Orden: A1 → A2 → A3.
+
+    | Paquete | Contenido | Apps | Depende de | Inicio |
+    |---|---|---|---|---|
+    | A1 · Docs + núcleo (en curso) | Docs 02/03/04/05; `apps/assistant` (modelos, migraciones, RLS), cupo en `Plan` + migración de datos, módulo y permisos, `TargetType` de la foto, selectores de búsqueda, herramientas, `llm.py`, servicios, tarea, ajustes; tests de servicio (cliente falso), aislamiento, RLS y permisos | assistant, organizations, accounts (permisos), attachments | — | al inicio |
+    | A2 · Pantallas | "Pedir ayuda" en la ficha del activo, por QR y en la OT; conversación (texto ≥ 16 px, foto, fuentes con ícono + texto, aviso de seguridad, consulta htmx, no configurado / cupo agotado); lista (propias; todas para el administrador) paginada; "Más"; design system; nota de cierre y "¿Te sirvió?" en el formulario de completar OT; query counts; capturas 360/1024/1440 | assistant (vistas), work, ui | A1 | tras A1 |
+    | A3 · Seed y cierre | `seed_demo` con conversaciones de ejemplo y plan con el módulo para la organización demo; exportación y purga; vista de costo en el admin; docs 07 (variables `ANTHROPIC_API_KEY`, `AI_ASSISTANT_*`), 08 si aplica y cierre de 02/03/05; recrear la demo de Render si hace falta | core, organizations, docs | A2 | al final |
 - ✔ Inventario: repuestos, bodegas, stock mínimo, reservas y consumos — hecho
   (2026-10, paquetes P0–P7). Queda fuera de v1: órdenes de compra,
   proveedores como entidad, lotes y series, conversión de unidades, FIFO,

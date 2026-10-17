@@ -1013,45 +1013,101 @@ completo; inglés y portugués en F3.
 
 ## 10. Asistente de diagnóstico con IA (`AI`, F2)
 
-Ver [04_arquitectura.md](04_arquitectura.md), ADR-018. Módulo por plan.
+**Estado:** en curso (F2, 2026-10). Núcleo hecho (paquete A1: modelos,
+herramientas, servicios, cupo, permisos, tarea); faltan las pantallas (A2) y
+el seed, la vista de costo y el cierre de docs (A3). Decisiones en
+[04_arquitectura.md](04_arquitectura.md), ADR-018; modelo en
+[03_modelo_de_datos.md](03_modelo_de_datos.md) §2.12; paquetes en
+[05_roadmap.md](05_roadmap.md).
+
+Decisiones de producto (2026-10-17):
+- Modelo por defecto Claude Opus 5.5 (`claude-opus-5-5`, ajuste
+  `AI_ASSISTANT_MODEL`) con esfuerzo `medium` (`AI_ASSISTANT_EFFORT`); se
+  compara con Claude Sonnet 5.5 usando las marcas "¿Te sirvió?" del piloto (D1).
+- Módulo de plan `assistant` ("Asistente de diagnóstico") solo en Profesional
+  y Empresa (no Prueba ni Básico), con cupo mensual de conversaciones por
+  organización: Profesional 100, Empresa 500 (editable en el admin; en blanco
+  = sin límite) (D2).
+- La demo trae conversaciones ya respondidas, con citas a OT y manuales del
+  seed; sin `ANTHROPIC_API_KEY`, "Pedir ayuda" se muestra pero avisa "El
+  asistente no está configurado" y no falla (D3).
+
+Permisos: `assistant.use` (administrador, planificador, supervisor y técnico)
+y `assistant.view_all` (administrador: consulta las conversaciones de toda la
+organización). Cada usuario ve las suyas; siempre con el alcance por sitio
+(una conversación sobre un activo fuera del alcance no se ve). Solo quien la
+inició pregunta, pide la nota de cierre o marca si sirvió.
 
 **AI-01 · Pedir ayuda desde el activo o la OT**
 Como técnico quiero describir un síntoma y recibir orientación basada en el
 historial y los manuales de ese equipo.
 - CA1: Botón "Pedir ayuda" en la ficha del activo (también al llegar por QR)
-  y en la OT; la conversación queda asociada al activo y, si aplica, a la OT.
-- CA2: El asistente ya conoce el activo (clase, modelo, medidores, fallas y
-  OT recientes); el técnico no tiene que explicarlo.
+  y en la OT; la conversación queda asociada al activo y, si aplica, a la OT
+  (que debe ser de ese mismo activo).
+- CA2: El asistente ya conoce el activo (clase, fabricante, modelo,
+  ubicación, estado, medidores con su último valor, últimas fallas, OT
+  abiertas y la OT asociada): va en el primer mensaje; el técnico no tiene que
+  explicarlo.
 - CA3: Entrada por texto (con dictado del teclado) y foto (placa, alarma,
-  pieza dañada).
+  pieza dañada), una por pregunta, comprimida como cualquier adjunto (AST-06).
 - CA4: Usable completo desde el teléfono (ADR-017); texto ≥ 16 px.
+- CA5: La respuesta llega sin bloquear la pantalla: se muestra "Pensando…" y
+  la página consulta cada ~2 s hasta que el turno termina (en el worker con
+  `AI_ASSISTANT_USE_QUEUE=1`, si no en la misma petición). No se admite otra
+  pregunta mientras una espera; un turno pendiente por más de 15 minutos pasa
+  a error.
+- CA6: Si la API falla, rechaza la consulta o la respuesta queda truncada, el
+  mensaje muestra un texto claro ("inténtalo de nuevo", "haz una pregunta más
+  acotada"…) y la conversación sigue usable.
 
 **AI-02 · Respuestas con fuente**
 - CA1: Cada recomendación indica su origen con ícono + texto: manual
-  (documento y página, enlazado), historial (código de OT, enlazado) o
-  conocimiento general (marcado como de menor confianza).
+  (documento y página, enlazado), historial (código de OT, enlazado),
+  lecturas de un medidor o conocimiento general (marcado como de menor
+  confianza: todo párrafo sin fuente).
 - CA2: Si no hay información suficiente, lo dice y sugiere qué dato falta.
 - CA3: Solo usa datos que el usuario puede ver (organización y alcance por
   sitio); probado en `tests/isolation/`.
+- CA4: Solo se enlazan fuentes que el backend entregó en esa conversación
+  (contexto del activo o resultado de una herramienta); un marcador de fuente
+  inventado por el modelo se descarta.
 
 **AI-03 · Seguridad**
 - CA1: Recuerda aislar energías (bloqueo y etiquetado) antes de intervenir y
   nunca sugiere anular protecciones ni enclavamientos.
 - CA2: Aviso visible: la orientación no reemplaza el criterio del técnico ni
   los procedimientos de la empresa.
+- CA3: Los textos de OT y manuales que lee el asistente se tratan como datos,
+  no como instrucciones (inyección de instrucciones); no se envían nombres de
+  personas en los resultados de las herramientas.
 
 **AI-04 · Cierre del ciclo**
-- CA1: Al completar la OT se propone un resumen de la conversación como nota
-  de cierre; el técnico lo edita o lo descarta.
-- CA2: El técnico marca si la ayuda sirvió (sí / en parte / no).
+- CA1: "Proponer nota de cierre" genera un resumen de la conversación
+  (síntoma, causa, acción); al completar la OT aparece pre-cargado y editable
+  como nota de cierre, y el técnico puede descartarlo.
+- CA2: El técnico marca si la ayuda sirvió (sí / en parte / no), en la
+  conversación y al cerrar; se puede cambiar y queda en la auditoría.
 
 **AI-05 · Cupo, costo y auditoría**
 - CA1: Cupo mensual de conversaciones por organización según el plan
-  (ORG-10); al agotarse se informa sin bloquear el resto del sistema.
-- CA2: Cada turno guarda modelo y tokens usados; el superadmin ve el costo por
-  organización.
+  (ORG-10): se cuentan las conversaciones nuevas del mes calendario en la zona
+  de la organización (preguntar en una conversación ya abierta no consume
+  cupo). Al agotarse se informa y no se crea la conversación, sin bloquear el
+  resto del sistema.
+- CA2: Cada turno guarda modelo y tokens usados (entrada, salida, leídos y
+  escritos en caché, sumados en todas las rondas de herramientas, también si
+  el turno falla); el superadmin ve el costo estimado por organización y mes
+  (precios por modelo en `AI_MODEL_PRICES_USD`).
 - CA3: Conversaciones consultables por el administrador, incluidas en la
-  exportación completa (X-03) y en el borrado de organización (X-04).
+  exportación completa (X-03) y en el borrado de organización (X-04). Abrir
+  una conversación y marcar si sirvió quedan en la auditoría.
+
+**Fuera de v1:** asistente sin conexión o dentro de la PWA `/field/` (a lo más
+un enlace cuando hay conexión); endpoints del asistente en la API v1;
+reconocimiento de voz propio (se usa el dictado del teclado); `pgvector` y
+búsqueda semántica; índices GIN de texto completo (la búsqueda se calcula al
+consultar); OCR de manuales escaneados; respuesta token a token en la pantalla;
+varias fotos o PDF por pregunta; compartir conversaciones entre técnicos.
 
 ---
 

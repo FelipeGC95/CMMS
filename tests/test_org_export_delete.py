@@ -355,3 +355,36 @@ def test_purge_removes_condition_rows(tenant_a, tenant_b):
         assert WorkOrderChecklistItem.all_tenants.filter(
             organization_id=tenant_b.org.pk, meter_reading__isnull=False
         ).exists()
+
+
+def _assistant_data(tenant, settings, monkeypatch):
+    """Una conversación del asistente con su pregunta y respuesta pendiente (ADR-018)."""
+    from apps.assistant import services as assistant
+    from tests.assistant_utils import install
+
+    settings.ANTHROPIC_API_KEY = "test-key"
+    install(monkeypatch)
+    with tenant_context(tenant.org):
+        return assistant.start_conversation(membership=tenant.tech, asset=tenant.asset, text="Ruido")
+
+
+def test_export_and_purge_include_assistant_tables(
+    tenant_a, tenant_b, settings, monkeypatch, django_capture_on_commit_callbacks
+):
+    from apps.assistant.models import AssistantConversation, AssistantMessage
+
+    conversation = _assistant_data(tenant_a, settings, monkeypatch)
+    _assistant_data(tenant_b, settings, monkeypatch)
+    files = read_zip(_export(tenant_a, django_capture_on_commit_callbacks).file)
+    (row,) = csv_rows(files["datos/assistant_assistantconversation.csv"])
+    assert row["id"] == str(conversation.pk)
+    assert len(csv_rows(files["datos/assistant_assistantmessage.csv"])) == 2
+
+    org = _request_deletion(tenant_a)
+    summary = purge.purge_organization(org)
+    connection.check_constraints()
+    assert summary["tables"]["assistant.assistantconversation"] == 1
+    assert summary["tables"]["assistant.assistantmessage"] == 2
+    with platform_context():
+        assert not AssistantMessage.all_tenants.filter(organization_id=org.pk).exists()
+        assert AssistantConversation.all_tenants.filter(organization_id=tenant_b.org.pk).count() == 1

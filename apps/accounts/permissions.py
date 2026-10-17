@@ -26,12 +26,21 @@ class Perm(StrEnum):
     # Mantenimiento por condición (CBM-08). Registrar lecturas sigue siendo METER_READING_CREATE.
     CONDITION_VIEW = "condition.view"  # alertas y reglas de condición
     CONDITION_MANAGE = "condition.manage"  # crear y editar reglas, reconocer alertas
+    # Asistente de diagnóstico (AI-01..05). Cada uno ve sus conversaciones; siempre con alcance por sitio.
+    ASSISTANT_USE = "assistant.use"  # pedir ayuda sobre un activo visible
+    ASSISTANT_VIEW_ALL = "assistant.view_all"  # ver las conversaciones de toda la organización (AI-05 CA3)
 
 
 ROLE_PERMISSIONS: dict[str, frozenset[Perm]] = {
     Role.ADMIN: frozenset(Perm),
     Role.PLANNER: frozenset(Perm)
-    - {Perm.TEAM_MANAGE, Perm.AUDIT_VIEW, Perm.ORGANIZATION_MANAGE, Perm.API_TOKEN_MANAGE},
+    - {
+        Perm.TEAM_MANAGE,
+        Perm.AUDIT_VIEW,
+        Perm.ORGANIZATION_MANAGE,
+        Perm.API_TOKEN_MANAGE,
+        Perm.ASSISTANT_VIEW_ALL,
+    },
     Role.SUPERVISOR: frozenset(
         {
             Perm.WORK_ORDER_MANAGE,
@@ -42,6 +51,7 @@ ROLE_PERMISSIONS: dict[str, frozenset[Perm]] = {
             Perm.INVENTORY_COST_VIEW,
             Perm.INVENTORY_MOVE,
             Perm.CONDITION_VIEW,
+            Perm.ASSISTANT_USE,
         }
     ),
     Role.TECHNICIAN: frozenset(
@@ -51,6 +61,7 @@ ROLE_PERMISSIONS: dict[str, frozenset[Perm]] = {
             Perm.METER_READING_CREATE,
             Perm.INVENTORY_VIEW,
             Perm.CONDITION_VIEW,
+            Perm.ASSISTANT_USE,
         }
     ),
     Role.VIEWER: frozenset(

@@ -803,6 +803,9 @@ lleva `{id, name, path}`; los decimales van como texto; consultas acotadas
   - **Búsqueda con PostgreSQL:** texto completo en español (`tsvector`) sobre
     OT, fallas y páginas de manuales. `pgvector`, en la misma base, solo si
     las pruebas muestran que la búsqueda por palabras no alcanza.
+    *Implementado (A1):* `SearchVector`/`SearchQuery` con configuración
+    `spanish` calculados al consultar (basta una palabra, orden por
+    relevancia), sin índices GIN en v1; en SQLite, `icontains`.
   - **Manuales:** al subir un PDF, el worker extrae el texto por página a
     `document_page` (con número de página) y lo indexa. Así cada respuesta
     cita "Manual X, p. 45". *Implementado en M1 (AST-06 CA3):* `pypdf`
@@ -813,15 +816,69 @@ lleva `{id, name, path}`; los decimales van como texto; consultas acotadas
   - **Citas obligatorias:** cada afirmación indica su origen: manual
     (documento y página), historial (código de OT) o conocimiento general,
     este último marcado como de menor confianza. La interfaz enlaza cada
-    fuente.
+    fuente. El modelo cita con el id que entregó el backend entre corchetes
+    (`[OT-C-00012]`, `[MAN:<adjunto>:<página>]`, `[MED:<medidor>]`); el
+    backend solo enlaza ids entregados en esa conversación (contexto del
+    activo o herramientas) y descarta los inventados; un párrafo sin fuente
+    se muestra como conocimiento general (`citations.segments`).
   - **Ejecución en el worker:** cada turno corre como tarea de Procrastinate
-    (un turno con herramientas puede tardar decenas de segundos) y la
-    página consulta el resultado con htmx. No se bloquean procesos web.
-  - **Proveedor y modelo:** API de Anthropic con el SDK oficial. El modelo
-    se configura por ajuste (`AI_ASSISTANT_MODEL`). Se parte con Claude
-    Opus 5 y se compara con Claude Sonnet 5 sobre un conjunto de casos reales
-    del piloto antes de fijar el de producción. Prompt caching en las
-    instrucciones y el contexto del activo.
+    (`assistant.run_turn`, cola `assistant`, con `organization_id`, sin
+    reintentos automáticos para no cobrar dos veces) cuando
+    `AI_ASSISTANT_USE_QUEUE=1`; si no (demo sin worker, SQLite), en
+    `transaction.on_commit` de la misma petición, como la extracción de
+    manuales. La pregunta deja un mensaje del asistente `pending` y la página
+    consulta el resultado con htmx. Un pendiente de más de 15 minutos pasa a
+    error (`expire_stale_messages`).
+  - **Proveedor y modelo (decisión 2026-10-17):** API de Anthropic con el SDK
+    oficial `anthropic` (único punto de contacto: `apps/assistant/llm.py`,
+    cuyo `get_client()` reemplazan los tests por un cliente falso con
+    respuestas guionizadas; ningún test llama a la API real). Modelo por
+    ajuste `AI_ASSISTANT_MODEL`, por defecto **Claude Opus 5.5**
+    (`claude-opus-5-5`), guardado en cada conversación (el caché y el
+    razonamiento son por modelo: cambiar el ajuste afecta solo a las
+    conversaciones nuevas). Se compara con Claude Sonnet 5.5
+    (`claude-sonnet-5-5`) usando las marcas "¿Te sirvió?" del piloto antes de
+    fijar el de producción. Sin `ANTHROPIC_API_KEY` el asistente queda "no
+    configurado": se muestra, avisa y no falla.
+  - **Llamada:** `client.beta.messages.stream(...).get_final_message()`
+    (streaming para no chocar con tiempos de espera HTTP; la pantalla no
+    muestra token a token), `max_tokens` 16 000, esfuerzo
+    `output_config.effort` = `AI_ASSISTANT_EFFORT` (por defecto `medium`, que
+    es también el de Opus 5.5) y sin `thinking` explícito: en Opus 5.5 el
+    razonamiento adaptativo es el por defecto y `disabled` responde 400.
+    Rechazos del clasificador: `fallbacks: "default"` con la beta
+    `server-side-fallback-2026-07-01` (la API reintenta en el modelo
+    recomendado); si toda la cadena rechaza (`stop_reason: refusal`), el
+    mensaje queda `refused`. `max_tokens` y los errores tipados del SDK
+    (límite de tasa, estado de la API, conexión) dejan el mensaje en `error`
+    con un código y un texto amable.
+  - **Bucle manual de herramientas** (no el tool runner beta): `tool_choice`
+    auto (Opus 5.5 rechaza forzar una herramienta), herramientas con
+    `strict: true` ordenadas por nombre, máximo
+    `AI_ASSISTANT_MAX_TOOL_ROUNDS` = 6 rondas; pasado el límite las llamadas
+    reciben un error "responde con lo reunido" y, si insiste, el turno
+    termina en error. Herramientas: `search_work_orders(query, asset_only)`,
+    `asset_failure_history(asset_code)`, `search_manuals(query)` y
+    `recent_meter_readings(asset_code)` (código vacío = el activo de la
+    conversación); cada resultado (máx. 8, textos truncados, sin nombres de
+    personas) lleva un id de fuente.
+  - **Historial append-only:** cada mensaje guarda los bloques crudos de la
+    API (`content`) y se reenvían sin editar: el razonamiento preservado de
+    Opus 5.5 se invalida si se edita un turno anterior. Turnos con error o
+    rechazados no se reenvían; la nota de cierre es una llamada aparte con el
+    mismo prefijo (no entra al historial).
+  - **Caché:** instrucciones del sistema y herramientas fijas (sin fechas ni
+    datos del usuario) con un punto de caché al final del sistema; otro punto
+    en el contexto del activo (primer bloque de la primera pregunta, guardado
+    tal cual) y el automático al final de cada petición. Los tokens leídos y
+    escritos en caché se guardan por turno.
+  - **Cupos y planes (decisión 2026-10-17):** módulo `assistant` solo en
+    Profesional y Empresa; `plan.max_assistant_conversations` (Profesional
+    100, Empresa 500, en blanco = sin límite) cuenta las conversaciones nuevas
+    del mes calendario en la zona de la organización, con la fila de la
+    organización bloqueada al crear. Agotado el cupo no se crea la
+    conversación; el resto del sistema sigue igual. Precios por modelo en
+    `AI_MODEL_PRICES_USD` para el costo estimado.
   - **Reglas de seguridad en las instrucciones del sistema:** recordar
     bloqueo y etiquetado (LOTO) antes de intervenir; nunca sugerir anular
     protecciones o enclavamientos; decir "no lo sé" si no hay fuente; la

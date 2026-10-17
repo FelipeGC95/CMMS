@@ -31,6 +31,7 @@ MODULE_LABELS = {
     "sso": gettext_lazy("Inicio de sesión único (SSO)"),
     "inventory": gettext_lazy("Inventario y repuestos"),
     "condition": gettext_lazy("Mantenimiento por condición"),
+    "assistant": gettext_lazy("Asistente de diagnóstico"),
 }
 
 # Rutas web → módulo. Gana la primera que coincide (las más específicas van primero).
@@ -42,6 +43,8 @@ MODULE_ROUTES = [
     (re.compile(r"^/condition/"), "condition"),
     # Alta de variables desde la ficha (CBM-01); editarlas o desactivarlas sigue sin el módulo.
     (re.compile(r"^/assets/[^/]+/variables/new/$"), "condition"),
+    # Asistente de diagnóstico (AI-01..05): conversaciones (pantallas en A2).
+    (re.compile(r"^/assistant/"), "assistant"),
     (re.compile(r"^/(assets|work-orders|work-orders/backlog|plans/calendar)/export\.xlsx$"), "exports"),
     (re.compile(r"^/(assets|work-orders)/[^/]+/sheet\.pdf$"), "exports"),
     # Indicadores ampliados (KPI-02): la exportación pide además `kpis` en la vista.
