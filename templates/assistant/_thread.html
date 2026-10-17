@@ -51,7 +51,7 @@
   {% if is_owner and is_open %}
     {% if not configured %}
     <div class="alert alert--warning" role="status" id="composer">{% icon 'alert' %}<span>{% translate "El asistente no está configurado. Avísale al administrador." %}</span></div>
-    {% elif pending %}
+    {% elif pending and not form.errors %}
     <p class="chat__status card" id="composer" role="status">{% icon 'clock' %}<span>{% translate "Espera la respuesta para volver a preguntar." %}</span></p>
     {% elif form %}
     <form class="card composer" id="composer" method="post" action="{% url 'assistant_ask' conversation.pk %}" enctype="multipart/form-data" novalidate>

@@ -1655,3 +1655,68 @@ def test_asset_condition_selector_is_five_queries(tenant_a, django_assert_max_nu
     with tenant_context(tenant_a.org), django_assert_max_num_queries(5):
         rows = asset_condition(membership=tenant_a.admin, asset=tenant_a.asset)
     assert len(rows) == 12
+
+
+# --- Asistente de diagnóstico (AI-01..05) ----------------------------------------------------
+
+
+def _assistant_rows(tenant, monkeypatch, n):
+    """n conversaciones respondidas (con fuente) del técnico y n del administrador."""
+    from tests.assistant_utils import answered_conversation
+
+    for _ in range(n):
+        answered_conversation(tenant, monkeypatch)
+        answered_conversation(tenant, monkeypatch, membership=tenant.admin)
+
+
+@pytest.fixture
+def assistant_ready(settings, tmp_path):
+    settings.MEDIA_ROOT = tmp_path
+    settings.ANTHROPIC_API_KEY = "test-key"
+    settings.AI_ASSISTANT_USE_QUEUE = False
+
+
+@pytest.mark.parametrize("query", ["", "?scope=all"])
+def test_assistant_list_does_not_grow_with_rows(client, tenant_a, monkeypatch, assistant_ready, query):
+    login(client, tenant_a.admin)
+    url = reverse("assistant_list") + query
+    _assistant_rows(tenant_a, monkeypatch, 2)
+    few = _count(client, url)
+    _assistant_rows(tenant_a, monkeypatch, 8)
+    assert _count(client, url) == few
+
+
+def test_assistant_conversation_does_not_grow_with_messages(
+    client, tenant_a, monkeypatch, assistant_ready, django_assert_max_num_queries
+):
+    from django.core.files.uploadedfile import SimpleUploadedFile
+
+    from apps.assistant import services
+    from apps.assistant.models import AssistantMessage
+    from tests.assistant_utils import answered_conversation
+    from tests.conftest import tiny_jpeg_bytes
+
+    conversation = answered_conversation(tenant_a, monkeypatch)
+    url = reverse("assistant_conversation", args=[conversation.pk])
+    thread = reverse("assistant_thread", args=[conversation.pk])
+    login(client, tenant_a.tech)
+
+    def add_questions(n):
+        for i in range(n):
+            with tenant_context(tenant_a.org):
+                photo = SimpleUploadedFile("p.jpg", tiny_jpeg_bytes(), content_type="image/jpeg")
+                services.ask(
+                    membership=tenant_a.tech, conversation=conversation, text=f"¿Y {i}?", photo=photo
+                )
+                AssistantMessage.objects.filter(conversation=conversation).update(
+                    status="done",
+                    text=AssistantMessage.objects.get(conversation=conversation, seq=2).text,
+                    sources=AssistantMessage.objects.get(conversation=conversation, seq=2).sources,
+                )
+
+    add_questions(1)
+    few, few_thread = _count(client, url), _count(client, thread)
+    add_questions(6)
+    assert (_count(client, url), _count(client, thread)) == (few, few_thread)
+    with django_assert_max_num_queries(20):
+        assert client.get(url).status_code == 200

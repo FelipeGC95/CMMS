@@ -71,7 +71,7 @@ def _thread_context(request, conversation, form=None) -> dict:
     answered = any(
         m.role == AssistantMessage.Role.ASSISTANT and m.status == AssistantMessage.Status.DONE for m in turns
     )
-    if is_owner and is_open and not pending and form is None:
+    if is_owner and is_open and form is None:
         form = FollowUpForm()
     return {
         "conversation": conversation,

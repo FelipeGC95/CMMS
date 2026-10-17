@@ -81,6 +81,8 @@ CONTRAST_PAIRS = [
     ("--color-error", "--color-surface-sunken", UI),
     # Movimientos de inventario (INV-05, INV-07): el repuesto elegido va sobre la tarjeta con borde
     # fuerte (texto, texto atenuado, enlace "Cambiar" y borde sobre --color-surface, pares de arriba).
+    # Asistente de diagnóstico (AI-01): quién habla, sobre la burbuja de la pregunta (fondo hundido).
+    ("--color-text-brand", "--color-surface-sunken", TEXT),
 ]
 
 
