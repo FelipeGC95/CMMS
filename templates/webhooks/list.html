@@ -1,0 +1,55 @@
+{% extends "base.html" %}{% load i18n ui %}
+{% block title %}{% translate "Webhooks" %}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>{% translate "Webhooks" %}</h1>
+    <p class="muted">{% translate "Avisan al instante a otro sistema (ERP, chat, BI) cuando se crea o completa una OT o llega una solicitud." %} <a href="{% url 'api_docs' %}">{% translate "Documentación de la API" %}</a></p>
+  </div>
+</div>
+
+<div class="grid grid--2">
+  <section class="card">
+    <h2>{% translate "Nuevo webhook" %}</h2>
+    <form method="post">
+      {% csrf_token %}
+      {% include "_form_fields.html" with form=form %}
+      <button class="btn btn--primary" type="submit">{% icon 'bell' %}{% translate "Crear webhook" %}</button>
+    </form>
+  </section>
+  <section class="card">
+    <h2>{% translate "Cómo funciona" %}</h2>
+    <ul class="stack">
+      <li class="muted">{% translate "Cada evento llega como POST con JSON y la cabecera X-Galbust-Signature (HMAC-SHA256 con el secreto del webhook)." %}</li>
+      <li class="muted">{% translate "Si tu sistema no responde 2xx en 5 segundos se reintenta hasta 5 veces." %}</li>
+      <li class="muted">{% translate "Tras 5 eventos fallidos seguidos el webhook se desactiva y avisamos a los administradores." %}</li>
+    </ul>
+  </section>
+</div>
+
+<h2 class="mt-4">{% translate "Webhooks" %}</h2>
+{% if page.object_list %}
+<div class="card card--flush">
+  <table class="table">
+    <thead><tr><th>{% translate "Nombre" %}</th><th>{% translate "URL" %}</th><th>{% translate "Eventos" %}</th><th>{% translate "Estado" %}</th></tr></thead>
+    <tbody>
+      {% for endpoint in page.object_list %}
+      <tr>
+        <td data-label=""><a href="{% url 'webhook_detail' endpoint.pk %}">{{ endpoint.name }}</a><div class="muted">{% blocktranslate with who=endpoint.created_by|default:"—" when=endpoint.created_at|date:"d-m-Y" %}Creado por {{ who }} el {{ when }}{% endblocktranslate %}</div></td>
+        <td class="mono" data-label="{% translate 'URL' %}">{{ endpoint.url|truncatechars:60 }}</td>
+        <td data-label="{% translate 'Eventos' %}">{{ endpoint.event_labels|join:", " }}</td>
+        <td data-label="{% translate 'Estado' %}">
+          {% if endpoint.is_active %}<span class="badge badge--success">{% icon 'check' %}{% translate "Activo" %}</span>
+          {% elif endpoint.disabled_at %}<span class="badge badge--error">{% icon 'stop' %}{% translate "Desactivado por fallas" %}</span>
+          {% else %}<span class="badge badge--neutral">{% icon 'dot' %}{% translate "Inactivo" %}</span>{% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% include "_pagination.html" %}
+{% else %}
+<p class="muted">{% translate "Aún no hay webhooks." %}</p>
+{% endif %}
+{% endblock %}

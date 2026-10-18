@@ -88,6 +88,8 @@ _STATUS_TONES = {
     "ready": "success",
     "failed": "error",
     "expired": "neutral",
+    # Entregas de webhooks (X-08); "pending" y "failed" ya están.
+    "succeeded": "success",
 }
 
 

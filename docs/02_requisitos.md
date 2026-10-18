@@ -1011,6 +1011,32 @@ servidor cuando vuelva la conexión. Implementado en `/field/` (2026-10).
 **X-07 · i18n (M0)**: todos los textos marcados para traducción; español (Chile)
 completo; inglés y portugués en F3.
 
+**X-08 · Webhooks salientes (F3, parcial)**: como administrador quiero que otro
+sistema (ERP, chat, BI) se entere al instante de lo que pasa en el CMMS, sin
+consultar la API cada cierto tiempo. Implementado (2026-10, ADR-030).
+- CA1 ✔ En "Más" → "Webhooks" (`/settings/webhooks/`, permiso
+  `api_token.manage`, solo administradores, módulo `api`: Profesional y
+  Empresa) se crean, editan y desactivan destinos: nombre, URL https y eventos.
+  El secreto de firma se genera solo y lo ve únicamente el administrador.
+- CA2 ✔ Eventos v1: `work_order.created`, `work_order.completed` y
+  `work_request.created`, disparados por los mismos servicios que usan la web,
+  la API y terreno, al confirmar la transacción (si se revierte, no sale nada).
+- CA3 ✔ Cuerpo JSON con `id` de evento (UUID, para idempotencia), `type`,
+  `created_at` (UTC), `organization` y `data` con los mismos campos que la API
+  v1; cabecera `X-Galbust-Signature: t=<unix>,v1=<HMAC-SHA256>`.
+- CA4 ✔ Timeout de 5 s; con worker, hasta 5 intentos con backoff; tras 5
+  eventos fallidos seguidos el destino se desactiva, queda en auditoría y los
+  administradores reciben el aviso `webhook_disabled` (X-02).
+- CA5 ✔ Contra SSRF: se rechazan URL sin https o que resuelven a direcciones
+  privadas, de loopback, link-local o reservadas, al guardar y en cada envío
+  (la conexión va a la IP validada; no se siguen redirecciones).
+- CA6 ✔ "Enviar prueba" (`webhook.test`) y "Últimas entregas" paginadas con
+  estado, intentos, código HTTP y último error. Sin borrado físico.
+- No cumplido / fuera de v1: más eventos (activos, lecturas, alertas de
+  condición, cambios de estado intermedios), regenerar el secreto, reenviar a
+  mano una entrega fallida, ver el cuerpo enviado en la pantalla, depurar
+  entregas antiguas y reintentos sin worker.
+
 ## 10. Asistente de diagnóstico con IA (`AI`, F2)
 
 **Estado:** hecho (F2, 2026-10, paquetes A1–A3: núcleo, pantallas, demo y

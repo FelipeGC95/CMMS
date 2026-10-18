@@ -10430,3 +10430,194 @@ msgstr ""
 
 msgid "Escritura de caché"
 msgstr ""
+
+msgid "OT creada"
+msgstr ""
+
+msgid "OT completada"
+msgstr ""
+
+msgid "Solicitud creada"
+msgstr ""
+
+msgid "URL"
+msgstr ""
+
+msgid "secreto"
+msgstr ""
+
+msgid "eventos"
+msgstr ""
+
+msgid "entregas fallidas seguidas"
+msgstr ""
+
+msgid "desactivado automáticamente"
+msgstr ""
+
+msgid "webhook"
+msgstr ""
+
+msgid "webhooks"
+msgstr ""
+
+msgid "Entregado"
+msgstr ""
+
+msgid "Fallido"
+msgstr ""
+
+msgid "ID del evento"
+msgstr ""
+
+msgid "evento"
+msgstr ""
+
+msgid "contenido"
+msgstr ""
+
+msgid "intentos"
+msgstr ""
+
+msgid "código HTTP"
+msgstr ""
+
+msgid "último error"
+msgstr ""
+
+msgid "último intento"
+msgstr ""
+
+msgid "próximo intento"
+msgstr ""
+
+msgid "entregado"
+msgstr ""
+
+msgid "entrega de webhook"
+msgstr ""
+
+msgid "entregas de webhook"
+msgstr ""
+
+msgid "Prueba"
+msgstr ""
+
+msgid "La URL debe empezar con https://."
+msgstr ""
+
+msgid "La URL debe apuntar a un dominio público."
+msgstr ""
+
+msgid "No se pudo resolver el dominio de la URL."
+msgstr ""
+
+msgid "La URL apunta a una dirección privada o interna; no está permitida."
+msgstr ""
+
+msgid "Elige al menos un evento."
+msgstr ""
+
+msgid "Activa el webhook antes de enviar una prueba."
+msgstr ""
+
+msgid "El webhook está desactivado."
+msgstr ""
+
+msgid "Para reconocerlo, p. ej. «ERP»."
+msgstr ""
+
+msgid "Debe ser https y pública. Recibe un POST con JSON firmado."
+msgstr ""
+
+msgid "Eventos"
+msgstr ""
+
+#, python-format
+msgid "Webhook «%(name)s» creado."
+msgstr ""
+
+msgid "Webhook guardado."
+msgstr ""
+
+msgid "Prueba enviada. Su resultado aparece en «Últimas entregas»."
+msgstr ""
+
+msgid "Webhooks"
+msgstr ""
+
+msgid "Webhook desactivado por fallas"
+msgstr ""
+
+#, python-format
+msgid "Webhook «%(name)s» desactivado"
+msgstr ""
+
+#, python-format
+msgid "%(count)s eventos seguidos sin respuesta correcta de %(url)s."
+msgstr ""
+
+msgid "Avisan al instante a otro sistema (ERP, chat, BI) cuando se crea o completa una OT o llega una solicitud."
+msgstr ""
+
+msgid "Nuevo webhook"
+msgstr ""
+
+msgid "Crear webhook"
+msgstr ""
+
+msgid "Cómo funciona"
+msgstr ""
+
+msgid "Cada evento llega como POST con JSON y la cabecera X-Galbust-Signature (HMAC-SHA256 con el secreto del webhook)."
+msgstr ""
+
+msgid "Si tu sistema no responde 2xx en 5 segundos se reintenta hasta 5 veces."
+msgstr ""
+
+msgid "Tras 5 eventos fallidos seguidos el webhook se desactiva y avisamos a los administradores."
+msgstr ""
+
+msgid "Desactivado por fallas"
+msgstr ""
+
+msgid "Aún no hay webhooks."
+msgstr ""
+
+msgid "Enviar prueba"
+msgstr ""
+
+msgid "Secreto de firma"
+msgstr ""
+
+msgid "Úsalo en tu sistema para verificar la cabecera X-Galbust-Signature. No lo compartas."
+msgstr ""
+
+msgid "Mostrar secreto"
+msgstr ""
+
+msgid "Últimas entregas"
+msgstr ""
+
+msgid "Evento"
+msgstr ""
+
+msgid "Intentos"
+msgstr ""
+
+msgid "Código HTTP"
+msgstr ""
+
+msgid "Último error"
+msgstr ""
+
+msgid "Aún no hay entregas. Usa «Enviar prueba» para probar la conexión."
+msgstr ""
+
+#, python-format
+msgid "Desactivado el %(when)s tras %(failures)s eventos fallidos seguidos. Revisa la URL y vuelve a activarlo."
+msgstr ""
+
+#, python-format
+msgid "Reintento a las %(when)s"
+msgstr ""

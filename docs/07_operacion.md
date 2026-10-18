@@ -24,6 +24,7 @@ lo único nuevo que expone es `/readyz`. Decisión en ADR-020
 | `EMAIL_USE_QUEUE=1` | Enviar correos desde el worker (reintentos). Requiere worker corriendo. | Envío sincrónico. |
 | `DOCUMENT_TEXT_USE_QUEUE=1` | Extraer el texto de los manuales PDF en el worker. Requiere worker corriendo. | Extracción al subir, en la misma petición. |
 | `DATA_EXPORT_USE_QUEUE=1` | Armar la exportación completa (X-03) en el worker. Requiere worker corriendo. | Se arma al pedirla, en la misma petición. |
+| `WEBHOOKS_USE_QUEUE=1` | Enviar los webhooks salientes (X-08) desde el worker, con hasta 5 intentos y backoff (1 min, 5 min, 30 min, 2 h). Requiere worker corriendo. | Un solo intento al confirmar la escritura, en la misma petición (timeout 5 s); sin reintentos. |
 | `BACKUPS_ENABLED=1` | Respaldo diario (07:00 UTC) desde el worker. | La tarea diaria no hace nada. |
 | `BACKUP_DIR`, `BACKUP_RETENTION_DAYS` | Carpeta local de respaldos (sin R2) y retención. | `./backups`, `30`. |
 | `ACCOUNT_EMAIL_VERIFICATION` | Quitarla (queda `mandatory`) al tener proveedor de correo. | `mandatory`. |

@@ -1,0 +1,62 @@
+{% extends "base.html" %}{% load i18n ui %}
+{% block title %}{{ endpoint.name }} · {% translate "Webhooks" %}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <p><a href="{% url 'webhook_list' %}">{% translate "Webhooks" %}</a></p>
+    <h1>{{ endpoint.name }}</h1>
+    <p class="muted mono">{{ endpoint.url }}</p>
+  </div>
+  <form method="post" action="{% url 'webhook_test' endpoint.pk %}">
+    {% csrf_token %}
+    <button class="btn btn--secondary" type="submit"{% if not endpoint.is_active %} disabled{% endif %}>{% icon 'play' %}{% translate "Enviar prueba" %}</button>
+  </form>
+</div>
+
+{% if endpoint.disabled_at and not endpoint.is_active %}
+<div class="alert alert--error" role="alert">{% icon 'stop' %}<span>{% blocktranslate with when=endpoint.disabled_at|date:"d-m-Y H:i" failures=endpoint.consecutive_failures %}Desactivado el {{ when }} tras {{ failures }} eventos fallidos seguidos. Revisa la URL y vuelve a activarlo.{% endblocktranslate %}</span></div>
+{% endif %}
+
+<div class="grid grid--2">
+  <section class="card">
+    <h2>{% translate "Editar" %}</h2>
+    <form method="post">
+      {% csrf_token %}
+      {% include "_form_fields.html" with form=form %}
+      <button class="btn btn--primary" type="submit">{% icon 'check' %}{% translate "Guardar" %}</button>
+    </form>
+  </section>
+  <section class="card">
+    <h2>{% translate "Secreto de firma" %}</h2>
+    <p class="muted">{% translate "Úsalo en tu sistema para verificar la cabecera X-Galbust-Signature. No lo compartas." %}</p>
+    <details>
+      <summary>{% translate "Mostrar secreto" %}</summary>
+      <code class="mono">{{ endpoint.secret }}</code>
+    </details>
+  </section>
+</div>
+
+<h2 class="mt-4">{% translate "Últimas entregas" %}</h2>
+{% if page.object_list %}
+<div class="card card--flush">
+  <table class="table">
+    <thead><tr><th>{% translate "Evento" %}</th><th>{% translate "Fecha" %}</th><th>{% translate "Estado" %}</th><th>{% translate "Intentos" %}</th><th>{% translate "Código HTTP" %}</th><th>{% translate "Último error" %}</th></tr></thead>
+    <tbody>
+      {% for delivery in page.object_list %}
+      <tr>
+        <td data-label="">{{ delivery.event_label }}<div class="muted mono">{{ delivery.event_type }}</div></td>
+        <td class="num" data-label="{% translate 'Fecha' %}">{{ delivery.created_at|date:"d-m-Y H:i" }}</td>
+        <td data-label="{% translate 'Estado' %}">{% status_badge delivery %}{% if delivery.next_attempt_at %}<div class="muted">{% blocktranslate with when=delivery.next_attempt_at|date:"H:i" %}Reintento a las {{ when }}{% endblocktranslate %}</div>{% endif %}</td>
+        <td class="num" data-label="{% translate 'Intentos' %}">{{ delivery.attempts }}</td>
+        <td class="num" data-label="{% translate 'Código HTTP' %}">{{ delivery.response_status|default:"—" }}</td>
+        <td data-label="{% translate 'Último error' %}">{{ delivery.last_error|default:"—" }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% include "_pagination.html" %}
+{% else %}
+<p class="muted">{% translate "Aún no hay entregas. Usa «Enviar prueba» para probar la conexión." %}</p>
+{% endif %}
+{% endblock %}

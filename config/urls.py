@@ -32,6 +32,7 @@ urlpatterns = [
     path("inventory/from-plans/", include("apps.inventory.plan_urls")),
     path("", include("apps.attachments.urls")),
     path("", include("apps.api.urls")),
+    path("settings/webhooks/", include("apps.webhooks.urls")),
     path("", include("apps.reporting.urls")),
     path("audit/", include("apps.audit.urls")),
     path("", include("apps.notifications.urls")),
