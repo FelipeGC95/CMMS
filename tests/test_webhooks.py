@@ -293,8 +293,9 @@ def test_send_test_event_does_not_count_as_failure(tenant_a, network, django_cap
     network["status"] = 404
     with tenant_context(tenant_a.org), django_capture_on_commit_callbacks(execute=True):
         delivery = services.send_test(membership=tenant_a.admin, endpoint=endpoint)
-    delivery.refresh_from_db()
-    endpoint.refresh_from_db()
+    with tenant_context(tenant_a.org):  # con RLS (CI) las filas solo se ven en contexto
+        delivery.refresh_from_db()
+        endpoint.refresh_from_db()
     assert delivery.event_type == TEST_EVENT and delivery.status == WebhookDelivery.Status.FAILED
     assert delivery.response_status == 404 and endpoint.consecutive_failures == 0
 
@@ -322,7 +323,8 @@ def test_admin_creates_edits_and_tests_from_settings(
         reverse("webhook_detail", args=[endpoint.pk]),
         {"name": "ERP 2", "url": endpoint.url, "events": [Event.WORK_ORDER_COMPLETED]},
     )
-    endpoint.refresh_from_db()
+    with tenant_context(tenant_a.org):
+        endpoint.refresh_from_db()
     assert endpoint.name == "ERP 2" and not endpoint.is_active
     assert endpoint.events == [Event.WORK_ORDER_COMPLETED]
 
