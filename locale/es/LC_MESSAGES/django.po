@@ -10621,3 +10621,183 @@ msgstr ""
 #, python-format
 msgid "Reintento a las %(when)s"
 msgstr ""
+
+msgid "rol personalizado"
+msgstr ""
+
+msgid "roles personalizados"
+msgstr ""
+
+msgid "rol base"
+msgstr ""
+
+msgid "permisos"
+msgstr ""
+
+msgid "Crear y editar activos, ubicaciones, clases y medidores"
+msgstr ""
+
+msgid "Crear y editar planes preventivos"
+msgstr ""
+
+msgid "Crear, asignar, programar, cancelar y aprobar OT; revisar solicitudes"
+msgstr ""
+
+msgid "Ejecutar OT: iniciar, checklist, horas, repuestos y completar"
+msgstr ""
+
+msgid "Avisar fallas y pedir trabajos"
+msgstr ""
+
+msgid "Registrar lecturas de medidores"
+msgstr ""
+
+msgid "Ver catálogo, stock y movimientos"
+msgstr ""
+
+msgid "Ver costos y valor del inventario"
+msgstr ""
+
+msgid "Registrar entradas y transferencias"
+msgstr ""
+
+msgid "Administrar catálogo, bodegas, conteos y mínimos"
+msgstr ""
+
+msgid "Ver alertas y reglas de condición"
+msgstr ""
+
+msgid "Crear reglas y reconocer alertas de condición"
+msgstr ""
+
+msgid "Usar el asistente de diagnóstico"
+msgstr ""
+
+msgid "Órdenes de trabajo y solicitudes"
+msgstr ""
+
+msgid "Activos y preventivos"
+msgstr ""
+
+msgid "Roles personalizados"
+msgstr ""
+
+msgid "Escribe un nombre para el rol."
+msgstr ""
+
+msgid "El nombre puede tener hasta 60 caracteres."
+msgstr ""
+
+#, python-format
+msgid "Ya existe un rol llamado «%(name)s»."
+msgstr ""
+
+#, python-format
+msgid "Permiso no válido: %(code)s."
+msgstr ""
+
+msgid "Los permisos de administración no se pueden dar con un rol personalizado."
+msgstr ""
+
+msgid "Rol base no válido."
+msgstr ""
+
+#, python-format
+msgid "Este rol lo usan %(members)s personas y %(invitations)s invitaciones pendientes. Asígnales otro rol (o revoca las invitaciones) antes de desactivarlo."
+msgstr ""
+
+msgid "Roles base"
+msgstr ""
+
+msgid "Por ejemplo, «Bodeguero»."
+msgstr ""
+
+msgid "Rol base"
+msgstr ""
+
+msgid "Parte con sus permisos y define lo demás: «Mis OT» y capacidad del técnico, alcance obligatorio del externo."
+msgstr ""
+
+#, python-format
+msgid "%(label)s (del rol base)"
+msgstr ""
+
+#, python-format
+msgid "Rol «%(name)s» creado con los permisos de su rol base. Ajústalos aquí."
+msgstr ""
+
+msgid "Rol reactivado."
+msgstr ""
+
+msgid "Rol desactivado."
+msgstr ""
+
+msgid "Parten de un rol base y suman o quitan permisos. Los permisos de administración quedan solo para administradores."
+msgstr ""
+
+msgid "Nuevo rol"
+msgstr ""
+
+msgid "Crear rol"
+msgstr ""
+
+msgid "Crea el rol con un nombre y un rol base; parte con los permisos de ese rol."
+msgstr ""
+
+msgid "Marca o desmarca permisos y asígnalo en el equipo o al invitar."
+msgstr ""
+
+msgid "El rol base sigue definiendo «Mis OT», la capacidad del técnico y el alcance obligatorio del externo."
+msgstr ""
+
+msgid "Si el plan deja de incluir roles personalizados, cada persona vuelve a los permisos de su rol base."
+msgstr ""
+
+msgid "Roles"
+msgstr ""
+
+msgid "Personas"
+msgstr ""
+
+msgid "Aún no hay roles personalizados."
+msgstr ""
+
+#, python-format
+msgid "Rol base: %(base)s"
+msgstr ""
+
+msgid "Volver a roles"
+msgstr ""
+
+#, python-format
+msgid "Respecto del rol base: %(added)s permisos agregados y %(removed)s quitados."
+msgstr ""
+
+msgid "Equipo, auditoría, configuración, tokens de API y ver todas las conversaciones del asistente quedan solo para administradores."
+msgstr ""
+
+msgid "Un rol desactivado no se puede asignar. Antes, asigna otro rol a quienes lo tienen."
+msgstr ""
+
+msgid "Equipo y roles"
+msgstr ""
+
+msgid "Invita personas, cambia su rol y alcance por sitio."
+msgstr ""
+
+msgid "Crea roles personalizados a partir de un rol base."
+msgstr ""
+
+#, python-format
+msgid "Base: %(base)s"
+msgstr ""
+
+#, python-format
+msgid "Rol base: %(base)s."
+msgstr ""
+
+#, python-format
+msgid "Lo tiene %(n)s persona activa."
+msgid_plural "Lo tienen %(n)s personas activas."
+msgstr[0] ""
+msgstr[1] ""

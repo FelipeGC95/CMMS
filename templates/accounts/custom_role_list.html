@@ -1,0 +1,53 @@
+{% extends "base.html" %}{% load i18n ui %}
+{% block title %}{% translate "Roles personalizados" %}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>{% translate "Roles personalizados" %}</h1>
+    <p class="muted">{% translate "Parten de un rol base y suman o quitan permisos. Los permisos de administración quedan solo para administradores." %} <a href="{% url 'team' %}">{% translate "Volver al equipo" %}</a></p>
+  </div>
+</div>
+
+<div class="grid grid--2">
+  <section class="card">
+    <h2>{% translate "Nuevo rol" %}</h2>
+    <form method="post">
+      {% csrf_token %}
+      {% include "_form_fields.html" with form=form %}
+      <button class="btn btn--primary" type="submit">{% icon 'key' %}{% translate "Crear rol" %}</button>
+    </form>
+  </section>
+  <section class="card">
+    <h2>{% translate "Cómo funciona" %}</h2>
+    <ul class="stack">
+      <li class="muted">{% translate "Crea el rol con un nombre y un rol base; parte con los permisos de ese rol." %}</li>
+      <li class="muted">{% translate "Marca o desmarca permisos y asígnalo en el equipo o al invitar." %}</li>
+      <li class="muted">{% translate "El rol base sigue definiendo «Mis OT», la capacidad del técnico y el alcance obligatorio del externo." %}</li>
+      <li class="muted">{% translate "Si el plan deja de incluir roles personalizados, cada persona vuelve a los permisos de su rol base." %}</li>
+    </ul>
+  </section>
+</div>
+
+<h2 class="mt-4">{% translate "Roles" %}</h2>
+{% if page.object_list %}
+<div class="card card--flush">
+  <table class="table">
+    <thead><tr><th>{% translate "Nombre" %}</th><th>{% translate "Rol base" %}</th><th class="num">{% translate "Permisos" %}</th><th class="num">{% translate "Personas" %}</th><th>{% translate "Estado" %}</th></tr></thead>
+    <tbody>
+      {% for role in page.object_list %}
+      <tr>
+        <td data-label=""><a href="{% url 'custom_role_edit' role.pk %}">{{ role.name }}</a></td>
+        <td data-label="{% translate 'Rol base' %}">{{ role.get_base_role_display }}</td>
+        <td data-label="{% translate 'Permisos' %}" class="num">{{ role.permissions|length }}</td>
+        <td data-label="{% translate 'Personas' %}" class="num">{{ role.member_count }}</td>
+        <td data-label="{% translate 'Estado' %}">{% if role.is_active %}<span class="badge badge--success">{% icon 'check' %}{% translate "Activo" %}</span>{% else %}<span class="badge badge--neutral">{% icon 'dot' %}{% translate "Inactivo" %}</span>{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% include "_pagination.html" %}
+{% else %}
+<p class="muted">{% translate "Aún no hay roles personalizados." %}</p>
+{% endif %}
+{% endblock %}

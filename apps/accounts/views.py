@@ -16,10 +16,26 @@ from apps.onboarding.services import create_for_new_organization as create_onboa
 from apps.organizations.models import Location
 
 from . import services
-from .forms import AcceptInvitationForm, InviteForm, MemberForm, SignupForm
-from .models import Invitation, Membership, User
-from .permissions import Perm
-from .selectors import invitation_by_token, pending_invitations, team_member, team_members
+from .forms import (
+    CUSTOM_PREFIX,
+    AcceptInvitationForm,
+    CustomRoleCreateForm,
+    CustomRoleForm,
+    InviteForm,
+    MemberForm,
+    SignupForm,
+)
+from .models import CustomRole, Invitation, Membership, User
+from .permissions import ROLE_PERMISSIONS, Perm, active_custom_role
+from .selectors import (
+    assignable_custom_roles,
+    custom_role_detail,
+    custom_role_list,
+    invitation_by_token,
+    pending_invitations,
+    team_member,
+    team_members,
+)
 
 
 @login_required
@@ -35,13 +51,16 @@ def switch_organization(request):
 
 @membership_required(perm=Perm.TEAM_MANAGE)
 def team_view(request):
-    form = InviteForm(request.POST or None)
+    form = InviteForm(
+        request.POST or None, custom_roles=assignable_custom_roles(membership=request.membership)
+    )
     if request.method == "POST" and form.is_valid():
         try:
             invitation = services.invite_member(
                 membership=request.membership,
                 email=form.cleaned_data["email"],
                 role=form.cleaned_data["role"],
+                custom_role=form.cleaned_data["custom_role"],
                 base_url=request.build_absolute_uri("/"),
             )
         except services.TeamError as error:
@@ -79,19 +98,26 @@ def _get_member_or_404(request, pk):
 def member_edit_view(request, pk):
     target = _get_member_or_404(request, pk)
     locations = Location.objects.filter(is_active=True).select_related("parent").order_by("code")
+    custom = active_custom_role(target)
     initial = {
-        "role": target.role,
+        "role": f"{CUSTOM_PREFIX}{custom.pk}" if custom else target.role,
         "restricted_to_locations": target.restricted_to_locations,
         "locations": [scope.location_id for scope in target.scope.all()],
         "weekly_capacity_hours": target.weekly_capacity_hours,
     }
-    form = MemberForm(request.POST or None, initial=initial, locations=locations)
+    form = MemberForm(
+        request.POST or None,
+        initial=initial,
+        locations=locations,
+        custom_roles=assignable_custom_roles(membership=request.membership),
+    )
     if request.method == "POST" and form.is_valid():
         try:
             services.update_member(
                 membership=request.membership,
                 target=target,
                 role=form.cleaned_data["role"],
+                custom_role=form.cleaned_data["custom_role"],
                 restricted_to_locations=form.cleaned_data["restricted_to_locations"],
                 locations=form.cleaned_data["locations"],
                 weekly_capacity_hours=form.cleaned_data["weekly_capacity_hours"],
@@ -116,6 +142,85 @@ def member_active_view(request, pk):
     else:
         messages.success(request, _("Miembro reactivado.") if active else _("Miembro desactivado."))
     return redirect("team")
+
+
+# ---------- Roles personalizados (ORG-12, ADR-031) ----------
+# Solo administradores (TEAM_MANAGE) y con el módulo `custom_roles` (PlanModuleMiddleware).
+
+
+def _get_role_or_404(request, pk):
+    try:
+        return custom_role_detail(membership=request.membership, pk=pk)
+    except CustomRole.DoesNotExist as error:
+        raise Http404 from error
+
+
+@membership_required(perm=Perm.TEAM_MANAGE)
+def custom_role_list_view(request):
+    form = CustomRoleCreateForm(request.POST or None)
+    if request.method == "POST" and form.is_valid():
+        try:
+            role = services.create_custom_role(
+                membership=request.membership,
+                name=form.cleaned_data["name"],
+                base_role=form.cleaned_data["base_role"],
+            )
+        except services.TeamError as error:
+            form.add_error("name", str(error))
+        else:
+            messages.success(
+                request,
+                _("Rol «%(name)s» creado con los permisos de su rol base. Ajústalos aquí.")
+                % {"name": role.name},
+            )
+            return redirect("custom_role_edit", pk=role.pk)
+    page = Paginator(custom_role_list(membership=request.membership), 25).get_page(request.GET.get("page"))
+    return render(request, "accounts/custom_role_list.html", {"form": form, "page": page})
+
+
+@membership_required(perm=Perm.TEAM_MANAGE)
+def custom_role_edit_view(request, pk):
+    role = _get_role_or_404(request, pk)
+    form = CustomRoleForm(request.POST or None, role=role)
+    if request.method == "POST" and form.is_valid():
+        try:
+            services.update_custom_role(
+                membership=request.membership,
+                role=role,
+                name=form.cleaned_data["name"],
+                permissions=form.permissions(),
+            )
+        except services.TeamError as error:
+            form.add_error(None, str(error))
+        else:
+            messages.success(request, _("Cambios guardados."))
+            return redirect("custom_role_list")
+    base = ROLE_PERMISSIONS[role.base_role]
+    return render(
+        request,
+        "accounts/custom_role_form.html",
+        {
+            "role": role,
+            "form": form,
+            "added_count": len(role.permission_set - base),
+            "removed_count": len(base - role.permission_set),
+            "member_count": role.memberships.filter(is_active=True).count(),
+        },
+    )
+
+
+@membership_required(perm=Perm.TEAM_MANAGE)
+@require_POST
+def custom_role_active_view(request, pk):
+    role = _get_role_or_404(request, pk)
+    active = request.POST.get("active") == "1"
+    try:
+        services.set_custom_role_active(membership=request.membership, role=role, active=active)
+    except services.TeamError as error:
+        messages.error(request, str(error))
+        return redirect("custom_role_edit", pk=role.pk)
+    messages.success(request, _("Rol reactivado.") if active else _("Rol desactivado."))
+    return redirect("custom_role_list")
 
 
 # ---------- Aceptar una invitación (enlace del correo) ----------

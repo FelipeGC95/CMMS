@@ -1,4 +1,4 @@
-{% extends "base.html" %}{% load i18n ui %}
+{% extends "base.html" %}{% load i18n ui accounts_tags %}
 {% block title %}{% translate "Configuración" %}{% endblock %}
 {% block content %}
 <div class="page-header">
@@ -14,6 +14,16 @@
     <p>{% translate "Asistente paso a paso: rubro, sitios, activos, planes sugeridos, lecturas y calendario. Cada paso se puede saltar y retomar." %}</p>
     <a class="btn btn--secondary" href="{% url 'onboarding' %}">{% translate "Abrir el asistente" %}</a>
   </section>
+  {% if membership|can:"team.manage" %}
+  <section class="card" aria-labelledby="team-title">
+    <h2 id="team-title">{% translate "Equipo y roles" %}</h2>
+    <p>{% translate "Invita personas, cambia su rol y alcance por sitio." %}{% if organization|has_module:"custom_roles" %} {% translate "Crea roles personalizados a partir de un rol base." %}{% endif %}</p>
+    <div class="row">
+      <a class="btn btn--secondary" href="{% url 'team' %}">{% translate "Equipo" %}</a>
+      {% if organization|has_module:"custom_roles" %}<a class="btn btn--secondary" href="{% url 'custom_role_list' %}">{% translate "Roles personalizados" %}</a>{% endif %}
+    </div>
+  </section>
+  {% endif %}
   <section class="card" aria-labelledby="closing-title">
     <h2 id="closing-title">{% translate "Cierre de órdenes de trabajo" %}</h2>
     <form method="post">
