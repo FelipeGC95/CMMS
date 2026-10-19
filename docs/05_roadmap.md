@@ -261,7 +261,9 @@ KPIs ampliados están hechos.
 ## F3 · Escala comercial (~12 semanas)
 
 - SSO SAML/OIDC (Entra ID) para el plan Empresa.
-- Roles personalizados.
+- Roles personalizados. *Hecho (2026-10):* rol base + permisos elegidos, sin
+  permisos de administración, módulo `custom_roles` en Profesional y Empresa
+  (ORG-12, ADR-031).
 - Cobro recurrente (Stripe, Mercado Pago o Flow) y autogestión del plan.
 - Traducción a inglés y portugués.
 - API ampliada, webhooks y tokens con más alcances. *Parcial (2026-10):* webhooks
