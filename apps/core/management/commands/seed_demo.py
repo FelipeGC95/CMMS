@@ -17,8 +17,9 @@ from django.core.management.base import BaseCommand
 from django.db import transaction
 from django.utils import timezone
 
-from apps.accounts.models import Membership, User
-from apps.accounts.services import create_user
+from apps.accounts.models import CustomRole, Membership, User
+from apps.accounts.permissions import ROLE_PERMISSIONS, Perm
+from apps.accounts.services import create_custom_role, create_user
 from apps.assets.models import Asset, AssetClass, AssetStatusPeriod, Meter, MeterKind
 from apps.assets.services import record_meter_reading
 from apps.assistant.models import AssistantConversation
@@ -291,6 +292,7 @@ class Command(BaseCommand):
                 self._grant_admin_permissions(admin)
             demo = Organization.objects.get(slug="alimentos-del-sur")
             self._assign_open_work_orders(demo)
+            self._ensure_custom_role(demo)
             # Render no tiene disco: los PDF de los manuales demo se pierden al dormir.
             with tenant_context(demo):
                 demo_assistant.restore_manual_files()
@@ -327,6 +329,7 @@ class Command(BaseCommand):
                 self._seed_main(org, members)
             self._assign_open_work_orders(org)
             self._schedule_demo_week(org, members["admin"])
+            self._ensure_custom_role(org)
 
             other = Organization.objects.create(
                 name="Maestranza Norte Ltda.",
@@ -349,10 +352,33 @@ class Command(BaseCommand):
         for email, role in [
             ("jefe@demo.cl", "jefe de mantención (admin, 2 organizaciones)"),
             ("tecnico@demo.cl", "técnico"),
+            ("tecnico2@demo.cl", "bodeguero (rol personalizado: técnico + inventario)"),
             ("operador@demo.cl", "operador (solo avisa fallas)"),
             ("plataforma@galbust.cl", "superadmin de plataforma"),
         ]:
             self.stdout.write(f"  {email:24} {role}")
+
+    def _ensure_custom_role(self, org):
+        """Rol personalizado de ejemplo (ORG-12): «Bodeguero» = técnico + mover y administrar
+        inventario, asignado al segundo técnico. Idempotente (Render corre seed_demo al arrancar)."""
+        admin = Membership.objects.filter(organization=org, user__email="jefe@demo.cl").first()
+        member = Membership.objects.filter(organization=org, user__email="tecnico2@demo.cl").first()
+        if admin is None or member is None:
+            return
+        with tenant_context(org):
+            role = CustomRole.objects.filter(name="Bodeguero").first()
+            if role is None:
+                role = create_custom_role(
+                    membership=admin,
+                    name="Bodeguero",
+                    base_role=Membership.Role.TECHNICIAN,
+                    permissions=ROLE_PERMISSIONS[Membership.Role.TECHNICIAN]
+                    | {Perm.INVENTORY_MOVE, Perm.INVENTORY_MANAGE, Perm.INVENTORY_COST_VIEW},
+                )
+            if member.custom_role_id is None:
+                member.role = role.base_role
+                member.custom_role = role
+                member.save(update_fields=["role", "custom_role", "updated_at"])
 
     def _assign_open_work_orders(self, org):
         """Reparte las OT abiertas sin responsable entre los técnicos demo.

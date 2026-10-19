@@ -122,9 +122,18 @@ def build_archive() -> tuple[tempfile.SpooledTemporaryFile, list[str]]:
         memberships = (
             Membership.objects.filter(organization=organization)
             .order_by("created_at")
-            .values_list("id", "user_id", "user__email", "user__full_name", "role", "is_active", "created_at")
+            .values_list(
+                "id",
+                "user_id",
+                "user__email",
+                "user__full_name",
+                "role",
+                "custom_role_id",
+                "is_active",
+                "created_at",
+            )
         )
-        header = ["id", "user_id", "email", "full_name", "role", "is_active", "created_at"]
+        header = ["id", "user_id", "email", "full_name", "role", "custom_role_id", "is_active", "created_at"]
         count = _write_csv(archive, "datos/membresias.csv", header, memberships.iterator())
         summary.append(("datos/membresias.csv", str(Membership._meta.verbose_name_plural), count))
 
