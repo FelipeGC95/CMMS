@@ -2,7 +2,7 @@
 {% block head_title %}{% translate "Invitación" %}{% endblock %}
 {% block content %}
 <h1>{% blocktranslate with org=organization.name %}Únete a {{ org }}{% endblocktranslate %}</h1>
-<p>{% blocktranslate with role=invitation.get_role_display %}Te invitaron con el rol <strong>{{ role }}</strong>.{% endblocktranslate %}</p>
+<p>{% blocktranslate with role=invitation.role_label %}Te invitaron con el rol <strong>{{ role }}</strong>.{% endblocktranslate %}</p>
 
 {% if wrong_user %}
 <div class="alert alert--warning" role="alert">{% icon 'alert' %}<span>{% blocktranslate with email=invitation.email %}Esta invitación es para {{ email }}. Sal de tu cuenta e ingresa con ese correo.{% endblocktranslate %}</span></div>

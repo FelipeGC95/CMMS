@@ -647,7 +647,15 @@ lleva `{id, name, path}`; los decimales van como texto; consultas acotadas
 ### ADR-013 · Roles fijos con permisos en código y alcance por sitio
 - **Decisión:** seis roles con una matriz de permisos en código
   (`accounts/permissions.py`); cada membresía puede restringirse a sitios.
-  Los roles personalizados quedan para F3.
+  Los roles personalizados (F3) se montan sobre esta matriz: ver ADR-031.
+- **Matriz (`ROLE_PERMISSIONS`):** `admin` todo; `planner` todo salvo los
+  permisos de administración (`ADMIN_ONLY_PERMS`: equipo, auditoría,
+  configuración, tokens de API, ver todas las conversaciones del asistente);
+  `supervisor` gestionar y ejecutar OT, solicitudes, lecturas, ver inventario con
+  costos y mover stock, ver condición y usar el asistente; `technician` ejecutar
+  OT, solicitudes, lecturas, ver inventario y condición y usar el asistente;
+  `viewer` solicitudes, lecturas, ver inventario con costos y condición;
+  `external` solo solicitudes.
 - **Alternativa descartada:** grupos y permisos de Django por organización
   (difíciles de probar y de explicar a una pyme).
 - **Consecuencias:** cada permiso sensible tiene un test en
@@ -1517,3 +1525,89 @@ lleva `{id, name, path}`; los decimales van como texto; consultas acotadas
     disparó el evento; en producción se activa `WEBHOOKS_USE_QUEUE`.
 - **Estado (2026-10):** aceptado e implementado (X-08). Fuera de v1: más
   eventos, regenerar el secreto, reenviar a mano y ver el cuerpo enviado.
+
+### ADR-031 · Roles personalizados: rol base + permisos elegidos, sin permisos de administración
+- **Contexto:** ORG-12 (F3, Profesional y Empresa). Las pymes piden roles como
+  «Bodeguero» (técnico que además mueve stock) o «Jefe de turno» (solo lectura
+  que además gestiona OT) sin pasar a planificador. ADR-013 dejó una matriz fija
+  en código y ~200 llamadas a `has_perm`.
+- **Decisión:**
+  1. **Modelo:** `accounts.CustomRole(TenantModel)` con `name`, `base_role`
+     (cualquiera salvo `admin`), `permissions` (lista JSON de códigos `Perm`) e
+     `is_active`; `UNIQUE (organization_id, lower(name))`. `Membership` e
+     `Invitation` ganan `custom_role` (FK nullable, `PROTECT`). Como no heredan de
+     `TenantModel`, su `save()` valida que el rol sea de la misma organización
+     (`CrossTenantError`). La tabla nueva queda con RLS por ser `TenantModel`
+     (ADR-026, `post_migrate`).
+  2. **Permisos efectivos:** `has_perm` → `effective_permissions(membership)`:
+     si la membresía tiene un rol personalizado activo **y** el plan incluye el
+     módulo `custom_roles`, rigen sus permisos; si no, los de `ROLE_PERMISSIONS`
+     de su rol. Las ~200 llamadas existentes no cambian. `membership.role` es
+     siempre el rol base: al asignar un rol personalizado el servicio fija
+     `role = base_role`.
+  3. **Nunca administración:** `ADMIN_ONLY_PERMS` (equipo, auditoría,
+     configuración, tokens de API, ver todas las conversaciones del asistente)
+     se rechaza en `create_custom_role`/`update_custom_role` (no solo en el
+     formulario) y `CustomRole.permission_set` los descarta aunque alguien los
+     escriba en la base. Como el rol base tampoco puede ser `admin`, nadie llega
+     a administrar con un rol personalizado y la regla «siempre queda un
+     administrador» sigue mirando `role = admin`.
+  4. **Qué sigue mirando el rol base** (revisión de los usos de `Role.X`):
+     - `accounts/scoping.is_scoped`, `MemberForm.clean` y `update_member`: el
+       alcance obligatorio de `external` (un «contratista técnico» con base
+       externa sigue limitado a sus sitios).
+     - `accounts/mfa.mfa_required`: MFA de administradores (`admin` no puede
+       ser base, así que no cambia).
+     - `work/selectors.filter_work_orders`: vista por defecto «Mis OT» del
+       técnico; `reporting/views.dashboard`: panel de técnico del inicio;
+       `work/selectors.technicians_in_scope`: carriles y capacidad del tablero
+       semanal y del backlog en semanas (REQ-04/05).
+     - `accounts/services`: `_ensure_other_admin`, primer admin, autoregistro.
+     - `api/services.SERVICE_ROLE`: los tokens de API siguen como planificador
+       (sin rol personalizado).
+     - **Cambia a permiso vigente:** `work/selectors.assignable_members`
+       (responsables asignables de OT) usaba los roles con `work_order.execute`;
+       ahora usa `perm_holders_q`, que combina roles base y personalizados
+       activos (los lee en Python para no depender de operadores JSON de
+       PostgreSQL). Un «técnico sin ejecutar» deja de ser asignable y un «solo
+       lectura que ejecuta» pasa a serlo.
+  5. **Carga sin N+1:** el middleware carga la membresía antes del contexto de
+     tenant, donde RLS ocultaría un JOIN con `custom_role`; por eso no se usa
+     `select_related` ahí y `load_custom_role` lo busca una vez con
+     `all_tenants` filtrando por la organización de la membresía (búsqueda previa
+     al contexto, como `_check_related_tenants`) y lo deja en la instancia. Las
+     listas que evalúan permisos de muchas membresías (equipo, destinatarios de
+     notificaciones) hacen `select_related("custom_role")` dentro del contexto.
+     La organización se toma del contexto cuando coincide (sin consulta extra).
+  6. **Módulo y pérdida del módulo:** `custom_roles` en Profesional y Empresa
+     (migración de datos `organizations/0018`, como `assistant`). Sin el módulo:
+     `/settings/roles/` responde 403 con mensaje de plan, el selector no ofrece
+     roles personalizados, los servicios lanzan `ModuleNotIncludedError` y cada
+     membresía rige por su rol base; nada se borra (editar a alguien sin cambiar
+     su rol conserva el rol personalizado guardado) y todo vuelve a regir si el
+     plan recupera el módulo. Una invitación aceptada sin el módulo o con el rol
+     desactivado entra con el rol base.
+  7. **Ciclo de vida:** sin borrado físico; desactivar exige que ninguna persona
+     activa ni invitación pendiente lo tenga (se pide reasignar antes, en vez de
+     reasignar en silencio). El rol base no se edita: define comportamientos de
+     las membresías (alcance de externo, carriles) y cambiarlo en caliente
+     podría dejar a un externo sin sitios; se crea otro rol.
+  8. **Pantallas:** `/settings/roles/` (lista paginada + alta con nombre y rol
+     base), `/settings/roles/<id>/` (nombre y casillas por área, `PERM_GROUPS`
+     y `PERM_LABELS`, marcando cuáles vienen del rol base) y
+     `/settings/roles/<id>/active/`. Solo `team.manage`. Se reutiliza el grupo de
+     casillas del sistema de diseño (`check-group`): no hay componente nuevo.
+- **Alternativas descartadas:** grupos y permisos de Django por organización
+  (ADR-013); permisos sueltos por membresía sin rol (difíciles de mantener al
+  sumar personas); permitir permisos de administración con confirmación
+  (escalamiento y conflicto con «siempre queda un administrador»).
+- **Consecuencias:**
+  - Una membresía con rol personalizado suma una consulta por petición
+    (`load_custom_role`); las demás no cambian.
+  - La API v1 no expone membresías ni roles, así que no cambia; `bootstrap` de
+    terreno sigue devolviendo el rol base y los permisos efectivos.
+  - Exportación completa (X-03): `custom_role` sale como tabla de tenant y
+    `membresias.csv` suma `custom_role_id`; la purga (X-04) lo borra con las
+    demás tablas de tenant.
+- **Estado (2026-10):** aceptado e implementado (ORG-12). Fuera de v1: cambiar el
+  rol base, clonar roles y roles para tokens de API.

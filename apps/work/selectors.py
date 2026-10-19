@@ -21,8 +21,9 @@ from django.db.models.functions import Coalesce
 from django.utils import timezone
 
 from apps.accounts.models import Membership, User
-from apps.accounts.permissions import ROLE_PERMISSIONS, Perm, require_perm
+from apps.accounts.permissions import Perm, require_perm
 from apps.accounts.scoping import allowed_location_ids, is_scoped
+from apps.accounts.selectors import perm_holders_q
 from apps.assets.models import Meter
 from apps.assets.selectors import visible_assets
 from apps.attachments.models import Attachment, Purpose, TargetType
@@ -54,8 +55,6 @@ OPEN_STATUSES = [
 # Campo por el que se puede filtrar el rango de fechas (WO-05 CA1): clave del
 # formulario → lookup real (created_at compara por día, no por instante).
 DATE_FILTER_LOOKUPS = {"due_on": "due_on", "created_at": "created_at__date"}
-
-ASSIGNABLE_ROLES = [role for role, perms in ROLE_PERMISSIONS.items() if Perm.WORK_ORDER_EXECUTE in perms]
 
 
 def in_locations(location_ids) -> Q:
@@ -182,11 +181,11 @@ def filter_work_orders(*, params, membership) -> WorkOrderListQuery:
 
 def assignable_members(*, membership):
     """Usuarios que pueden ejecutar OT en la organización activa (para asignar o filtrar por responsable)."""
-    return User.objects.filter(
-        memberships__organization=membership.organization,
-        memberships__role__in=ASSIGNABLE_ROLES,
-        memberships__is_active=True,
-    ).order_by("full_name", "email")
+    # Permiso vigente (ORG-12): un rol personalizado puede dar o quitar la ejecución de OT.
+    holders = Membership.objects.filter(organization=membership.organization, is_active=True).filter(
+        perm_holders_q(organization=membership.organization, perm=Perm.WORK_ORDER_EXECUTE)
+    )
+    return User.objects.filter(pk__in=holders.values("user_id")).order_by("full_name", "email")
 
 
 def work_order_detail(pk, *, membership):

@@ -7,14 +7,21 @@ DEFAULT_PLANS = [
     # code, name, max_assets, max_users, max_storage_mb, módulos extra
     ("trial", "Prueba", 50, 10, 1024, ["inventory", "condition"]),
     ("basic", "Básico", 50, 10, 2048, []),
-    ("pro", "Profesional", 300, None, 20480, ["api", "exports", "inventory", "condition", "assistant"]),
+    (
+        "pro",
+        "Profesional",
+        300,
+        None,
+        20480,
+        ["api", "exports", "inventory", "condition", "assistant", "custom_roles"],
+    ),
     (
         "enterprise",
         "Empresa",
         None,
         None,
         None,
-        ["api", "exports", "sso", "inventory", "condition", "assistant"],
+        ["api", "exports", "sso", "inventory", "condition", "assistant", "custom_roles"],
     ),
 ]
 # Planes que incluyen inventario (INV-16, decisión Q4): la migración de datos lo agrega a los existentes.
@@ -25,6 +32,8 @@ CONDITION_PLAN_CODES = ("trial", "pro", "enterprise")
 # conversaciones por organización (editable en el admin; en blanco = sin límite).
 ASSISTANT_PLAN_CODES = ("pro", "enterprise")
 ASSISTANT_CONVERSATION_QUOTAS = {"pro": 100, "enterprise": 500}
+# Roles personalizados (ORG-12): Profesional y Empresa.
+CUSTOM_ROLES_PLAN_CODES = ("pro", "enterprise")
 
 
 def ensure_default_plans(plan_model):

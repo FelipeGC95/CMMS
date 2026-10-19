@@ -18,10 +18,26 @@ from apps.audit.models import AuditEvent
 from apps.core.middleware import SESSION_KEY
 from apps.core.tenancy import tenant_context
 from apps.organizations.models import Location, Organization, Plan
+from apps.organizations.modules import ModuleNotIncludedError, has_module
 from apps.organizations.plans import ensure_default_plans
 
-from .models import Invitation, Membership, MembershipLocation, PendingSignup, User
-from .permissions import Perm, PermissionDeniedError, require_perm
+from .models import (
+    CUSTOM_ROLE_BASES,
+    CustomRole,
+    Invitation,
+    Membership,
+    MembershipLocation,
+    PendingSignup,
+    User,
+)
+from .permissions import (
+    ADMIN_ONLY_PERMS,
+    CUSTOM_ROLES_MODULE,
+    ROLE_PERMISSIONS,
+    Perm,
+    PermissionDeniedError,
+    require_perm,
+)
 from .selectors import hash_token, pending_invitations_qs
 
 INVITATION_TTL = datetime.timedelta(days=7)
@@ -90,15 +106,22 @@ def _send_invitation_email(invitation, accept_url):
 
 
 @transaction.atomic
-def invite_member(*, membership, email, role, base_url):
-    """Invita por correo con un rol. El enlace dura 7 días y es de un solo uso (token guardado como hash)."""
+def invite_member(*, membership, email, role, base_url, custom_role=None):
+    """Invita por correo con un rol. El enlace dura 7 días y es de un solo uso (token guardado como hash).
+
+    Con `custom_role` (ORG-12) el rol de la invitación es su rol base.
+    """
     require_perm(membership, Perm.TEAM_MANAGE)
+    if custom_role is not None:
+        custom_role = _assignable_custom_role(membership, custom_role)
+        role = custom_role.base_role
     return _issue_invitation(
         organization_id=membership.organization_id,
         email=email,
         role=role,
         invited_by=membership.user,
         base_url=base_url,
+        custom_role=custom_role,
     )
 
 
@@ -119,7 +142,7 @@ def invite_first_admin(*, actor, organization, email, base_url):
     )
 
 
-def _issue_invitation(*, organization_id, email, role, invited_by, base_url):
+def _issue_invitation(*, organization_id, email, role, invited_by, base_url, custom_role=None):
     """Crea la invitación y encola el correo; se llama dentro de una transacción."""
     if role not in Membership.Role.values:
         raise TeamError(_("Rol no válido."))
@@ -140,6 +163,7 @@ def _issue_invitation(*, organization_id, email, role, invited_by, base_url):
         organization=organization,
         email=email,
         role=role,
+        custom_role=custom_role,
         token_hash=hash_token(token),
         invited_by=invited_by,
         expires_at=now + INVITATION_TTL,
@@ -149,7 +173,7 @@ def _issue_invitation(*, organization_id, email, role, invited_by, base_url):
             action=AuditEvent.Action.INVITE,
             target=invitation,
             actor=invited_by,
-            changes={"email": email, "role": role},
+            changes={"email": email, "role": role, **_custom_role_change(custom_role)},
         )
     accept_url = base_url.rstrip("/") + reverse("invitation_accept", args=[token])
     transaction.on_commit(lambda: _send_invitation_email(invitation, accept_url))
@@ -180,13 +204,22 @@ def accept_invitation(*, invitation, user):
     if user.email.lower() != invitation.email.lower():
         raise TeamError(_("Esta invitación es para %(email)s.") % {"email": invitation.email})
 
+    custom_role = None
+    if invitation.custom_role_id is not None:
+        # Si el rol se desactivó o el plan perdió el módulo, entra con el rol base (ORG-12).
+        with tenant_context(invitation.organization):
+            if has_module(invitation.organization, CUSTOM_ROLES_MODULE):
+                custom_role = CustomRole.objects.filter(pk=invitation.custom_role_id, is_active=True).first()
     membership, created = Membership.objects.get_or_create(
-        user=user, organization=invitation.organization, defaults={"role": invitation.role}
+        user=user,
+        organization=invitation.organization,
+        defaults={"role": invitation.role, "custom_role": custom_role},
     )
     if not created:
         membership.role = invitation.role
+        membership.custom_role = custom_role
         membership.is_active = True
-        membership.save(update_fields=["role", "is_active", "updated_at"])
+        membership.save(update_fields=["role", "custom_role", "is_active", "updated_at"])
     invitation.accepted_at = timezone.now()
     invitation.save(update_fields=["accepted_at", "updated_at"])
     User.objects.filter(pk=user.pk).update(last_organization=invitation.organization)
@@ -197,7 +230,11 @@ def accept_invitation(*, invitation, user):
             action=AuditEvent.Action.INVITE_ACCEPT,
             target=membership,
             actor=user,
-            changes={"invitation": str(invitation.pk), "role": membership.role},
+            changes={
+                "invitation": str(invitation.pk),
+                "role": membership.role,
+                **_custom_role_change(custom_role),
+            },
         )
     return membership
 
@@ -225,12 +262,29 @@ def _ensure_other_admin(target):
 
 @transaction.atomic
 def update_member(
-    *, membership, target, role, restricted_to_locations, locations, weekly_capacity_hours=None
+    *,
+    membership,
+    target,
+    role,
+    restricted_to_locations,
+    locations,
+    weekly_capacity_hours=None,
+    custom_role=None,
 ):
-    """Cambia rol, alcance por sitio y capacidad semanal (REQ-04/05). Requiere el contexto de tenant."""
+    """Cambia rol, alcance por sitio y capacidad semanal (REQ-04/05). Requiere el contexto de tenant.
+
+    Con `custom_role` (ORG-12) el rol queda en su rol base. Sin el módulo de roles
+    personalizados y sin cambiar el rol, el rol personalizado guardado se conserva (no rige,
+    pero vuelve a regir si el plan recupera el módulo).
+    """
     require_perm(membership, Perm.TEAM_MANAGE)
     if target.organization_id != membership.organization_id:
         raise TeamError(_("Miembro no encontrado."))
+    if custom_role is not None:
+        custom_role = _assignable_custom_role(membership, custom_role)
+        role = custom_role.base_role
+    elif not has_module(membership.organization, CUSTOM_ROLES_MODULE) and role == target.role:
+        custom_role = target.custom_role
     if role not in Membership.Role.values:
         raise TeamError(_("Rol no válido."))
     if target.role == Membership.Role.ADMIN and role != Membership.Role.ADMIN:
@@ -248,6 +302,7 @@ def update_member(
 
     before = {
         "role": target.role,
+        "custom_role": target.custom_role.name if target.custom_role_id else None,
         "restricted_to_locations": target.restricted_to_locations,
         "weekly_capacity_hours": f"{Decimal(target.weekly_capacity_hours):.1f}",
         "locations": sorted(
@@ -258,9 +313,18 @@ def update_member(
         ),
     }
     target.role = role
+    target.custom_role = custom_role
     target.restricted_to_locations = restricted_to_locations
     target.weekly_capacity_hours = Decimal(weekly_capacity_hours).quantize(Decimal("0.1"))
-    target.save(update_fields=["role", "restricted_to_locations", "weekly_capacity_hours", "updated_at"])
+    target.save(
+        update_fields=[
+            "role",
+            "custom_role",
+            "restricted_to_locations",
+            "weekly_capacity_hours",
+            "updated_at",
+        ]
+    )
     # El alcance es configuración, no historial: se reemplaza.
     MembershipLocation.objects.filter(membership=target).exclude(location_id__in=location_ids).delete()
     existing = set(MembershipLocation.objects.filter(membership=target).values_list("location_id", flat=True))
@@ -268,6 +332,7 @@ def update_member(
         MembershipLocation.objects.create(membership=target, location_id=location_id)
     after = {
         "role": role,
+        "custom_role": custom_role.name if custom_role is not None else None,
         "restricted_to_locations": restricted_to_locations,
         "weekly_capacity_hours": f"{Decimal(target.weekly_capacity_hours):.1f}",
         "locations": sorted(str(pk) for pk in location_ids),
@@ -304,6 +369,120 @@ def set_member_active(*, membership, target, active):
         changes={"is_active": [not active, active]},
     )
     return target
+
+
+# ---------- Roles personalizados (ORG-12, ADR-031) ----------
+
+
+def _custom_role_change(custom_role) -> dict:
+    return {"custom_role": custom_role.name} if custom_role is not None else {}
+
+
+def _require_custom_roles(membership):
+    require_perm(membership, Perm.TEAM_MANAGE)
+    if not has_module(membership.organization, CUSTOM_ROLES_MODULE):
+        raise ModuleNotIncludedError(membership.organization, CUSTOM_ROLES_MODULE)
+
+
+def _assignable_custom_role(membership, custom_role) -> CustomRole:
+    """El rol personalizado a asignar: de la organización activa, activo y con el módulo en el plan."""
+    if not has_module(membership.organization, CUSTOM_ROLES_MODULE):
+        raise ModuleNotIncludedError(membership.organization, CUSTOM_ROLES_MODULE)
+    # El manager filtra por la organización del contexto: un rol de otra no aparece.
+    found = CustomRole.objects.filter(pk=getattr(custom_role, "pk", custom_role), is_active=True).first()
+    if found is None or found.organization_id != membership.organization_id:
+        raise TeamError(_("Rol no válido."))
+    return found
+
+
+def _clean_role_name(name, *, exclude_pk=None) -> str:
+    name = " ".join((name or "").split())
+    if not name:
+        raise TeamError(_("Escribe un nombre para el rol."))
+    if len(name) > 60:
+        raise TeamError(_("El nombre puede tener hasta 60 caracteres."))
+    if CustomRole.objects.filter(name__iexact=name).exclude(pk=exclude_pk).exists():
+        raise TeamError(_("Ya existe un rol llamado «%(name)s».") % {"name": name})
+    return name
+
+
+def _clean_role_permissions(permissions) -> list[str]:
+    """Códigos de permiso válidos y ordenados; los de administración nunca (ORG-12 CA3)."""
+    codes = set()
+    for code in permissions:
+        try:
+            perm = Perm(str(code))
+        except ValueError as error:
+            raise TeamError(_("Permiso no válido: %(code)s.") % {"code": code}) from error
+        if perm in ADMIN_ONLY_PERMS:
+            raise TeamError(_("Los permisos de administración no se pueden dar con un rol personalizado."))
+        codes.add(perm.value)
+    return sorted(codes)
+
+
+@transaction.atomic
+def create_custom_role(*, membership, name, base_role, permissions=None) -> CustomRole:
+    """Crea un rol personalizado. Sin `permissions` parte con los permisos de su rol base."""
+    _require_custom_roles(membership)
+    if base_role not in dict(CUSTOM_ROLE_BASES):
+        raise TeamError(_("Rol base no válido."))
+    if permissions is None:
+        permissions = ROLE_PERMISSIONS[base_role]
+    role = CustomRole.objects.create(
+        name=_clean_role_name(name),
+        base_role=base_role,
+        permissions=_clean_role_permissions(permissions),
+    )
+    audit.record(
+        action=AuditEvent.Action.CREATE,
+        target=role,
+        membership=membership,
+        changes={"name": role.name, "base_role": role.base_role, "permissions": role.permissions},
+    )
+    return role
+
+
+@transaction.atomic
+def update_custom_role(*, membership, role, name, permissions) -> CustomRole:
+    """Cambia nombre y permisos. El rol base no cambia: define comportamientos de la membresía."""
+    _require_custom_roles(membership)
+    role = CustomRole.objects.select_for_update().get(pk=role.pk)
+    before = {"name": role.name, "permissions": role.permissions}
+    role.name = _clean_role_name(name, exclude_pk=role.pk)
+    role.permissions = _clean_role_permissions(permissions)
+    role.save(update_fields=["name", "permissions", "updated_at"])
+    if changes := audit.diff(before, {"name": role.name, "permissions": role.permissions}):
+        audit.record(action=AuditEvent.Action.UPDATE, target=role, membership=membership, changes=changes)
+    return role
+
+
+@transaction.atomic
+def set_custom_role_active(*, membership, role, active) -> CustomRole:
+    """Desactiva o reactiva. No se desactiva mientras alguien activo o una invitación pendiente lo use."""
+    _require_custom_roles(membership)
+    role = CustomRole.objects.select_for_update().get(pk=role.pk)
+    if role.is_active == active:
+        return role
+    if not active:
+        members = Membership.objects.filter(custom_role=role, is_active=True).count()
+        invitations = pending_invitations_qs(membership.organization).filter(custom_role=role).count()
+        if members or invitations:
+            raise TeamError(
+                _(
+                    "Este rol lo usan %(members)s personas y %(invitations)s invitaciones pendientes. "
+                    "Asígnales otro rol (o revoca las invitaciones) antes de desactivarlo."
+                )
+                % {"members": members, "invitations": invitations}
+            )
+    role.is_active = active
+    role.save(update_fields=["is_active", "updated_at"])
+    audit.record(
+        action=AuditEvent.Action.REACTIVATE if active else AuditEvent.Action.DEACTIVATE,
+        target=role,
+        membership=membership,
+        changes={"is_active": [not active, active]},
+    )
+    return role
 
 
 # ---------- Autoregistro con prueba gratuita (ORG-02) ----------

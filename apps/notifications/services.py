@@ -54,7 +54,8 @@ def _in_scope(membership, location_id) -> bool:
 def active_memberships(*, user_ids=None):
     """Membresías activas de la organización del contexto (con su usuario)."""
     organization = require_current_organization()
-    qs = Membership.objects.select_related("user").filter(
+    # custom_role: has_perm de cada destinatario sin una consulta por persona (ORG-12).
+    qs = Membership.objects.select_related("user", "custom_role").filter(
         organization=organization, is_active=True, user__is_active=True
     )
     if user_ids is not None:

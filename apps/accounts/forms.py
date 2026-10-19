@@ -1,19 +1,55 @@
 from django import forms
 from django.contrib.auth.password_validation import validate_password
+from django.utils.translation import gettext
 from django.utils.translation import gettext_lazy as _
 
 from .antibot import HumanCheckMixin
-from .models import Membership, User
+from .models import CUSTOM_ROLE_BASES, Membership, User
+from .permissions import PERM_GROUPS, PERM_LABELS, ROLE_PERMISSIONS
+
+CUSTOM_PREFIX = "custom:"
 
 
-class InviteForm(forms.Form):
+class RoleChoiceMixin:
+    """Selector de rol: roles base + personalizados activos (ORG-12).
+
+    Un rol personalizado viaja como `custom:<id>`; `cleaned_data` deja `role` (rol base) y
+    `custom_role` (o None). El servicio vuelve a validar el rol personalizado.
+    """
+
+    def _set_role_choices(self, custom_roles):
+        self.custom_roles = {str(role.pk): role for role in custom_roles}
+        if self.custom_roles:
+            self.fields["role"].choices = [
+                (_("Roles base"), list(Membership.Role.choices)),
+                (
+                    _("Roles personalizados"),
+                    [(f"{CUSTOM_PREFIX}{pk}", role.name) for pk, role in self.custom_roles.items()],
+                ),
+            ]
+
+    def clean_role(self):
+        value = self.cleaned_data["role"]
+        self.cleaned_data["custom_role"] = None
+        if value.startswith(CUSTOM_PREFIX):
+            role = self.custom_roles[value.removeprefix(CUSTOM_PREFIX)]
+            self.cleaned_data["custom_role"] = role
+            return role.base_role
+        return value
+
+
+class InviteForm(RoleChoiceMixin, forms.Form):
     email = forms.EmailField(label=_("Correo"))
     role = forms.ChoiceField(
         label=_("Rol"), choices=Membership.Role.choices, initial=Membership.Role.TECHNICIAN
     )
 
+    def __init__(self, *args, custom_roles=(), **kwargs):
+        super().__init__(*args, **kwargs)
+        self._set_role_choices(custom_roles)
 
-class MemberForm(forms.Form):
+
+class MemberForm(RoleChoiceMixin, forms.Form):
     role = forms.ChoiceField(label=_("Rol"), choices=Membership.Role.choices)
     restricted_to_locations = forms.BooleanField(
         label=_("Limitar a ciertas ubicaciones"),
@@ -35,9 +71,10 @@ class MemberForm(forms.Form):
         help_text=_("Capacidad para el backlog y la programación semanal; se reparte de lunes a viernes."),
     )
 
-    def __init__(self, *args, locations, **kwargs):
+    def __init__(self, *args, locations, custom_roles=(), **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["locations"].queryset = locations
+        self._set_role_choices(custom_roles)
 
     def clean(self):
         data = super().clean()
@@ -45,6 +82,52 @@ class MemberForm(forms.Form):
         if scoped and not data.get("locations"):
             self.add_error("locations", _("Elige al menos una ubicación para limitar el acceso."))
         return data
+
+
+class CustomRoleCreateForm(forms.Form):
+    """Alta de rol personalizado (ORG-12): parte con los permisos del rol base."""
+
+    name = forms.CharField(label=_("Nombre"), max_length=60, help_text=_("Por ejemplo, «Bodeguero»."))
+    base_role = forms.ChoiceField(
+        label=_("Rol base"),
+        choices=CUSTOM_ROLE_BASES,
+        initial=Membership.Role.TECHNICIAN,
+        help_text=_(
+            "Parte con sus permisos y define lo demás: «Mis OT» y capacidad del técnico, "
+            "alcance obligatorio del externo."
+        ),
+    )
+
+
+class CustomRoleForm(forms.Form):
+    """Nombre y permisos del rol, con una casilla por permiso agrupada por área."""
+
+    name = forms.CharField(label=_("Nombre"), max_length=60)
+
+    def __init__(self, *args, role, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.role = role
+        base = ROLE_PERMISSIONS[role.base_role]
+        for key, label, perms in PERM_GROUPS:
+            self.fields[f"perms_{key}"] = forms.MultipleChoiceField(
+                label=label,
+                required=False,
+                widget=forms.CheckboxSelectMultiple,
+                choices=[(perm.value, self._label(perm, perm in base)) for perm in perms],
+            )
+            self.initial.setdefault(
+                f"perms_{key}", [perm.value for perm in perms if perm.value in role.permissions]
+            )
+        self.initial.setdefault("name", role.name)
+
+    @staticmethod
+    def _label(perm, in_base):
+        if in_base:
+            return gettext("%(label)s (del rol base)") % {"label": PERM_LABELS[perm]}
+        return str(PERM_LABELS[perm])
+
+    def permissions(self) -> list[str]:
+        return [code for key, _label, _perms in PERM_GROUPS for code in self.cleaned_data[f"perms_{key}"]]
 
 
 class SignupForm(HumanCheckMixin, forms.Form):

@@ -1,4 +1,4 @@
-{% extends "base.html" %}{% load i18n ui %}
+{% extends "base.html" %}{% load i18n ui accounts_tags %}
 {% block title %}{% translate "Equipo" %}{% endblock %}
 {% block content %}
 <div class="page-header">
@@ -6,6 +6,7 @@
     <h1>{% translate "Equipo" %}</h1>
     <p class="muted">{% blocktranslate count n=page.paginator.count %}{{ n }} persona{% plural %}{{ n }} personas{% endblocktranslate %}{% if organization.plan.max_users %} · {% blocktranslate with max=organization.plan.max_users plan=organization.plan.name %}plan {{ plan }}: hasta {{ max }}{% endblocktranslate %}{% endif %}</p>
   </div>
+  {% if organization|has_module:"custom_roles" %}<a class="btn btn--secondary" href="{% url 'custom_role_list' %}">{% icon 'key' %}{% translate "Roles personalizados" %}</a>{% endif %}
 </div>
 
 <div class="grid grid--2">
@@ -37,7 +38,7 @@
         {% for invitation in invitations %}
         <tr>
           <td data-label="">{{ invitation.email }}</td>
-          <td data-label="{% translate 'Rol' %}">{{ invitation.get_role_display }}</td>
+          <td data-label="{% translate 'Rol' %}">{{ invitation.role_label }}</td>
           <td data-label="{% translate 'Vence' %}" class="num">{{ invitation.expires_at|date:"d-m-Y" }}</td>
           <td data-label="">
             <form method="post" action="{% url 'invitation_revoke' invitation.pk %}">
@@ -65,7 +66,7 @@
       <tr>
         <td data-label=""><a href="{% url 'member_edit' member.pk %}">{{ member.user.full_name|default:member.user.email }}</a></td>
         <td data-label="{% translate 'Correo' %}">{{ member.user.email }}</td>
-        <td data-label="{% translate 'Rol' %}">{{ member.get_role_display }}</td>
+        <td data-label="{% translate 'Rol' %}">{{ member.role_label }}{% if member.role_label != member.get_role_display %}<div class="muted">{% blocktranslate with base=member.get_role_display %}Base: {{ base }}{% endblocktranslate %}</div>{% endif %}</td>
         <td data-label="{% translate 'Alcance' %}">{% if member.restricted_to_locations or member.role == "external" %}{% for scope in member.scope.all %}{{ scope.location.name }}{% if not forloop.last %}, {% endif %}{% empty %}{% translate "Sin ubicaciones" %}{% endfor %}{% else %}{% translate "Toda la organización" %}{% endif %}</td>
         <td data-label="{% translate 'Horas/semana' %}" class="num">{{ member.weekly_capacity_hours|num }}</td>
         <td data-label="">{% if member.is_active %}<span class="badge badge--success">{% icon 'check' %}{% translate "Activo" %}</span>{% else %}<span class="badge badge--neutral">{% icon 'dot' %}{% translate "Desactivado" %}</span>{% endif %}</td>

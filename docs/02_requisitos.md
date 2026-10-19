@@ -70,7 +70,7 @@ restringirla a ciertos sitios, para dar acceso limitado a contratistas o cliente
 - CA2: `external` y cualquier rol con alcance limitado solo ven activos, OT,
   solicitudes e indicadores de sus sitios (incluyendo descendientes).
 - CA3: La matriz rol → permisos está en código y documentada; los tests cubren
-  cada permiso sensible.
+  cada permiso sensible. Roles a medida sobre un rol base: ORG-12.
 
 **ORG-07 · Varias organizaciones por usuario (M0)**
 Como usuario con acceso a varias organizaciones quiero cambiar de organización
@@ -113,6 +113,42 @@ app y los reportes lleven mi marca.
 **ORG-11 · SSO SAML/OIDC (F3, plan Empresa)**
 
 **ORG-12 · Roles personalizados (F3, plan Profesional+)**
+Como administrador quiero crear roles a medida (p. ej. «Bodeguero») a partir de
+un rol base, para dar a cada persona solo los permisos que necesita.
+- CA1: Un rol personalizado es nombre (único en la organización, sin distinguir
+  mayúsculas) + rol base (cualquiera salvo `admin`) + permisos. Al crearlo parte
+  con los permisos de su rol base; en `/settings/roles/` se marcan o desmarcan,
+  agrupados por área y con etiquetas en español. El rol base no cambia después
+  (se crea otro rol).
+- CA2: El selector de rol del equipo y de las invitaciones ofrece los roles base
+  y los personalizados activos. El equipo, el menú «Más» y la invitación muestran
+  el nombre del rol personalizado (el equipo, también su base). La membresía guarda
+  `role` = rol base y `custom_role`.
+- CA3: Los permisos de administración (`team.manage`, `audit.view`,
+  `organization.manage`, `api_token.manage`, `assistant.view_all`) nunca se dan con
+  un rol personalizado: lo valida el servicio (no solo el formulario) y `has_perm`
+  los ignora aunque estuvieran guardados. Solo los administradores gestionan roles.
+- CA4: El rol personalizado concede y quita permisos efectivos (`has_perm`) en la
+  web, la API de terreno y las notificaciones; los responsables asignables de una
+  OT siguen el permiso vigente de ejecutar OT.
+- CA5: El rol base sigue definiendo el alcance obligatorio de `external`, la vista
+  por defecto «Mis OT», el panel de técnico del inicio, los carriles y la capacidad
+  del tablero semanal y el MFA de administradores; la regla «siempre queda un
+  administrador» no cambia.
+- CA6: Módulo de plan `custom_roles` (Profesional y Empresa). Sin el módulo la
+  pantalla responde 403 con mensaje de plan, el selector no ofrece roles
+  personalizados y cada membresía cae a los permisos de su rol base sin borrar
+  nada; si el plan recupera el módulo, vuelven a regir.
+- CA7: Sin borrado físico: un rol se desactiva, y no se puede desactivar mientras
+  lo tenga una persona activa o una invitación pendiente. Crear, editar,
+  desactivar y asignar quedan en la auditoría.
+- CA8: Una organización no ve, edita, asigna ni referencia roles de otra
+  (servicio, formulario, modelo y RLS).
+- No cumplido / fuera de v1: cambiar el rol base de un rol existente, clonar
+  roles, permisos por objeto o por sitio distintos del alcance de la membresía,
+  roles para tokens de API (siguen como planificador) y exponer roles en la API v1
+  (la API no expone membresías; `bootstrap` de terreno devuelve el rol base y los
+  permisos efectivos). Implementación: ADR-031.
 
 ## 2. Activos (`AST`)
 

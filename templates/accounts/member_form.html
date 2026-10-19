@@ -16,7 +16,7 @@
     <div class="field">
       <label for="{{ form.role.id_for_label }}">{{ form.role.label }}</label>
       {{ form.role }}
-      <span class="help">{% translate "Externo / contratista siempre queda limitado a las ubicaciones marcadas." %}</span>
+      <span class="help">{% translate "Externo / contratista siempre queda limitado a las ubicaciones marcadas." %}{% if target.custom_role_id %} {% blocktranslate with base=target.get_role_display %}Rol base: {{ base }}.{% endblocktranslate %}{% endif %}</span>
     </div>
     <div class="field field--check">
       {{ form.restricted_to_locations }}<label for="{{ form.restricted_to_locations.id_for_label }}">{{ form.restricted_to_locations.label }}</label>

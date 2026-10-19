@@ -1,4 +1,4 @@
-{% load i18n %}{% autoescape off %}{% blocktranslate with org=organization.name role=invitation.get_role_display %}Hola:
+{% load i18n %}{% autoescape off %}{% blocktranslate with org=organization.name role=invitation.role_label %}Hola:
 
 Te invitaron a {{ org }} en GALBUST CMMS con el rol {{ role }}.{% endblocktranslate %}{% if inviter %} {% blocktranslate with name=inviter %}Te invitó {{ name }}.{% endblocktranslate %}{% endif %}
 

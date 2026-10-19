@@ -28,6 +28,7 @@ Los nombres de tablas y campos están en inglés (convención de código, ver
 `code` (basic, pro, enterprise, trial) · `name` · `max_assets` · `max_users` (null = ilimitado) · `max_storage_mb` · `features JSONB` (lista de códigos de módulo) · `is_active`.
 Inventario (F2): una migración de datos agrega el módulo `inventory` a los planes Prueba, Profesional y Empresa (y a `plans.DEFAULT_PLANS`); Básico no lo incluye.
 Condición (F2, CBM-08): igual con el módulo `condition` (Prueba, Profesional y Empresa; Básico no).
+Roles personalizados (F3, ORG-12): módulo `custom_roles` en Profesional y Empresa (migración de datos `organizations/0018`).
 Asistente IA (F2, AI-05): `max_assistant_conversations` (conversaciones nuevas por mes calendario en la zona de la organización; null = sin límite) y módulo `assistant` solo en Profesional (100) y Empresa (500); la migración de datos `organizations/0017` los fija en los planes existentes sin pisar un cupo ya editado.
 
 **`organization`** (tenant raíz)
@@ -44,14 +45,18 @@ Asistente IA (F2, AI-05): `max_assistant_conversations` (conversaciones nuevas p
 Tablas de django‑allauth para verificación de correo, MFA y (F3) cuentas SSO.
 
 **`membership`** — relación usuario ↔ organización.
-`user_id` · `organization_id` · `role` (admin, planner, supervisor, technician, viewer, external) · `hourly_cost` · `is_active` · `restricted_to_locations` (bool) · `weekly_capacity_hours` (decimal, por defecto 40; capacidad para el backlog en semanas y la carga del tablero semanal, REQ-04/05; solo cuenta en técnicos).
+`user_id` · `organization_id` · `role` (admin, planner, supervisor, technician, viewer, external; con rol personalizado es su rol base) · `custom_role_id` (null; FK PROTECT a `custom_role` de la misma organización, ORG-12) · `hourly_cost` · `is_active` · `restricted_to_locations` (bool) · `weekly_capacity_hours` (decimal, por defecto 40; capacidad para el backlog en semanas y la carga del tablero semanal, REQ-04/05; solo cuenta en técnicos).
 `UNIQUE (organization_id, user_id)`.
+
+**`custom_role`** (ORG-12, ADR-031) — rol personalizado.
+`organization_id` · `name` · `base_role` (planner, supervisor, technician, viewer, external; nunca admin) · `permissions JSONB` (lista de códigos de `Perm`, sin los de administración) · `is_active`.
+`UNIQUE (organization_id, lower(name))`. Sin borrado físico: se desactiva cuando nadie activo ni una invitación pendiente lo usa. `membership` e `invitation` no son tablas de tenant: el modelo valida al guardar que `custom_role_id` sea de su misma organización.
 
 **`membership_location`** — alcance por sitio (si `restricted_to_locations`).
 `organization_id` · `membership_id` · `location_id`. El acceso incluye descendientes.
 
 **`invitation`**
-`organization_id` · `email` · `role` · `token_hash` · `invited_by_id` · `expires_at` · `accepted_at` · `revoked_at`.
+`organization_id` · `email` · `role` · `custom_role_id` (null, ORG-12) · `token_hash` · `invited_by_id` · `expires_at` · `accepted_at` · `revoked_at`.
 
 **`pending_signup`** (plataforma, sin tenant; ORG-02) — autoregistro esperando la verificación del correo.
 `email` · `full_name` · `organization_name` · `password_hash` · `token_hash` · `expires_at` (2 días) · `completed_at`. Al confirmar se crean usuario, organización y membresía y se borra el hash de la contraseña.

@@ -9,7 +9,7 @@ from django.urls import reverse
 from django.utils import timezone
 from django.utils.http import urlencode
 
-from apps.accounts.models import Membership, MembershipLocation, User
+from apps.accounts.models import CustomRole, Membership, MembershipLocation, User
 from apps.assets.models import Asset
 from apps.audit.models import AuditEvent
 from apps.audit.services import record
@@ -1755,3 +1755,40 @@ def test_webhook_screens_do_not_grow_with_rows(client, tenant_a, monkeypatch, dj
     assert [_count(client, url) for url in urls] == few
     with django_assert_max_num_queries(20):
         assert client.get(urls[1]).status_code == 200
+
+
+def test_custom_role_screens_do_not_grow_with_rows(client, tenant_a, django_assert_max_num_queries):
+    """Roles personalizados (ORG-12): la lista de roles y el equipo con roles personalizados, sin N+1."""
+    from apps.accounts.services import create_custom_role, invite_member, update_member
+
+    def add(n):
+        with tenant_context(tenant_a.org):
+            for _ in range(n):
+                i = CustomRole.objects.count()
+                role = create_custom_role(membership=tenant_a.admin, name=f"Rol {i}", base_role="technician")
+                user = User.objects.create_user(f"cr{i}@{tenant_a.org.slug}.cl")
+                member = Membership.objects.create(user=user, organization=tenant_a.org, role="viewer")
+                update_member(
+                    membership=tenant_a.admin,
+                    target=member,
+                    role="viewer",
+                    custom_role=role,
+                    restricted_to_locations=False,
+                    locations=[],
+                )
+                invite_member(
+                    membership=tenant_a.admin,
+                    email=f"inv{i}@{tenant_a.org.slug}.cl",
+                    role="viewer",
+                    custom_role=role,
+                    base_url="https://x.cl/",
+                )
+
+    login(client, tenant_a.admin)
+    urls = [reverse("custom_role_list"), reverse("team")]
+    add(1)
+    few = [_count(client, url) for url in urls]
+    add(6)
+    assert [_count(client, url) for url in urls] == few
+    with django_assert_max_num_queries(20):
+        assert client.get(urls[0]).status_code == 200

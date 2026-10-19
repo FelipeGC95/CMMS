@@ -1,0 +1,35 @@
+{% extends "base.html" %}{% load i18n ui %}
+{% block title %}{{ role.name }}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>{{ role.name }}</h1>
+    <p class="muted">{% blocktranslate with base=role.get_base_role_display %}Rol base: {{ base }}{% endblocktranslate %} · {% if role.is_active %}<span class="badge badge--success">{% icon 'check' %}{% translate "Activo" %}</span>{% else %}<span class="badge badge--neutral">{% icon 'dot' %}{% translate "Inactivo" %}</span>{% endif %}</p>
+  </div>
+  <a class="btn btn--ghost" href="{% url 'custom_role_list' %}">{% translate "Volver a roles" %}</a>
+</div>
+
+<div class="card">
+  <p class="muted">{% blocktranslate count n=member_count %}Lo tiene {{ n }} persona activa.{% plural %}Lo tienen {{ n }} personas activas.{% endblocktranslate %} {% blocktranslate with added=added_count removed=removed_count %}Respecto del rol base: {{ added }} permisos agregados y {{ removed }} quitados.{% endblocktranslate %}</p>
+  <form method="post">
+    {% csrf_token %}
+    {% include "_form_fields.html" with form=form %}
+    <p class="help muted">{% translate "Equipo, auditoría, configuración, tokens de API y ver todas las conversaciones del asistente quedan solo para administradores." %}</p>
+    <button class="btn btn--primary" type="submit">{% translate "Guardar" %}</button>
+  </form>
+</div>
+
+<div class="card">
+  <form method="post" action="{% url 'custom_role_active' role.pk %}">
+    {% csrf_token %}
+    {% if role.is_active %}
+    <input type="hidden" name="active" value="0">
+    <p class="muted">{% translate "Un rol desactivado no se puede asignar. Antes, asigna otro rol a quienes lo tienen." %}</p>
+    <button class="btn btn--danger" type="submit">{% translate "Desactivar" %}</button>
+    {% else %}
+    <input type="hidden" name="active" value="1">
+    <button class="btn btn--secondary" type="submit">{% translate "Reactivar" %}</button>
+    {% endif %}
+  </form>
+</div>
+{% endblock %}

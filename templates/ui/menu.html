@@ -5,7 +5,7 @@
 <div class="page-header">
   <div>
     <h1>{% translate "Más" %}</h1>
-    {% if organization %}<p class="muted">{{ organization.name }}{% if membership %} · {{ membership.get_role_display }}{% endif %}</p>{% endif %}
+    {% if organization %}<p class="muted">{{ organization.name }}{% if membership %} · {{ membership.role_label }}{% endif %}</p>{% endif %}
   </div>
 </div>
 
@@ -40,7 +40,8 @@
       {% if organization|has_module:"assets" %}<li><a href="{% url 'asset_class_list' %}">{% icon 'box' %}{% translate "Clases de activo" %}</a></li>
       <li><a href="{% url 'reading_import' %}">{% icon 'clock' %}{% translate "Importar lecturas (CSV)" %}</a></li>{% endif %}
       {% endif %}
-      {% if membership|can:"team.manage" %}<li><a href="{% url 'team' %}">{% icon 'list' %}{% translate "Equipo" %}</a></li>{% endif %}
+      {% if membership|can:"team.manage" %}<li><a href="{% url 'team' %}">{% icon 'list' %}{% translate "Equipo" %}</a></li>
+      {% if organization|has_module:"custom_roles" %}<li><a href="{% url 'custom_role_list' %}">{% icon 'key' %}{% translate "Roles personalizados" %}</a></li>{% endif %}{% endif %}
       {% if membership|can:"audit.view" %}<li><a href="{% url 'audit_list' %}">{% icon 'clock' %}{% translate "Auditoría" %}</a></li>{% endif %}
       {% if membership|can:"api_token.manage" and organization|has_module:"api" %}<li><a href="{% url 'api_token_list' %}">{% icon 'key' %}{% translate "Tokens de API" %}</a></li><li><a href="{% url 'webhook_list' %}">{% icon 'bell' %}{% translate "Webhooks" %}</a></li>{% endif %}
       {% if membership|can:"organization.manage" %}<li><a href="{% url 'organization_settings' %}">{% icon 'wrench' %}{% translate "Configuración de la organización" %}</a></li>{% endif %}
@@ -75,7 +76,7 @@
       {% icon 'user' %}
       <div class="account__text">
         <span class="account__name">{{ user.full_name|default:user.email }}</span>
-        <span class="account__meta">{{ user.email }}{% if membership %} · {{ membership.get_role_display }}{% endif %}</span>
+        <span class="account__meta">{{ user.email }}{% if membership %} · {{ membership.role_label }}{% endif %}</span>
       </div>
     </div>
     <ul class="list list--nav">

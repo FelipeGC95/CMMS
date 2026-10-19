@@ -3,10 +3,12 @@ from decimal import Decimal
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
+from django.db.models.functions import Lower
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
 from apps.core.models import TenantModel, TimeStampedModel
+from apps.core.tenancy import CrossTenantError
 
 
 class UserManager(BaseUserManager):
@@ -83,7 +85,17 @@ class Membership(TimeStampedModel):
     organization = models.ForeignKey(
         "organizations.Organization", on_delete=models.CASCADE, related_name="memberships"
     )
+    # Con rol personalizado (ORG-12, ADR-031) `role` es su rol base: sigue definiendo el
+    # alcance obligatorio de `external`, la vista «Mis OT», la capacidad de técnico y el MFA.
     role = models.CharField(_("rol"), max_length=20, choices=Role.choices)
+    custom_role = models.ForeignKey(
+        "accounts.CustomRole",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="memberships",
+        verbose_name=_("rol personalizado"),
+    )
     is_active = models.BooleanField(_("activa"), default=True)
     # ORG-06: si está marcado, solo ve lo de sus ubicaciones (MembershipLocation) y descendientes.
     restricted_to_locations = models.BooleanField(_("limitado a ciertas ubicaciones"), default=False)
@@ -106,6 +118,89 @@ class Membership(TimeStampedModel):
 
     def __str__(self):
         return f"{self.user} · {self.organization} ({self.get_role_display()})"
+
+    def save(self, *args, **kwargs):
+        _check_custom_role_tenant(self)
+        super().save(*args, **kwargs)
+
+    @property
+    def role_label(self):
+        """Nombre visible del rol: el personalizado vigente o el rol base (ORG-12)."""
+        from .permissions import active_custom_role
+
+        custom = active_custom_role(self)
+        return custom.name if custom is not None else self.get_role_display()
+
+
+def load_custom_role(instance):
+    """Rol personalizado de una Membership o Invitation, cargado una vez y guardado en la instancia.
+
+    Ambas se leen antes del contexto de tenant (middleware, enlace de invitación) y ahí RLS
+    ocultaría la fila: se busca con la organización explícita (como `_check_related_tenants`).
+    """
+    if instance.custom_role_id is None:
+        return None
+    field = instance._meta.get_field("custom_role")
+    if not field.is_cached(instance):
+        field.set_cached_value(
+            instance,
+            CustomRole.all_tenants.filter(
+                pk=instance.custom_role_id, organization_id=instance.organization_id
+            ).first(),
+        )
+    return field.get_cached_value(instance)
+
+
+def _check_custom_role_tenant(instance):
+    """Membership e Invitation no son TenantModel: su rol personalizado debe ser de su organización."""
+    if instance.custom_role_id is None:
+        return
+    field = instance._meta.get_field("custom_role")
+    if field.is_cached(instance):
+        role_org_id = instance.custom_role.organization_id
+    else:
+        # Antes del contexto de tenant (aceptar invitación, middleware): búsqueda puntual
+        # con la organización explícita, como `TenantModel._check_related_tenants`.
+        role_org_id = (
+            CustomRole.all_tenants.filter(pk=instance.custom_role_id)
+            .values_list("organization_id", flat=True)
+            .first()
+        )
+    if role_org_id != instance.organization_id:
+        raise CrossTenantError(f"{type(instance).__name__}.custom_role apunta a otra organización.")
+
+
+# Roles base posibles de un rol personalizado: nunca administrador (ORG-12, ADR-031).
+CUSTOM_ROLE_BASES = [(value, label) for value, label in Membership.Role.choices if value != "admin"]
+
+
+class CustomRole(TenantModel):
+    """Rol personalizado (ORG-12, ADR-031): un rol base más los permisos elegidos.
+
+    Los permisos son códigos de `accounts.permissions.Perm`, sin los de administración
+    (`ADMIN_ONLY_PERMS`); los valida el servicio. No se borra: se desactiva.
+    """
+
+    name = models.CharField(_("nombre"), max_length=60)
+    base_role = models.CharField(_("rol base"), max_length=20, choices=CUSTOM_ROLE_BASES)
+    permissions = models.JSONField(_("permisos"), default=list, blank=True)
+    is_active = models.BooleanField(_("activo"), default=True)
+
+    class Meta:
+        verbose_name = _("rol personalizado")
+        verbose_name_plural = _("roles personalizados")
+        constraints = [
+            models.UniqueConstraint("organization", Lower("name"), name="uniq_custom_role_name"),
+        ]
+
+    def __str__(self):
+        return self.name
+
+    @property
+    def permission_set(self) -> frozenset:
+        from .permissions import CUSTOMIZABLE_PERMS, Perm
+
+        return frozenset(Perm(code) for code in self.permissions if code in CUSTOMIZABLE_PERMS)
 
 
 class MembershipLocation(TenantModel):
@@ -141,6 +236,15 @@ class Invitation(TimeStampedModel):
     )
     email = models.EmailField(_("correo"))
     role = models.CharField(_("rol"), max_length=20, choices=Membership.Role.choices)
+    # ORG-12: si se invita con un rol personalizado, `role` es su rol base.
+    custom_role = models.ForeignKey(
+        CustomRole,
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="+",
+        verbose_name=_("rol personalizado"),
+    )
     token_hash = models.CharField(
         max_length=64, unique=True, editable=False, verbose_name=_("hash del token")
     )
@@ -158,6 +262,15 @@ class Invitation(TimeStampedModel):
 
     def __str__(self):
         return f"{self.email} · {self.organization}"
+
+    def save(self, *args, **kwargs):
+        _check_custom_role_tenant(self)
+        super().save(*args, **kwargs)
+
+    @property
+    def role_label(self):
+        custom = load_custom_role(self)
+        return custom.name if custom is not None and custom.is_active else self.get_role_display()
 
     @property
     def is_pending(self):
