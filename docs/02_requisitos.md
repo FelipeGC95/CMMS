@@ -256,6 +256,20 @@ escribirle a nadie; y como dueño de GALBUST quiero cobrar en pesos un precio fi
 - CA9: Una organización no ve, edita ni paga por otra: `external_reference` opaco por
   organización, el webhook solo toca la organización que guardó esa suscripción (y con la
   misma referencia), un id de pago es de una sola organización (servicio, vistas y RLS).
+- CA10: La página dice qué trae cada plan para decidir sin preguntar. Por plan (Prueba de
+  referencia mientras dura, Básico, Profesional, Empresa): precio mensual y anual (UF y CLP
+  estimado), plan actual marcado con ícono + texto, cupos (activos —con el tramo de
+  Profesional: 300 incluidos, +1 UF/mes cada 100 más—, usuarios, almacenamiento y
+  conversaciones del asistente al mes; cupo en blanco = «Ilimitado») y las funciones
+  incluidas y no incluidas con ícono + texto y un beneficio de una línea. Todo sale del
+  catálogo: cupos del `Plan`, `Plan.features` (vacío = incluye todo) y las filas de
+  `organizations.modules.plan_features()` (nombre de `MODULE_LABELS`, beneficio de
+  `MODULE_DESCRIPTIONS`); dos filas se derivan: indicadores básicos (en el inicio de todos
+  los planes) y modo sin conexión en terreno (va con `work_orders`). Desde 1100 px, tabla
+  comparativa con las mismas filas en el mismo orden; bajo 1100 px, tarjetas con «Incluye»
+  y «No incluye» plegado (`<details>`). Un plan que no trae módulos del plan actual lo
+  avisa antes del botón («Con este plan dejas de tener: …»). El soporte no está modelado
+  por plan y no se muestra como fila; no hay plan «Recomendado» (no hay dato que lo diga).
 - No cumplido / fuera de v1: boletas o facturas electrónicas del SII (Mercado Pago envía su
   comprobante); prorrateo al subir de plan; cambiar de mensual a anual con una suscripción
   activa (se cancela y se vuelve a contratar al terminar el período); puesta en marcha como
