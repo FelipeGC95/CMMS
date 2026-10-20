@@ -29,10 +29,11 @@ Los nombres de tablas y campos están en inglés (convención de código, ver
 Inventario (F2): una migración de datos agrega el módulo `inventory` a los planes Prueba, Profesional y Empresa (y a `plans.DEFAULT_PLANS`); Básico no lo incluye.
 Condición (F2, CBM-08): igual con el módulo `condition` (Prueba, Profesional y Empresa; Básico no).
 Roles personalizados (F3, ORG-12): módulo `custom_roles` en Profesional y Empresa (migración de datos `organizations/0018`).
+Precio (F3, ORG-13): `monthly_price_uf` (UF/mes; null = no se vende: Prueba) · `price_included_assets` · `price_block_assets` (100) · `price_block_uf` (tramos de Profesional: +1 UF por cada 100 activos sobre 300) · `annual_months_charged` (10) · `is_self_service` (Básico y Profesional; Empresa se cotiza). La migración `organizations/0020` fija los precios iniciales y deja a Profesional sin tope de activos.
 Asistente IA (F2, AI-05): `max_assistant_conversations` (conversaciones nuevas por mes calendario en la zona de la organización; null = sin límite) y módulo `assistant` solo en Profesional (100) y Empresa (500); la migración de datos `organizations/0017` los fija en los planes existentes sin pisar un cupo ya editado.
 
 **`organization`** (tenant raíz)
-`name` · `slug` (único) · `plan_id` · `status` (trial, active, suspended, pending_deletion, deleted) · `trial_ends_at` · `timezone` (IANA, ej. `America/Santiago`) · `locale` (`es-CL`) · `currency` · `primary_color` (#RRGGBB o vacío, ORG-09) · `mfa_policy` (admins_only, everyone, optional; ORG-08) · `logo` (clave de objeto) · `allow_anonymous_reports` (aviso por QR sin cuenta, REQ-02; columna propia, apagado por defecto) · `limits_override JSONB` · `settings JSONB` (ej. `require_close_approval`, `planning_horizon_days`, `status_labels`) · `storage_used_bytes BIGINT` · `deletion_requested_at` · `deletion_scheduled_for` · `deletion_requested_by_id` · `deleted_at` · `purge_summary JSONB` (borrado X-04: tras la purga la fila queda como lápida anonimizada, ADR-027).
+`name` · `slug` (único) · `plan_id` · `status` (trial, active, suspended, pending_deletion, deleted) · `trial_ends_at` · `timezone` (IANA, ej. `America/Santiago`) · `locale` (`es-CL`) · `currency` · `primary_color` (#RRGGBB o vacío, ORG-09) · `mfa_policy` (admins_only, everyone, optional; ORG-08) · `logo` (clave de objeto) · `allow_anonymous_reports` (aviso por QR sin cuenta, REQ-02; columna propia, apagado por defecto) · `limits_override JSONB` · `settings JSONB` (ej. `require_close_approval`, `planning_horizon_days`, `status_labels`) · `storage_used_bytes BIGINT` · `deletion_requested_at` · `deletion_scheduled_for` · `deletion_requested_by_id` · `deleted_at` · `purge_summary JSONB` (borrado X-04: tras la purga la fila queda como lápida anonimizada, ADR-027) · cobro (ORG-13, ADR-033): `billing_exempt` (facturación manual; por defecto true, false en el autoregistro) · `paid_through` (acceso pagado hasta: fin del período + 2 días de tolerancia) · `past_due_since` (primer cobro rechazado sin pago posterior) · `custom_monthly_uf` (precio acordado, Empresa) · `coupon_id` · `coupon_applied_at`. El estado de acceso (exenta, prueba, activa, gracia, solo lectura) se calcula solo con estos campos (`billing.access.billing_status`), sin consultas extra.
 
 **`data_export`** (X-03) — exportación completa de la organización.
 `organization_id` · `requested_by_id` · `status` (pending, ready, failed, expired) · `file` (`org/<org_id>/exports/<uuid>.zip`) · `size_bytes` · `finished_at` · `expires_at` (7 días) · `error`. Índice `(organization_id, created_at DESC)`.
@@ -82,6 +83,21 @@ Tablas de django‑allauth para verificación de correo y MFA. El SSO (ORG-11) n
 > (`api-<prefix>@api.galbust.invalid`), al que se atribuyen OT, lecturas y la
 > auditoría (`actor_type = api_token`). La búsqueda por hash usa `all_tenants`
 > porque la organización se deduce del token. Índice `(organization_id, created_at DESC)`.
+
+**`coupon`** (plataforma, sin tenant; ORG-13) — descuento que el superadmin aplica a una organización.
+`code` (único) · `name` · `percent_off` (1–100) · `duration_months` (null = mientras siga aplicado) · `is_active`.
+
+**`uf_value`** (plataforma, sin tenant; ORG-13) — valor diario de la UF.
+`date` (único) · `value` (CLP, 2 decimales) · `source`. Lo escribe la tarea diaria (mindicador.cl) o el superadmin a mano.
+
+**`billing_account`** (ORG-13, ADR-033) — suscripción y datos de facturación, una por organización.
+`organization_id` · `plan_id` (contratado) · `period` (monthly, annual) · `status` (none, pending, authorized, paused, cancelled) · `provider` (`mercadopago`) · `provider_subscription_id` (id del `preapproval`; índice simple: el webhook busca con `all_tenants`) · `external_reference` (opaco, `UNIQUE` global; viaja a Mercado Pago y debe volver igual) · `checkout_url` · `amount_clp` · `amount_uf` · `uf_value` · `amount_updated_at` · `next_charge_at` · `pending_plan_id` (baja programada) · `tax_id` (RUT con dígito verificador) · `legal_name` · `business_activity` · `billing_address` · `billing_email` · `notices JSONB` (avisos ya enviados). `UNIQUE (organization_id)`.
+
+**`payment`** (ORG-13) — cobro informado por el proveedor (consultado a su API).
+`organization_id` · `account_id` · `provider_payment_id` (`UNIQUE` global: un pago es de una sola organización) · `status` (approved, pending, rejected, refunded, cancelled) · `status_detail` · `amount_clp` · `amount_uf` · `uf_value` · `plan_id` · `period` · `paid_at` · `period_end`. Índice `(organization_id, created_at DESC)`. Sin borrado.
+
+**`provider_event`** (plataforma, sin tenant; ORG-13) — notificación del webhook ya recibida (idempotencia).
+`provider` · `event_key` · `topic` · `resource_id` · `organization_id` (null) · `result` (processed, ignored, error) · `detail` · `attempts`. `UNIQUE (provider, event_key)`. De plataforma porque llega antes de saber de qué organización es; solo guarda ids y el resultado.
 
 ### 2.2 Ubicaciones
 

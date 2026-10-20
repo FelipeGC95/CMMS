@@ -208,6 +208,62 @@ un rol base, para dar a cada persona solo los permisos que necesita.
   (la API no expone membresías; `bootstrap` de terreno devuelve el rol base y los
   permisos efectivos). Implementación: ADR-031.
 
+**ORG-13 · Cobro recurrente y autogestión del plan (F3)**
+Como administrador quiero contratar, cambiar o cancelar el plan y pagarlo solo, sin
+escribirle a nadie; y como dueño de GALBUST quiero cobrar en pesos un precio fijado en UF.
+- CA1: Proveedor Mercado Pago, suscripciones (`preapproval`) en CLP, detrás de una interfaz
+  pequeña (`billing.gateway`). Sin `MERCADOPAGO_ACCESS_TOKEN` y `MERCADOPAGO_WEBHOOK_SECRET`
+  el cobro en línea queda inactivo: la app funciona como antes y `/settings/billing/` lo dice
+  (ADR-020). Toda llamada saliente tiene timeout, defensa SSRF y no sigue redirecciones.
+- CA2: Precios en UF editables por el superadmin en el plan: Básico 1,5 UF/mes; Profesional
+  4 UF/mes + 1 UF por cada 100 activos (o fracción) sobre 300 (cuentan todos los activos,
+  como el cupo); Empresa «desde 9 UF», cotizado: el superadmin fija el precio acordado en la
+  organización y solo entonces puede pagarlo en línea. Anual = 10 meses. Cupón administrable
+  (porcentaje y duración en meses desde que se aplica, p. ej. «Lanzamiento» 50 % por 12
+  meses). El monto se calcula siempre en el servidor y se redondea al peso (0,5 hacia arriba).
+- CA3: UF del día desde una fuente pública (mindicador.cl por defecto) guardada con fecha; si
+  la fuente falla se usa el último valor guardado; sin ninguno no se cobra y se avisa. La
+  tarea diaria (y `manage.py billing_daily`) actualiza el monto de cada suscripción activa en
+  Mercado Pago con la UF del día y los tramos de activos.
+- CA4: En `/settings/billing/` (solo `organization.manage`; enlace en Configuración y en
+  «Más»): plan, estado con ícono + texto, fin de la prueba o período pagado, próximo cobro en
+  UF y CLP estimado, descuento vigente y UF usada. Sin suscripción: elegir Básico o
+  Profesional y mensual o anual → checkout de Mercado Pago. Con suscripción: subir de plan es
+  inmediato (el monto nuevo rige desde el próximo cobro, sin prorrateo); bajar se programa
+  para el fin del período y solo si la organización cabe en los cupos del plan menor (si no,
+  mensaje con el cupo excedido); elegir el plan actual anula el cambio programado. Cancelar:
+  no se renueva y el acceso sigue hasta el fin del período pagado. Empresa: botón «Cotizar».
+- CA5: Impago y fin de prueba: avisos in-app y por correo (X-02, tipo `billing`, a los
+  administradores) 7 y 1 días antes del fin de la prueba, al fallar un cobro, al entrar en
+  gracia y al quedar en solo lectura. Gracia de 7 días (`BILLING_GRACE_DAYS`); luego **solo
+  lectura**: se ve y se exporta, no se crea ni se edita en la web, la API v1 (402
+  `payment_required`) ni `/field/api/` (402; la PWA deja el cambio en cola y lo envía al
+  pagar). Los administradores siempre pueden entrar a Facturación y pagar. Al aprobarse un
+  pago se reactiva sola. Nunca se borran datos por impago. La misma solo lectura rige durante
+  el borrado programado (X-04).
+- CA6: Webhook entrante `/billing/webhooks/mercadopago/`: valida la firma `x-signature`;
+  siempre consulta el recurso a la API de Mercado Pago (no confía en el cuerpo); idempotente
+  por id de evento; sin sesión ni CSRF solo en esa ruta; nunca responde 500 por datos
+  inesperados (503 si la API de Mercado Pago no responde, para que reintente). Registra cada
+  pago (CLP, UF aplicada, estado, id de Mercado Pago) y la auditoría.
+- CA7: Datos de facturación: RUT validado con dígito verificador, razón social, giro,
+  dirección y correo de facturación. Historial de pagos paginado.
+- CA8: Organizaciones existentes y demo: marca «facturación manual (exenta)» que el
+  superadmin controla; la migración la deja encendida en las existentes (salvo las del
+  autoregistro en prueba) y es el valor por defecto al crear una en el admin. Las nuevas de
+  `/signup/` entran en prueba de 30 días sin exención. La demo es exenta y muestra un
+  historial de pagos de ejemplo.
+- CA9: Una organización no ve, edita ni paga por otra: `external_reference` opaco por
+  organización, el webhook solo toca la organización que guardó esa suscripción (y con la
+  misma referencia), un id de pago es de una sola organización (servicio, vistas y RLS).
+- No cumplido / fuera de v1: boletas o facturas electrónicas del SII (Mercado Pago envía su
+  comprobante); prorrateo al subir de plan; cambiar de mensual a anual con una suscripción
+  activa (se cancela y se vuelve a contratar al terminar el período); puesta en marcha como
+  pago único (se cobra por fuera y se registra a mano en el admin si hace falta); otros
+  proveedores (Flow, Stripe); que el administrador cambie su medio de pago dentro de
+  GALBUST (se hace en Mercado Pago); cupones que ingresa el cliente (los aplica el
+  superadmin). Implementación: ADR-033.
+
 ## 2. Activos (`AST`)
 
 **AST-01 · Clases de activo con atributos (M0)**
