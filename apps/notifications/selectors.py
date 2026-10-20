@@ -15,6 +15,7 @@ KIND_PERMS = {
     Kind.STOCK_LOW: Perm.INVENTORY_MOVE,  # quienes reponen (INV-12)
     Kind.CONDITION_ALERT: Perm.WORK_ORDER_MANAGE,  # quienes deciden la OT predictiva (CBM-05)
     Kind.WEBHOOK_DISABLED: Perm.API_TOKEN_MANAGE,  # quienes administran integraciones (X-08)
+    Kind.BILLING: Perm.ORGANIZATION_MANAGE,  # administradores: fin de prueba, impago (ORG-13)
 }
 # Módulo de plan que además exige el tipo (ORG-10): sin él, el aviso no existe para nadie.
 KIND_MODULES = {Kind.STOCK_LOW: "inventory", Kind.CONDITION_ALERT: "condition", Kind.WEBHOOK_DISABLED: "api"}

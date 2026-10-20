@@ -1,6 +1,8 @@
 import re
 import uuid
+from decimal import Decimal
 
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 
@@ -26,6 +28,32 @@ class Plan(TimeStampedModel):
     features = models.JSONField(_("módulos incluidos"), default=list, blank=True)
     is_active = models.BooleanField(_("activo"), default=True)
 
+    # Precio (ORG-13, ADR-033), en UF por mes; lo edita el superadmin. En blanco = no se vende en
+    # línea (Prueba) o se cotiza por organización (Empresa: `Organization.custom_monthly_uf`).
+    monthly_price_uf = models.DecimalField(
+        _("precio mensual (UF)"), max_digits=7, decimal_places=2, null=True, blank=True
+    )
+    # Tramos por activos: sobre `price_included_assets` se suma `price_block_uf` por cada bloque de
+    # `price_block_assets` activos (o fracción). En blanco = sin tramos.
+    price_included_assets = models.PositiveIntegerField(
+        _("activos incluidos en el precio"), null=True, blank=True
+    )
+    price_block_assets = models.PositiveIntegerField(_("activos por bloque adicional"), default=100)
+    price_block_uf = models.DecimalField(
+        _("precio por bloque adicional (UF)"), max_digits=7, decimal_places=2, default=Decimal("0")
+    )
+    # Anual = 10 meses (2 gratis).
+    annual_months_charged = models.PositiveSmallIntegerField(
+        _("meses cobrados en el pago anual"),
+        default=10,
+        validators=[MinValueValidator(1), MaxValueValidator(12)],
+    )
+    is_self_service = models.BooleanField(
+        _("contratable en línea"),
+        default=False,
+        help_text=_("Aparece en Facturación con checkout. Empresa se cotiza: déjalo apagado."),
+    )
+
     class Meta:
         verbose_name = _("plan")
         verbose_name_plural = _("planes")
@@ -33,6 +61,29 @@ class Plan(TimeStampedModel):
 
     def __str__(self):
         return self.name
+
+
+class Coupon(TimeStampedModel):
+    """Descuento comercial (ORG-13): catálogo de plataforma que el superadmin aplica a una organización.
+
+    Rige `duration_months` meses desde que se aplica (en blanco = mientras siga aplicado).
+    """
+
+    code = models.SlugField(_("código"), unique=True)
+    name = models.CharField(_("nombre"), max_length=100)
+    percent_off = models.PositiveSmallIntegerField(
+        _("descuento (%)"), validators=[MinValueValidator(1), MaxValueValidator(100)]
+    )
+    duration_months = models.PositiveSmallIntegerField(_("duración (meses)"), null=True, blank=True)
+    is_active = models.BooleanField(_("activo"), default=True)
+
+    class Meta:
+        verbose_name = _("cupón")
+        verbose_name_plural = _("cupones")
+        ordering = ["name"]
+
+    def __str__(self):
+        return f"{self.name} ({self.percent_off} %)"
 
 
 # Sufijo societario final ("SpA", "S.A.", "Ltda.", "EIRL"...), que se omite en la barra superior.
@@ -97,6 +148,31 @@ class Organization(TimeStampedModel):
         choices=MfaPolicy.choices,
         default=MfaPolicy.ADMINS_ONLY,
     )
+
+    # Cobro (ORG-13, ADR-033). Exenta = facturación manual: nunca pasa a solo lectura por impago.
+    # Por defecto exenta (las creadas por el superadmin y la demo); el autoregistro la crea sin exención.
+    billing_exempt = models.BooleanField(
+        _("facturación manual (exenta)"),
+        default=True,
+        help_text=_("Sin cobro en línea: no se bloquea por fin de prueba ni por impago."),
+    )
+    # Acceso pagado hasta (fin del período pagado + tolerancia); lo mueve cada pago aprobado.
+    paid_through = models.DateTimeField(_("pagada hasta"), null=True, blank=True)
+    # Primer cobro rechazado sin pago posterior: desde aquí corre la gracia (se borra al pagar).
+    past_due_since = models.DateTimeField(_("pago pendiente desde"), null=True, blank=True)
+    # Precio cotizado (Empresa u otro acuerdo), en UF por mes; reemplaza al del plan.
+    custom_monthly_uf = models.DecimalField(
+        _("precio acordado (UF/mes)"), max_digits=7, decimal_places=2, null=True, blank=True
+    )
+    coupon = models.ForeignKey(
+        Coupon,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="organizations",
+        verbose_name=_("cupón"),
+    )
+    coupon_applied_at = models.DateTimeField(_("cupón aplicado el"), null=True, blank=True)
 
     # Borrado a pedido (X-04): período de gracia y lápida tras la purga (docs/07_operacion.md).
     deletion_requested_at = models.DateTimeField(_("eliminación solicitada el"), null=True, blank=True)

@@ -23,6 +23,7 @@ from apps.attachments.models import TargetType
 from apps.attachments.selectors import attachments_for
 from apps.attachments.services import AttachmentError
 from apps.attachments.services import add_attachment as add_generic_attachment
+from apps.billing.access import billing_status
 from apps.condition.selectors import asset_condition
 from apps.core.decorators import membership_required
 from apps.core.files import private_file_response
@@ -640,7 +641,8 @@ def _anonymous_report(request, token):
     pedir ingresar, sin revelar si el activo existe.
     """
     asset = asset_for_anonymous_report(token)
-    if asset is None:
+    # En solo lectura (ORG-13) no se crean avisos: igual que si el aviso sin cuenta estuviera apagado.
+    if asset is None or billing_status(asset.organization).read_only:
         return redirect_to_login(request.get_full_path())
     form = AnonymousReportForm(request.POST or None, request.FILES or None)
     if request.method == "POST":

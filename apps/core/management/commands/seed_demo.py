@@ -35,6 +35,7 @@ from apps.work.selectors import OPEN_STATUSES
 from apps.work.services import answer_checklist_item, complete_work_order, create_work_order
 
 from . import _seed_assistant as demo_assistant
+from . import _seed_billing as demo_billing
 from . import _seed_condition as demo_condition
 from . import _seed_inventory as demo_inventory
 
@@ -296,6 +297,7 @@ class Command(BaseCommand):
             # Render no tiene disco: los PDF de los manuales demo se pierden al dormir.
             with tenant_context(demo):
                 demo_assistant.restore_manual_files()
+                demo_billing.seed_billing(demo)  # historial de pagos de ejemplo (ORG-13)
             # Demo con usuarios compartidos: sin segundo factor obligatorio (ORG-08).
             Organization.objects.filter(slug__in=["alimentos-del-sur", "maestranza-norte"]).update(
                 mfa_policy=Organization.MfaPolicy.OPTIONAL
@@ -327,6 +329,7 @@ class Command(BaseCommand):
             Membership.objects.create(user=platform, organization=org, role="admin")
             with tenant_context(org):
                 self._seed_main(org, members)
+                demo_billing.seed_billing(org)
             self._assign_open_work_orders(org)
             self._schedule_demo_week(org, members["admin"])
             self._ensure_custom_role(org)

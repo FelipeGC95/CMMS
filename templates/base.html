@@ -71,6 +71,7 @@
   <main id="main">
     {% include "_messages.html" %}
     {% if organization.status == "pending_deletion" %}{% include "organizations/_deletion_banner.html" %}{% endif %}
+    {% if billing_status.needs_attention %}{% include "billing/_banner.html" %}{% endif %}
     {% block content %}{% endblock %}
     <p class="footer">GALBUST CMMS · {% translate "con tecnología de" %} GALBUST{% if user.is_staff %} · <a href="{% url 'design_system' %}">{% translate "Sistema de diseño" %}</a>{% endif %}</p>
   </main>

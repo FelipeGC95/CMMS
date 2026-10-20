@@ -1,0 +1,5 @@
+{% load i18n ui %}{# Estado de un pago (ORG-13): ícono + texto. Recibe `payment`. #}
+{% if payment.status == "approved" %}<span class="badge badge--success">{% icon 'check' %}{{ payment.get_status_display }}</span>
+{% elif payment.status == "pending" %}<span class="badge badge--warning">{% icon 'clock' %}{{ payment.get_status_display }}</span>
+{% elif payment.status == "rejected" %}<span class="badge badge--error">{% icon 'x' %}{{ payment.get_status_display }}</span>
+{% else %}<span class="badge badge--neutral">{% icon 'dot' %}{{ payment.get_status_display }}</span>{% endif %}

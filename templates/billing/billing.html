@@ -1,0 +1,118 @@
+{% extends "base.html" %}{% load i18n ui billing_tags %}
+{% block title %}{% translate "Facturación" %}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>{% translate "Facturación" %}</h1>
+    <p class="muted">{{ organization.name }}</p>
+  </div>
+</div>
+
+{% if not overview.online_payments and overview.status.access != "exempt" %}
+<div class="alert alert--info" role="status">{% icon 'info' %}<span>{% blocktranslate with email=contact_email %}El pago en línea aún no está activo. Para contratar o cambiar de plan escríbenos a {{ email }}.{% endblocktranslate %}</span></div>
+{% endif %}
+
+<div class="grid grid--2">
+  <section class="card" aria-labelledby="plan-title">
+    <div class="card__header">
+      <h2 id="plan-title">{% translate "Tu plan" %}</h2>
+      {% include "billing/_status_badge.html" with status=overview.status %}
+    </div>
+    <dl class="dl">
+      <dt>{% translate "Plan" %}</dt><dd>{{ overview.plan.name|default:"—" }}</dd>
+      {% with account=overview.account status=overview.status %}
+      {% if status.access == "exempt" %}
+      <dt>{% translate "Cobro" %}</dt><dd>{% translate "Facturación manual: lo coordinamos contigo directamente." %}</dd>
+      {% elif status.access == "trial" %}
+      <dt>{% translate "Prueba gratuita hasta" %}</dt><dd>{{ status.ends_at|date:"j M Y" }}</dd>
+      {% elif status.access == "grace" %}
+      <dt>{% translate "Solo lectura desde" %}</dt><dd>{{ status.ends_at|date:"j M Y" }}</dd>
+      {% elif status.access == "read_only" and status.reason == "deletion" %}
+      <dt>{% translate "Estado" %}</dt><dd>{% translate "Eliminación programada: solo lectura." %}</dd>
+      {% endif %}
+      {% if organization.paid_through %}<dt>{% translate "Pagado hasta" %}</dt><dd>{{ organization.paid_through|date:"j M Y" }}</dd>{% endif %}
+      {% if account and account.plan %}<dt>{% translate "Suscripción" %}</dt><dd>{{ account.plan.name }} · {{ account.get_period_display }} · {{ account.get_status_display }}</dd>{% endif %}
+      {% if account.is_active_subscription %}
+      <dt>{% translate "Próximo cobro" %}</dt>
+      <dd>{% if account.next_charge_at %}{{ account.next_charge_at|date:"j M Y" }} · {% endif %}{% if overview.next_charge %}{{ overview.next_charge.total_uf|uf }} UF{% if overview.next_charge.amount_clp %} ({% blocktranslate with clp=overview.next_charge.amount_clp|clp %}≈ {{ clp }} con la UF de hoy{% endblocktranslate %}){% endif %}{% else %}—{% endif %}</dd>
+      {% endif %}
+      {% if account.pending_plan %}<dt>{% translate "Cambio programado" %}</dt><dd>{% blocktranslate with plan=account.pending_plan.name %}Pasas a {{ plan }} al fin del período pagado.{% endblocktranslate %}</dd>{% endif %}
+      {% if overview.discount_percent %}<dt>{% translate "Descuento" %}</dt><dd>{{ organization.coupon.name }} · {{ overview.discount_percent }} %</dd>{% endif %}
+      <dt>{% translate "UF" %}</dt><dd>{% if overview.uf_value %}{{ overview.uf_value.value|clp }} ({{ overview.uf_value.date|date:"j M Y" }}){% else %}{% translate "Sin valor guardado: no se puede calcular el cobro." %}{% endif %}</dd>
+      {% endwith %}
+    </dl>
+    {% with account=overview.account %}
+    {% if account.status == "pending" and account.checkout_url %}
+    <p class="mt-2">{% translate "Iniciaste un pago que Mercado Pago aún no confirma." %}</p>
+    <a class="btn btn--primary" href="{{ account.checkout_url }}" rel="noopener">{% translate "Completar el pago" %}</a>
+    {% endif %}
+    {% if account.is_active_subscription %}
+    <details class="mt-4">
+      <summary>{% translate "Cancelar la suscripción" %}</summary>
+      <p class="muted">{% translate "No se renovará. Sigues con tu plan hasta el fin del período pagado; luego la organización queda en solo lectura (tus datos no se borran)." %}</p>
+      <form method="post" action="{% url 'billing_cancel' %}">
+        {% csrf_token %}
+        <button class="btn btn--danger" type="submit">{% translate "Cancelar suscripción" %}</button>
+      </form>
+    </details>
+    {% endif %}
+    {% endwith %}
+  </section>
+
+  <section class="card" aria-labelledby="how-title">
+    <h2 id="how-title">{% translate "Cómo cobramos" %}</h2>
+    <ul class="stack">
+      <li class="muted">{% translate "Los precios están en UF; cada cobro se hace en pesos con la UF del día, redondeado al peso." %}</li>
+      <li class="muted">{% translate "Mercado Pago cobra solo cada mes o cada año. Subir de plan rige al instante; bajar, al fin del período pagado." %}</li>
+      <li class="muted">{% blocktranslate with days=grace_days %}Si un cobro falla tienes {{ days }} días para regularizarlo; luego la organización queda en solo lectura hasta pagar. Nunca borramos datos por falta de pago.{% endblocktranslate %}</li>
+      <li class="muted">{% translate "Aún no emitimos boleta ni factura electrónica: Mercado Pago te envía el comprobante de cada pago." %}</li>
+    </ul>
+  </section>
+</div>
+
+<h2 class="mt-4">{% translate "Planes" %}</h2>
+<div class="plan-options">
+  {% for option in overview.options %}{% include "billing/_plan_option.html" %}{% endfor %}
+  {% for plan in overview.quoted_plans %}
+  <article class="plan-option">
+    <div class="plan-option__head"><h3>{{ plan.name }}</h3></div>
+    {% if plan.monthly_price_uf %}<p class="plan-option__price"><span class="plan-option__unit">{% translate "desde" %}</span> <span class="num">{{ plan.monthly_price_uf|uf }}</span> <span class="plan-option__unit">{% translate "UF/mes" %}</span></p>{% endif %}
+    <p class="muted">{% translate "Precio a medida según activos, sitios e integraciones: SSO, API y soporte prioritario." %}</p>
+    <a class="btn btn--secondary btn--block" href="mailto:{{ contact_email }}?subject={% filter urlencode %}{% blocktranslate with org=organization.name plan=plan.name %}Cotización plan {{ plan }} · {{ org }}{% endblocktranslate %}{% endfilter %}">{% icon 'chat' %}{% translate "Cotizar" %}</a>
+  </article>
+  {% endfor %}
+</div>
+
+<section class="card mt-4" id="details" aria-labelledby="details-title">
+  <h2 id="details-title">{% translate "Datos de facturación" %}</h2>
+  <form method="post" action="{% url 'billing' %}#details" class="form-grid">
+    {% csrf_token %}
+    {% include "_form_fields.html" with form=form %}
+    <div class="form-grid__actions"><button class="btn btn--primary" type="submit">{% translate "Guardar datos" %}</button></div>
+  </form>
+</section>
+
+<h2 class="mt-4" id="payments">{% translate "Historial de pagos" %}</h2>
+{% if page.object_list %}
+<div class="card card--flush">
+  <table class="table">
+    <thead><tr><th>{% translate "Fecha" %}</th><th>{% translate "Plan" %}</th><th>{% translate "Monto" %}</th><th>{% translate "UF aplicada" %}</th><th>{% translate "Estado" %}</th><th>{% translate "N.º en Mercado Pago" %}</th></tr></thead>
+    <tbody>
+      {% for payment in page.object_list %}
+      <tr>
+        <td data-label="{% translate 'Fecha' %}">{{ payment.paid_at|default:payment.created_at|date:"j M Y" }}</td>
+        <td data-label="{% translate 'Plan' %}">{{ payment.plan.name|default:"—" }}{% if payment.period %} · {{ payment.get_period_display }}{% endif %}</td>
+        <td class="num" data-label="{% translate 'Monto' %}">{{ payment.amount_clp|clp }}{% if payment.amount_uf %}<div class="muted">{{ payment.amount_uf|uf }} UF</div>{% endif %}</td>
+        <td class="num" data-label="{% translate 'UF aplicada' %}">{{ payment.uf_value|clp|default:"—" }}</td>
+        <td data-label="{% translate 'Estado' %}">{% include "billing/_payment_status.html" %}</td>
+        <td class="mono" data-label="{% translate 'N.º en Mercado Pago' %}">{{ payment.provider_payment_id }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% include "_pagination.html" %}
+{% else %}
+<p class="muted">{% translate "Aún no hay pagos." %}</p>
+{% endif %}
+{% endblock %}

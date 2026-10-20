@@ -27,7 +27,8 @@ export class ApiError extends Error {
 
   // Qué hace la cola con este error (ADR-011 §1e).
   get kind() {
-    if (this.status === 0 || this.status >= 500 || this.status === 429) return "retry";
+    // 402: la organización está en solo lectura (ORG-13). El cambio queda en cola y sale solo al pagar.
+    if (this.status === 0 || this.status >= 500 || this.status === 429 || this.status === 402) return "retry";
     if (this.status === 401) return "auth";
     if (this.status === 403 && this.code === "mfa_required") return "mfa";
     // Un CSRF rechazado es una sesión cambiada: se pide entrar de nuevo, no es un conflicto.

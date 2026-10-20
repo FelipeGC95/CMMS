@@ -24,6 +24,11 @@
     </div>
   </section>
   {% endif %}
+  <section class="card" id="billing" aria-labelledby="billing-title">
+    <h2 id="billing-title">{% translate "Facturación y plan" %}</h2>
+    <p>{% translate "Tu plan, el próximo cobro, cambiar o cancelar, datos de facturación e historial de pagos." %}</p>
+    <a class="btn btn--secondary" href="{% url 'billing' %}">{% translate "Ir a Facturación" %}</a>
+  </section>
   {% if organization|has_module:"sso" %}
   <section class="card" id="sso" aria-labelledby="sso-title">
     <h2 id="sso-title">{% translate "Inicio de sesión único (SSO)" %}</h2>
