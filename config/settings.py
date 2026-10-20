@@ -54,6 +54,7 @@ INSTALLED_APPS = [
     "apps.api",
     "apps.webhooks",
     "apps.sso",
+    "apps.billing",
     "apps.ui",
     "apps.onboarding",
     "apps.field",
@@ -75,6 +76,8 @@ MIDDLEWARE = [
     "apps.organizations.modules.PlanModuleMiddleware",
     "apps.core.middleware.PrivateCacheMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
+    # Solo lectura por impago o borrado programado (ORG-13, ADR-033); tras los mensajes, que usa.
+    "apps.billing.access.ReadOnlyMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
@@ -136,6 +139,19 @@ AI_MODEL_PRICES_USD = {
     "claude-opus-5-5": {"input": 4.0, "output": 20.0, "cache_read": 0.20, "cache_write": 5.0},
     "claude-sonnet-5-5": {"input": 2.0, "output": 10.0, "cache_read": 0.20, "cache_write": 2.5},
 }
+# Cobro recurrente con Mercado Pago (ORG-13, ADR-033). Sin MERCADOPAGO_ACCESS_TOKEN y
+# MERCADOPAGO_WEBHOOK_SECRET el cobro en línea queda inactivo: la app funciona como siempre y
+# /settings/billing/ lo dice. MERCADOPAGO_TEST_PAYER_EMAIL: correo del comprador de prueba (sandbox).
+MERCADOPAGO_ACCESS_TOKEN = os.environ.get("MERCADOPAGO_ACCESS_TOKEN", "")
+MERCADOPAGO_WEBHOOK_SECRET = os.environ.get("MERCADOPAGO_WEBHOOK_SECRET", "")
+MERCADOPAGO_TEST_PAYER_EMAIL = os.environ.get("MERCADOPAGO_TEST_PAYER_EMAIL", "")
+MERCADOPAGO_API_URL = os.environ.get("MERCADOPAGO_API_URL", "https://api.mercadopago.com")
+# Valor diario de la UF (fuente pública con el formato de mindicador.cl).
+UF_SOURCE_URL = os.environ.get("UF_SOURCE_URL", "https://mindicador.cl/api/uf")
+# Días con escritura tras el fin de la prueba o un pago rechazado; después, solo lectura.
+BILLING_GRACE_DAYS = int(os.environ.get("BILLING_GRACE_DAYS", "7"))
+# Contacto para cotizar el plan Empresa.
+BILLING_CONTACT_EMAIL = os.environ.get("BILLING_CONTACT_EMAIL", "ventas@galbust.cl")
 # Borrado de organización (X-04): días de gracia antes de la purga.
 ORGANIZATION_DELETION_GRACE_DAYS = 30
 
@@ -209,6 +225,8 @@ REST_FRAMEWORK = {
         "apps.api.framework.HasTokenScope",
         # Módulos por plan (ORG-10 CA2): `api` y el módulo del endpoint.
         "apps.organizations.modules.PlanIncludesModule",
+        # Organización en solo lectura (ORG-13): escrituras 402 `payment_required`.
+        "apps.billing.access.OrganizationWritable",
     ],
     "DEFAULT_THROTTLE_CLASSES": ["apps.api.framework.TokenRateThrottle"],
     "DEFAULT_THROTTLE_RATES": {

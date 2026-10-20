@@ -90,6 +90,7 @@ Todos los errores tienen la misma forma, con textos en español:
 | 400 | `invalid` | Datos inválidos o regla de negocio incumplida (transición no permitida, ítem obligatorio sin responder). |
 | 401 | `not_authenticated` / `authentication_failed` | Sin token, token mal formado, revocado o vencido. |
 | 403 | `permission_denied` | Token `read` intentando escribir, o acción fuera del rol. |
+| 402 | `payment_required` | La organización está en solo lectura (gracia por falta de pago vencida o borrado programado; ORG-13). Las lecturas siguen funcionando; las escrituras vuelven a funcionar solas al pagar. |
 | 404 | `not_found` | No existe o es de otra organización. |
 | 409 | `conflict` | `client_uuid` ya usado en otra operación. (La API de terreno además usa `cancelled`, `locked`, `organization_changed` y `upgrade_required`; ver más abajo.) |
 | 429 | `throttled` | Límite de peticiones por minuto superado. |
@@ -517,6 +518,7 @@ Un contratista mide la temperatura de rodamientos de 40 motores y entrega una pl
 
 - La membresía es la de la persona (rol y alcance por sitio, como en la web); un token de integración no entra (401).
 - Exige el módulo `work_orders` del plan (`requests/` exige `requests`), **no** el módulo `api`.
+- Solo lectura (ORG-13): las escrituras responden 402 `payment_required`; la PWA deja el cambio en cola y lo reintenta, así que sale solo cuando la organización paga.
 - MFA: si la organización lo exige y la persona no lo configuró → 403 `mfa_required` (JSON, sin redirección). Sin sesión → 401 con `WWW-Authenticate: Session realm="field"`.
 - Límite por persona: `FIELD_API_RATE_LIMIT` (`600/min` por defecto).
 - Las horas de `bootstrap`, `snapshot` y `reference` van en UTC con `Z`; los decimales como texto.

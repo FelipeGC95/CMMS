@@ -60,6 +60,18 @@ def _mfa_not_enforced(settings):
     settings.MFA_ENFORCE = False
 
 
+@pytest.fixture(autouse=True)
+def _no_billing_network(monkeypatch):
+    """Facturación (ORG-13) sin red: ni Mercado Pago ni la fuente de la UF. Los tests que la
+    necesitan reemplazan `apps.billing.http.request_json` por una respuesta falsa."""
+    from apps.billing import http
+
+    def offline(method, url, **kwargs):
+        raise http.HttpError(f"Sin red en los tests: {method} {url}")
+
+    monkeypatch.setattr(http, "request_json", offline)
+
+
 @pytest.fixture
 def tenant_a(db):
     return make_tenant("empresa-a")

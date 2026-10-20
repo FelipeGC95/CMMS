@@ -1,0 +1,23 @@
+{% load i18n ui accounts_tags %}
+{# Aviso de facturación (ORG-13): la solo lectura la ven todos; prueba por vencer y pago pendiente, los administradores. #}
+{% with status=billing_status is_admin=membership|can:"organization.manage" %}
+{% if status.access == "read_only" and status.reason != "deletion" %}
+<div class="alert alert--error action-banner" role="status">
+  {% icon 'stop' %}
+  <span>{% if is_admin %}{% translate "La organización está en solo lectura por falta de pago: se puede ver y exportar, pero no crear ni editar. Al pagar se reactiva sola." %}{% else %}{% translate "La organización está en solo lectura por falta de pago: se puede ver y exportar, pero no crear ni editar. Avísale a un administrador." %}{% endif %}</span>
+  {% if is_admin %}<a class="btn btn--secondary" href="{% url 'billing' %}">{% translate "Pagar" %}</a>{% endif %}
+</div>
+{% elif is_admin and status.access == "grace" %}
+<div class="alert alert--warning action-banner" role="status">
+  {% icon 'alert' %}
+  <span>{% if status.reason == "payment_failed" %}{% blocktranslate with date=status.ends_at|date:"j M Y" %}No pudimos cobrar tu suscripción. Revisa tu medio de pago: el {{ date }} la organización queda en solo lectura.{% endblocktranslate %}{% elif status.reason == "trial_ended" %}{% blocktranslate with date=status.ends_at|date:"j M Y" %}Tu prueba terminó. Elige un plan antes del {{ date }} o la organización queda en solo lectura.{% endblocktranslate %}{% else %}{% blocktranslate with date=status.ends_at|date:"j M Y" %}Tu período pagado terminó. Paga antes del {{ date }} o la organización queda en solo lectura.{% endblocktranslate %}{% endif %}</span>
+  <a class="btn btn--secondary" href="{% url 'billing' %}">{% translate "Ir a Facturación" %}</a>
+</div>
+{% elif is_admin and status.trial_ending %}
+<div class="alert alert--info action-banner" role="status">
+  {% icon 'clock' %}
+  <span>{% blocktranslate with date=status.ends_at|date:"j M Y" %}Tu prueba gratuita termina el {{ date }}. Elige un plan para seguir sin cortes.{% endblocktranslate %}</span>
+  <a class="btn btn--secondary" href="{% url 'billing' %}">{% translate "Elegir plan" %}</a>
+</div>
+{% endif %}
+{% endwith %}

@@ -389,6 +389,26 @@ main { max-width: var(--content-max); margin: 0 auto; padding: var(--space-5) va
 .deletion-banner { flex-wrap: wrap; align-items: center; }
 .deletion-banner > span { flex: 1 1 14rem; }
 .deletion-banner form { margin-left: auto; }
+/* Aviso con acción (facturación, ORG-13): texto que se ajusta y botón al final. */
+.action-banner { flex-wrap: wrap; align-items: center; }
+.action-banner > span { flex: 1 1 14rem; }
+.action-banner > .btn { margin-left: auto; }
+.alert a.btn--secondary { color: var(--color-secondary-text); }
+
+/* Planes contratables (ORG-13): una tarjeta por plan, de una a tres columnas. */
+.plan-options { display: grid; gap: var(--space-4); grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); }
+.plan-option {
+  display: flex; flex-direction: column; gap: var(--space-2);
+  background: var(--color-surface); border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); padding: var(--space-4);
+}
+.plan-option > p { margin: 0; }
+.plan-option > form { margin-top: auto; }
+.plan-option--current { border: 2px solid var(--color-success); }
+.plan-option__head { display: flex; justify-content: space-between; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
+.plan-option__head h3 { margin: 0; }
+.plan-option__price { font-family: var(--font-ui); font-weight: 600; font-size: var(--text-2xl); color: var(--color-text-brand); line-height: 1.1; }
+.plan-option__unit { font-size: var(--text-md); font-weight: 500; color: var(--color-text-muted); }
 
 /* ---------- Checklist (vista de técnico: objetivos ≥ 48 px) ---------- */
 .checklist { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-3); }

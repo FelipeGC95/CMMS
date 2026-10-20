@@ -80,6 +80,8 @@ class AuditEvent(TenantModel):
         STOCK_RECONCILE = "stock_reconcile", _("Reconciliación de stock")
         RESERVE = "reserve", _("Reserva de repuesto")
         RELEASE = "release", _("Liberación de reserva")
+        # Cobro (ORG-13): cada pago informado por el proveedor.
+        PAYMENT = "payment", _("Pago")
 
     # SET_NULL: el evento sobrevive a la baja del usuario; actor_repr conserva quién fue.
     actor = models.ForeignKey(

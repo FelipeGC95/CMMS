@@ -1,0 +1,6 @@
+{% load i18n ui %}{# Estado de acceso por facturación (ORG-13): siempre ícono + texto. Recibe `status`. #}
+{% if status.access == "exempt" %}<span class="badge badge--neutral">{% icon 'dot' %}{% translate "Facturación manual" %}</span>
+{% elif status.access == "trial" %}<span class="badge badge--info">{% icon 'clock' %}{% translate "En prueba" %}</span>
+{% elif status.access == "active" %}<span class="badge badge--success">{% icon 'check' %}{% translate "Activa" %}</span>
+{% elif status.access == "grace" %}<span class="badge badge--warning">{% icon 'alert' %}{% translate "Pago pendiente" %}</span>
+{% else %}<span class="badge badge--error">{% icon 'stop' %}{% translate "Solo lectura" %}</span>{% endif %}

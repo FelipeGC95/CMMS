@@ -1219,8 +1219,10 @@ lleva `{id, name, path}`; los decimales van como texto; consultas acotadas
     los administradores, el botón "Cancelar eliminación", que la devuelve a
     `active` (o `trial` si la prueba sigue vigente). Ambas acciones quedan en
     la auditoría.
-  - Durante la gracia la organización **sigue funcionando normalmente** (no
-    se fuerza solo lectura): más simple, y cancelar no pierde nada.
+  - Durante la gracia la organización queda en **solo lectura** (se ve y se
+    exporta; el administrador puede cancelar la eliminación), con el mismo
+    mecanismo central del impago (ADR-033). Antes seguía funcionando
+    normalmente; se cambió al implementar ORG-13 porque reutilizarlo era trivial.
   - La purga (tarea diaria `organizations.purge_organizations` a las 08:00
     UTC o `manage.py purge_organizations`) es código de plataforma con
     `platform_context()`: borra con `_raw_delete` todas las filas de todo
@@ -1718,3 +1720,83 @@ lleva `{id, name, path}`; los decimales van como texto; consultas acotadas
 - **Estado (2026-10):** aceptado e implementado (ORG-11). Fuera de v1: SAML, SCIM,
   single logout, mapeo de grupos del IdP a roles, varios IdP por organización y
   endpoints multiempresa.
+
+### ADR-033 · Cobro recurrente con Mercado Pago, precios en UF y solo lectura central por impago
+- **Contexto:** F3 pide cobrar y que el cliente gestione su plan sin escribirnos
+  (ORG-13). El mercado objetivo es Chile: precios en UF, cobro en CLP. Una sola
+  persona opera: lo más simple y gestionado, sin tocar datos de tarjeta.
+- **Decisión:**
+  1. **Proveedor Mercado Pago, suscripciones `preapproval` sin plan asociado**, en
+     CLP, con checkout alojado por Mercado Pago (`init_point`): nunca vemos datos
+     de tarjeta. Cliente HTTP propio de cuatro llamadas (`billing/mercadopago.py`)
+     sobre la conexión fijada a IP pública de los webhooks (ADR-030: https, sin
+     redirecciones, timeout 10 s, respuesta acotada); sin SDK (una dependencia
+     menos). `billing/gateway.py` define la interfaz (`create_subscription`,
+     `get_subscription`, `update_subscription_amount`, `cancel_subscription`,
+     `get_payment`, `parse_notification`); Flow o Stripe serían otra clase.
+  2. **Inactivo sin credenciales (ADR-020):** `get_gateway()` devuelve None sin
+     `MERCADOPAGO_ACCESS_TOKEN` y `MERCADOPAGO_WEBHOOK_SECRET`; la pantalla lo dice,
+     los botones quedan deshabilitados y el webhook responde 503.
+  3. **Precios en UF en el plan** (`monthly_price_uf`, tramos por activos, meses del
+     anual, `is_self_service`), editables en el admin; precio acordado y cupón en la
+     organización (los decide el superadmin). `billing/pricing.py` son funciones
+     puras: UF × meses × (1 − descuento) → CLP con redondeo comercial al peso.
+  4. **UF del día** en la tabla `uf_value` (fuente `UF_SOURCE_URL`, mindicador.cl por
+     defecto). Pantallas y cobros leen la tabla; si la fuente falla se usa el último
+     valor; sin ninguno no se cobra.
+  5. **Monto fijo en Mercado Pago, actualizado a diario:** como una suscripción cobra
+     un monto fijo, la tarea `billing.run_daily` (10:00 UTC, cola `maintenance`; sin
+     worker, `manage.py billing_daily` por cron) recalcula el monto con la UF del día
+     y los activos y, si cambió, hace `PUT /preapproval/{id}` con
+     `auto_recurring.transaction_amount`. Cada cobro sale con la UF del día anterior
+     o del mismo día. Si Mercado Pago rechaza el cambio se registra en el log y el
+     cobro sale con el monto anterior; al día siguiente se reintenta. (Mercado Pago
+     documenta el cambio de monto por `PUT`; si en producción limitara la variación,
+     la alternativa es cancelar y crear una suscripción nueva con `start_date` al fin
+     del período, lo que obliga al cliente a pasar de nuevo por el checkout.)
+     La misma tarea aplica las bajas de plan cuando falta un día o menos para el
+     próximo cobro y envía los avisos.
+  6. **Webhook entrante** `/billing/webhooks/mercadopago/` (`csrf_exempt` solo ahí):
+     firma `x-signature` (HMAC-SHA256 de `id:<data.id>;request-id:<x-request-id>;ts:<ts>;`);
+     luego **siempre se consulta el recurso** a la API (preapproval, authorized
+     payment o payment); idempotente por `provider_event` y por
+     `payment.provider_payment_id`. La cuenta se busca por el id de suscripción que
+     guardamos al crear el checkout (`all_tenants`, antes del contexto) y además
+     debe coincidir el `external_reference` opaco de la organización; todo lo demás
+     corre en `tenant_context` de esa organización. 503 si la API no responde (MP
+     reintenta), 401 con firma inválida, 200 en lo demás (nunca 500).
+  7. **Estado de acceso calculado, sin consultas:** `billing_status(org)` usa solo
+     campos de la organización (`billing_exempt`, `trial_ends_at`, `paid_through`,
+     `past_due_since`, `status`): exenta → prueba → activa → gracia (7 días desde el
+     fin de la prueba o del período pagado, o desde el cobro rechazado) → solo
+     lectura. Un pago aprobado lleva `paid_through` al fin del período + 2 días de
+     tolerancia (el cobro automático llega con horas de atraso) y borra
+     `past_due_since`: la reactivación es automática.
+  8. **Solo lectura central:** `ReadOnlyMiddleware` (web y `/field/api/`, tras
+     `MessageMiddleware`) bloquea métodos no seguros salvo la lista blanca
+     (`/settings/billing/`, `/billing/webhooks/`, `/accounts/` —salir, contraseña,
+     MFA—, `/org/switch/`, `/settings/export/`, `/settings/delete/`, notificaciones
+     propias, impresión de etiquetas y `/admin/`): página 402 con el mensaje (htmx:
+     `HX-Redirect` a la misma página con el mensaje), JSON 402 `payment_required` en
+     `/field/api/`. La API v1 lo hace con el permiso DRF `OrganizationWritable` (402).
+     El aviso por QR sin cuenta se cierra. La PWA trata 402 como «reintentar»: el
+     cambio queda en cola y sale al pagar. La misma regla rige en el borrado
+     programado (cierra el pendiente de ADR-027).
+  9. **Organizaciones existentes:** `billing_exempt` (facturación manual) por defecto
+     true —la demo y las creadas por el superadmin no se bloquean— y false en el
+     autoregistro. La migración `organizations/0020` deja exentas las existentes
+     salvo las del autoregistro en prueba (a las que ya vencieron les da 7 días más).
+  10. **Fuera de v1:** SII (Mercado Pago envía el comprobante), prorrateo, cambio de
+      período con suscripción activa, puesta en marcha como pago único (se registra
+      a mano), cupones que ingresa el cliente.
+- **Consecuencias:** un middleware y un permiso DRF más (sin consultas extra por
+  petición); tablas `billing_account` y `payment` con RLS, `uf_value` y
+  `provider_event` de plataforma. Las tareas en segundo plano (preventivos,
+  reconciliación) siguen corriendo en solo lectura: al pagar todo está al día.
+- **Alternativas descartadas:** Stripe (sin CLP en suscripciones locales y peor
+  medio de pago para pymes chilenas), Flow (sin suscripciones con cambio de monto
+  tan simple), el SDK oficial de Mercado Pago (más dependencias para cuatro
+  llamadas), un plan de suscripción por precio en Mercado Pago (habría que recrearlo
+  con cada UF), bloquear con un estado `suspended` guardado (exige una tarea que lo
+  ponga a tiempo; calcularlo es siempre exacto).
+- **Estado (2026-10):** aceptado e implementado (ORG-13).

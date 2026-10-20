@@ -37,6 +37,12 @@ lo único nuevo que expone es `/readyz`. Decisión en ADR-020
 | `AI_ASSISTANT_TIMEOUT_SECONDS` | Tiempo máximo de cada llamada a la API (con 2 reintentos del SDK). | `300`. |
 | `AI_MODEL_PRICES_USD` | No es variable de entorno: diccionario en `config/settings.py` con los USD por millón de tokens de cada modelo (entrada, salida, lectura y escritura de caché) para la vista de costo (§3g). Se actualiza en el código al cambiar de modelo o de precio. | — |
 | `SSO_SECRET_KEY` | Clave para cifrar el secreto de cliente OIDC de cada organización (ORG-11, ADR-032). Secreto largo y aleatorio, solo en el panel de Render y en web y worker. Cambiarla invalida los secretos guardados: cada administrador debe volver a escribir el suyo en `/settings/sso/` («Probar conexión» lo avisa). | Se deriva de `SECRET_KEY` (mismo efecto si se rota `SECRET_KEY`). |
+| `MERCADOPAGO_ACCESS_TOKEN`, `MERCADOPAGO_WEBHOOK_SECRET` | Cobro en línea con Mercado Pago (ORG-13, ADR-033): *Access token* de producción de la aplicación y *clave secreta* de la firma de webhooks. Secretos: solo en el panel de Render, en web y worker. Las **dos** o ninguna. | Cobro en línea inactivo: la app funciona igual, `/settings/billing/` avisa que el pago en línea no está activo y el webhook responde 503. |
+| `MERCADOPAGO_TEST_PAYER_EMAIL` | Solo pruebas (sandbox): correo del comprador de prueba que se envía como `payer_email`. | Se usa el correo de facturación o el de quien contrata. |
+| `MERCADOPAGO_API_URL` | Base de la API (no hace falta cambiarla). | `https://api.mercadopago.com`. |
+| `UF_SOURCE_URL` | Fuente del valor diario de la UF (formato de mindicador.cl: `{"serie": [{"fecha", "valor"}]}`). | `https://mindicador.cl/api/uf`. |
+| `BILLING_GRACE_DAYS` | Días con escritura tras el fin de la prueba o un cobro rechazado. | `7`. |
+| `BILLING_CONTACT_EMAIL` | Correo del botón «Cotizar» (Empresa) y del aviso de pago no activo. | `ventas@galbust.cl`. |
 | `API_RATE_LIMIT`, `FIELD_API_RATE_LIMIT` | Límite de peticiones de la API v1 (por token) y de la API de terreno `/field/api/` (por persona; formato DRF, p. ej. `600/min`). Una sincronización envía un cambio por petición: subirlo si un técnico con muchos cambios recibe 429 (el teléfono reintenta solo). | `600/min` y `600/min`. |
 
 Proveedor de correo (SMTP, ambos con plan gratuito para empezar):
@@ -60,6 +66,10 @@ Proveedor de correo (SMTP, ambos con plan gratuito para empezar):
   - 08:00 UTC, `organizations.purge_organizations`: borra los ZIP de
     exportación vencidos y purga las organizaciones cuyo borrado venció
     (X-04, sección 3c);
+  - 10:00 UTC, `billing.run_daily`: guarda la UF del día, actualiza el monto
+    de cada suscripción en Mercado Pago, aplica bajas de plan programadas y
+    envía los avisos de prueba e impago (ORG-13, sección 3i). Sin worker:
+    `python manage.py billing_daily` desde un cron diario;
   - lunes 09:00 UTC, `inventory.enqueue_reconciliation`: una tarea por
     organización activa que compara el stock con el libro de movimientos,
     sin corregir (INV-14, sección 3e).
@@ -337,6 +347,42 @@ muestran a la persona con su causa (state o nonce inválido, correo sin verifica
 dominio no verificado, cupo lleno, membresía desactivada). Si un cliente queda sin
 poder entrar con «Exigir SSO» activo, sus administradores siguen entrando con
 contraseña + MFA y pueden desactivarlo.
+
+## 3i. Cobro con Mercado Pago (ORG-13, ADR-033)
+
+**Activar:**
+
+1. Cuenta de Mercado Pago Chile (vendedor, idealmente empresa) y en *Tus
+   integraciones* una aplicación de tipo «Suscripciones».
+2. Probar primero con las credenciales **de prueba** y usuarios de prueba
+   (comprador y vendedor): `MERCADOPAGO_ACCESS_TOKEN=TEST-…` y
+   `MERCADOPAGO_TEST_PAYER_EMAIL=<correo del comprador de prueba>`.
+3. En la aplicación → *Webhooks* → URL de producción
+   `https://<dominio>/billing/webhooks/mercadopago/`, eventos **Planes y
+   suscripciones** (`subscription_preapproval`, `subscription_authorized_payment`)
+   y **Pagos** (`payment`). Copiar la *clave secreta* que muestra a
+   `MERCADOPAGO_WEBHOOK_SECRET`.
+4. Pasar a credenciales de producción (`APP_USR-…`), quitar
+   `MERCADOPAGO_TEST_PAYER_EMAIL` y redeploy de web y worker.
+5. Revisar en el admin los precios de los planes (UF), crear cupones si aplica y
+   marcar como **exentas** (facturación manual) las organizaciones que se cobran
+   por fuera. Las del autoregistro nacen sin exención.
+6. Worker corriendo (o cron de `manage.py billing_daily`): sin él no se guarda la
+   UF del día ni se actualizan montos ni salen los avisos. Si la tabla de UF está
+   vacía, el primer checkout la consulta en el momento; también se puede cargar a
+   mano en el admin (*Valores de la UF*).
+
+**Cómo funciona:** el administrador elige plan y período en
+`/settings/billing/`; se crea la suscripción con el monto calculado aquí y se le
+redirige al checkout de Mercado Pago. Mercado Pago avisa por webhook; siempre se
+consulta el recurso a su API y se actualiza la organización dueña. Cada pago
+aprobado extiende `paid_through`; un cobro rechazado abre 7 días de gracia y luego
+solo lectura (se reactiva sola al pagar). Eventos recibidos: admin → *Eventos del
+proveedor de pagos* (los con «Error» se reintentan solos). Pagos de todas las
+organizaciones: admin → *Pagos* (solo lectura).
+
+**SII:** GALBUST aún no emite boleta ni factura electrónica; Mercado Pago envía su
+comprobante de cada pago. La puesta en marcha (pago único) se cobra por fuera.
 
 ## 4. Checklist para activar producción
 

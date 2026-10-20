@@ -19,6 +19,7 @@ class Kind(models.TextChoices):
     STOCK_LOW = "stock_low", _("Repuesto bajo mínimo")
     CONDITION_ALERT = "condition_alert", _("Alerta de condición")
     WEBHOOK_DISABLED = "webhook_disabled", _("Webhook desactivado por fallas")
+    BILLING = "billing", _("Facturación: prueba, pagos y solo lectura")
 
 
 class Notification(TenantModel):

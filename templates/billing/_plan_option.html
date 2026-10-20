@@ -1,0 +1,39 @@
+{% load i18n ui billing_tags %}
+{# Un plan contratable (ORG-13): precio mensual y anual en UF con su estimado en pesos. Recibe `option`, `overview`. #}
+<article class="plan-option{% if option.is_current %} plan-option--current{% endif %}">
+  <div class="plan-option__head">
+    <h3>{{ option.plan.name }}</h3>
+    {% if option.is_current %}<span class="badge badge--success">{% icon 'check' %}{% translate "Tu plan" %}</span>{% endif %}
+  </div>
+  <p class="plan-option__price"><span class="num">{{ option.monthly.total_uf|uf }}</span> <span class="plan-option__unit">{% translate "UF/mes" %}</span></p>
+  <p class="muted">{% if option.monthly.amount_clp %}{% blocktranslate with clp=option.monthly.amount_clp|clp %}≈ {{ clp }} al mes con la UF de hoy{% endblocktranslate %}{% else %}{% translate "Estimado en pesos no disponible (sin valor de la UF)." %}{% endif %}</p>
+  <p class="muted">{% blocktranslate with total=option.annual.total_uf|uf months=option.annual.months_charged %}Anual: {{ total }} UF (pagas {{ months }} meses){% endblocktranslate %}{% if option.annual.amount_clp %} · ≈ {{ option.annual.amount_clp|clp }}{% endif %}</p>
+  {% if option.plan.price_included_assets is not None and option.plan.price_block_uf %}<p class="muted">{% blocktranslate with included=option.plan.price_included_assets block=option.plan.price_block_assets price=option.plan.price_block_uf|uf %}Incluye {{ included }} activos; +{{ price }} UF/mes por cada {{ block }} adicionales.{% endblocktranslate %}{% if option.monthly.extra_blocks %} {% blocktranslate count blocks=option.monthly.extra_blocks %}Hoy sumas {{ blocks }} bloque.{% plural %}Hoy sumas {{ blocks }} bloques.{% endblocktranslate %}{% endif %}</p>{% endif %}
+  {% if option.monthly.discount_percent %}<p><span class="badge badge--info">{% icon 'info' %}{% blocktranslate with percent=option.monthly.discount_percent %}Incluye tu descuento de {{ percent }} %{% endblocktranslate %}</span></p>{% endif %}
+  {% if overview.account.is_active_subscription %}
+    {% if not option.is_current %}
+    <form method="post" action="{% url 'billing_change' %}">
+      {% csrf_token %}
+      <input type="hidden" name="plan" value="{{ option.plan.code }}">
+      <button class="btn btn--secondary btn--block" type="submit"{% if not overview.online_payments %} disabled{% endif %}>{% blocktranslate with plan=option.plan.name %}Cambiar a {{ plan }}{% endblocktranslate %}</button>
+    </form>
+    {% elif overview.account.pending_plan_id %}
+    <form method="post" action="{% url 'billing_change' %}">
+      {% csrf_token %}
+      <input type="hidden" name="plan" value="{{ option.plan.code }}">
+      <button class="btn btn--secondary btn--block" type="submit">{% translate "Mantener este plan" %}</button>
+    </form>
+    {% endif %}
+  {% else %}
+  <form method="post" action="{% url 'billing_checkout' %}" class="stack">
+    {% csrf_token %}
+    <input type="hidden" name="plan" value="{{ option.plan.code }}">
+    <fieldset class="fieldset">
+      <legend>{% translate "Período" %}</legend>
+      <div class="field field--check"><input type="radio" id="period-{{ option.plan.code }}-monthly" name="period" value="monthly" checked><label for="period-{{ option.plan.code }}-monthly">{% translate "Mensual" %}</label></div>
+      <div class="field field--check"><input type="radio" id="period-{{ option.plan.code }}-annual" name="period" value="annual"><label for="period-{{ option.plan.code }}-annual">{% blocktranslate with months=option.annual.months_charged %}Anual (pagas {{ months }} meses){% endblocktranslate %}</label></div>
+    </fieldset>
+    <button class="btn btn--primary btn--block" type="submit"{% if not overview.online_payments %} disabled{% endif %}>{% translate "Contratar con Mercado Pago" %}</button>
+  </form>
+  {% endif %}
+</article>

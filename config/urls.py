@@ -36,6 +36,7 @@ urlpatterns = [
     path("", include("apps.api.urls")),
     path("settings/webhooks/", include("apps.webhooks.urls")),
     path("settings/sso/", include("apps.sso.urls")),
+    path("", include("apps.billing.urls")),
     path("", include("apps.reporting.urls")),
     path("audit/", include("apps.audit.urls")),
     path("", include("apps.notifications.urls")),

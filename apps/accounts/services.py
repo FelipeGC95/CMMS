@@ -570,6 +570,8 @@ def complete_signup(*, token):
         plan=trial,
         status=Organization.Status.TRIAL,
         trial_ends_at=now + datetime.timedelta(days=TRIAL_DAYS),
+        # Cobro en línea (ORG-13): al terminar la prueba, gracia y luego solo lectura si no paga.
+        billing_exempt=False,
     )
     user = create_user(
         email=pending.email, full_name=pending.full_name, email_verified=True, last_organization=organization

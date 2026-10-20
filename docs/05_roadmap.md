@@ -134,9 +134,9 @@ Pendientes menores resueltos el 2026-09-27: cumplimiento con tolerancia,
 completar OT y responder checklist por API, enlaces de correo con `?org=`,
 preferencias según el rol, carriles por técnico en el tablero y foto del aviso
 anónimo con su propio destino. Resuelto después: fotos de OT y de ítems por
-API (los ítems con foto obligatoria ya se responden por API). Queda: la
-organización no queda en solo lectura durante el período de gracia de
-eliminación (decisión en ADR-027).
+API (los ítems con foto obligatoria ya se responden por API). La
+organización en gracia de eliminación ya queda en solo lectura (resuelto con
+ORG-13, ADR-033).
 
 | # | Entregable | Req. | Sem. |
 |---|---|---|---|
@@ -268,7 +268,11 @@ KPIs ampliados están hechos.
 - Roles personalizados. *Hecho (2026-10):* rol base + permisos elegidos, sin
   permisos de administración, módulo `custom_roles` en Profesional y Empresa
   (ORG-12, ADR-031).
-- Cobro recurrente (Stripe, Mercado Pago o Flow) y autogestión del plan.
+- Cobro recurrente (Stripe, Mercado Pago o Flow) y autogestión del plan. *Hecho (2026-10):* Mercado Pago
+  (suscripciones en CLP), precios en UF con tramos, anual = 10 meses, cupones, UF diaria con respaldo,
+  `/settings/billing/` (contratar, subir, bajar programado, cancelar, datos de facturación, historial),
+  webhooks firmados e idempotentes, avisos, 7 días de gracia y solo lectura central con reactivación
+  automática (ORG-13, ADR-033). Queda: SII, prorrateo, cambio de período con suscripción activa.
 - Traducción a inglés y portugués.
 - API ampliada, webhooks y tokens con más alcances. *Parcial (2026-10):* webhooks
   salientes v1 hechos (OT creada y completada, solicitud creada; X-08, ADR-030);

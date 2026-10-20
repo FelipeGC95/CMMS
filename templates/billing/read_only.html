@@ -1,0 +1,15 @@
+{% extends "base.html" %}{% load i18n ui %}
+{% block title %}{% translate "Solo lectura" %}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div><h1>{% translate "Solo lectura" %}</h1></div>
+</div>
+<section class="card">
+  <div class="alert alert--warning" role="status">{% icon 'stop' %}<span>{{ message }}</span></div>
+  <div class="row">
+    {% if is_admin and status.reason == "deletion" %}<a class="btn btn--primary" href="{% url 'organization_settings' %}">{% translate "Ir a Configuración" %}</a>
+    {% elif is_admin %}<a class="btn btn--primary" href="{% url 'billing' %}">{% translate "Ir a Facturación" %}</a>{% endif %}
+    <a class="btn btn--secondary" href="{% url 'dashboard' %}">{% translate "Ir al inicio" %}</a>
+  </div>
+</section>
+{% endblock %}

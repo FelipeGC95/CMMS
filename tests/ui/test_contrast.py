@@ -83,6 +83,11 @@ CONTRAST_PAIRS = [
     # fuerte (texto, texto atenuado, enlace "Cambiar" y borde sobre --color-surface, pares de arriba).
     # Asistente de diagnóstico (AI-01): quién habla, sobre la burbuja de la pregunta (fondo hundido).
     ("--color-text-brand", "--color-surface-sunken", TEXT),
+    # Facturación (ORG-13): botón secundario dentro de los avisos de prueba, pago pendiente y solo
+    # lectura (texto del aviso sobre su fondo y el plan actual con borde de éxito, pares de arriba).
+    ("--color-secondary-border", "--color-error-bg", UI),
+    ("--color-secondary-border", "--color-warning-bg", UI),
+    ("--color-secondary-border", "--color-info-bg", UI),
 ]
 
 
