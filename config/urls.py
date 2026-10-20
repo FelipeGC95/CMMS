@@ -22,6 +22,8 @@ urlpatterns = [
     path("", dashboard, name="dashboard"),
     path("healthz", healthz, name="healthz"),
     path("readyz", readyz, name="readyz"),
+    # Ingreso por SSO (ORG-11) antes de allauth: /accounts/sso/ no choca con sus rutas.
+    path("accounts/sso/", include("apps.sso.login_urls")),
     path("accounts/", include("allauth.urls")),
     path("org/switch/", switch_organization, name="switch_organization"),
     path("", include("apps.accounts.urls")),
@@ -33,6 +35,7 @@ urlpatterns = [
     path("", include("apps.attachments.urls")),
     path("", include("apps.api.urls")),
     path("settings/webhooks/", include("apps.webhooks.urls")),
+    path("settings/sso/", include("apps.sso.urls")),
     path("", include("apps.reporting.urls")),
     path("audit/", include("apps.audit.urls")),
     path("", include("apps.notifications.urls")),

@@ -10801,3 +10801,392 @@ msgid "Lo tiene %(n)s persona activa."
 msgid_plural "Lo tienen %(n)s personas activas."
 msgstr[0] ""
 msgstr[1] ""
+
+msgid "URL de descubrimiento"
+msgstr ""
+
+msgid "ID de cliente"
+msgstr ""
+
+msgid "secreto del cliente (cifrado)"
+msgstr ""
+
+msgid "rol por defecto"
+msgstr ""
+
+msgid "exigir SSO"
+msgstr ""
+
+msgid "datos del proveedor"
+msgstr ""
+
+msgid "datos del proveedor leídos"
+msgstr ""
+
+msgid "última prueba"
+msgstr ""
+
+msgid "última prueba correcta"
+msgstr ""
+
+msgid "error de la última prueba"
+msgstr ""
+
+msgid "configuración SSO"
+msgstr ""
+
+msgid "configuraciones SSO"
+msgstr ""
+
+msgid "dominio"
+msgstr ""
+
+msgid "código de verificación"
+msgstr ""
+
+msgid "verificado"
+msgstr ""
+
+msgid "última comprobación"
+msgstr ""
+
+msgid "dominio SSO"
+msgstr ""
+
+msgid "dominios SSO"
+msgstr ""
+
+msgid "rol personalizado por defecto"
+msgstr ""
+
+msgid "los tokens"
+msgstr ""
+
+msgid "El proveedor de identidad respondió demasiados datos."
+msgstr ""
+
+msgid "La URL del proveedor debe empezar con https://."
+msgstr ""
+
+msgid "el documento de descubrimiento"
+msgstr ""
+
+msgid "El proveedor no admite el flujo authorization code."
+msgstr ""
+
+msgid "las claves públicas (JWKS)"
+msgstr ""
+
+msgid "El proveedor no publicó claves para firmar."
+msgstr ""
+
+msgid "El proveedor no entregó un id_token."
+msgstr ""
+
+msgid "El id_token usa un algoritmo de firma no permitido."
+msgstr ""
+
+msgid "No se encontró la clave pública que firmó el id_token."
+msgstr ""
+
+msgid "La firma del id_token no es válida."
+msgstr ""
+
+msgid "El id_token no fue emitido para esta aplicación."
+msgstr ""
+
+msgid "El id_token no corresponde a este intento de inicio de sesión (nonce)."
+msgstr ""
+
+msgid "los datos del usuario"
+msgstr ""
+
+msgid "Los datos del usuario no corresponden al id_token."
+msgstr ""
+
+msgid "No se pudo conectar con el proveedor de identidad."
+msgstr ""
+
+#, python-format
+msgid "El proveedor de identidad respondió %(status)s al pedir %(what)s."
+msgstr ""
+
+#, python-format
+msgid "El proveedor de identidad no respondió JSON al pedir %(what)s."
+msgstr ""
+
+#, python-format
+msgid "El emisor (%(issuer)s) no corresponde a la URL. Usa la URL de tu inquilino, no una genérica."
+msgstr ""
+
+#, python-format
+msgid "El documento de descubrimiento no trae %(key)s con https."
+msgstr ""
+
+msgid "El id_token no es válido."
+msgstr ""
+
+#, python-format
+msgid "El id_token no es válido: %(error)s."
+msgstr ""
+
+msgid "El rol por defecto no puede ser administrador."
+msgstr ""
+
+msgid "Escribe el ID de cliente."
+msgstr ""
+
+msgid "Para exigir SSO, primero actívalo."
+msgstr ""
+
+msgid "Primero guarda la configuración del proveedor."
+msgstr ""
+
+msgid "El secreto guardado no se puede leer: vuelve a escribirlo."
+msgstr ""
+
+msgid "Escribe un dominio válido, p. ej. empresa.cl."
+msgstr ""
+
+msgid "No se puede usar un dominio de correo personal."
+msgstr ""
+
+msgid "El intento de inicio de sesión venció o ya se usó. Vuelve a intentarlo."
+msgstr ""
+
+msgid "La respuesta del proveedor no corresponde a este intento (state). Vuelve a intentarlo."
+msgstr ""
+
+msgid "El proveedor no entregó el código de autorización."
+msgstr ""
+
+msgid "El inicio de sesión único de esta organización no está disponible."
+msgstr ""
+
+msgid "Tu cuenta está desactivada."
+msgstr ""
+
+msgid "Escribe el secreto del cliente."
+msgstr ""
+
+#, python-format
+msgid "El dominio %(domain)s ya está en la lista."
+msgstr ""
+
+#, python-format
+msgid "El dominio %(domain)s ya pertenece a otra organización."
+msgstr ""
+
+#, python-format
+msgid "Aún no encontramos el registro TXT en %(name)s. Los cambios de DNS pueden tardar unos minutos."
+msgstr ""
+
+#, python-format
+msgid "No hay inicio de sesión único para %(email)s. Entra con tu correo y contraseña."
+msgstr ""
+
+#, python-format
+msgid "El proveedor de identidad rechazó el ingreso (%(error)s)."
+msgstr ""
+
+msgid "El proveedor no entregó el correo. Pide a tu administrador incluir el dato «email»."
+msgstr ""
+
+#, python-format
+msgid "Tu acceso a %(organization)s está desactivado. Habla con su administrador."
+msgstr ""
+
+msgid "La configuración SSO de tu organización está incompleta. Avisa a su administrador."
+msgstr ""
+
+#, python-format
+msgid "El proveedor indica que el correo %(email)s no está verificado."
+msgstr ""
+
+#, python-format
+msgid "El correo %(email)s no es de un dominio verificado de %(organization)s."
+msgstr ""
+
+#, python-format
+msgid "%(organization)s llegó al máximo de usuarios de su plan. Pide a su administrador liberar un cupo o cambiar de plan."
+msgstr ""
+
+msgid "URL del emisor (issuer)"
+msgstr ""
+
+msgid "La del inquilino de tu proveedor, p. ej. https://login.microsoftonline.com/<id>/v2.0. También sirve la URL completa de descubrimiento."
+msgstr ""
+
+msgid "ID de cliente (client ID)"
+msgstr ""
+
+msgid "Secreto del cliente"
+msgstr ""
+
+msgid "Rol de quien entra por primera vez"
+msgstr ""
+
+msgid "Nunca administrador. Puedes cambiar el rol de cada persona después, en Equipo."
+msgstr ""
+
+msgid "SSO activo"
+msgstr ""
+
+msgid "Exigir SSO a los correos de los dominios verificados"
+msgstr ""
+
+msgid "No podrán entrar ni recuperar la contraseña: irán al SSO. Los administradores conservan contraseña y verificación en dos pasos como acceso de emergencia."
+msgstr ""
+
+#, python-format
+msgid "Rol personalizado: %(name)s"
+msgstr ""
+
+msgid "Guardado. Déjalo en blanco para conservarlo; no se vuelve a mostrar."
+msgstr ""
+
+msgid "Se guarda cifrado y no se vuelve a mostrar."
+msgstr ""
+
+msgid "Dominio de correo"
+msgstr ""
+
+msgid "Sin @, p. ej. empresa.cl."
+msgstr ""
+
+msgid "Correo de tu empresa"
+msgstr ""
+
+msgid "Tu organización entra con inicio de sesión único (SSO): usa «Entrar con SSO». Si eres administrador, te enviamos el enlace para restablecer la contraseña."
+msgstr ""
+
+#, python-format
+msgid "Dominio %(domain)s quitado."
+msgstr ""
+
+msgid "Configuración SSO guardada."
+msgstr ""
+
+msgid "Conexión correcta: el proveedor responde y sus claves se leyeron."
+msgstr ""
+
+#, python-format
+msgid "Dominio %(domain)s verificado."
+msgstr ""
+
+#, python-format
+msgid "Bienvenido a %(organization)s. Tu acceso se creó con el inicio de sesión único."
+msgstr ""
+
+#, python-format
+msgid "Dominio %(domain)s agregado. Crea el registro TXT y luego pulsa «Verificar»."
+msgstr ""
+
+#, python-format
+msgid "%(organization)s exige entrar con inicio de sesión único (SSO)."
+msgstr ""
+
+msgid "Entrar con SSO"
+msgstr ""
+
+msgid "Escribe el correo de tu empresa: te llevamos al inicio de sesión de tu organización (Microsoft, Google, Okta…)."
+msgstr ""
+
+msgid "Entrar con correo y contraseña"
+msgstr ""
+
+msgid "Tu equipo entra con la cuenta de la empresa (Microsoft Entra ID, Google Workspace, Okta u otro proveedor OpenID Connect)."
+msgstr ""
+
+msgid "SSO activo y exigido para los dominios verificados."
+msgstr ""
+
+msgid "SSO activo para los dominios verificados. También se puede entrar con contraseña."
+msgstr ""
+
+msgid "SSO activo, pero sin dominios verificados: nadie puede entrar por SSO todavía."
+msgstr ""
+
+msgid "SSO inactivo: todos entran con correo y contraseña."
+msgstr ""
+
+msgid "Proveedor de identidad (OIDC)"
+msgstr ""
+
+msgid "Probar conexión"
+msgstr ""
+
+msgid "Lee los datos y las claves públicas del proveedor y revisa el secreto guardado."
+msgstr ""
+
+msgid "Correcta"
+msgstr ""
+
+msgid "Con error"
+msgstr ""
+
+msgid "Datos para registrar la aplicación"
+msgstr ""
+
+msgid "Registra una aplicación web en tu proveedor con estos datos y copia aquí su emisor, ID de cliente y secreto."
+msgstr ""
+
+msgid "URI de redirección"
+msgstr ""
+
+msgid "Permisos (scopes)"
+msgstr ""
+
+msgid "Flujo"
+msgstr ""
+
+msgid "Authorization code con PKCE (S256). El proveedor debe entregar el correo en el dato «email»."
+msgstr ""
+
+msgid "Dominios de correo"
+msgstr ""
+
+msgid "Solo los correos de un dominio verificado entran por SSO. Para verificarlo, crea en el DNS del dominio el registro TXT que se muestra y pulsa «Verificar». Un dominio verificado es de una sola organización."
+msgstr ""
+
+msgid "Agregar dominio"
+msgstr ""
+
+msgid "Dominio"
+msgstr ""
+
+msgid "Registro TXT"
+msgstr ""
+
+msgid "Verificado"
+msgstr ""
+
+msgid "Verificar"
+msgstr ""
+
+msgid "Aún no hay dominios."
+msgstr ""
+
+#, python-format
+msgid "Última prueba: %(when)s"
+msgstr ""
+
+#, python-format
+msgid "Revisado: %(when)s"
+msgstr ""
+
+#, python-format
+msgid "Verificado el %(when)s. Puedes dejar el registro."
+msgstr ""
+
+msgid "o"
+msgstr ""
+
+msgid "Tu equipo entra con la cuenta de la empresa (Microsoft, Google, Okta). Alta automática por dominio y opción de exigirlo."
+msgstr ""
+
+msgid "Configurar SSO"
+msgstr ""
+
+msgid "Inicio de sesión único"
+msgstr ""

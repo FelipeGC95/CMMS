@@ -36,6 +36,7 @@ lo único nuevo que expone es `/readyz`. Decisión en ADR-020
 | `AI_ASSISTANT_MAX_TOOL_ROUNDS` | Rondas de herramientas por turno; pasado el límite el modelo debe responder con lo reunido. | `6`. |
 | `AI_ASSISTANT_TIMEOUT_SECONDS` | Tiempo máximo de cada llamada a la API (con 2 reintentos del SDK). | `300`. |
 | `AI_MODEL_PRICES_USD` | No es variable de entorno: diccionario en `config/settings.py` con los USD por millón de tokens de cada modelo (entrada, salida, lectura y escritura de caché) para la vista de costo (§3g). Se actualiza en el código al cambiar de modelo o de precio. | — |
+| `SSO_SECRET_KEY` | Clave para cifrar el secreto de cliente OIDC de cada organización (ORG-11, ADR-032). Secreto largo y aleatorio, solo en el panel de Render y en web y worker. Cambiarla invalida los secretos guardados: cada administrador debe volver a escribir el suyo en `/settings/sso/` («Probar conexión» lo avisa). | Se deriva de `SECRET_KEY` (mismo efecto si se rota `SECRET_KEY`). |
 | `API_RATE_LIMIT`, `FIELD_API_RATE_LIMIT` | Límite de peticiones de la API v1 (por token) y de la API de terreno `/field/api/` (por persona; formato DRF, p. ej. `600/min`). Una sincronización envía un cambio por petición: subirlo si un técnico con muchos cambios recibe 429 (el teléfono reintenta solo). | `600/min` y `600/min`. |
 
 Proveedor de correo (SMTP, ambos con plan gratuito para empezar):
@@ -287,6 +288,56 @@ Proveedor de correo (SMTP, ambos con plan gratuito para empezar):
   manuales si faltan. Una base demo cargada antes del asistente se recrea sola
   en Render (`seed_demo --reset-if-stale`).
 
+## 3h. Inicio de sesión único OIDC (ORG-11, ADR-032)
+
+Inactivo hasta que una organización del plan Empresa lo configura en
+`/settings/sso/`: sin configuración activa y dominio verificado el login, la
+recuperación de contraseña y el MFA no cambian. No requiere variables nuevas
+(`SSO_SECRET_KEY` es recomendable en producción, §1) ni worker: el descubrimiento,
+el canje del código y las claves se piden en la misma petición (timeout 5 s, con la
+defensa SSRF de los webhooks), y el registro TXT se consulta con DNS público
+(`dnspython`) al pulsar «Verificar».
+
+**Registrar la aplicación en Microsoft Entra ID** (lo hace el administrador del
+cliente; la pantalla muestra los mismos datos):
+
+1. Entra ID → *Registros de aplicaciones* → *Nuevo registro*. Tipo de cuenta:
+   *Solo las cuentas de este directorio organizativo* (un inquilino).
+2. *URI de redirección*: plataforma **Web**, valor
+   `https://<dominio de GALBUST>/accounts/sso/callback/` (debe coincidir exacto,
+   con el mismo dominio por el que entran las personas).
+3. *Certificados y secretos* → *Nuevo secreto de cliente*; copiar el **valor**
+   (no el ID) a «Secreto del cliente». Anotar su vencimiento: al vencer, el SSO
+   falla hasta pegar uno nuevo.
+4. *Permisos de API*: Microsoft Graph delegados `openid`, `email` y `profile`
+   (los scopes que pide GALBUST: `openid email profile`); conceder consentimiento
+   de administrador.
+5. *Configuración del token* → *Agregar notificación opcional* → token de id →
+   `email` (sin ella Entra no envía el correo; GALBUST lo busca también en userinfo).
+6. En GALBUST: «URL del emisor» =
+   `https://login.microsoftonline.com/<ID de directorio (inquilino)>/v2.0`
+   (no `common` ni `organizations`: su emisor es una plantilla y se rechaza),
+   «ID de cliente» = *ID de aplicación (cliente)*.
+
+**Google Workspace:** consola de Google Cloud → credenciales → *ID de cliente de
+OAuth* tipo *Aplicación web*, misma URI de redirección; emisor
+`https://accounts.google.com`. **Okta:** app *OIDC – Web Application*, grant
+*Authorization Code*, emisor `https://<org>.okta.com` (o el del servidor de
+autorización).
+
+**Dominios:** el administrador agrega el dominio, crea en su DNS el TXT
+`_galbust-verification.<dominio>` con el valor que muestra la pantalla y pulsa
+«Verificar». Un dominio verificado por otra organización no se puede agregar; si
+un cliente reclama un dominio que verificó otro, se revisa a mano en el admin
+(`SsoDomain`) antes de quitarlo.
+
+**Soporte:** «Probar conexión» deja el último error a la vista (emisor distinto,
+claves ilegibles, secreto que no se puede descifrar). Los rechazos en el ingreso se
+muestran a la persona con su causa (state o nonce inválido, correo sin verificar,
+dominio no verificado, cupo lleno, membresía desactivada). Si un cliente queda sin
+poder entrar con «Exigir SSO» activo, sus administradores siguen entrando con
+contraseña + MFA y pueden desactivarlo.
+
 ## 4. Checklist para activar producción
 
 Cuando existan las cuentas, en este orden:
@@ -317,3 +368,5 @@ Cuando existan las cuentas, en este orden:
 10. **Asistente IA (opcional):** `ANTHROPIC_API_KEY` y
     `AI_ASSISTANT_USE_QUEUE=1` en web y worker; probar y revisar el costo
     (§3g).
+11. **SSO (opcional):** definir `SSO_SECRET_KEY` en web y worker antes de que
+    una organización guarde su configuración (§3h).

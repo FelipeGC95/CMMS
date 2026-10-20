@@ -1,5 +1,10 @@
 from allauth.account.adapter import DefaultAccountAdapter
 from allauth.mfa.adapter import DefaultMFAAdapter
+from django.contrib import messages
+from django.shortcuts import redirect
+from django.urls import reverse
+from django.utils.http import urlencode
+from django.utils.translation import gettext
 
 
 class AccountAdapter(DefaultAccountAdapter):
@@ -12,6 +17,22 @@ class AccountAdapter(DefaultAccountAdapter):
 
     def is_open_for_signup(self, request):
         return False
+
+    def pre_login(self, request, user, **kwargs):
+        """«Exigir SSO» (ORG-11 CA7): con contraseña (o enlace de correo) no entra quien
+        debe usar el SSO de la organización dueña de su dominio; se le manda al SSO.
+        Los administradores de esa organización sí (acceso de emergencia con MFA)."""
+        from apps.sso.selectors import password_login_blocked
+
+        organization = password_login_blocked(user)
+        if organization is not None:
+            messages.info(
+                request,
+                gettext("%(organization)s exige entrar con inicio de sesión único (SSO).")
+                % {"organization": organization.name},
+            )
+            return redirect(f"{reverse('sso_login')}?{urlencode({'email': user.email})}")
+        return super().pre_login(request, user, **kwargs)
 
 
 class MFAAdapter(DefaultMFAAdapter):

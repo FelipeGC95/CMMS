@@ -45,7 +45,9 @@ colorama==0.4.6 ; sys_platform == 'win32'
 croniter==6.2.4
     # via procrastinate
 cryptography==50.0.1
-    # via fido2
+    # via
+    #   fido2
+    #   galbust-cmms
 distlib==0.4.3
     # via virtualenv
 dj-database-url==3.1.2
@@ -67,6 +69,8 @@ djangorestframework==3.18.1
     # via
     #   drf-spectacular
     #   galbust-cmms
+dnspython==2.9.0
+    # via galbust-cmms
 docstring-parser==0.18.0
     # via anthropic
 drf-spectacular==0.30.0
@@ -148,6 +152,8 @@ pydantic-core==2.50.1
     # via pydantic
 pygments==2.21.0
     # via pytest
+pyjwt==2.15.1
+    # via galbust-cmms
 pypdf==6.19.0
     # via galbust-cmms
 pytest==9.1.1

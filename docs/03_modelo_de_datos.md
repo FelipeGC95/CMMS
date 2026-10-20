@@ -42,7 +42,7 @@ Asistente IA (F2, AI-05): `max_assistant_conversations` (conversaciones nuevas p
 
 **`user`** (global, sin tenant)
 `email` (único, login) · `full_name` · `password` (Argon2) · `is_platform_admin` · `locale` · `last_organization_id` · `is_active`.
-Tablas de django‑allauth para verificación de correo, MFA y (F3) cuentas SSO.
+Tablas de django‑allauth para verificación de correo y MFA. El SSO (ORG-11) no usa `socialaccount`: tiene sus tablas propias (`sso_configuration`, `sso_domain`, más abajo) y un usuario creado por SSO no tiene contraseña utilizable.
 
 **`membership`** — relación usuario ↔ organización.
 `user_id` · `organization_id` · `role` (admin, planner, supervisor, technician, viewer, external; con rol personalizado es su rol base) · `custom_role_id` (null; FK PROTECT a `custom_role` de la misma organización, ORG-12) · `hourly_cost` · `is_active` · `restricted_to_locations` (bool) · `weekly_capacity_hours` (decimal, por defecto 40; capacidad para el backlog en semanas y la carga del tablero semanal, REQ-04/05; solo cuenta en técnicos).
@@ -51,6 +51,14 @@ Tablas de django‑allauth para verificación de correo, MFA y (F3) cuentas SSO.
 **`custom_role`** (ORG-12, ADR-031) — rol personalizado.
 `organization_id` · `name` · `base_role` (planner, supervisor, technician, viewer, external; nunca admin) · `permissions JSONB` (lista de códigos de `Perm`, sin los de administración) · `is_active`.
 `UNIQUE (organization_id, lower(name))`. Sin borrado físico: se desactiva cuando nadie activo ni una invitación pendiente lo usa. `membership` e `invitation` no son tablas de tenant: el modelo valida al guardar que `custom_role_id` sea de su misma organización.
+
+**`sso_configuration`** (ORG-11, ADR-032) — proveedor OIDC de la organización (una por organización).
+`organization_id` · `discovery_url` (https, termina en `/.well-known/openid-configuration`) · `client_id` · `client_secret_encrypted` (Fernet con `SSO_SECRET_KEY`; nunca se muestra, ni va a la auditoría ni a la exportación X-03, que omiten campos `secret`) · `default_role` (planner, supervisor, technician, viewer, external; nunca admin) · `default_custom_role_id` (null; FK PROTECT a `custom_role`, ORG-12) · `enforce_sso` · `is_active` · `provider_metadata JSONB` (emisor y endpoints del descubrimiento) · `metadata_fetched_at` · `last_tested_at` · `last_test_ok` · `last_test_error`.
+`UNIQUE (organization_id)`. Implementado como `sso.SsoConfiguration`.
+
+**`sso_domain`** (ORG-11) — dominio de correo de la organización.
+`organization_id` · `domain` (minúsculas, IDNA) · `verification_token` (va en el TXT `_galbust-verification.<dominio>` = `galbust-domain-verification=<token>`) · `verified_at` · `last_checked_at`.
+`UNIQUE (organization_id, domain)` y `UNIQUE (domain) WHERE verified_at IS NOT NULL`: pendiente lo pueden reclamar varias, verificado es de una sola en toda la plataforma. El ingreso lo busca por dominio con `all_tenants` (antes de conocer la organización). Es configuración: quitarlo lo borra (auditado). Implementado como `sso.SsoDomain`.
 
 **`membership_location`** — alcance por sitio (si `restricted_to_locations`).
 `organization_id` · `membership_id` · `location_id`. El acceso incluye descendientes.
@@ -260,7 +268,7 @@ Se **copian** a la organización al adoptarlas; nunca se referencian en vivo (un
 | Condición (F2, implementado; §2.11, ADR-029) | Medidores (`meter`) con tipos variable (temperature, vibration, pressure, current, variable) y sus `meter_reading`; `condition_rule`, `condition_state`, `condition_alert`. Ya no `measurement_point`/`measurement`. | `meter` y `meter_reading` existentes (lecturas, CSV, API bulk, cierre de OT, terreno); `work_order.work_type = predictive`. |
 | Asistente IA (F2, implementado; §2.12, ADR-018) | `assistant_conversation`, `assistant_message`. | `failure_event.description` (síntoma) y `work_order.completion_notes` (acción) capturados desde el MVP; `document_page` desde M1; búsqueda de texto completo calculada al consultar (sin índices GIN en v1). |
 | Offline (F2) | `sync_batch` (registro de lotes recibidos) | `client_uuid` en todas las tablas que escribe el técnico. |
-| SSO (F3) | tablas de allauth (`socialaccount`, config SAML por organización) | `user` global + `membership`. |
+| SSO (F3, OIDC implementado; §2.1, ADR-032) | `sso_configuration`, `sso_domain` (sin `socialaccount`). SAML fuera de v1. | `user` global + `membership`. |
 | Facturación (F3) | `subscription`, `invoice` | `organization.plan_id`, cupos. |
 
 El inventario (F2) dejó esta tabla: está hecho (2026-10) y su modelo está en §2.10.

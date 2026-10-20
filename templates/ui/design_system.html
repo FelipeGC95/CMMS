@@ -510,6 +510,16 @@
   <p><span class="badge badge--warning">{% icon 'alert' %}{% translate "Anónima — requiere revisión" %}</span> <span class="badge badge--error">{% icon 'stop' %}{% translate "Reporta equipo detenido" %}</span></p>
 </section>
 
+<section class="card mb-4" aria-labelledby="ds-sso">
+  <h2 id="ds-sso">{% translate "Inicio de sesión único" %}</h2>
+  <p class="auth__divider">{% translate "o" %}</p>
+  <a class="btn btn--secondary btn--block" href="#ds-sso">{% icon 'key' %}{% translate "Entrar con SSO" %}</a>
+  <dl class="dns-record mt-4">
+    <dt>{% translate "Nombre" %}</dt><dd><code class="mono">_galbust-verification.empresa.cl</code></dd>
+    <dt>{% translate "Valor" %}</dt><dd><code class="mono">galbust-domain-verification=Zx8kq2LrT0aWvB5nYc3HdE7mPf1uJs9G</code></dd>
+  </dl>
+</section>
+
 <section class="card mb-4" aria-labelledby="ds-mfa">
   <h2 id="ds-mfa">{% translate "Verificación en dos pasos" %}</h2>
   <ol class="mfa-setup__steps">

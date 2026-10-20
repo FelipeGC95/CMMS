@@ -54,6 +54,8 @@ MODULE_ROUTES = [
     (re.compile(r"^/settings/api-tokens/"), "api"),
     # Webhooks salientes (X-08, ADR-030): van con la API (Profesional y Empresa).
     (re.compile(r"^/settings/webhooks/"), "api"),
+    # Inicio de sesión único (ORG-11, ADR-032): solo Empresa. El ingreso (/accounts/sso/) no lleva sesión.
+    (re.compile(r"^/settings/sso/"), "sso"),
     # Roles personalizados (ORG-12, ADR-031): Profesional y Empresa.
     (re.compile(r"^/settings/roles/"), "custom_roles"),
     # Vista de terreno (ADR-011); el Service Worker y el manifest no llevan datos y quedan fuera.

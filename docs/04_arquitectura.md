@@ -16,7 +16,7 @@ operar aparte de Postgres.
 | Base de datos | PostgreSQL 16+ gestionado |
 | Frontend | Plantillas Django + htmx 2 + Alpine.js 3, CSS propio con design tokens (sin paso de build en Node) |
 | API | Django REST Framework + drf-spectacular (OpenAPI 3) |
-| Autenticación | django-allauth (login por correo, verificación, MFA TOTP; SSO OIDC/SAML en F3) |
+| Autenticación | django-allauth (login por correo, verificación, MFA TOTP); SSO OIDC propio con PyJWT (ADR-032) |
 | Tareas en segundo plano y periódicas | Procrastinate (cola sobre PostgreSQL) |
 | Archivos | django-storages → Cloudflare R2 (S3‑compatible) |
 | Excel / PDF | openpyxl / reportlab (ADR-019) |
@@ -354,6 +354,11 @@ tener ingresos).
   propias (más piezas para mantener).
 - **Consecuencias:** las invitaciones y las membresías son lógica propia
   sobre el usuario de allauth.
+- **Actualización (2026-10, ADR-032):** el SSO OIDC no usa `allauth.socialaccount`
+  sino un cliente OIDC propio y mínimo (`apps/sso`, con PyJWT), porque la
+  configuración es por organización y por dominio y el proveedor `openid_connect`
+  de allauth no valida el nonce ni usa la defensa SSRF. allauth sigue a cargo del
+  login con contraseña, la verificación de correo y el MFA. SAML queda fuera de v1.
 
 ### ADR-007 · Tareas en segundo plano con Procrastinate sobre PostgreSQL
 - **Contexto:** hay que generar preventivos, enviar correos, procesar
@@ -1611,3 +1616,105 @@ lleva `{id, name, path}`; los decimales van como texto; consultas acotadas
     demás tablas de tenant.
 - **Estado (2026-10):** aceptado e implementado (ORG-12). Fuera de v1: cambiar el
   rol base, clonar roles y roles para tokens de API.
+
+### ADR-032 · SSO OIDC por organización con cliente propio, dominios verificados por DNS y SSO como factor fuerte
+- **Contexto:** ORG-11 (F3, plan Empresa). Los clientes grandes quieren entrar con
+  Entra ID, Google Workspace u Okta, sin cuentas ni contraseñas aparte. Cada
+  organización trae su propio IdP; el sistema tiene un solo dominio (ADR-003) y un
+  usuario global con membresías, así que hay que decidir a qué IdP se va por el correo
+  y nunca dejar que el IdP de una organización abra sesión con correos de otra.
+- **Decisión:**
+  1. **Solo OIDC en v1** (authorization code + PKCE S256, `state`, `nonce`). SAML 2.0
+     queda fuera: exige XML firmado (xmlsec/lxml, dependencias nativas) y los IdP
+     objetivo hablan OIDC.
+  2. **Librería:** cliente propio y mínimo en `apps/sso/oidc.py` (~250 líneas) sobre
+     **PyJWT** (puro Python; la criptografía es `cryptography`, ya presente por
+     fido2) y `http.client`. Se descartó `allauth.socialaccount` con
+     `openid_connect`: su configuración es un `SocialApp` global por proveedor (habría
+     que crear y enlazar uno por organización y bloquear sus pantallas de cuentas
+     sociales, auto-registro y enlace por correo), no valida el `nonce`, omite la firma
+     del id_token cuando llega por el canal del token y hace los pedidos con
+     `requests` sin la defensa SSRF; las reglas de dominio, cupo y rol por defecto
+     igual serían código propio en el adaptador. Se descartaron `mozilla-django-oidc`
+     (un IdP por settings, no por organización) y `authlib` (más superficie para lo
+     mismo). PyJWT valida firma (JWKS del IdP, solo RS/PS/ES; nunca `none` ni HS),
+     `iss`, `aud`, `exp`/`iat` (60 s de tolerancia) y nosotros `nonce` y `azp`.
+  3. **Modelo:** `sso.SsoConfiguration` (una por organización: URL de descubrimiento,
+     `client_id`, secreto cifrado, rol por defecto, `enforce_sso`, `is_active`,
+     metadatos del descubrimiento) y `sso.SsoDomain` (dominio, código de
+     verificación, `verified_at`), ambos `TenantModel` con RLS (ADR-026).
+  4. **Secreto:** Fernet con clave derivada de `SSO_SECRET_KEY` (o `SECRET_KEY`).
+     A diferencia del secreto de webhooks (ADR-030), este no lo genera el sistema ni
+     hay que mostrarlo: se escribe una vez y no se vuelve a mostrar; el campo
+     (`client_secret_encrypted`) queda fuera de la auditoría y de la exportación X-03
+     por su nombre. Rotar la clave obliga a reescribir los secretos.
+  5. **Descubrimiento y SSRF:** al guardar y al probar se lee
+     `/.well-known/openid-configuration` y se exige https en todos los endpoints y
+     que el emisor sea exactamente el de la URL (rechaza `common` de Entra ID). Todo
+     pedido (descubrimiento, token, JWKS, userinfo) pasa por la defensa SSRF de los
+     webhooks (`public_address` + `PinnedHTTPSConnection`): sin IP privadas ni
+     redirecciones, timeout 5 s, respuesta máx. 512 KB. El descubrimiento se relee una
+     vez al día; las claves en cada ingreso (rotación sin caché).
+  6. **Verificación de dominio:** registro DNS TXT
+     `_galbust-verification.<dominio>` = `galbust-domain-verification=<token>`,
+     consultado con `dnspython` (puro Python) al pulsar «Verificar». Se eligió sobre
+     confiar en claims del IdP (`hd` de Google, `xms_edov` de Entra) porque es igual
+     para todos los proveedores y prueba control del dominio, no solo de una cuenta.
+     Pendiente lo pueden reclamar varias organizaciones (nadie lo secuestra sin
+     verificar); verificado es único en la plataforma por un índice único parcial
+     (`UNIQUE(domain) WHERE verified_at IS NOT NULL`), que además resuelve la carrera
+     de dos verificaciones simultáneas. Se rechazan dominios de correo personal.
+  7. **Descubrimiento por dominio:** `/accounts/sso/` pide el correo; el selector
+     busca el dominio verificado con `all_tenants` (antes de conocer la organización,
+     igual que el hash de un token de API) y exige configuración activa, organización
+     activa y el módulo `sso` del plan. El intento (`state`, `nonce`, verificador PKCE,
+     organización, `next`) vive en la sesión, es de un solo uso y vence en 10 minutos.
+     La URI de redirección es una sola para todas las organizaciones
+     (`/accounts/sso/callback/`), construida con el host de la petición para que la
+     cookie de sesión vuelva con el IdP (SameSite=Lax, respuesta por GET).
+  8. **Enlace con la cuenta:** el correo sale del id_token (o de userinfo con el mismo
+     `sub`) y debe ser de un dominio verificado **de la organización del intento**;
+     `email_verified: false` se rechaza. Con eso basta para enlazar por correo: quien
+     verificó el dominio responde por sus correos (igual que el autoregistro confía en
+     el enlace enviado al correo). No se guarda una identidad `(iss, sub)` en v1.
+  9. **Alta automática:** sin membresía se crea usuario (`create_user` sin contraseña,
+     correo verificado) y membresía con el rol por defecto (rol base o personalizado
+     activo con el módulo `custom_roles`; nunca admin, y si alguien lo escribe en la
+     base cae a técnico). Una invitación pendiente para ese correo se acepta y manda
+     su rol. Respeta el cupo con `check_seat_available` bloqueando la organización.
+     Una membresía desactivada no se reactiva. Auditoría `create` con `source: sso`;
+     el login queda con el `user_logged_in` de siempre en la organización del IdP.
+  10. **Exigir SSO:** `AccountAdapter.pre_login` (corre antes de la etapa de MFA, en
+      todo login de allauth: contraseña, confirmación de correo, tras restablecer)
+      manda al SSO a quien tiene un correo de un dominio que lo exige, salvo los
+      administradores de la organización dueña del dominio. La regla la define el
+      dominio del correo, no la organización activa ni otras membresías.
+      Recuperar contraseña (`ACCOUNT_FORMS["reset_password"]`) solo envía el enlace a
+      esos administradores, con el mismo aviso para todos (no revela quién es admin).
+  11. **SSO y MFA (ADR-022):** el SSO cuenta como factor fuerte: el ingreso por SSO
+      usa `django.contrib.auth.login` sin las etapas de allauth (no pide TOTP aunque
+      la persona lo tenga) y deja `sso_organization_id` en la sesión;
+      `MFARequiredMiddleware` no exige configurar TOTP mientras la organización activa
+      sea esa. En otra organización rige su política. Los administradores que entran
+      con contraseña (acceso de emergencia) siguen con MFA.
+  12. **Infraestructura inactiva (ADR-020):** sin configuración activa con dominio
+      verificado, o sin el módulo `sso` (solo plan Empresa, ya en el catálogo desde
+      `organizations/0003`; no hizo falta migración de datos), nada cambia.
+      `SSO_SECRET_KEY` es la única variable nueva y es opcional.
+- **Consecuencias:**
+  - Dependencias nuevas puras Python: `pyjwt`, `dnspython`; `cryptography` pasa a
+    ser directa.
+  - Sin worker: el ingreso hace 2 pedidos al IdP (token y JWKS; 3 si falta el
+    correo) en la misma petición.
+  - El usuario creado por SSO no tiene contraseña; si luego hace falta (otra
+    organización sin SSO), la crea con «¿Olvidaste tu contraseña?».
+  - Las sesiones abiertas con contraseña antes de activar «Exigir SSO» siguen hasta
+    vencer; quien deja la empresa en el IdP sigue con su membresía (no hay SCIM).
+  - La API v1 no cambia (tokens de organización, sin sesión).
+- **Alternativas descartadas:** `allauth.socialaccount` (ver 2), SAML con
+  python3-saml, confiar en el claim de dominio del IdP sin DNS, una URI de redirección
+  por organización (más pasos al registrar la app sin ganar seguridad: `state` ya
+  identifica el intento).
+- **Estado (2026-10):** aceptado e implementado (ORG-11). Fuera de v1: SAML, SCIM,
+  single logout, mapeo de grupos del IdP a roles, varios IdP por organización y
+  endpoints multiempresa.

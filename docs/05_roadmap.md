@@ -260,7 +260,11 @@ KPIs ampliados están hechos.
 
 ## F3 · Escala comercial (~12 semanas)
 
-- SSO SAML/OIDC (Entra ID) para el plan Empresa.
+- SSO SAML/OIDC (Entra ID) para el plan Empresa. *Hecho OIDC (2026-10):* un proveedor
+  OIDC por organización (Entra ID, Google Workspace, Okta), dominios verificados por
+  DNS TXT, «Entrar con SSO» por dominio, alta automática con rol por defecto y cupo,
+  «Exigir SSO» con acceso de emergencia para administradores y SSO como factor
+  fuerte frente al MFA (ORG-11, ADR-032). Quedan SAML, SCIM y single logout.
 - Roles personalizados. *Hecho (2026-10):* rol base + permisos elegidos, sin
   permisos de administración, módulo `custom_roles` en Profesional y Empresa
   (ORG-12, ADR-031).
