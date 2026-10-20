@@ -1,0 +1,101 @@
+{% extends "base.html" %}{% load i18n ui %}
+{% block title %}{% translate "Inicio de sesión único (SSO)" %}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>{% translate "Inicio de sesión único (SSO)" %}</h1>
+    <p class="muted">{% translate "Tu equipo entra con la cuenta de la empresa (Microsoft Entra ID, Google Workspace, Okta u otro proveedor OpenID Connect)." %}</p>
+  </div>
+</div>
+
+{% if configuration.is_active and has_verified_domain %}
+<div class="alert alert--success" role="status">{% icon 'check' %}<span>{% if configuration.enforce_sso %}{% translate "SSO activo y exigido para los dominios verificados." %}{% else %}{% translate "SSO activo para los dominios verificados. También se puede entrar con contraseña." %}{% endif %}</span></div>
+{% elif configuration.is_active %}
+<div class="alert alert--warning" role="status">{% icon 'alert' %}<span>{% translate "SSO activo, pero sin dominios verificados: nadie puede entrar por SSO todavía." %}</span></div>
+{% else %}
+<div class="alert alert--info" role="status">{% icon 'info' %}<span>{% translate "SSO inactivo: todos entran con correo y contraseña." %}</span></div>
+{% endif %}
+
+<div class="masonry">
+  <section class="card" id="provider" aria-labelledby="provider-title">
+    <h2 id="provider-title">{% translate "Proveedor de identidad (OIDC)" %}</h2>
+    <form method="post" action="{% url 'sso_settings' %}">
+      {% csrf_token %}
+      {% include "_form_fields.html" with form=form %}
+      <button class="btn btn--primary" type="submit">{% translate "Guardar" %}</button>
+    </form>
+    {% if configuration %}
+    <h3 class="mt-4">{% translate "Probar conexión" %}</h3>
+    <p class="muted">{% translate "Lee los datos y las claves públicas del proveedor y revisa el secreto guardado." %}</p>
+    {% if configuration.last_tested_at %}
+    <p>{% if configuration.last_test_ok %}<span class="badge badge--success">{% icon 'check' %}{% translate "Correcta" %}</span>{% else %}<span class="badge badge--error">{% icon 'stop' %}{% translate "Con error" %}</span>{% endif %}
+      <span class="muted">{% blocktranslate with when=configuration.last_tested_at|date:"d-m-Y H:i" %}Última prueba: {{ when }}{% endblocktranslate %}</span></p>
+    {% if configuration.last_test_error %}<p class="muted">{{ configuration.last_test_error }}</p>{% endif %}
+    {% endif %}
+    <form method="post" action="{% url 'sso_test' %}">
+      {% csrf_token %}
+      <button class="btn btn--secondary" type="submit">{% icon 'sync' %}{% translate "Probar conexión" %}</button>
+    </form>
+    {% endif %}
+  </section>
+
+  <section class="card" id="register" aria-labelledby="register-title">
+    <h2 id="register-title">{% translate "Datos para registrar la aplicación" %}</h2>
+    <p class="muted">{% translate "Registra una aplicación web en tu proveedor con estos datos y copia aquí su emisor, ID de cliente y secreto." %}</p>
+    <dl class="dns-record">
+      <dt>{% translate "URI de redirección" %}</dt>
+      <dd><code class="mono">{{ redirect_uri }}</code></dd>
+      <dt>{% translate "Permisos (scopes)" %}</dt>
+      <dd><code class="mono">{{ scopes }}</code></dd>
+      <dt>{% translate "Flujo" %}</dt>
+      <dd>{% translate "Authorization code con PKCE (S256). El proveedor debe entregar el correo en el dato «email»." %}</dd>
+    </dl>
+  </section>
+</div>
+
+<section class="card mt-4" id="domains" aria-labelledby="domains-title">
+  <h2 id="domains-title">{% translate "Dominios de correo" %}</h2>
+  <p class="muted">{% translate "Solo los correos de un dominio verificado entran por SSO. Para verificarlo, crea en el DNS del dominio el registro TXT que se muestra y pulsa «Verificar». Un dominio verificado es de una sola organización." %}</p>
+  <form method="post" action="{% url 'sso_domain_add' %}" class="inline-form">
+    {% csrf_token %}
+    {% include "_form_fields.html" with form=domain_form %}
+    <button class="btn btn--primary" type="submit">{% translate "Agregar dominio" %}</button>
+  </form>
+  {% if page.object_list %}
+  <table class="table mt-4">
+    <thead><tr><th>{% translate "Dominio" %}</th><th>{% translate "Estado" %}</th><th>{% translate "Registro TXT" %}</th><th>{% translate "Acciones" %}</th></tr></thead>
+    <tbody>
+      {% for domain in page.object_list %}
+      <tr>
+        <td data-label=""><strong>{{ domain.domain }}</strong></td>
+        <td data-label="{% translate 'Estado' %}">
+          {% if domain.is_verified %}<span class="badge badge--success">{% icon 'check' %}{% translate "Verificado" %}</span>
+          {% else %}<span class="badge badge--warning">{% icon 'clock' %}{% translate "Pendiente" %}</span>{% if domain.last_checked_at %}<div class="muted">{% blocktranslate with when=domain.last_checked_at|date:"d-m-Y H:i" %}Revisado: {{ when }}{% endblocktranslate %}</div>{% endif %}{% endif %}
+        </td>
+        <td data-label="{% translate 'Registro TXT' %}">
+          {% if domain.is_verified %}<span class="muted">{% blocktranslate with when=domain.verified_at|date:"d-m-Y" %}Verificado el {{ when }}. Puedes dejar el registro.{% endblocktranslate %}</span>
+          {% else %}
+          <dl class="dns-record">
+            <dt>{% translate "Nombre" %}</dt><dd><code class="mono">{{ domain.txt_name }}</code></dd>
+            <dt>{% translate "Valor" %}</dt><dd><code class="mono">{{ domain.txt_value }}</code></dd>
+          </dl>
+          {% endif %}
+        </td>
+        <td data-label="">
+          <div class="row">
+            {% if not domain.is_verified %}
+            <form method="post" action="{% url 'sso_domain_verify' domain.pk %}">{% csrf_token %}<button class="btn btn--primary" type="submit">{% icon 'check' %}{% translate "Verificar" %}</button></form>
+            {% endif %}
+            <form method="post" action="{% url 'sso_domain_remove' domain.pk %}">{% csrf_token %}<button class="btn btn--ghost" type="submit">{% icon 'x' %}{% translate "Quitar" %}</button></form>
+          </div>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% include "_pagination.html" %}
+  {% else %}
+  <p class="empty mt-4">{% translate "Aún no hay dominios." %}</p>
+  {% endif %}
+</section>
+{% endblock %}

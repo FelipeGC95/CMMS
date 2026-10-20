@@ -93,7 +93,7 @@ def public_address(url: str) -> str:
 # --- Envío HTTP ------------------------------------------------------------------------------
 
 
-class _PinnedHTTPSConnection(http.client.HTTPSConnection):
+class PinnedHTTPSConnection(http.client.HTTPSConnection):
     """HTTPS a una IP ya validada, con el certificado y el SNI del dominio original."""
 
     def __init__(self, host, *, address, **kwargs):
@@ -109,7 +109,7 @@ def http_post(url: str, *, address: str, body: bytes, headers: dict) -> int:
     """POST con timeout corto; devuelve el código HTTP (no sigue redirecciones)."""
     parts = urlsplit(url)
     path = (parts.path or "/") + (f"?{parts.query}" if parts.query else "")
-    connection = _PinnedHTTPSConnection(
+    connection = PinnedHTTPSConnection(
         parts.hostname,
         address=address,
         port=parts.port or 443,

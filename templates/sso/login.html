@@ -1,0 +1,15 @@
+{% extends "account/base_entrance.html" %}
+{% load i18n ui %}
+{% block head_title %}{% translate "Entrar con SSO" %}{% endblock %}
+{% block content %}
+  <h1>{% translate "Entrar con SSO" %}</h1>
+  <p class="muted">{% translate "Escribe el correo de tu empresa: te llevamos al inicio de sesión de tu organización (Microsoft, Google, Okta…)." %}</p>
+  {% if sso_error %}<div class="alert alert--error" role="alert">{% icon 'stop' %}<span>{{ sso_error }}</span></div>{% endif %}
+  <form method="post" action="{% url 'sso_login' %}">
+    {% csrf_token %}
+    {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
+    {% include "_form_fields.html" with form=form %}
+    <button class="btn btn--primary btn--lg btn--block" type="submit">{% icon 'key' %}{% translate "Continuar" %}</button>
+  </form>
+  <p class="mt-4"><a href="{% url 'account_login' %}">{% translate "Entrar con correo y contraseña" %}</a></p>
+{% endblock %}

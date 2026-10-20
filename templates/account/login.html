@@ -1,5 +1,5 @@
 {% extends "account/base_entrance.html" %}
-{% load i18n allauth %}
+{% load i18n allauth ui %}
 {% block head_title %}{% translate "Ingresar" %}{% endblock %}
 {% block content %}
   <h1>{% translate "Ingresar" %}</h1>
@@ -14,5 +14,7 @@
       {% element button type="submit" tags="prominent,login" %}{% translate "Ingresar" %}{% endelement %}
     {% endslot %}
   {% endelement %}
+  <p class="auth__divider">{% translate "o" %}</p>
+  <a class="btn btn--secondary btn--block" href="{% url 'sso_login' %}">{% icon 'key' %}{% translate "Entrar con SSO" %}</a>
   <p class="mt-4">{% translate "¿Aún no tienes cuenta?" %} <a href="{% url 'signup' %}">{% translate "Prueba gratis 30 días" %}</a></p>
 {% endblock %}

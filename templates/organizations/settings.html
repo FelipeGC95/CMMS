@@ -24,6 +24,13 @@
     </div>
   </section>
   {% endif %}
+  {% if organization|has_module:"sso" %}
+  <section class="card" id="sso" aria-labelledby="sso-title">
+    <h2 id="sso-title">{% translate "Inicio de sesión único (SSO)" %}</h2>
+    <p>{% translate "Tu equipo entra con la cuenta de la empresa (Microsoft, Google, Okta). Alta automática por dominio y opción de exigirlo." %}</p>
+    <a class="btn btn--secondary" href="{% url 'sso_settings' %}">{% translate "Configurar SSO" %}</a>
+  </section>
+  {% endif %}
   <section class="card" aria-labelledby="closing-title">
     <h2 id="closing-title">{% translate "Cierre de órdenes de trabajo" %}</h2>
     <form method="post">

@@ -32,6 +32,9 @@ ALLOWED_PREFIXES = (
     "/field/sw.js",
     "/field/manifest.webmanifest",
 )
+# Organización cuyo IdP abrió la sesión (ORG-11, ADR-032). El SSO cuenta como factor fuerte
+# solo en esa organización: no se pide configurar TOTP mientras esté activa.
+SSO_SESSION_KEY = "sso_organization_id"
 # La API de terreno no redirige: el teléfono recibe 403 `mfa_required` y pausa la cola.
 JSON_PREFIXES = ("/field/api/",)
 
@@ -78,6 +81,9 @@ class MFARequiredMiddleware:
             return False
         if not request.user.is_authenticated or request.path.startswith(ALLOWED_PREFIXES):
             return False
-        if not mfa_required(getattr(request, "membership", None)):
+        membership = getattr(request, "membership", None)
+        if not mfa_required(membership):
+            return False
+        if request.session.get(SSO_SESSION_KEY) == str(membership.organization_id):
             return False
         return not is_mfa_enabled(request.user, [Authenticator.Type.TOTP])

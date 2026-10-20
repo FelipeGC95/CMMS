@@ -24,6 +24,9 @@ dependencies = [
     "drf-spectacular-sidecar>=2026.9.1",
     "pypdf>=6.19.0",
     "anthropic>=1.15.0",
+    "pyjwt>=2.10",
+    "cryptography>=44",
+    "dnspython>=2.7",
 ]
 
 [dependency-groups]

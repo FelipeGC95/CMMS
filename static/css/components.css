@@ -492,6 +492,15 @@ main { max-width: var(--content-max); margin: 0 auto; padding: var(--space-5) va
 .auth__logo { display: flex; flex-direction: column; align-items: center; gap: var(--space-2); margin-bottom: var(--space-5); padding: var(--space-4); }
 .auth__logo img { height: 96px; }
 .auth__product { font-family: var(--font-brand); font-weight: 500; color: var(--color-nav-text); letter-spacing: 0.08em; }
+/* Separador «o» entre la contraseña y «Entrar con SSO» (ORG-11). */
+.auth__divider { display: flex; align-items: center; gap: var(--space-3); margin: var(--space-4) 0; color: var(--color-text-muted); font-size: var(--text-sm); }
+.auth__divider::before, .auth__divider::after { content: ""; flex: 1; border-top: 1px solid var(--color-border); }
+
+/* ---------- Valores para copiar: registro TXT, URI de redirección (ORG-11) ---------- */
+.dns-record { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-1); margin: 0; font-size: var(--text-sm); }
+.dns-record dt { color: var(--color-text-muted); font-weight: 500; }
+.dns-record dd { margin: 0 0 var(--space-2); min-width: 0; }
+.dns-record code { display: block; padding: var(--space-2); background: var(--color-surface-sunken); color: var(--color-text); border-radius: var(--radius-sm); overflow-wrap: anywhere; user-select: all; }
 
 /* ---------- Selección de etiquetas QR (AST-05 CA2) ---------- */
 .check-cell { display: inline-flex; align-items: center; justify-content: center; min-width: var(--touch-target); min-height: var(--touch-target); margin: calc(var(--space-3) * -1) 0; cursor: pointer; }

@@ -53,6 +53,7 @@ INSTALLED_APPS = [
     "apps.notifications",
     "apps.api",
     "apps.webhooks",
+    "apps.sso",
     "apps.ui",
     "apps.onboarding",
     "apps.field",
@@ -173,6 +174,10 @@ ACCOUNT_LOGIN_ON_EMAIL_CONFIRMATION = True
 ACCOUNT_LOGIN_ON_PASSWORD_RESET = True
 ACCOUNT_EMAIL_SUBJECT_PREFIX = "[GALBUST CMMS] "
 ACCOUNT_DEFAULT_HTTP_PROTOCOL = "http" if DEBUG else "https"
+# SSO por OIDC (ORG-11, ADR-032): recuperar contraseña respeta «exigir SSO» de la organización
+# dueña del dominio. El secreto de cliente se cifra con SSO_SECRET_KEY (o SECRET_KEY si falta).
+ACCOUNT_FORMS = {"reset_password": "apps.sso.forms.SsoAwareResetPasswordForm"}
+SSO_SECRET_KEY = os.environ.get("SSO_SECRET_KEY", "")
 # Verificación en dos pasos (ORG-08, ADR-022): app de autenticación (TOTP) y códigos de
 # recuperación. Quién debe usarla lo decide cada organización (`mfa_policy`);
 # MFA_ENFORCE=0 apaga la obligación (solo para tests que no tratan de MFA).

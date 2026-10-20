@@ -44,7 +44,8 @@
       {% if organization|has_module:"custom_roles" %}<li><a href="{% url 'custom_role_list' %}">{% icon 'key' %}{% translate "Roles personalizados" %}</a></li>{% endif %}{% endif %}
       {% if membership|can:"audit.view" %}<li><a href="{% url 'audit_list' %}">{% icon 'clock' %}{% translate "Auditoría" %}</a></li>{% endif %}
       {% if membership|can:"api_token.manage" and organization|has_module:"api" %}<li><a href="{% url 'api_token_list' %}">{% icon 'key' %}{% translate "Tokens de API" %}</a></li><li><a href="{% url 'webhook_list' %}">{% icon 'bell' %}{% translate "Webhooks" %}</a></li>{% endif %}
-      {% if membership|can:"organization.manage" %}<li><a href="{% url 'organization_settings' %}">{% icon 'wrench' %}{% translate "Configuración de la organización" %}</a></li>{% endif %}
+      {% if membership|can:"organization.manage" %}<li><a href="{% url 'organization_settings' %}">{% icon 'wrench' %}{% translate "Configuración de la organización" %}</a></li>
+      {% if organization|has_module:"sso" %}<li><a href="{% url 'sso_settings' %}">{% icon 'key' %}{% translate "Inicio de sesión único (SSO)" %}</a></li>{% endif %}{% endif %}
       {% if user.is_staff %}
       <li><a href="{% url 'admin:index' %}">{% icon 'wrench' %}{% translate "Administración de la plataforma" %}</a></li>
       <li><a href="{% url 'design_system' %}">{% icon 'contrast' %}{% translate "Sistema de diseño" %}</a></li>

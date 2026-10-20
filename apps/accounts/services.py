@@ -75,7 +75,7 @@ def switch_organization(*, request, organization_id):
 # ---------- Invitaciones (ORG-05) ----------
 
 
-def _check_seat_available(organization, *, exclude_email=""):
+def check_seat_available(organization, *, exclude_email=""):
     """Cupo de usuarios del plan: miembros activos + invitaciones pendientes (ORG-05 CA3)."""
     plan = organization.plan
     if plan is None or plan.max_users is None:
@@ -153,7 +153,7 @@ def _issue_invitation(*, organization_id, email, role, invited_by, base_url, cus
         organization=organization, user__email__iexact=email, is_active=True
     ).exists():
         raise TeamError(_("%(email)s ya es parte del equipo.") % {"email": email})
-    _check_seat_available(organization, exclude_email=email)
+    check_seat_available(organization, exclude_email=email)
 
     now = timezone.now()
     # Reenviar reemplaza la invitación anterior: solo un enlace vigente por correo.
@@ -359,7 +359,7 @@ def set_member_active(*, membership, target, active):
             _ensure_other_admin(target)
     else:
         organization = Organization.objects.select_for_update().get(pk=target.organization_id)
-        _check_seat_available(organization, exclude_email=target.user.email)
+        check_seat_available(organization, exclude_email=target.user.email)
     target.is_active = active
     target.save(update_fields=["is_active", "updated_at"])
     audit.record(
