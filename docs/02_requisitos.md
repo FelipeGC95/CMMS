@@ -110,7 +110,65 @@ app y los reportes lleven mi marca.
   plan sin módulos listados no restringe módulos. Pendiente: ocultar los botones
   de exportar dentro de las listas (hoy responden 403).
 
-**ORG-11 · SSO SAML/OIDC (F3, plan Empresa)**
+**ORG-11 · SSO OIDC (F3, plan Empresa)**
+Como administrador quiero que mi equipo entre con la cuenta de la empresa (Microsoft
+Entra ID, Google Workspace, Okta…), sin crear usuarios a mano ni manejar otra
+contraseña.
+- CA1: En `/settings/sso/` (solo administradores, módulo `sso`, solo plan Empresa) se
+  configura un proveedor OpenID Connect por organización: URL del emisor o de
+  descubrimiento, ID de cliente y secreto. Al guardar se lee y valida el
+  descubrimiento (https, emisor igual a la URL, sin direcciones privadas: defensa SSRF
+  de los webhooks). El secreto se guarda cifrado y nunca se vuelve a mostrar; en
+  blanco conserva el guardado. «Probar conexión» lee descubrimiento y claves (JWKS) y
+  revisa el secreto, y deja el resultado a la vista. La pantalla muestra la URI de
+  redirección y los scopes para registrar la aplicación.
+- CA2: La organización declara sus dominios de correo. Un dominio se verifica con un
+  registro DNS TXT `_galbust-verification.<dominio>` =
+  `galbust-domain-verification=<código>`. Sin dominio verificado no hay ingreso por
+  SSO, alta automática ni exigencia. Se rechazan dominios mal escritos y de correo
+  personal (gmail.com, outlook.com…).
+- CA3: Un dominio verificado pertenece a una sola organización en toda la plataforma
+  (índice único parcial); mientras está pendiente otras pueden reclamarlo, así nadie
+  lo bloquea sin ser dueño, pero la primera que lo verifica se queda con él.
+- CA4: En el login, «Entrar con SSO» pide el correo y redirige al IdP de la
+  organización dueña del dominio (descubrimiento por dominio). Flujo authorization
+  code con PKCE (S256), `state` y `nonce` de un solo uso que vencen a los 10 minutos.
+  El id_token se valida siempre: firma con las claves del IdP (solo algoritmos
+  asimétricos), emisor, audiencia (`azp` si hay varias), vigencia y nonce.
+- CA5: Se enlaza con una cuenta (existente o nueva) por correo solo si el correo es de
+  un dominio verificado de la organización del intento y el IdP no dice
+  `email_verified: false`. El IdP de una organización nunca abre sesión con un correo
+  de un dominio de otra.
+- CA6: Alta automática: si quien entra no tiene usuario o membresía en la organización,
+  se crea el usuario (sin contraseña, correo verificado) y la membresía con el **rol
+  por defecto** de la configuración: un rol base o un rol personalizado (ORG-12),
+  nunca administrador (lo valida el servicio y, si alguien lo escribiera en la base,
+  cae a técnico). Una invitación pendiente para ese correo manda: entra con su rol.
+  Respeta el cupo de usuarios del plan (miembros activos + invitaciones pendientes);
+  si está lleno, no entra y ve un mensaje claro. Queda en la auditoría
+  (`source: sso`), igual que la configuración y los dominios. Una membresía
+  desactivada no se reactiva por SSO.
+- CA7: «Exigir SSO» (opcional): los correos de los dominios verificados no entran con
+  contraseña (se les manda al SSO) ni reciben enlace para recuperarla. La regla la
+  define el dominio del correo, no la organización activa. Excepción: los
+  administradores de la organización dueña del dominio conservan contraseña + MFA
+  como acceso de emergencia (el aviso de recuperar contraseña es el mismo para todos,
+  no revela quién es administrador).
+- CA8: Al entrar por SSO no se pide TOTP: el SSO cuenta como factor fuerte para la
+  organización de ese IdP (ADR-022/032). Quien entra con contraseña, incluidos los
+  administradores, sigue con la política de MFA de su organización; al cambiar a otra
+  organización rige la de esa.
+- CA9: Sin configuración SSO activa (o sin el módulo en el plan) nada cambia: login,
+  recuperación de contraseña y MFA funcionan como antes.
+- CA10: Una organización no ve, edita, verifica ni usa la configuración o los
+  dominios de otra; su IdP no puede abrir sesión en otra (servicio, vistas y RLS).
+- No cumplido / fuera de v1: SAML 2.0 (solo OIDC); aprovisionamiento SCIM y bajas
+  automáticas (quien deja la empresa sigue con su membresía hasta que el admin la
+  desactive); cerrar sesiones abiertas con contraseña al activar «Exigir SSO» (siguen
+  hasta vencer); cierre de sesión en el IdP (single logout); mapear grupos o roles
+  del IdP a roles de GALBUST; varios IdP por organización; endpoints multiempresa
+  como `common` de Entra ID (se usa la URL del inquilino); SSO en la API v1 (sigue
+  con tokens de organización). Implementación: ADR-032.
 
 **ORG-12 · Roles personalizados (F3, plan Profesional+)**
 Como administrador quiero crear roles a medida (p. ej. «Bodeguero») a partir de

@@ -1792,3 +1792,30 @@ def test_custom_role_screens_do_not_grow_with_rows(client, tenant_a, django_asse
     assert [_count(client, url) for url in urls] == few
     with django_assert_max_num_queries(20):
         assert client.get(urls[0]).status_code == 200
+
+
+def test_sso_settings_does_not_grow_with_domains(
+    client, tenant_a, monkeypatch, django_assert_max_num_queries
+):
+    """SSO (ORG-11): la lista de dominios de /settings/sso/, paginada y sin N+1."""
+    from apps.sso import services as sso
+    from tests.sso_utils import FakeIdP, configure, install_idps
+
+    idp = FakeIdP("tenant-a")
+    install_idps(monkeypatch, idp)
+    configure(tenant_a, idp, domains=("empresa-a.cl",))
+
+    def add(n):
+        with tenant_context(tenant_a.org):
+            for _ in range(n):
+                i = sso.SsoDomain.objects.count()
+                sso.add_domain(membership=tenant_a.admin, domain=f"filial-{i}.cl")
+
+    login(client, tenant_a.admin)
+    url = reverse("sso_settings")
+    add(1)
+    few = _count(client, url)
+    add(6)
+    assert _count(client, url) == few
+    with django_assert_max_num_queries(20):
+        assert client.get(url).status_code == 200

@@ -261,6 +261,8 @@ Todos se muestran en `/design-system/` en ambos modos, con sus estados
 | **Repuesto elegido** (`.picked-part`) | — | En entrada y transferencia (INV-05, INV-07): el repuesto ya elegido (código · nombre) sobre la tarjeta con borde `--color-border-strong` y el enlace "Cambiar" (≥ 48 px) que vuelve al buscador conservando bodega y documento. Sin elegir, el buscador (`inventory_part_search?pick=part`) muestra radios dentro del formulario, sin JS. |
 | **Cantidad con signo** (`.qty`) | entra, sale | Libro de movimientos (INV-14): flecha abajo + "+" para lo que entra, flecha arriba + "−" para lo que sale; nunca solo color. |
 | **Motivo de reposición** (`{% reorder_mark %}`) | Negativo · regularizar, Reservas sin cubrir, Bajo mínimo | Badges (error, advertencia, advertencia) con ícono + texto en la lista de reposición (INV-12 CA4), en el orden en que se atiende. |
+| **Separador de acceso** (`.auth__divider`) | — | «o» entre el ingreso con contraseña y «Entrar con SSO» (ORG-11): texto `--color-text-muted` con una línea `--color-border` a cada lado; el botón SSO es secundario y de ancho completo. |
+| **Valor para copiar** (`.dns-record`) | — | Lista `<dl>` apilada para datos que se copian a otro sistema (registro TXT del dominio, URI de redirección del SSO): etiqueta muted y valor en `<code>` JetBrains Mono sobre `--color-surface-sunken`, `user-select: all` y corte en cualquier carácter para no desbordar a 360 px. |
 | **Estado vacío** | | Ilustración mínima con el isotipo en monocromo + acción sugerida. |
 | **Código** | OT, activo | JetBrains Mono, botón de copiar. |
 
