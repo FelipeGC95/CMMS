@@ -7,12 +7,12 @@
     <p class="muted">{% blocktranslate count n=page.paginator.count %}{{ n }} plan{% plural %}{{ n }} planes{% endblocktranslate %}</p>
   </div>
   <div class="page-actions">
-    <a class="btn btn--primary page-actions__primary" href="{% url 'plan_create' %}">{% icon 'calendar' %}{% translate "Nuevo plan" %}</a>
+    {% if not read_only %}<a class="btn btn--primary page-actions__primary" href="{% url 'plan_create' %}">{% icon 'calendar' %}{% translate "Nuevo plan" %}</a>{% endif %}
     <a class="btn btn--secondary" href="{% url 'plan_calendar' %}">{% icon 'calendar' %}{% translate "Calendario" %}</a>
-    <a class="btn btn--secondary" href="{% url 'industry_templates' %}">{% icon 'list' %}{% translate "Cargar plantilla de rubro" %}</a>
-    <a class="btn btn--ghost" href="{% url 'plan_import' %}">{% icon 'list' %}{% translate "Importar o exportar (Excel)" %}</a>
+    {% if not read_only %}<a class="btn btn--secondary" href="{% url 'industry_templates' %}">{% icon 'list' %}{% translate "Cargar plantilla de rubro" %}</a>{% endif %}
+    <a class="btn btn--ghost" href="{% url 'plan_import' %}">{% icon 'list' %}{% if read_only %}{% translate "Exportar (Excel)" %}{% else %}{% translate "Importar o exportar (Excel)" %}{% endif %}</a>
     {% if organization|has_module:"inventory" and membership|can:"inventory.manage" %}<a class="btn btn--ghost" href="{% url 'inventory_from_plans' %}">{% icon 'box' %}{% translate "Crear catálogo de repuestos desde los planes" %}</a>{% endif %}
-    {% if membership|can:"organization.manage" %}<a class="btn btn--ghost" href="{% url 'maintenance_settings' %}">{% icon 'wrench' %}{% translate "Ajustes de preventivos" %}</a>{% endif %}
+    {% if membership|can:"organization.manage" and not read_only %}<a class="btn btn--ghost" href="{% url 'maintenance_settings' %}">{% icon 'wrench' %}{% translate "Ajustes de preventivos" %}</a>{% endif %}
   </div>
 </div>
 

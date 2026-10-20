@@ -23,7 +23,7 @@
     <li>
       <div class="list__main">
         <span class="list__title"><a href="{% url 'attachment' hit.attachment.pk %}#page={{ hit.page_number }}">{{ hit.attachment.filename }}</a></span>
-        <span class="list__meta">{% blocktranslate with n=hit.page_number %}Página {{ n }}{% endblocktranslate %} · {% if hit.attachment.target_type == class_type %}{% translate "Clase" %} {% if membership|can:"asset.manage" %}<a href="{% url 'asset_class_detail' hit.attachment.target_id %}">{{ hit.target|default:"—" }}</a>{% else %}{{ hit.target|default:"—" }}{% endif %}{% else %}{% translate "Activo" %} <a href="{% url 'asset_detail' hit.attachment.target_id %}">{{ hit.target|default:"—" }}</a>{% endif %}</span>
+        <span class="list__meta">{% blocktranslate with n=hit.page_number %}Página {{ n }}{% endblocktranslate %} · {% if hit.attachment.target_type == class_type %}{% translate "Clase" %} {% if membership|can_view:"asset.manage" %}<a href="{% url 'asset_class_detail' hit.attachment.target_id %}">{{ hit.target|default:"—" }}</a>{% else %}{{ hit.target|default:"—" }}{% endif %}{% else %}{% translate "Activo" %} <a href="{% url 'asset_detail' hit.attachment.target_id %}">{{ hit.target|default:"—" }}</a>{% endif %}</span>
         <p class="muted">{{ hit.snippet }}</p>
       </div>
     </li>

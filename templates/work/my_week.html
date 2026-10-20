@@ -9,7 +9,7 @@
   <div class="page-actions">
     <a class="btn btn--ghost" href="{% url 'work_order_list' %}?scope=mine">{% icon 'list' %}{% translate "Mis OT" %}</a>
     {% if organization|has_module:"work_orders" %}<a class="btn btn--ghost" href="{% url 'field_shell' %}" data-field-link>{% icon 'phone' %}{% translate "Modo sin conexión" %}</a>{% endif %}
-    {% if membership|can:"work_order.manage" %}<a class="btn btn--secondary" href="{% url 'work_order_board' %}">{% icon 'calendar' %}{% translate "Programación semanal" %}</a>{% endif %}
+    {% if membership|can_view:"work_order.manage" %}<a class="btn btn--secondary" href="{% url 'work_order_board' %}">{% icon 'calendar' %}{% translate "Programación semanal" %}</a>{% endif %}
   </div>
 </div>
 

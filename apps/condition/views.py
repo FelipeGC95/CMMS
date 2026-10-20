@@ -14,8 +14,9 @@ from django.shortcuts import redirect, render
 from django.utils.translation import gettext as _
 from django.views.decorators.http import require_POST
 
-from apps.accounts.permissions import Perm, PermissionDeniedError, has_perm
+from apps.accounts.permissions import Perm, PermissionDeniedError
 from apps.assets.models import AssetClass
+from apps.billing.access import can_act
 from apps.core.decorators import membership_required
 
 from . import services
@@ -49,7 +50,7 @@ def alert_list_view(request):
             "filters_open": bool(active or form.errors),
             # Estado vacío útil: sin reglas, el llamado es crear la primera.
             "has_rules": page.paginator.count > 0 or visible_rules(membership=membership).exists(),
-            "can_manage": has_perm(membership, Perm.CONDITION_MANAGE),
+            "can_manage": can_act(membership, Perm.CONDITION_MANAGE),
         },
     )
 
@@ -72,7 +73,7 @@ def alert_detail_view(request, pk):
         {
             "alert": alert,
             "reading": alert.reading,
-            "can_manage": has_perm(membership, Perm.CONDITION_MANAGE),
+            "can_manage": can_act(membership, Perm.CONDITION_MANAGE),
         },
     )
 
@@ -131,7 +132,7 @@ def rule_list_view(request):
             "classes": classes,
             "asset_class": asset_class,
             "filtered": bool(status or asset_class),
-            "can_manage": has_perm(membership, Perm.CONDITION_MANAGE),
+            "can_manage": can_act(membership, Perm.CONDITION_MANAGE),
         },
     )
 

@@ -28,14 +28,14 @@
       </tbody>
     </table>
   </section>
-  <section class="card">
+  {% if not read_only %}<section class="card">
     <h2>{% translate "Nueva clase" %}</h2>
     <form method="post">
       {% csrf_token %}
       {% include "_form_fields.html" with form=form %}
       <button class="btn btn--primary" type="submit">{% translate "Crear" %}</button>
     </form>
-  </section>
+  </section>{% endif %}
 </div>
 {% include "_pagination.html" %}
 {% endblock %}

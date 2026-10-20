@@ -37,14 +37,14 @@
     {% endif %}
   </section>
 
-  <section class="card" aria-labelledby="new-title">
+  {% if not read_only %}<section class="card" aria-labelledby="new-title">
     <h2 id="new-title">{% translate "Nueva ubicación" %}</h2>
     <form method="post">
       {% csrf_token %}
       {% include "_form_fields.html" with form=form %}
       <button class="btn btn--primary" type="submit">{% translate "Crear" %}</button>
     </form>
-  </section>
+  </section>{% endif %}
 </div>
 {% include "_pagination.html" %}
 {% endblock %}
