@@ -6,7 +6,7 @@ from django.conf import settings
 from django.contrib import messages
 from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
-from django.http import HttpResponse, HttpResponseBadRequest, JsonResponse
+from django.http import HttpResponseBadRequest, JsonResponse
 from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.utils.translation import gettext as _
@@ -164,5 +164,5 @@ def mercadopago_webhook_view(request):
         return JsonResponse({"status": "retry"}, status=503)
     except Exception:  # datos inesperados: se registra y no se pide reintento infinito
         logger.exception("Webhook de Mercado Pago no procesado (%s)", notification.event_key)
-        return HttpResponse(status=200)
+        return JsonResponse({"status": "error"})
     return JsonResponse({"status": result})

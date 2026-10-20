@@ -49,6 +49,11 @@ class BillingError(ValidationError):
 # --- Lecturas que usan los servicios -----------------------------------------------------------
 
 
+def _locked_account(pk) -> BillingAccount:
+    """Cuenta bloqueada para escribir, con su plan. Solo se bloquea su fila (el plan puede ser nulo)."""
+    return BillingAccount.objects.select_for_update(of=("self",)).select_related("plan").get(pk=pk)
+
+
 def account_for(organization=None) -> BillingAccount:
     """Cuenta de facturación de la organización del contexto (se crea vacía la primera vez)."""
     organization = organization or require_current_organization()
@@ -200,7 +205,7 @@ def change_plan(*, membership, plan) -> BillingAccount:
     require_perm(membership, Perm.ORGANIZATION_MANAGE)
     organization = Organization.objects.select_for_update().get(pk=membership.organization_id)
     account_id = account_for(organization).pk
-    account = BillingAccount.objects.select_for_update().select_related("plan").get(pk=account_id)
+    account = _locked_account(account_id)
     if not account.is_active_subscription or account.plan is None:
         raise BillingError(_("No tienes una suscripción activa: elige un plan y págalo."))
     before = audit.snapshot(account, ACCOUNT_FIELDS)
@@ -367,7 +372,7 @@ def sync_subscription(*, remote) -> tuple[Organization | None, str]:
         return None, "reference_mismatch"
     organization = account.organization
     with tenant_context(organization), transaction.atomic():
-        account = BillingAccount.objects.select_for_update().select_related("plan").get(pk=account.pk)
+        account = _locked_account(account.pk)
         organization = Organization.objects.select_for_update().get(pk=organization.pk)
         before = audit.snapshot(account, ACCOUNT_FIELDS)
         status_map = {
@@ -423,7 +428,7 @@ def record_payment(*, remote) -> tuple[Organization | None, str]:
     organization = account.organization
     with tenant_context(organization), transaction.atomic():
         organization = Organization.objects.select_for_update().get(pk=organization.pk)
-        account = BillingAccount.objects.select_for_update().select_related("plan").get(pk=account.pk)
+        account = _locked_account(account.pk)
         payment = Payment.objects.select_for_update().filter(provider_payment_id=remote.id).first()
         was_approved = payment is not None and payment.status == Payment.Status.APPROVED
         if payment is None:
