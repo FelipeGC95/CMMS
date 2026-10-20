@@ -409,6 +409,35 @@ main { max-width: var(--content-max); margin: 0 auto; padding: var(--space-5) va
 .plan-option__head h3 { margin: 0; }
 .plan-option__price { font-family: var(--font-ui); font-weight: 600; font-size: var(--text-2xl); color: var(--color-text-brand); line-height: 1.1; }
 .plan-option__unit { font-size: var(--text-md); font-weight: 500; color: var(--color-text-muted); }
+/* Qué trae cada plan (ORG-13): cupos, «Incluye» y, plegado, «No incluye». En escritorio lo muestra la tabla. */
+.plan-option__details { display: flex; flex-direction: column; gap: var(--space-2); border-top: 1px solid var(--color-border); padding-top: var(--space-3); }
+.plan-option__subtitle { margin: var(--space-2) 0 0; font-weight: 600; }
+.plan-option__loss { margin: 0; }
+.plan-quotas { display: grid; grid-template-columns: auto 1fr; gap: var(--space-1) var(--space-3); margin: 0; }
+.plan-quotas dt { color: var(--color-text-muted); }
+.plan-quotas dd { margin: 0; font-weight: 500; min-width: 0; overflow-wrap: anywhere; }
+.plan-features { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-2); }
+.plan-features__item { display: flex; gap: var(--space-2); align-items: flex-start; }
+.plan-features__item svg { width: 18px; height: 18px; flex: none; margin-top: 3px; }
+.plan-features__item--yes svg { color: var(--color-success); }
+.plan-features__item--no { color: var(--color-text-muted); }
+.plan-features__label { font-weight: 500; }
+.plan-features__desc { display: block; color: var(--color-text-muted); font-size: var(--text-sm); }
+.plan-option__excluded summary { cursor: pointer; min-height: var(--touch-target); display: flex; align-items: center; color: var(--color-link); font-weight: 500; }
+.plan-option__excluded .plan-features { margin-top: var(--space-2); }
+.plan-compare { display: none; margin-top: var(--space-4); }
+.plan-compare h3 { margin: 0 0 var(--space-3); }
+.plan-compare__table th[scope="row"] { background: var(--color-surface); color: var(--color-text); font-weight: 400; vertical-align: top; }
+.plan-compare__table th[scope="col"] { color: var(--color-text); }
+.plan-compare__table tbody tr:nth-child(5) th, .plan-compare__table tbody tr:nth-child(5) td { border-bottom: 2px solid var(--color-border-strong); }
+.plan-compare__mark { display: inline-flex; gap: var(--space-1); align-items: center; }
+.plan-compare__mark svg { width: 18px; height: 18px; flex: none; }
+.plan-compare__mark--yes { color: var(--color-success); font-weight: 500; }
+.plan-compare__mark--no { color: var(--color-text-muted); }
+@media (min-width: 1100px) {
+  .plan-compare { display: block; }
+  .plan-option__details { display: none; }
+}
 
 /* ---------- Checklist (vista de técnico: objetivos ≥ 48 px) ---------- */
 .checklist { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-3); }
