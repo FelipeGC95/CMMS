@@ -31,7 +31,7 @@
       <dt>{% translate "Estado" %}</dt><dd>{% translate "Eliminación programada: solo lectura." %}</dd>
       {% endif %}
       {% if organization.paid_through %}<dt>{% translate "Pagado hasta" %}</dt><dd>{{ organization.paid_through|date:"j M Y" }}</dd>{% endif %}
-      {% if account and account.plan %}<dt>{% translate "Suscripción" %}</dt><dd>{{ account.plan.name }} · {{ account.get_period_display }} · {{ account.get_status_display }}</dd>{% endif %}
+      {% if account.plan and account.status != "none" %}<dt>{% translate "Suscripción" %}</dt><dd>{{ account.plan.name }} · {{ account.get_period_display }} · {{ account.get_status_display }}</dd>{% endif %}
       {% if account.is_active_subscription %}
       <dt>{% translate "Próximo cobro" %}</dt>
       <dd>{% if account.next_charge_at %}{{ account.next_charge_at|date:"j M Y" }} · {% endif %}{% if overview.next_charge %}{{ overview.next_charge.total_uf|uf }} {% translate "UF" %}{% if overview.next_charge.amount_clp %} ({% blocktranslate with clp=overview.next_charge.amount_clp|clp %}≈ {{ clp }} con la UF de hoy{% endblocktranslate %}){% endif %}{% else %}—{% endif %}</dd>

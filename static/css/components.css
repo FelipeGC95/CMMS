@@ -393,6 +393,7 @@ main { max-width: var(--content-max); margin: 0 auto; padding: var(--space-5) va
 .action-banner { flex-wrap: wrap; align-items: center; }
 .action-banner > span { flex: 1 1 14rem; }
 .action-banner > .btn { margin-left: auto; }
+.alert a.btn--secondary { color: var(--color-secondary-text); }
 
 /* Planes contratables (ORG-13): una tarjeta por plan, de una a tres columnas. */
 .plan-options { display: grid; gap: var(--space-4); grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); }

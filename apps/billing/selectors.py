@@ -2,6 +2,7 @@
 
 from dataclasses import dataclass, field
 
+from django.db.models import F
 from django.utils import timezone
 
 from apps.accounts.permissions import Perm, require_perm
@@ -83,6 +84,7 @@ def billing_overview(*, membership) -> BillingOverview:
             return None
 
     contracted = account.plan if account and account.plan_id else None
+    subscribed = bool(account and account.is_active_subscription)
     next_charge = None
     if account and account.is_active_subscription and contracted:
         next_charge = offer(account.pending_plan or contracted, account.period)
@@ -90,7 +92,7 @@ def billing_overview(*, membership) -> BillingOverview:
     for plan in purchasable_plans(organization):
         monthly, annual = offer(plan, Period.MONTHLY), offer(plan, Period.ANNUAL)
         if monthly and annual:
-            options.append(PlanOption(plan, monthly, annual, is_current=contracted == plan))
+            options.append(PlanOption(plan, monthly, annual, is_current=subscribed and contracted == plan))
     purchasable = {option.plan.pk for option in options}
     quoted = [
         plan
@@ -113,4 +115,4 @@ def billing_overview(*, membership) -> BillingOverview:
 def payment_history(*, membership):
     """Pagos de la organización, del más reciente al más antiguo (la vista pagina)."""
     require_perm(membership, Perm.ORGANIZATION_MANAGE)
-    return Payment.objects.select_related("plan").order_by("-created_at")
+    return Payment.objects.select_related("plan").order_by(F("paid_at").desc(nulls_last=True), "-created_at")

@@ -17,9 +17,10 @@ from apps.accounts.permissions import Perm
 from apps.core.decorators import membership_required
 from apps.organizations.models import Plan
 
+from . import gateway as payment_gateway
 from . import services
 from .forms import BillingDetailsForm, ChangePlanForm, CheckoutForm
-from .gateway import InvalidSignature, get_gateway
+from .gateway import InvalidSignature
 from .selectors import billing_overview, payment_history
 
 logger = logging.getLogger(__name__)
@@ -145,7 +146,7 @@ def mercadopago_webhook_view(request):
     Responde 200 si se procesó o se ignoró, 401 con firma inválida, 503 si la API del proveedor no
     respondió (Mercado Pago reintenta) y nunca 500 por datos inesperados.
     """
-    gateway = get_gateway()
+    gateway = payment_gateway.get_gateway()
     if gateway is None:
         return JsonResponse({"status": "disabled"}, status=503)
     if len(request.body) > MAX_WEBHOOK_BYTES:
