@@ -7,7 +7,7 @@
     <p class="muted">{% blocktranslate count n=page.paginator.count %}{{ n }} OT{% plural %}{{ n }} OT{% endblocktranslate %}</p>
   </div>
   <div class="row">
-    {% if scope == "mine" and membership|can:"work_order.execute" and organization|has_module:"work_orders" %}<a class="btn btn--ghost" href="{% url 'field_shell' %}" data-field-link>{% icon 'phone' %}{% translate "Modo sin conexión" %}</a>{% endif %}
+    {% if scope == "mine" and membership|can_view:"work_order.execute" and organization|has_module:"work_orders" %}<a class="btn btn--ghost" href="{% url 'field_shell' %}" data-field-link>{% icon 'phone' %}{% translate "Modo sin conexión" %}</a>{% endif %}
     {% if membership|can:"request.create" %}<a class="btn btn--secondary" href="{% url 'location_report' %}">{% icon 'megaphone' %}{% translate "Avisar problema" %}</a>{% endif %}
     <a class="btn btn--ghost" href="{% url 'work_order_export_xlsx' %}?{{ request.GET.urlencode }}">{% icon 'list' %}{% translate "Exportar Excel" %}</a>
     {% if membership|can:"work_order.manage" %}<a class="btn btn--primary" href="{% url 'work_order_create' %}">{% translate "Nueva OT" %}</a>{% endif %}

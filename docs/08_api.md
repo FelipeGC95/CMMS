@@ -3,7 +3,7 @@
 Guía funcional de la API REST: qué resuelve cada endpoint, sus reglas y
 ejemplos de uso. La decisión técnica está en ADR-005
 (`docs/04_arquitectura.md`); el contrato exacto, en `/api/schema/`.
-Actualizada al 2026-10-12 (mantenimiento por condición, CBM-09).
+Actualizada al 2026-10-20 (alcances de token por recurso y webhooks ampliados, F3).
 
 ## Resumen
 
@@ -23,7 +23,7 @@ Toda petición lleva un token de organización; el token decide de qué empresa 
 
 ### Token y autenticación
 
-1. Un administrador entra a **Más → Tokens de API** (`/settings/api-tokens/`) y crea un token con nombre (p. ej. «ERP»), alcance y vencimiento (nunca, 30 días, 90 días o 1 año).
+1. Un administrador entra a **Más → Tokens de API** (`/settings/api-tokens/`) y crea un token con nombre (p. ej. «ERP»), alcances (casillas de lectura y escritura por grupo de recursos, o «Todo») y vencimiento (nunca, 30 días, 90 días o 1 año).
 2. El token completo (`gbt_…`) se muestra **una sola vez**; la base de datos guarda solo su hash y un prefijo visible para reconocerlo.
 3. Cada petición lo envía en el encabezado:
 
@@ -39,8 +39,7 @@ No hay sesión ni cookies, así que no aplica CSRF. Un token revocado, vencido, 
 | --- | --- |
 | Organización | La del token; no se elige ni se envía. Un id de otra empresa responde igual que uno inexistente (404 o error de validación). |
 | Rol efectivo | Planificador sobre toda la organización (sin restricción por sitio). |
-| Alcance `read` | Solo `GET`. Cualquier escritura → 403. |
-| Alcance `write` | Lectura y escritura: activos, lecturas, OT, checklist, fotos, solicitudes, inventario y reglas y alertas de condición. |
+| Alcances | Por grupo de recursos: `<grupo>:read` permite `GET`; `<grupo>:write` permite además `POST` y `PATCH` (escribir incluye leer). `*:read` y `*:write` valen para todos los grupos, también los que se agreguen. Sin el alcance → 403 `insufficient_scope` (ver abajo). |
 | Nunca puede | Administrar equipo, auditoría, configuración ni otros tokens. |
 | Autoría | Cada token tiene su propio usuario de servicio (`API · <nombre>`): la auditoría muestra qué integración hizo cada cambio. |
 | Zona horaria | La de la organización del token. |
@@ -89,7 +88,8 @@ Todos los errores tienen la misma forma, con textos en español:
 | --- | --- | --- |
 | 400 | `invalid` | Datos inválidos o regla de negocio incumplida (transición no permitida, ítem obligatorio sin responder). |
 | 401 | `not_authenticated` / `authentication_failed` | Sin token, token mal formado, revocado o vencido. |
-| 403 | `permission_denied` | Token `read` intentando escribir, o acción fuera del rol. |
+| 403 | `insufficient_scope` | El token no tiene el alcance del grupo (p. ej. `inventory:read`, o `requests:write` para escribir); `details.required_scope` dice cuál. |
+| 403 | `permission_denied` | Acción fuera del rol de servicio o módulo que el plan no incluye. |
 | 402 | `payment_required` | La organización está en solo lectura (gracia por falta de pago vencida o borrado programado; ORG-13). Las lecturas siguen funcionando; las escrituras vuelven a funcionar solas al pagar. |
 | 404 | `not_found` | No existe o es de otra organización. |
 | 409 | `conflict` | `client_uuid` ya usado en otra operación. (La API de terreno además usa `cancelled`, `locked`, `organization_changed` y `upgrade_required`; ver más abajo.) |
@@ -97,12 +97,43 @@ Todos los errores tienen la misma forma, con textos en español:
 
 ### Documentación interactiva
 
+### Alcances por recurso (ADR-034)
+
+Cada token lleva una lista de alcances. Un alcance es `<grupo>:read` o `<grupo>:write`; los grupos siguen los recursos de la API:
+
+| Grupo | Endpoints | `read` permite | `write` permite además |
+| --- | --- | --- | --- |
+| `assets` | `/assets/` | Listar y ver activos. | Crear y editar activos. |
+| `meters` | `/meters/`, `/readings/` | Listar medidores y lecturas. | Registrar lecturas (`POST /readings/` y `/readings/bulk/`). |
+| `work_orders` | `/work-orders/` y sus acciones | Listar OT, checklist, repuestos y adjuntos de la OT. | Crear OT, `transition`, `complete`, responder el checklist, subir fotos, registrar repuestos usados. |
+| `requests` | `/requests/` | Listar y ver avisos. | Reportar una falla. |
+| `inventory` | `/parts/`, `/warehouses/`, `/stock/`, `/stock-movements/` | Catálogo, bodegas, stock y movimientos. | Crear y editar repuestos, registrar movimientos. |
+| `condition` | `/condition-rules/`, `/condition-alerts/` | Reglas y alertas. | Crear y editar reglas, reconocer alertas. |
+| `*` | Todos | Todo lo anterior en lectura. | Todo lo anterior. |
+
+- **Escribir incluye leer** el mismo grupo (`inventory:write` lee inventario).
+- El alcance se suma a lo demás, no lo reemplaza: el plan debe incluir el módulo (`inventory`, `condition`), el rol de servicio (planificador) debe tener el permiso y la organización no debe estar en solo lectura (402).
+- **Tokens anteriores:** los creados antes de los alcances por recurso se migraron así: «Solo lectura» → `["*:read"]` y «Lectura y escritura» → `["*:read", "*:write"]`. Siguen permitiendo exactamente lo mismo, también en grupos futuros.
+- Sin el alcance la respuesta dice cuál falta:
+
+```json
+{
+  "error": {
+    "code": "insufficient_scope",
+    "message": "El token no tiene el alcance «inventory:read» que pide esta operación.",
+    "details": { "required_scope": "inventory:read" }
+  }
+}
+```
+
+- En el esquema OpenAPI cada operación declara su alcance en `x-required-scope` (y al final de su descripción en `/api/docs/`).
+
 - `/api/docs/`: Swagger UI para probar cada endpoint con un token.
 - `/api/schema/`: esquema OpenAPI 3 para generar clientes (Postman, openapi-generator).
 
 ## Mapa de endpoints
 
-Son 11 recursos bajo `/api/v1/` con 43 operaciones; las escrituras exigen un token `write`. Los 4 de inventario (repuestos, bodegas, stock y movimientos) exigen además el módulo `inventory` del plan, y los 2 de condición (reglas y alertas), el módulo `condition`.
+Son 11 recursos bajo `/api/v1/` con 43 operaciones; cada una exige el alcance de su grupo (lectura o escritura, ver «Alcances por recurso»). Los 4 de inventario (repuestos, bodegas, stock y movimientos) exigen además el módulo `inventory` del plan, y los 2 de condición (reglas y alertas), el módulo `condition`.
 
 | Recurso | Método y ruta | Qué resuelve |
 | --- | --- | --- |
@@ -460,7 +491,7 @@ Opcionales: `consecutive` (lecturas seguidas fuera de rango para alertar, 1 a 10
 
 Cinco escenarios típicos de una pyme productiva, con la secuencia exacta de llamadas.
 
-### Caso A — Técnico en terreno con app móvil (token `write`)
+### Caso A — Técnico en terreno con app móvil (token `work_orders:write`)
 
 El técnico recibe una preventiva mensual de un compresor en una planta con señal irregular.
 
@@ -473,7 +504,7 @@ El técnico recibe una preventiva mensual de un compresor en una planta con señ
 
 Si la señal se corta, la app guarda cada paso en una cola y lo reenvía después con el mismo `client_uuid`: nada se duplica y el cierre no se hace dos veces.
 
-### Caso B — Telemetría de horómetros (token `write`)
+### Caso B — Telemetría de horómetros (token `meters:write`)
 
 Un PLC o un script en el PC de la planta lee los horómetros de 30 equipos cada noche.
 
@@ -483,15 +514,16 @@ Un PLC o un script en el PC de la planta lee los horómetros de 30 equipos cada 
 
 Resultado: los planes «cada 500 horas» generan su OT preventiva al cruzar el umbral, sin digitación. Si el script falla a medias y se reenvía el lote, las filas ya cargadas vuelven como duplicadas.
 
-### Caso C — Sincronización con el ERP (token `write` para altas, `read` para reportes)
+### Caso C — Sincronización con el ERP (token `assets:write` para altas, `work_orders:read` para reportes)
 
 El ERP es el maestro de equipos y necesita los costos y horas de mantenimiento.
 
 1. Alta de equipo nuevo en el ERP → `GET /assets/?code=XXX`; si `count` es 0, `POST /assets/`; si existe, `PATCH /assets/{id}/` con lo que cambió.
 2. Cierre contable mensual → `GET /work-orders/?scope=done` paginado, leyendo `total_cost`, `completed_at`, `asset` y `work_type`.
-3. Tablero BI → un token aparte con alcance `read`, que no puede modificar nada aunque se filtre.
+3. Tablero BI → un token aparte con `*:read` (o solo `work_orders:read`), que no puede modificar nada aunque se filtre.
+4. Para no consultar cada cierto tiempo: un webhook con `asset.updated`, `work_order.status_changed` y `work_order.completed` (ver «Webhooks salientes»).
 
-### Caso D — Aviso de falla desde otro canal (token `write`)
+### Caso D — Aviso de falla desde otro canal (token `requests:write` + `assets:read`)
 
 Un bot de WhatsApp o un formulario de la intranet recibe «la envasadora se detuvo».
 
@@ -502,7 +534,7 @@ Un bot de WhatsApp o un formulario de la intranet recibe «la envasadora se detu
 
 El planificador ve la OT correctiva con prioridad urgente (si el activo es crítico A) y vencimiento hoy, sin haber digitado nada.
 
-### Caso E — Termografía mensual de motores (token `write`)
+### Caso E — Termografía mensual de motores (token `condition:write` + `meters:write`)
 
 Un contratista mide la temperatura de rodamientos de 40 motores y entrega una planilla.
 
@@ -528,7 +560,7 @@ Un contratista mide la temperatura de rodamientos de 40 motores y entrega una pl
 
 | Método y ruta | Qué resuelve |
 | --- | --- |
-| `GET bootstrap/` | Persona, organización (zona horaria, `require_failure_details`), rol, permisos (`execute`, `request_create`, `reading_create`), días por defecto, nombres de estado, transiciones de ejecución, `server_time` y `min_client_version`. |
+| `GET bootstrap/` | Persona, organización (zona horaria, `require_failure_details`), rol, permisos (`execute`, `request_create`, `reading_create`), días por defecto, nombres de estado, transiciones de ejecución, `server_time`, `min_client_version` y `read_only` (organización en solo lectura por impago o borrado programado: el teléfono muestra un aviso y las escrituras quedan en cola, ORG-13). |
 | `GET snapshot/?days=N` | OT visibles abiertas con fecha ≤ hoy + N (7 por defecto, máx. 14), más las en ejecución, en espera, vencidas y sin fecha; asignadas a la persona primero; tope 200 con `truncated`. Cada OT trae activo o ubicación, medidor, `meter_required`, `allowed_transitions`, el checklist con `photo_count`, `planned_parts` (reservas activas con pendiente: `part`, `code`, `name`, `unit`, `quantity`, `consumed_quantity`, `pending`; vacío sin el módulo `inventory`) y `parts` (repuestos ya registrados, sin costos). Cada ítem del checklist trae además `variable` (la variable de condición que alimenta un ítem de medición, p. ej. «Temperatura (°C) · Rodamiento»; vacía si no alimenta), `finding_code` (código de la correctiva abierta creada desde el ítem; `null` si no hay) y `finding_request_number` (N° de la solicitud de esa correctiva cuando la creó el aviso de falla de un técnico; `null` si no hay). |
 | `GET reference/` | Códigos de falla activos por tipo, activos visibles (tope 2.000 con `truncated`), sus medidores activos y `parts`: catálogo activo compacto (`id`, `code`, `name`, `unit`, `category`; sin costos; tope 2.000 con `parts_truncated`), solo con el módulo `inventory` y `inventory.view` (si no, vacío). |
 | `POST work-orders/{id}/transition/` | Iniciar, pausar o reanudar (`in_progress`, `on_hold`, `completed`), con `client_uuid` y `at`. |
@@ -554,14 +586,73 @@ En vez de consultar la API cada cierto tiempo, tu sistema puede recibir un `POST
 
 ### Eventos
 
-| Evento | Cuándo sale | `data` |
-| --- | --- | --- |
-| `work_order.created` | Se crea una OT (web, API, terreno, preventiva automática, aviso de falla). | Igual que `GET /work-orders/{id}/` |
-| `work_order.completed` | Una OT pasa a completada. Si la organización no exige aprobación, `status` ya llega como `closed`. | Igual que `GET /work-orders/{id}/` |
-| `work_request.created` | Llega una solicitud (aviso de falla, con o sin cuenta). | Igual que `GET /requests/{id}/` |
-| `webhook.test` | Botón "Enviar prueba" de la pantalla. | `{"message": "GALBUST CMMS webhook test"}` |
+El administrador elige los eventos de cada destino (los destinos creados antes conservan los suyos). Solo se ofrecen, y solo se envían, los eventos de módulos que el plan incluye: sin `inventory` no hay eventos de inventario; sin `condition`, ninguno de alertas.
 
-El evento sale cuando la escritura se confirma: si se revierte, no sale nada.
+| Evento | Módulo | Cuándo sale | `data` | `change` |
+| --- | --- | --- | --- | --- |
+| `work_order.created` | `work_orders` | Se crea una OT (web, API, terreno, preventiva automática, aviso de falla, regla de condición). | Igual que `GET /work-orders/{id}/` | — |
+| `work_order.status_changed` | `work_orders` | Cada cambio de estado (ADR-008): planificar, programar, iniciar, pausar, reanudar, completar, cerrar (también el cierre automático), cancelar, reabrir. | Igual que `GET /work-orders/{id}/` | `{"from", "to"}` |
+| `work_order.completed` | `work_orders` | Una OT pasa a completada (se mantiene por compatibilidad; también sale `status_changed`). Si la organización no exige aprobación, `status` ya llega como `closed`. | Igual que `GET /work-orders/{id}/` | — |
+| `work_request.created` | `requests` | Llega una solicitud (aviso de falla, con o sin cuenta). | Igual que `GET /requests/{id}/` | — |
+| `asset.created` | `assets` | Alta de un activo (web, API o importación Excel). | Igual que `GET /assets/{id}/` | — |
+| `asset.updated` | `assets` | Se edita la ficha o sus atributos (solo si algo cambió; también la importación Excel). | Igual que `GET /assets/{id}/` | `{"fields": [...]}` (sin `change` en la importación) |
+| `asset.status_changed` | `assets` | Cambia el estado: manual, por una OT (detenido → en mantención → operativo), baja o reactivación. | Igual que `GET /assets/{id}/` | `{"from", "to"}` |
+| `meter_reading.created` | `assets` | Se registra una lectura nueva (web, API, terreno, CSV, checklist), también de variables de condición. Un reenvío idempotente no repite el evento. | Igual que `GET /readings/{id}/` | — |
+| `condition_alert.opened` | `condition` | Una regla pasa a alarma y abre una alerta. | Igual que `GET /condition-alerts/{id}/` | — |
+| `condition_alert.acknowledged` | `condition` | Alguien reconoce la alerta. | Igual que `GET /condition-alerts/{id}/` | `{"from", "to"}` |
+| `condition_alert.normalized` | `condition` | La variable vuelve al rango (o se desactiva la regla). | Igual que `GET /condition-alerts/{id}/` | `{"from", "to"}` |
+| `condition_alert.closed` | `condition` | Se cierra o cancela la OT de la alerta. | Igual que `GET /condition-alerts/{id}/` | `{"from", "to"}` |
+| `part.below_minimum` | `inventory` | El disponible de un repuesto en una bodega cruza el mínimo hacia abajo (una vez por episodio, como el aviso `stock_low`). | Igual que `GET /stock/{id}/` | — |
+| `stock_movement.created` | `inventory` | Cualquier movimiento: entrada, salida a OT, devolución, conteo, transferencia (dos movimientos). | Igual que `GET /stock-movements/{id}/` (con costos) | — |
+| `webhook.test` | — | Botón "Enviar prueba" de la pantalla. | `{"message": "GALBUST CMMS webhook test"}` | — |
+
+- El evento sale cuando la escritura se confirma: si se revierte, no sale nada. Todos salen de los mismos servicios que usan la web, la API y terreno.
+- `data` es el estado **al confirmar**, no el del paso: completar una OT sin aprobación de cierre envía `status_changed` `in_progress → completed`, `completed` y `status_changed` `completed → closed`, y los tres traen `status: "closed"`. Usa `change` para saber qué paso fue.
+- **Importaciones masivas** (Excel de activos, CSV de lecturas y `POST /readings/bulk/`): un evento por fila, pero despachados en un solo lote al final. Con el worker, el lote va a la cola (`webhooks.dispatch_events`, 500 eventos por tarea) y la importación no espera; sin worker (demo) se intentan las primeras 20 entregas y las demás quedan como fallidas para reenviarlas a mano.
+
+Ejemplos de cuerpo (`data` abreviado):
+
+```json
+{"id": "7c1e…", "type": "work_order.status_changed", "created_at": "2026-10-20T13:05:00Z",
+ "organization": {"id": "0192…", "slug": "planta-norte", "name": "Planta Norte"},
+ "change": {"from": "in_progress", "to": "on_hold"},
+ "data": {"id": "0192…", "code": "OT-C-0042", "status": "on_hold", "...": "..."}}
+```
+
+```json
+{"id": "a41b…", "type": "asset.status_changed", "created_at": "2026-10-20T13:06:00Z",
+ "organization": {"...": "..."},
+ "change": {"from": "operational", "to": "stopped"},
+ "data": {"id": "0192…", "code": "CMP-01", "status": "stopped", "asset_class_code": "CMP", "...": "..."}}
+```
+
+```json
+{"id": "5d0e…", "type": "meter_reading.created", "created_at": "2026-10-20T13:07:00Z",
+ "organization": {"...": "..."},
+ "data": {"id": "0192…", "meter": "0192…", "value": "65.500", "read_at": "2026-10-20T13:00:00Z",
+          "is_reset": false, "source": "api", "work_order": null, "client_uuid": null}}
+```
+
+```json
+{"id": "e9f2…", "type": "condition_alert.opened", "created_at": "2026-10-20T13:07:01Z",
+ "organization": {"...": "..."},
+ "data": {"id": "0192…", "status": "open", "rule_label": "Temperatura (°C) · Rodamiento > 80",
+          "asset_code": "MOT-07", "value": "95.000", "work_order_code": "OT-P-0101", "...": "..."}}
+```
+
+```json
+{"id": "c3a8…", "type": "part.below_minimum", "created_at": "2026-10-20T13:08:00Z",
+ "organization": {"...": "..."},
+ "data": {"id": "0192…", "part_code": "ROD-6204", "warehouse_code": "BOD-01", "on_hand": "4.000",
+          "reserved": "0.000", "available": "4.000", "min_quantity": "5.000", "below_min": true, "...": "..."}}
+```
+
+```json
+{"id": "f07d…", "type": "stock_movement.created", "created_at": "2026-10-20T13:08:00Z",
+ "organization": {"...": "..."},
+ "data": {"id": "0192…", "part_code": "ROD-6204", "kind": "count", "quantity": "-6.000",
+          "unit_cost": "1000.0000", "on_hand_after": "4.000", "work_order": null, "...": "..."}}
+```
 
 ### Cuerpo y cabeceras
 
@@ -580,13 +671,14 @@ X-Galbust-Signature: t=1760700000,v1=5f2c…e9
  "data": {"id": "0192…", "code": "OT-C-0042", "status": "planned", "...": "..."}}
 ```
 
-- `id` es único por evento y se repite en cada reintento: úsalo para no procesar dos veces lo mismo.
+- `id` es único por evento y se repite en cada reintento y en cada reenvío manual: úsalo para no procesar dos veces lo mismo.
+- `change` aparece solo en los eventos de cambio (ver la tabla).
 - `created_at` va en UTC (ISO 8601 con `Z`).
 - Responde **2xx en menos de 5 segundos** (encola el trabajo pesado de tu lado). Las redirecciones no se siguen.
 
 ### Verificar la firma
 
-`X-Galbust-Signature` trae `t` (segundos Unix del envío) y `v1`: HMAC-SHA256 en hexadecimal de `"<t>.<cuerpo crudo>"` con el secreto del webhook (`whsec_…`, visible solo para el administrador en la pantalla del webhook). Verifica sobre los bytes recibidos, antes de parsear el JSON, y rechaza firmas viejas:
+`X-Galbust-Signature` trae `t` (segundos Unix del envío) y `v1`: HMAC-SHA256 en hexadecimal de `"<t>.<cuerpo crudo>"` con el secreto del webhook (`whsec_…`, visible solo para el administrador en la pantalla del webhook). **Regenerar secreto** (misma pantalla) crea uno nuevo que se muestra destacado; el anterior deja de valer de inmediato, sin ventana de traslape: actualiza tu sistema antes de que llegue el siguiente evento (los reintentos pendientes también se firman con el nuevo). Queda en la auditoría, sin el valor. Verifica sobre los bytes recibidos, antes de parsear el JSON, y rechaza firmas viejas:
 
 ```python
 import hashlib
@@ -613,7 +705,9 @@ def verify(secret: str, body: bytes, header: str) -> bool:
 - Con el worker activo (`WEBHOOKS_USE_QUEUE=1`, docs/07) cada evento se intenta hasta 5 veces: inmediato y luego a 1 min, 5 min, 30 min y 2 h. Sin worker (demo) se intenta una sola vez.
 - Cuenta como falla todo lo que no sea 2xx, un timeout o un error de red.
 - Tras **5 eventos fallidos seguidos** el webhook se desactiva y los administradores reciben un aviso. Se reactiva desde su pantalla (marcar "Activo"), lo que reinicia el contador.
-- "Últimas entregas" muestra cada evento con su estado, intentos, código HTTP y último error.
+- "Últimas entregas" muestra cada evento con su estado, intentos, código HTTP y último error. **Ver detalle** muestra el cuerpo JSON enviado y los primeros 1.000 caracteres de la respuesta de tu sistema.
+- **Reenviar** (en el detalle de una entrega fallida, no en pruebas): crea una entrega nueva con el mismo cuerpo y el mismo `id` de evento, así tu sistema la reconoce si ya la había procesado. Con worker tiene los mismos reintentos; queda en la auditoría.
+- Las entregas terminadas de más de **90 días** se borran solas cada día (docs/07); las pendientes no se tocan.
 
 ### URL permitidas
 
@@ -631,13 +725,14 @@ La v1 cubre el flujo del técnico y las integraciones de datos; la configuració
 | Gestionar solicitudes | No se aceptan, rechazan ni fusionan avisos por la API. | Web (bandeja del planificador). |
 | Descargar archivos | Los adjuntos devuelven solo metadatos, nunca una URL. | Descarga desde la web con URL firmada. |
 | Borrado | No hay `DELETE` en ningún recurso (sin borrado físico por diseño). | Cancelar una OT con `transition` a `cancelled`. |
-| Más eventos salientes | Los webhooks v1 cubren solo OT creada, OT completada y solicitud creada (ver arriba). | Para alertas de condición u otros cambios, consultar `GET /condition-alerts/?status=active` o `GET /work-orders/?scope=open` cada cierto tiempo. |
+| Más eventos salientes | No hay eventos de planes preventivos, de asignación o reprogramación de OT, ni de solicitudes aceptadas, rechazadas o fusionadas. | Consultar `GET /work-orders/?scope=open` o `GET /requests/` cada cierto tiempo. |
 | Variables de condición | No se crean ni desactivan variables por la API (`GET /meters/` las lista). | Web (ficha del activo) o un ítem de medición del checklist enlazado a la variable. |
 | Bodegas, mínimos, reservas y devoluciones | Solo lectura de bodegas y stock; no se crean bodegas, no se fijan mínimos, no se reservan ni se devuelven repuestos por la API. | Web (`/inventory/` y el detalle de la OT). |
-| Token por usuario | El token actúa como integración (rol planificador), no como un técnico concreto. | Un token por app o integración, con nombre claro. |
+| Token por usuario | El token actúa como integración (rol planificador), no como un técnico concreto. | Un token por app o integración, con nombre claro y solo los alcances que necesita. |
+| Alcances por sitio | Los alcances limitan recursos, no ubicaciones: el token ve toda la organización. | Un token por integración y, si hace falta, filtrar por `location` en las consultas. |
 
 ### Referencias
 
 - Swagger UI: `/api/docs/` · esquema OpenAPI: `/api/schema/`.
 - Decisión y detalle técnico: ADR-005 en `docs/04_arquitectura.md`.
-- Código: `apps/api/v1.py` (endpoints), `apps/api/serializers.py` (campos), `apps/api/services.py` (tokens e idempotencia); terreno en `apps/api/field_views.py`, `apps/api/field.py` y `apps/api/field_serializers.py` (ADR-011); webhooks en `apps/webhooks/services.py` (ADR-030).
+- Código: `apps/api/v1.py` (endpoints), `apps/api/serializers.py` (campos), `apps/api/services.py` (tokens e idempotencia), `apps/api/scopes.py` (alcances, ADR-034); terreno en `apps/api/field_views.py`, `apps/api/field.py` y `apps/api/field_serializers.py` (ADR-011); webhooks en `apps/webhooks/services.py` (ADR-030).

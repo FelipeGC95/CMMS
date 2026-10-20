@@ -41,5 +41,7 @@ def exception_handler(exc, context):
         message, details = str(detail), {}
         if hasattr(exc, "min_client_version"):  # 409 upgrade_required de la API de terreno
             details = {"min_client_version": exc.min_client_version}
+        if hasattr(exc, "required_scope"):  # 403 insufficient_scope (ADR-034)
+            details = {"required_scope": exc.required_scope}
     response.data = {"error": {"code": code, "message": message, "details": details}}
     return response

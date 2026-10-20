@@ -28,6 +28,8 @@ from apps.audit.models import AuditEvent
 from apps.core.models import uuid7
 from apps.notifications.services import notify_stock_low
 from apps.organizations.models import Location
+from apps.webhooks.models import Event as WebhookEvent
+from apps.webhooks.services import emit_event
 
 from .models import Part, Reservation, StockItem, StockMovement, Warehouse
 from .selectors import can_see_warehouse, warehouse_for
@@ -233,6 +235,7 @@ def _record(
         created_by=by,
         client_uuid=client_uuid,
     )
+    emit_event(event_type=WebhookEvent.STOCK_MOVEMENT_CREATED, instance=movement)  # X-08
     now = timezone.now()
     StockItem.objects.filter(pk=item.pk).update(
         on_hand=F("on_hand") + quantity, last_movement_at=now, updated_at=now
@@ -255,10 +258,12 @@ def _below_min(items) -> dict:
 
 
 def _alert_crossings(items, before: dict, *, actor=None) -> None:
-    """Aviso `stock_low` al pasar de no-bajo a bajo mínimo (INV-12 CA3); se entrega al confirmar."""
+    """Aviso `stock_low` y evento `part.below_minimum` al pasar de no-bajo a bajo mínimo (INV-12 CA3,
+    X-08): una vez por episodio, al confirmar."""
     for item in items:
         if item.is_below_min and not before.get(item.pk, False):
             notify_stock_low(stock_item=item, actor=actor)
+            emit_event(event_type=WebhookEvent.PART_BELOW_MINIMUM, instance=item)
 
 
 def _existing_movement(client_uuid, *, kind, part=None, work_order=None):

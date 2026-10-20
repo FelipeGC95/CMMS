@@ -6,10 +6,10 @@
     <h1>{% blocktranslate with name=user.short_name %}Hola, {{ name }}{% endblocktranslate %}</h1>
     <p class="muted">{{ organization.name }} · {{ kpis.period_start|date:"d M Y" }} – {{ kpis.period_end|date:"d M Y" }}</p>
   </div>
-  <a class="btn btn--primary btn--lg" href="{% url 'asset_list' %}?report=1">{% icon 'megaphone' %}{% translate "Avisar falla" %}</a>
+  {% if not read_only %}<a class="btn btn--primary btn--lg" href="{% url 'asset_list' %}?report=1">{% icon 'megaphone' %}{% translate "Avisar falla" %}</a>{% endif %}
 </div>
 
-{% if onboarding %}
+{% if onboarding and not read_only %}
 <div class="alert alert--info" role="status">{% icon 'info' %}<span>
   <a href="{% url 'onboarding' %}">{% blocktranslate with n=onboarding.step_number %}Continúa la puesta en marcha (paso {{ n }} de 6){% endblocktranslate %}</a>
 </span>

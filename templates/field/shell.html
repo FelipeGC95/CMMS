@@ -45,6 +45,10 @@
   </section>
 
   <main id="main">
+    {# Solo lectura por facturación (ORG-13): lo muestra app.js según `bootstrap.read_only`. #}
+    <div class="alert alert--warning mb-4" id="field-read-only" role="status" hidden>
+      {% icon 'alert' %}<span>{% translate "La organización está en solo lectura: puedes ver tus OT, pero lo que registres queda guardado en el teléfono y se envía cuando un administrador pague." %}</span>
+    </div>
     <div class="alert alert--info field-update" id="field-update" role="status" hidden>
       {% icon 'info' %}<span>{% translate "Hay una versión nueva" %}</span>
       <button class="btn btn--primary btn--lg" type="button" data-action="update">{% icon 'sync' %}{% translate "Actualizar" %}</button>

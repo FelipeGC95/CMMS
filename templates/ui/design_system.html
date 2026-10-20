@@ -562,6 +562,31 @@
   </section>
 </section>
 
+<section class="card mb-4" aria-labelledby="ds-integrations">
+  <h2 id="ds-integrations">{% translate "Integraciones: alcances de token y entregas de webhook" %}</h2>
+  <fieldset class="scope-matrix">
+    <legend>{% translate "Alcances" %} *</legend>
+    <span class="help">{% translate "Qué puede leer o escribir el token. Escribir incluye leer." %}</span>
+    <div class="scope-matrix__row">
+      <div class="scope-matrix__label">{% translate "Todo" %}<span class="help">{% translate "Todos los recursos, también los que se agreguen a la API." %}</span></div>
+      <label class="check-group__option" for="ds-scope-all-r"><input type="checkbox" id="ds-scope-all-r" checked><span>{% translate "Lectura" %}</span></label>
+      <label class="check-group__option" for="ds-scope-all-w"><input type="checkbox" id="ds-scope-all-w"><span>{% translate "Escritura" %}</span></label>
+    </div>
+    <div class="scope-matrix__row">
+      <div class="scope-matrix__label">{% translate "Inventario" %}</div>
+      <label class="check-group__option" for="ds-scope-inv-r"><input type="checkbox" id="ds-scope-inv-r"><span>{% translate "Lectura" %}</span></label>
+      <label class="check-group__option" for="ds-scope-inv-w"><input type="checkbox" id="ds-scope-inv-w" checked><span>{% translate "Escritura" %}</span></label>
+    </div>
+  </fieldset>
+  <div class="alert alert--success" role="status">{% icon 'check' %}<span><strong>{% translate "Secreto regenerado. El anterior dejó de valer: actualízalo ahora en tu sistema." %}</strong><br><code class="mono secret-value">whsec_Zx8kq2LrT0aWvB5nYc3HdE7mPf1uJs9GqLw4Rt6YbN0</code></span></div>
+  <pre class="code-block mt-4">{
+  "id": "6f9c1d2e-8a4b-4c3d-9e1f-2a3b4c5d6e7f",
+  "type": "work_order.status_changed",
+  "change": {"from": "in_progress", "to": "completed"},
+  "data": {"code": "OT-000123", "status": "closed"}
+}</pre>
+</section>
+
 <section class="card mb-4" aria-labelledby="ds-sso">
   <h2 id="ds-sso">{% translate "Inicio de sesión único" %}</h2>
   <p class="auth__divider">{% translate "o" %}</p>

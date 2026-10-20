@@ -27,7 +27,8 @@
       "complete": {"from": ["in_progress"], "to": "completed"}
     },
     "server_time": "2026-09-28T13:00:00Z",
-    "min_client_version": 1
+    "min_client_version": 1,
+    "read_only": false
   },
   "snapshot": {
     "generated_at": "2026-09-28T13:00:00Z",

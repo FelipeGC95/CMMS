@@ -23,7 +23,7 @@ from apps.inventory.services import InventoryError
 from apps.organizations.modules import has_module, plan_message
 from apps.work.services import WorkOrderError
 
-from .models import ApiToken
+from .scopes import ALL_WRITE, WRITE, required_scope
 from .services import CONFLICT_CODES, Conflict, authenticate_token, principal_for
 
 
@@ -55,8 +55,16 @@ class TokenAuthScheme(OpenApiAuthenticationExtension):
         return {"type": "http", "scheme": "bearer", "description": "Token de organización (gbt_…)."}
 
 
+class InsufficientScope(exceptions.PermissionDenied):
+    default_code = "insufficient_scope"
+
+
 class HasTokenScope(permissions.BasePermission):
-    """Autenticado por token; el alcance "read" solo permite métodos de lectura."""
+    """Autenticado por token y con el alcance del grupo de endpoints (ADR-034).
+
+    Leer pide `<grupo>:read`, escribir `<grupo>:write` (o `*:read` / `*:write`). Sin el
+    alcance → 403 `insufficient_scope` con el alcance que faltó en `details.required_scope`.
+    """
 
     message = gettext_lazy("El token no tiene permiso para esta operación.")
 
@@ -65,7 +73,23 @@ class HasTokenScope(permissions.BasePermission):
         token = getattr(principal, "api_token", None)
         if token is None:
             return False
-        return request.method in permissions.SAFE_METHODS or token.scope == ApiToken.Scope.WRITE
+        basename = getattr(view, "basename", None)
+        required = required_scope(basename=basename, method=request.method)
+        if required is None:
+            # Endpoint fuera de los grupos: lectura con cualquier token, escritura con `*:write`.
+            write = request.method not in permissions.SAFE_METHODS
+            if not write or ALL_WRITE in token.scopes:
+                return True
+            required = ALL_WRITE
+        else:
+            group, mode = required.split(":")
+            if token.allows(group=group, write=mode == WRITE):
+                return True
+        error = InsufficientScope(
+            _("El token no tiene el alcance «%(scope)s» que pide esta operación.") % {"scope": required}
+        )
+        error.required_scope = required
+        raise error
 
 
 class TokenRateThrottle(SimpleRateThrottle):

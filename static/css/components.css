@@ -972,3 +972,20 @@ svg.chart-swatch line { stroke-width: 2; vector-effect: non-scaling-stroke; }
 .helpful__options { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-2); }
 .helpful__options .btn { gap: var(--space-1); padding-left: var(--space-1); padding-right: var(--space-1); white-space: nowrap; }
 .chat-input textarea { min-height: 120px; }
+
+/* Matriz de alcances de un token de API (X-05): grupo + casillas de lectura y escritura. */
+.scope-matrix { border: 0; padding: 0; margin: 0 0 var(--space-4); min-width: 0; }
+.scope-matrix legend { font-weight: 500; font-size: var(--text-sm); padding: 0; margin-bottom: var(--space-1); }
+.scope-matrix > .help { display: block; font-size: var(--text-sm); color: var(--color-text-muted); margin-bottom: var(--space-2); }
+.scope-matrix .error { font-size: var(--text-sm); color: var(--color-error); display: flex; gap: var(--space-1); align-items: center; }
+.scope-matrix__row { display: grid; grid-template-columns: 1fr 1fr; column-gap: var(--space-4); align-items: center; padding: var(--space-2) 0; border-top: 1px solid var(--color-border); }
+.scope-matrix__label { grid-column: 1 / -1; font-weight: 500; min-width: 0; overflow-wrap: anywhere; }
+.scope-matrix__label .help { display: block; font-weight: 400; font-size: var(--text-sm); color: var(--color-text-muted); }
+@media (min-width: 720px) {
+  .scope-matrix__row { grid-template-columns: minmax(0, 1fr) auto auto; }
+  .scope-matrix__label { grid-column: auto; }
+}
+
+/* Webhooks (X-08): cuerpo JSON enviado y respuesta del receptor; secreto largo sin desbordar. */
+.code-block { margin: 0; padding: var(--space-3); background: var(--color-surface-sunken); color: var(--color-text); border: 1px solid var(--color-border); border-radius: var(--radius-sm); font-family: var(--font-mono); font-size: var(--text-sm); white-space: pre-wrap; overflow-wrap: anywhere; max-height: 28rem; overflow-y: auto; max-width: 100%; }
+.secret-value { overflow-wrap: anywhere; word-break: break-all; }

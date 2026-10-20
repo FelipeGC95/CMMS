@@ -15,8 +15,8 @@
     <ul class="list list--nav">
       {% if organization|has_module:"kpis" %}<li><a href="{% url 'kpi_report' %}">{% icon 'list' %}{% translate "Indicadores ampliados" %}</a></li>{% endif %}
       {% if organization|has_module:"work_orders" %}<li><a href="{% url 'work_order_list' %}">{% icon 'wrench' %}{% translate "Órdenes de trabajo" %}</a></li>{% endif %}
-      {% if membership|can:"work_order.manage" and organization|has_module:"work_orders" %}<li><a href="{% url 'work_order_backlog' %}">{% icon 'list' %}{% translate "Backlog priorizado" %}</a></li><li><a href="{% url 'work_order_board' %}">{% icon 'calendar' %}{% translate "Programación semanal" %}</a></li>{% endif %}
-      {% if membership|can:"work_order.execute" and organization|has_module:"work_orders" %}<li><a href="{% url 'work_order_my_week' %}">{% icon 'user' %}{% translate "Mi semana" %}</a></li>
+      {% if membership|can_view:"work_order.manage" and organization|has_module:"work_orders" %}<li><a href="{% url 'work_order_backlog' %}">{% icon 'list' %}{% translate "Backlog priorizado" %}</a></li><li><a href="{% url 'work_order_board' %}">{% icon 'calendar' %}{% translate "Programación semanal" %}</a></li>{% endif %}
+      {% if membership|can_view:"work_order.execute" and organization|has_module:"work_orders" %}<li><a href="{% url 'work_order_my_week' %}">{% icon 'user' %}{% translate "Mi semana" %}</a></li>
       <li><a href="{% url 'field_shell' %}" data-field-link>{% icon 'phone' %}{% translate "Modo sin conexión" %}</a></li>{% endif %}
       {% if organization|has_module:"assets" %}<li><a href="{% url 'manual_search' %}">{% icon 'list' %}{% translate "Buscar en manuales" %}</a></li>{% endif %}
       {% if membership|can:"inventory.view" and organization|has_module:"inventory" %}<li><a href="{% url 'inventory_home' %}">{% icon 'box' %}{% translate "Inventario" %}</a></li>
@@ -26,24 +26,25 @@
       {% if membership|can:"inventory.manage" and organization|has_module:"inventory" %}<li><a href="{% url 'inventory_import' %}">{% icon 'list' %}{% translate "Importar repuestos (Excel)" %}</a></li>{% endif %}
       {% if membership|can:"condition.view" and organization|has_module:"condition" %}<li><a href="{% url 'condition_alert_list' %}">{% icon 'alert' %}{% translate "Alertas de condición" %}</a></li>
       <li><a href="{% url 'condition_rule_list' %}">{% icon 'list' %}{% translate "Reglas de condición" %}</a></li>{% endif %}
-      {% if organization|has_module:"assistant" %}{% if membership|can:"assistant.use" or membership|can:"assistant.view_all" %}<li><a href="{% url 'assistant_list' %}">{% icon 'chat' %}{% translate "Asistente de diagnóstico" %}</a></li>{% endif %}{% endif %}
+      {% if organization|has_module:"assistant" %}{% if membership|can_view:"assistant.use" or membership|can:"assistant.view_all" %}<li><a href="{% url 'assistant_list' %}">{% icon 'chat' %}{% translate "Asistente de diagnóstico" %}</a></li>{% endif %}{% endif %}
       {% if membership|can:"request.create" and organization|has_module:"requests" %}<li><a href="{% url 'location_report' %}">{% icon 'megaphone' %}{% translate "Avisar problema en una ubicación" %}</a></li>{% endif %}
-      {% if membership|can:"work_order.manage" and organization|has_module:"requests" %}<li><a href="{% url 'request_list' %}">{% icon 'megaphone' %}{% translate "Solicitudes" %}</a></li>{% endif %}
-      {% if membership|can:"work_order.manage" and organization|has_module:"work_orders" %}<li><a href="{% url 'failure_code_list' %}">{% icon 'alert' %}{% translate "Catálogo de falla" %}</a></li>{% endif %}
-      {% if membership|can:"work_order.execute" and organization|has_module:"preventive" %}<li><a href="{% url 'plan_calendar' %}">{% icon 'calendar' %}{% translate "Calendario de preventivos" %}</a></li>{% endif %}
-      {% if membership|can:"plan.manage" and organization|has_module:"preventive" %}<li><a href="{% url 'plan_list' %}">{% icon 'calendar' %}{% translate "Planes preventivos" %}</a></li>{% endif %}
-      {% if membership|can:"plan.manage" and organization|has_module:"preventive" %}<li><a href="{% url 'industry_templates' %}">{% icon 'list' %}{% translate "Cargar plantilla de rubro" %}</a></li><li><a href="{% url 'plan_import' %}">{% icon 'list' %}{% translate "Importar o exportar planes (Excel)" %}</a></li>{% endif %}
-      {% if membership|can:"organization.manage" and organization|has_module:"preventive" %}<li><a href="{% url 'maintenance_settings' %}">{% icon 'wrench' %}{% translate "Ajustes de preventivos" %}</a></li>{% endif %}
-      {% if membership|can:"asset.manage" %}
-      {% if organization|has_module:"assets" %}<li><a href="{% url 'asset_create' %}">{% icon 'box' %}{% translate "Nuevo activo" %}</a></li>{% endif %}
+      {% if membership|can_view:"work_order.manage" and organization|has_module:"requests" %}<li><a href="{% url 'request_list' %}">{% icon 'megaphone' %}{% translate "Solicitudes" %}</a></li>{% endif %}
+      {% if membership|can_view:"work_order.manage" and organization|has_module:"work_orders" %}<li><a href="{% url 'failure_code_list' %}">{% icon 'alert' %}{% translate "Catálogo de falla" %}</a></li>{% endif %}
+      {% if membership|can_view:"work_order.execute" and organization|has_module:"preventive" %}<li><a href="{% url 'plan_calendar' %}">{% icon 'calendar' %}{% translate "Calendario de preventivos" %}</a></li>{% endif %}
+      {% if membership|can_view:"plan.manage" and organization|has_module:"preventive" %}<li><a href="{% url 'plan_list' %}">{% icon 'calendar' %}{% translate "Planes preventivos" %}</a></li>{% endif %}
+      {% if membership|can:"plan.manage" and organization|has_module:"preventive" %}<li><a href="{% url 'industry_templates' %}">{% icon 'list' %}{% translate "Cargar plantilla de rubro" %}</a></li>{% endif %}
+      {% if membership|can_view:"plan.manage" and organization|has_module:"preventive" %}<li><a href="{% url 'plan_import' %}">{% icon 'list' %}{% if read_only %}{% translate "Exportar planes (Excel)" %}{% else %}{% translate "Importar o exportar planes (Excel)" %}{% endif %}</a></li>{% endif %}
+      {% if membership|can:"organization.manage" and organization|has_module:"preventive" and not read_only %}<li><a href="{% url 'maintenance_settings' %}">{% icon 'wrench' %}{% translate "Ajustes de preventivos" %}</a></li>{% endif %}
+      {% if membership|can_view:"asset.manage" %}
+      {% if organization|has_module:"assets" and not read_only %}<li><a href="{% url 'asset_create' %}">{% icon 'box' %}{% translate "Nuevo activo" %}</a></li>{% endif %}
       <li><a href="{% url 'location_list' %}">{% icon 'home' %}{% translate "Ubicaciones" %}</a></li>
       {% if organization|has_module:"assets" %}<li><a href="{% url 'asset_class_list' %}">{% icon 'box' %}{% translate "Clases de activo" %}</a></li>
-      <li><a href="{% url 'reading_import' %}">{% icon 'clock' %}{% translate "Importar lecturas (CSV)" %}</a></li>{% endif %}
+      {% if not read_only %}<li><a href="{% url 'reading_import' %}">{% icon 'clock' %}{% translate "Importar lecturas (CSV)" %}</a></li>{% endif %}{% endif %}
       {% endif %}
-      {% if membership|can:"team.manage" %}<li><a href="{% url 'team' %}">{% icon 'list' %}{% translate "Equipo" %}</a></li>
+      {% if membership|can_view:"team.manage" %}<li><a href="{% url 'team' %}">{% icon 'list' %}{% translate "Equipo" %}</a></li>
       {% if organization|has_module:"custom_roles" %}<li><a href="{% url 'custom_role_list' %}">{% icon 'key' %}{% translate "Roles personalizados" %}</a></li>{% endif %}{% endif %}
       {% if membership|can:"audit.view" %}<li><a href="{% url 'audit_list' %}">{% icon 'clock' %}{% translate "Auditoría" %}</a></li>{% endif %}
-      {% if membership|can:"api_token.manage" and organization|has_module:"api" %}<li><a href="{% url 'api_token_list' %}">{% icon 'key' %}{% translate "Tokens de API" %}</a></li><li><a href="{% url 'webhook_list' %}">{% icon 'bell' %}{% translate "Webhooks" %}</a></li>{% endif %}
+      {% if membership|can_view:"api_token.manage" and organization|has_module:"api" %}<li><a href="{% url 'api_token_list' %}">{% icon 'key' %}{% translate "Tokens de API" %}</a></li><li><a href="{% url 'webhook_list' %}">{% icon 'bell' %}{% translate "Webhooks" %}</a></li>{% endif %}
       {% if membership|can:"organization.manage" %}<li><a href="{% url 'organization_settings' %}">{% icon 'wrench' %}{% translate "Configuración de la organización" %}</a></li>
       <li><a href="{% url 'billing' %}">{% icon 'list' %}{% translate "Facturación y plan" %}</a></li>
       {% if organization|has_module:"sso" %}<li><a href="{% url 'sso_settings' %}">{% icon 'key' %}{% translate "Inicio de sesión único (SSO)" %}</a></li>{% endif %}{% endif %}

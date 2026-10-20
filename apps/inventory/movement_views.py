@@ -18,6 +18,7 @@ from django.utils import timezone
 from django.utils.translation import gettext as _
 
 from apps.accounts.permissions import Perm, has_perm
+from apps.billing.access import can_act
 from apps.core.decorators import membership_required
 from apps.maintenance.models import format_number
 from apps.organizations.modules import has_module, plan_message
@@ -341,7 +342,7 @@ def reorder_view(request):
             "warehouse": warehouse,
             "warehouses": warehouses,
             "counters": stock_counters(membership=membership, warehouse=warehouse),
-            "can_move": has_perm(membership, Perm.INVENTORY_MOVE),
+            "can_move": can_act(membership, Perm.INVENTORY_MOVE),
             "can_export": has_module(request.organization, "exports"),
         },
     )

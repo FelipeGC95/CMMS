@@ -1850,3 +1850,71 @@ def test_billing_page_does_not_grow_with_payments(client, tenant_a, django_asser
     assert _count(client, url) == few
     with django_assert_max_num_queries(20):
         assert client.get(url).status_code == 200
+
+
+def test_api_token_and_delivery_screens_do_not_grow_with_rows(
+    client, tenant_a, monkeypatch, django_assert_max_num_queries
+):
+    """Tokens con alcances (X-05) y detalle de una entrega con sus reenvíos (X-08), sin N+1."""
+    from apps.api.services import create_token
+    from apps.webhooks import services as webhooks
+    from apps.webhooks.models import Event, WebhookDelivery
+
+    monkeypatch.setattr(webhooks, "resolve_host", lambda host, port: ["93.184.216.34"])
+    monkeypatch.setattr(webhooks, "schedule_delivery", lambda **kwargs: None)
+    with tenant_context(tenant_a.org):
+        endpoint = webhooks.create_endpoint(
+            membership=tenant_a.admin,
+            name="ERP",
+            url="https://erp.example.com/",
+            events=[Event.ASSET_CREATED],
+        )
+        payload = webhooks.build_payload(event_type=Event.ASSET_CREATED, data={})
+        original = WebhookDelivery.objects.create(
+            endpoint=endpoint,
+            event_id=payload["id"],
+            event_type=payload["type"],
+            payload=payload,
+            status=WebhookDelivery.Status.FAILED,
+        )
+
+    def add(n):
+        with tenant_context(tenant_a.org):
+            for i in range(n):
+                create_token(
+                    membership=tenant_a.admin, name=f"T{i}", scopes=["assets:read", "inventory:write"]
+                )
+                copy = webhooks.redeliver(membership=tenant_a.admin, delivery=original)
+                WebhookDelivery.objects.filter(pk=copy.pk).update(status=WebhookDelivery.Status.FAILED)
+
+    login(client, tenant_a.admin)
+    urls = [reverse("api_token_list"), reverse("webhook_delivery", args=[endpoint.pk, original.pk])]
+    add(1)
+    few = [_count(client, url) for url in urls]
+    add(6)
+    assert [_count(client, url) for url in urls] == few
+    with django_assert_max_num_queries(20):
+        assert client.get(urls[1]).status_code == 200
+
+
+@pytest.mark.parametrize(
+    "page", ["asset_list", "asset_detail", "work_order_detail", "work_order_board", "menu", "dashboard"]
+)
+def test_read_only_interface_adds_no_queries(client, tenant_a, page):
+    """Ocultar las acciones en solo lectura (ORG-13) usa campos de la organización: sin consultas."""
+    from apps.organizations.models import Organization, Plan
+    from tests.billing_utils import make_billable
+
+    Organization.objects.filter(pk=tenant_a.org.pk).update(plan=Plan.objects.get(code="pro"))
+    with tenant_context(tenant_a.org):
+        wo = create_work_order(work_type="corrective", title="x", asset=tenant_a.asset)
+    args = {"asset_detail": [tenant_a.asset.pk], "work_order_detail": [wo.pk]}.get(page, [])
+    url = reverse(page, args=args)
+    login(client, tenant_a.admin)
+    active = _count(client, url)
+    tenant_a.org.refresh_from_db()
+    make_billable(tenant_a.org)
+    Organization.objects.filter(pk=tenant_a.org.pk).update(
+        trial_ends_at=timezone.now() - datetime.timedelta(days=30), plan=Plan.objects.get(code="pro")
+    )
+    assert _count(client, url) <= active

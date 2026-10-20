@@ -654,6 +654,11 @@ def transition(*, work_order: WorkOrder, to_status: str, membership, comment: st
             **_client_time_changes(at, now, adjusted),
         },
     )
+    emit_event(  # X-08: cada cambio de estado, también los intermedios
+        event_type=WebhookEvent.WORK_ORDER_STATUS_CHANGED,
+        instance=work_order,
+        change={"from": from_status, "to": to_status},
+    )
 
     if to_status == S.CANCELLED:
         # Lo reservado y no usado vuelve a quedar disponible (INV-10; llamada explícita, ADR-028 §11).
@@ -753,6 +758,11 @@ def _close(*, work_order: WorkOrder, user, at, record=True):
             target=work_order,
             actor=user,
             changes={"status": [work_order.status, S.CLOSED], "automatic": True},
+        )
+        emit_event(  # X-08: el cierre automático también es un cambio de estado
+            event_type=WebhookEvent.WORK_ORDER_STATUS_CHANGED,
+            instance=work_order,
+            change={"from": work_order.status, "to": S.CLOSED},
         )
     recalculate_costs(work_order=work_order)  # los totales quedan fijos al cerrar (WO-04 CA3)
     work_order.status = S.CLOSED

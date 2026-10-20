@@ -238,8 +238,10 @@ escribirle a nadie; y como dueño de GALBUST quiero cobrar en pesos un precio fi
   gracia y al quedar en solo lectura. Gracia de 7 días (`BILLING_GRACE_DAYS`); luego **solo
   lectura**: se ve y se exporta, no se crea ni se edita en la web, la API v1 (402
   `payment_required`) ni `/field/api/` (402; la PWA deja el cambio en cola y lo envía al
-  pagar). Los administradores siempre pueden entrar a Facturación y pagar. Al aprobarse un
-  pago se reactiva sola. Nunca se borran datos por impago. La misma solo lectura rige durante
+  pagar). La interfaz es coherente con la solo lectura: no muestra botones, formularios ni
+  accesos de crear, editar o ejecutar (solo ver, exportar Excel/PDF, imprimir etiquetas y, al
+  administrador, Facturación y «Pagar»); la PWA muestra un aviso. Los administradores siempre
+  pueden entrar a Facturación y pagar. Al aprobarse un pago se reactiva sola. Nunca se borran datos por impago. La misma solo lectura rige durante
   el borrado programado (X-04).
 - CA6: Webhook entrante `/billing/webhooks/mercadopago/`: valida la firma `x-signature`;
   siempre consulta el recurso a la API de Mercado Pago (no confía en el cuerpo); idempotente
@@ -1131,6 +1133,18 @@ con lápida de la organización; las cuentas de usuario se conservan (ADR-027).
 autenticación por token de organización con alcances; endpoints de activos,
 lecturas, OT y solicitudes. Desde la API también se completa una OT y se
 responde su checklist con las mismas reglas que la web (ADR-005).
+- ✔ Alcances por recurso (F3, 2026-10, ADR-034): `<grupo>:read` y
+  `<grupo>:write` para `assets`, `meters` (medidores y lecturas), `work_orders`,
+  `requests`, `inventory` y `condition`, más `*:read` / `*:write` para todo
+  (también lo que se agregue). Escribir incluye leer. Casillas por grupo al crear
+  el token, con la fila «Todo»; los grupos de módulos que el plan no incluye no
+  se ofrecen. Sin el alcance → 403 `insufficient_scope` con el alcance que falta;
+  la escritura sigue sujeta a solo lectura por impago (402) y al rol de servicio.
+  El esquema OpenAPI declara `x-required-scope` por operación.
+- ✔ Compatibilidad: los tokens «Solo lectura» y «Lectura y escritura» se
+  migraron a `*:read` y `*:read` + `*:write`; permiten exactamente lo mismo.
+- No cumplido: alcances por sitio (el token ve toda la organización) y por
+  endpoint individual.
 
 **X-06 · Modo offline PWA (F2)**: ver [04_arquitectura.md](04_arquitectura.md), ADR-011.
 Como técnico quiero ejecutar mis OT sin señal y que lo hecho llegue solo al
@@ -1175,7 +1189,7 @@ servidor cuando vuelva la conexión. Implementado en `/field/` (2026-10).
 **X-07 · i18n (M0)**: todos los textos marcados para traducción; español (Chile)
 completo; inglés y portugués en F3.
 
-**X-08 · Webhooks salientes (F3, parcial)**: como administrador quiero que otro
+**X-08 · Webhooks salientes (F3)**: como administrador quiero que otro
 sistema (ERP, chat, BI) se entere al instante de lo que pasa en el CMMS, sin
 consultar la API cada cierto tiempo. Implementado (2026-10, ADR-030).
 - CA1 ✔ En "Más" → "Webhooks" (`/settings/webhooks/`, permiso
@@ -1195,11 +1209,29 @@ consultar la API cada cierto tiempo. Implementado (2026-10, ADR-030).
   privadas, de loopback, link-local o reservadas, al guardar y en cada envío
   (la conexión va a la IP validada; no se siguen redirecciones).
 - CA6 ✔ "Enviar prueba" (`webhook.test`) y "Últimas entregas" paginadas con
-  estado, intentos, código HTTP y último error. Sin borrado físico.
-- No cumplido / fuera de v1: más eventos (activos, lecturas, alertas de
-  condición, cambios de estado intermedios), regenerar el secreto, reenviar a
-  mano una entrega fallida, ver el cuerpo enviado en la pantalla, depurar
-  entregas antiguas y reintentos sin worker.
+  estado, intentos, código HTTP y último error. Sin borrado físico de destinos.
+- CA7 ✔ Más eventos (F3, 2026-10): `work_order.status_changed` (cada cambio
+  de estado, con `change: {from, to}`; `work_order.completed` se mantiene),
+  `asset.created`, `asset.updated`, `asset.status_changed`,
+  `meter_reading.created` (también variables de condición),
+  `condition_alert.opened`, `.acknowledged`, `.normalized` y `.closed`,
+  `part.below_minimum` (una vez por episodio) y `stock_movement.created`. Desde
+  los mismos servicios, al confirmar, con `data` igual a la API v1. Solo se
+  ofrecen y envían los de módulos del plan; el administrador los elige por
+  destino y los destinos existentes conservan los suyos.
+- CA8 ✔ Importaciones masivas: un evento por fila despachado en un solo lote al
+  confirmar; con worker va a la cola y la importación no espera (sin worker,
+  primeras 20 entregas y el resto queda para reenviar).
+- CA9 ✔ Regenerar el secreto (se muestra destacado; el anterior deja de valer
+  de inmediato; auditado sin el valor), reenviar a mano una entrega fallida
+  (nueva entrega con el mismo `event_id`, auditada) y ver el cuerpo enviado con
+  el código y la respuesta truncada (1.000 caracteres) en el detalle de la
+  entrega. Solo lectura por impago oculta las acciones de escritura.
+- CA10 ✔ Purga diaria de entregas terminadas de más de 90 días (tarea
+  Procrastinate y comando `purge_webhook_deliveries`, docs/07).
+- No cumplido / fuera: eventos de planes preventivos, de asignación o
+  reprogramación de OT y de decisiones sobre solicitudes; ventana de traslape al
+  regenerar el secreto; reintentos sin worker.
 
 ## 10. Asistente de diagnóstico con IA (`AI`, F2)
 

@@ -9,12 +9,12 @@
 </div>
 
 <div class="masonry">
-  <section class="card" aria-labelledby="onboarding-title">
+  {% if not read_only %}<section class="card" aria-labelledby="onboarding-title">
     <h2 id="onboarding-title">{% translate "Puesta en marcha" %}</h2>
     <p>{% translate "Asistente paso a paso: rubro, sitios, activos, planes sugeridos, lecturas y calendario. Cada paso se puede saltar y retomar." %}</p>
     <a class="btn btn--secondary" href="{% url 'onboarding' %}">{% translate "Abrir el asistente" %}</a>
-  </section>
-  {% if membership|can:"team.manage" %}
+  </section>{% endif %}
+  {% if membership|can_view:"team.manage" %}
   <section class="card" aria-labelledby="team-title">
     <h2 id="team-title">{% translate "Equipo y roles" %}</h2>
     <p>{% translate "Invita personas, cambia su rol y alcance por sitio." %}{% if organization|has_module:"custom_roles" %} {% translate "Crea roles personalizados a partir de un rol base." %}{% endif %}</p>
@@ -36,6 +36,8 @@
     <a class="btn btn--secondary" href="{% url 'sso_settings' %}">{% translate "Configurar SSO" %}</a>
   </section>
   {% endif %}
+  {# Solo lectura (ORG-13): sin formularios de ajustes; quedan Facturación, plan, exportar y eliminar. #}
+  {% if not read_only %}
   <section class="card" aria-labelledby="closing-title">
     <h2 id="closing-title">{% translate "Cierre de órdenes de trabajo" %}</h2>
     <form method="post">
@@ -108,6 +110,7 @@
       <button class="btn btn--primary" type="submit">{% translate "Guardar logo" %}</button>
     </form>
   </section>
+  {% endif %}
 
   <section class="card" aria-labelledby="plan-title">
     <h2 id="plan-title">{% translate "Plan" %}</h2>

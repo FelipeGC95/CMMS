@@ -8,7 +8,7 @@
   </div>
   <div class="page-actions">
     <a class="btn btn--ghost" href="{% url 'plan_calendar_export_xlsx' %}?{{ export_query }}">{% icon 'list' %}{% translate "Exportar Excel (12 meses)" %}</a>
-    {% if membership|can:"plan.manage" %}<a class="btn btn--ghost" href="{% url 'plan_list' %}">{% icon 'calendar' %}{% translate "Planes preventivos" %}</a>{% endif %}
+    {% if membership|can_view:"plan.manage" %}<a class="btn btn--ghost" href="{% url 'plan_list' %}">{% icon 'calendar' %}{% translate "Planes preventivos" %}</a>{% endif %}
   </div>
 </div>
 

@@ -1,0 +1,64 @@
+{% extends "base.html" %}{% load i18n ui %}
+{% block title %}{{ delivery.event_label }} · {{ endpoint.name }}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <p><a href="{% url 'webhook_list' %}">{% translate "Webhooks" %}</a> / <a href="{% url 'webhook_detail' endpoint.pk %}">{{ endpoint.name }}</a></p>
+    <h1>{{ delivery.event_label }}</h1>
+    <p class="muted mono">{{ delivery.event_type }} · {{ delivery.event_id }}</p>
+  </div>
+  {% if delivery.status == "failed" and delivery.event_type != "webhook.test" and not billing_status.read_only %}
+  <form method="post" action="{% url 'webhook_redeliver' endpoint.pk delivery.pk %}">
+    {% csrf_token %}
+    <button class="btn btn--primary" type="submit"{% if not endpoint.is_active %} disabled{% endif %}>{% icon 'play' %}{% translate "Reenviar" %}</button>
+  </form>
+  {% endif %}
+</div>
+
+<div class="grid grid--2">
+  <section class="card">
+    <h2>{% translate "Entrega" %}</h2>
+    <dl class="dl">
+      <dt>{% translate "Estado" %}</dt><dd>{% status_badge delivery %}</dd>
+      <dt>{% translate "Creada" %}</dt><dd>{{ delivery.created_at|date:"d-m-Y H:i:s" }}</dd>
+      <dt>{% translate "Intentos" %}</dt><dd>{{ delivery.attempts }}</dd>
+      <dt>{% translate "Último intento" %}</dt><dd>{{ delivery.last_attempt_at|date:"d-m-Y H:i:s"|default:"—" }}</dd>
+      {% if delivery.next_attempt_at %}<dt>{% translate "Próximo intento" %}</dt><dd>{{ delivery.next_attempt_at|date:"d-m-Y H:i:s" }}</dd>{% endif %}
+      <dt>{% translate "Código HTTP" %}</dt><dd>{{ delivery.response_status|default:"—" }}</dd>
+      <dt>{% translate "Último error" %}</dt><dd>{{ delivery.last_error|default:"—" }}</dd>
+      {% if delivery.is_redelivery %}<dt>{% translate "Reenvío manual" %}</dt><dd>{% blocktranslate with who=delivery.created_by|default:"—" %}Por {{ who }}{% endblocktranslate %}{% if delivery.redelivery_of %} · <a href="{% url 'webhook_delivery' endpoint.pk delivery.redelivery_of.pk %}">{% translate "Ver la original" %}</a>{% endif %}</dd>{% endif %}
+    </dl>
+    {% if delivery.status == "failed" and not endpoint.is_active %}<p class="muted">{% translate "Activa el webhook para reenviar." %}</p>{% endif %}
+  </section>
+  <section class="card">
+    <h2>{% translate "Respuesta del receptor" %}</h2>
+    <p class="muted">{% translate "Primeros 1000 caracteres de lo que respondió tu sistema." %}</p>
+    {% if delivery.response_body %}<pre class="code-block">{{ delivery.response_body }}</pre>{% else %}<p>—</p>{% endif %}
+  </section>
+</div>
+
+<section class="card mt-4">
+  <h2>{% translate "Cuerpo enviado" %}</h2>
+  <p class="muted">{% translate "El JSON firmado tal como se envió (sin espacios). Los reenvíos repiten el mismo ID de evento." %}</p>
+  <pre class="code-block">{{ body }}</pre>
+</section>
+
+{% if redeliveries %}
+<h2 class="mt-4">{% translate "Otras entregas de este evento" %}</h2>
+<div class="card card--flush">
+  <table class="table">
+    <thead><tr><th>{% translate "Fecha" %}</th><th>{% translate "Estado" %}</th><th>{% translate "Código HTTP" %}</th><th><span class="visually-hidden">{% translate "Detalle" %}</span></th></tr></thead>
+    <tbody>
+      {% for other in redeliveries %}
+      <tr>
+        <td class="num" data-label="{% translate 'Fecha' %}">{{ other.created_at|date:"d-m-Y H:i" }}{% if other.is_redelivery %}<div class="muted">{% translate "Reenvío manual" %}</div>{% endif %}</td>
+        <td data-label="{% translate 'Estado' %}">{% status_badge other %}</td>
+        <td class="num" data-label="{% translate 'Código HTTP' %}">{{ other.response_status|default:"—" }}</td>
+        <td data-label=""><a class="btn btn--ghost" href="{% url 'webhook_delivery' endpoint.pk other.pk %}">{% translate "Ver detalle" %}</a></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+{% endblock %}

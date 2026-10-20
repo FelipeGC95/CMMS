@@ -10,6 +10,8 @@ y en cada envío; la conexión va a la dirección ya validada (sin re-resolver) 
 siguen redirecciones.
 """
 
+import contextlib
+import contextvars
 import datetime
 import hashlib
 import hmac
@@ -34,7 +36,7 @@ from apps.audit.models import AuditEvent
 from apps.core.tenancy import require_current_organization, tenant_context
 from apps.organizations.modules import has_module
 
-from .models import TEST_EVENT, Event, WebhookDelivery, WebhookEndpoint
+from .models import EVENT_MODULES, RESPONSE_BODY_LIMIT, TEST_EVENT, Event, WebhookDelivery, WebhookEndpoint
 
 MODULE = "api"  # los webhooks van con la API (Profesional y Empresa, ADR-030)
 SECRET_PREFIX = "whsec_"
@@ -45,6 +47,12 @@ MAX_ATTEMPTS = 5
 BACKOFF_SECONDS = (60, 300, 1800, 7200)
 DISABLE_AFTER_FAILURES = 5  # entregas agotadas seguidas que desactivan el destino
 BLOCKED_HOST_SUFFIXES = (".localhost", ".local", ".internal", ".lan", ".home.arpa")
+# Sin worker (demo), entregas que se intentan en la misma petición; el resto queda fallida.
+SYNC_DELIVERY_LIMIT = 20
+# Eventos por tarea `webhooks.dispatch_events` al despachar un lote de importación con cola.
+BATCH_TASK_SIZE = 500
+# Antigüedad desde la que se purgan las entregas (tarea diaria y `purge_webhook_deliveries`).
+DELIVERY_RETENTION_DAYS = 90
 
 
 class WebhookError(Exception):
@@ -105,8 +113,8 @@ class PinnedHTTPSConnection(http.client.HTTPSConnection):
         self.sock = self._context.wrap_socket(sock, server_hostname=self.host)
 
 
-def http_post(url: str, *, address: str, body: bytes, headers: dict) -> int:
-    """POST con timeout corto; devuelve el código HTTP (no sigue redirecciones)."""
+def http_post(url: str, *, address: str, body: bytes, headers: dict) -> tuple[int, str]:
+    """POST con timeout corto; devuelve el código HTTP y el inicio de la respuesta (sin redirecciones)."""
     parts = urlsplit(url)
     path = (parts.path or "/") + (f"?{parts.query}" if parts.query else "")
     connection = PinnedHTTPSConnection(
@@ -119,8 +127,8 @@ def http_post(url: str, *, address: str, body: bytes, headers: dict) -> int:
     try:
         connection.request("POST", path, body=body, headers=headers)
         response = connection.getresponse()
-        response.read(4096)
-        return response.status
+        text = response.read(4096).decode("utf-8", errors="replace")
+        return response.status, text[:RESPONSE_BODY_LIMIT]
     finally:
         connection.close()
 
@@ -137,8 +145,10 @@ def encode_payload(payload: dict) -> bytes:
 # --- Destinos ---------------------------------------------------------------------------------
 
 
-def _clean_events(events) -> list[str]:
-    events = [code for code in Event.values if code in set(events)]
+def _clean_events(events, *, keep=()) -> list[str]:
+    """Eventos conocidos que el plan ofrece; `keep` conserva los ya suscritos aunque no se ofrezcan."""
+    allowed = set(enabled_events(require_current_organization())) | set(keep)
+    events = [code for code in Event.values if code in set(events) and code in allowed]
     if not events:
         raise WebhookError(_("Elige al menos un evento."))
     return events
@@ -174,7 +184,8 @@ def update_endpoint(
     if url != endpoint.url:
         public_address(url)
     before = audit.snapshot(endpoint, fields={"name", "url", "events", "is_active"})
-    endpoint.name, endpoint.url, endpoint.events = name.strip(), url, _clean_events(events)
+    endpoint.name, endpoint.url = name.strip(), url
+    endpoint.events = _clean_events(events, keep=endpoint.events)
     if is_active and not endpoint.is_active:
         endpoint.consecutive_failures = 0
         endpoint.disabled_at = None
@@ -192,77 +203,177 @@ def update_endpoint(
 
 # --- Eventos ----------------------------------------------------------------------------------
 
+# Eventos de una importación masiva agrupados (`collect_events`); None fuera de una.
+_batch: contextvars.ContextVar[list | None] = contextvars.ContextVar("webhook_batch", default=None)
 
-def emit_event(*, event_type: str, instance) -> None:
-    """Programa el evento para cuando la transacción se confirme (sin consultas antes)."""
+
+def emit_event(*, event_type: str, instance, change: dict | None = None) -> None:
+    """Programa el evento para cuando la transacción se confirme (sin consultas antes).
+
+    `change` va tal cual en el cuerpo (p. ej. `{"from": "planned", "to": "in_progress"}`).
+    Dentro de `collect_events` el evento se suma al lote en vez de programarse solo.
+    """
     organization = require_current_organization()
-    model, pk = type(instance), instance.pk
+    event = (str(event_type), type(instance)._meta.label, str(instance.pk), change)
+    batch = _batch.get()
+    if batch is not None:
+        batch.append(event)
+        return
 
     def run():
         with tenant_context(organization):
-            dispatch(event_type=event_type, model=model, pk=pk)
+            dispatch_events([event])
 
     transaction.on_commit(run, robust=True)
 
 
-def _object_data(model, pk) -> dict | None:
-    from rest_framework.utils.encoders import JSONEncoder
+@contextlib.contextmanager
+def collect_events():
+    """Importaciones masivas: un solo despacho al confirmar en vez de uno por fila.
 
-    from apps.api.serializers import WorkOrderSerializer, WorkRequestSerializer
+    Con cola, el lote va al worker (`webhooks.dispatch_events`, en trozos de
+    `BATCH_TASK_SIZE`): la importación no espera la creación de entregas ni los envíos.
+    Una fila revertida no envía nada (su objeto ya no existe al despachar).
+    """
+    if _batch.get() is not None:  # anidado: lo despacha el lote de afuera
+        yield
+        return
+    events: list = []
+    token = _batch.set(events)
+    try:
+        yield
+    finally:
+        _batch.reset(token)
+    if events:
+        organization = require_current_organization()
+        transaction.on_commit(lambda: _dispatch_batch(organization, events), robust=True)
+
+
+def _dispatch_batch(organization, events: list) -> None:
+    if settings.WEBHOOKS_USE_QUEUE:
+        from .tasks import dispatch_events_task
+
+        for start in range(0, len(events), BATCH_TASK_SIZE):
+            chunk = [list(event) for event in events[start : start + BATCH_TASK_SIZE]]
+            dispatch_events_task.defer(organization_id=str(organization.pk), events=chunk)
+        return
+    with tenant_context(organization):
+        dispatch_events(events)
+
+
+def enabled_events(organization) -> list[str]:
+    """Eventos que el plan permite (módulo `api` y el módulo de cada evento)."""
+    if not has_module(organization, MODULE):
+        return []
+    return [code for code in Event.values if has_module(organization, EVENT_MODULES[code])]
+
+
+def _sources():
+    """Modelo → (consulta, serializador de la API v1): `data` con los mismos campos que la API."""
+    from apps.api import serializers as s
+    from apps.assets.models import Asset, MeterReading
+    from apps.condition.models import ConditionAlert
+    from apps.condition.selectors import ALERT_RELATED
+    from apps.inventory.models import StockItem, StockMovement
     from apps.work.models import WorkOrder, WorkRequest
 
-    if model is WorkOrder:
-        instance = WorkOrder.objects.filter(pk=pk).first()
-        data = WorkOrderSerializer(instance).data if instance else None
-    elif model is WorkRequest:
-        instance = WorkRequest.objects.select_related("work_order").filter(pk=pk).first()
-        data = WorkRequestSerializer(instance).data if instance else None
-    else:  # pragma: no cover - solo hay eventos de OT y solicitudes
-        raise ValueError(model)
-    # Mismos campos y formato que la API v1 (UUID, fechas y decimales como texto).
-    return json.loads(json.dumps(data, cls=JSONEncoder)) if data is not None else None
-
-
-def build_payload(*, event_type: str, data: dict) -> dict:
-    organization = require_current_organization()
     return {
+        WorkOrder._meta.label: (WorkOrder.objects.all(), s.WorkOrderSerializer),
+        WorkRequest._meta.label: (WorkRequest.objects.select_related("work_order"), s.WorkRequestSerializer),
+        Asset._meta.label: (Asset.objects.select_related("asset_class", "location"), s.AssetSerializer),
+        MeterReading._meta.label: (MeterReading.objects.all(), s.MeterReadingSerializer),
+        ConditionAlert._meta.label: (
+            ConditionAlert.objects.select_related(*ALERT_RELATED),
+            s.ConditionAlertSerializer,
+        ),
+        StockItem._meta.label: (StockItem.objects.select_related("part", "warehouse"), s.StockItemSerializer),
+        StockMovement._meta.label: (
+            StockMovement.objects.select_related("part", "warehouse"),
+            s.StockMovementSerializer,
+        ),
+    }
+
+
+def _load_data(events) -> dict:
+    """(modelo, pk) → `data` serializado, con una consulta por modelo. Lo que no existe falta."""
+    from rest_framework.utils.encoders import JSONEncoder
+
+    sources = _sources()
+    wanted: dict[str, set] = {}
+    for _type, label, pk, _change in events:
+        wanted.setdefault(label, set()).add(pk)
+    data = {}
+    # Costos visibles: el token de servicio (rol planificador) también los ve en la API.
+    context = {"show_costs": True}
+    for label, pks in wanted.items():
+        queryset, serializer = sources[label]
+        for pk, instance in queryset.in_bulk(list(pks)).items():
+            # Mismos campos y formato que la API v1 (UUID, fechas y decimales como texto).
+            serialized = serializer(instance, context=context).data
+            data[(label, str(pk))] = json.loads(json.dumps(serialized, cls=JSONEncoder))
+    return data
+
+
+def build_payload(*, event_type: str, data: dict, change: dict | None = None) -> dict:
+    organization = require_current_organization()
+    payload = {
         "id": str(uuid.uuid4()),
         "type": event_type,
         "created_at": timezone.now().astimezone(datetime.UTC).isoformat().replace("+00:00", "Z"),
         "organization": {"id": str(organization.pk), "slug": organization.slug, "name": organization.name},
         "data": data,
     }
+    if change:
+        payload["change"] = change
+    return payload
 
 
-def dispatch(*, event_type: str, model, pk) -> list[WebhookDelivery]:
-    """Crea y programa una entrega por destino activo suscrito al evento."""
+def dispatch_events(events) -> list[WebhookDelivery]:
+    """Crea y programa una entrega por evento y destino activo suscrito (en orden de emisión)."""
     organization = require_current_organization()
-    if not has_module(organization, MODULE):
+    allowed = set(enabled_events(organization))
+    if not any(event[0] in allowed for event in events):
         return []
     # El filtro por evento va en Python: pocos destinos por organización y sirve en SQLite.
-    endpoints = [e for e in WebhookEndpoint.objects.filter(is_active=True) if event_type in e.events]
-    if not endpoints:
+    endpoints = list(WebhookEndpoint.objects.filter(is_active=True))
+    subscribed = {code: [e for e in endpoints if code in e.events] for code in allowed}
+    events = [event for event in events if subscribed.get(event[0])]
+    if not events:
         return []
-    data = _object_data(model, pk)
-    if data is None:
-        return []
-    payload = build_payload(event_type=event_type, data=data)
-    deliveries = WebhookDelivery.objects.bulk_create(
-        [
-            WebhookDelivery(
-                organization=organization,
-                endpoint=endpoint,
-                event_id=payload["id"],
-                event_type=event_type,
-                payload=payload,
+    data = _load_data(events)
+    rows, targets = [], []
+    for event_type, label, pk, change in events:
+        if (label, pk) not in data:
+            continue  # revertido antes de confirmar
+        payload = build_payload(event_type=event_type, data=data[(label, pk)], change=change)
+        for endpoint in subscribed[event_type]:
+            rows.append(
+                WebhookDelivery(
+                    organization=organization,
+                    endpoint=endpoint,
+                    event_id=payload["id"],
+                    event_type=event_type,
+                    payload=payload,
+                )
             )
-            for endpoint in endpoints
-        ]
-    )
-    for delivery, endpoint in zip(deliveries, endpoints, strict=True):
+            targets.append(endpoint)
+    deliveries = WebhookDelivery.objects.bulk_create(rows)
+    for index, (delivery, endpoint) in enumerate(zip(deliveries, targets, strict=True)):
         delivery.endpoint = endpoint
-        schedule_delivery(delivery=delivery)
+        if settings.WEBHOOKS_USE_QUEUE or index < SYNC_DELIVERY_LIMIT:
+            schedule_delivery(delivery=delivery)
+        else:
+            _skip_without_worker(delivery)
     return deliveries
+
+
+def _skip_without_worker(delivery: WebhookDelivery) -> None:
+    """Sin worker, un lote grande no se envía en la petición: queda fallida para reenviarla."""
+    delivery.status = WebhookDelivery.Status.FAILED
+    delivery.last_error = _("No se envió: sin worker solo se envían %(limit)s entregas por lote.") % {
+        "limit": SYNC_DELIVERY_LIMIT
+    }
+    delivery.save(update_fields=["status", "last_error", "updated_at"])
 
 
 @transaction.atomic
@@ -283,6 +394,82 @@ def send_test(*, membership, endpoint: WebhookEndpoint) -> WebhookDelivery:
 
     transaction.on_commit(run, robust=True)
     return delivery
+
+
+@transaction.atomic
+def redeliver(*, membership, delivery: WebhookDelivery) -> WebhookDelivery:
+    """Reenvía a mano una entrega fallida: otra entrega con el mismo cuerpo y el mismo `event_id`.
+
+    El receptor la reconoce como el mismo evento (idempotencia por `X-Galbust-Event-Id`).
+    La original queda como estaba; el reenvío se audita.
+    """
+    require_perm(membership, Perm.API_TOKEN_MANAGE)
+    endpoint = delivery.endpoint
+    if delivery.status != WebhookDelivery.Status.FAILED:
+        raise WebhookError(_("Solo se reenvía una entrega fallida."))
+    if delivery.event_type == TEST_EVENT:
+        raise WebhookError(_("Una prueba no se reenvía: usa «Enviar prueba»."))
+    if not endpoint.is_active:
+        raise WebhookError(_("Activa el webhook antes de reenviar."))
+    copy = WebhookDelivery.objects.create(
+        endpoint=endpoint,
+        event_id=delivery.event_id,
+        event_type=delivery.event_type,
+        payload=delivery.payload,
+        is_redelivery=True,
+        redelivery_of=delivery,
+        created_by=membership.user,
+    )
+    audit.record(
+        action=AuditEvent.Action.CREATE,
+        target=copy,
+        membership=membership,
+        changes={"redelivery_of": str(delivery.pk), "event_id": str(delivery.event_id)},
+    )
+    organization = require_current_organization()
+
+    def run():
+        with tenant_context(organization):
+            schedule_delivery(delivery=copy)
+
+    transaction.on_commit(run, robust=True)
+    return copy
+
+
+@transaction.atomic
+def regenerate_secret(*, membership, endpoint: WebhookEndpoint) -> str:
+    """Nuevo secreto de firma; el anterior deja de valer de inmediato (sin ventana de traslape).
+
+    Las entregas siguientes, incluidos los reintentos pendientes, se firman con el nuevo.
+    Se audita sin el valor del secreto.
+    """
+    require_perm(membership, Perm.API_TOKEN_MANAGE)
+    endpoint = WebhookEndpoint.objects.select_for_update().get(pk=endpoint.pk)
+    endpoint.secret = SECRET_PREFIX + secrets.token_urlsafe(32)
+    endpoint.secret_rotated_at = timezone.now()
+    endpoint.save(update_fields=["secret", "secret_rotated_at", "updated_at"])
+    audit.record(
+        action=AuditEvent.Action.UPDATE,
+        target=endpoint,
+        membership=membership,
+        changes={"signature_rotated_at": endpoint.secret_rotated_at},
+    )
+    return endpoint.secret
+
+
+def purge_old_deliveries(*, days: int = DELIVERY_RETENTION_DAYS, now=None) -> int:
+    """Borra las entregas terminadas de más de `days` días de la organización del contexto.
+
+    Las pendientes (con reintentos por delante) no se tocan. Es un registro operativo, no
+    historial del negocio: se borra de verdad (docs/07). Devuelve cuántas se borraron.
+    """
+    require_current_organization()
+    cutoff = (now or timezone.now()) - datetime.timedelta(days=days)
+    old = WebhookDelivery.objects.filter(created_at__lt=cutoff).exclude(status=WebhookDelivery.Status.PENDING)
+    # Primero desenganchar los reenvíos que apuntan a filas que se borran (SET_NULL fila a fila).
+    WebhookDelivery.objects.filter(redelivery_of__in=old.values("pk")).update(redelivery_of=None)
+    deleted, _detail = old.delete()
+    return deleted
 
 
 # --- Entrega ----------------------------------------------------------------------------------
@@ -326,10 +513,10 @@ def attempt_delivery(*, delivery: WebhookDelivery, now=None) -> int | None:
         "X-Galbust-Event-Id": str(delivery.event_id),
         SIGNATURE_HEADER: f"t={timestamp},v1={sign(endpoint.secret, timestamp, body)}",
     }
-    code, error, retryable = None, "", True
+    code, text, error, retryable = None, "", "", True
     try:
         address = public_address(endpoint.url)
-        code = http_post(endpoint.url, address=address, body=body, headers=headers)
+        code, text = http_post(endpoint.url, address=address, body=body, headers=headers)
     except UnsafeURLError as exc:
         error, retryable = exc.message, False
     except (OSError, http.client.HTTPException) as exc:
@@ -341,6 +528,7 @@ def attempt_delivery(*, delivery: WebhookDelivery, now=None) -> int | None:
     delivery.attempts += 1
     delivery.last_attempt_at = now
     delivery.response_status = code
+    delivery.response_body = text[:RESPONSE_BODY_LIMIT]
     delivery.last_error = error[:300]
     delay = None
     if succeeded:

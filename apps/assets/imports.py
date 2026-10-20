@@ -394,8 +394,21 @@ def _unique_code(base: str, taken: set[str], max_length: int = 30) -> str:
 
 @transaction.atomic
 def apply_import(session_data: dict, *, assign_class_plans: bool = True) -> ImportResult:
-    """Guarda las filas válidas de la vista previa. Todo o nada."""
+    """Guarda las filas válidas de la vista previa. Todo o nada.
+
+    Los eventos de webhook (`asset.created`/`asset.updated`, `meter_reading.created`) salen
+    en un solo lote al confirmar (X-08): la importación no espera los envíos.
+    """
+    from apps.webhooks.services import collect_events
+
+    with collect_events():
+        return _apply_import(session_data, assign_class_plans=assign_class_plans)
+
+
+def _apply_import(session_data: dict, *, assign_class_plans: bool) -> ImportResult:
     from apps.maintenance.services import assign_class_plans as assign_plans_by_class
+    from apps.webhooks.models import Event as WebhookEvent
+    from apps.webhooks.services import emit_event
 
     result = ImportResult()
     classes = _index(AssetClass.objects.all())
@@ -446,6 +459,8 @@ def apply_import(session_data: dict, *, assign_class_plans: bool = True) -> Impo
             new_assets.append(asset)
         else:
             result.updated += 1
+        event = WebhookEvent.ASSET_CREATED if is_new else WebhookEvent.ASSET_UPDATED
+        emit_event(event_type=event, instance=asset)  # X-08 (en el lote de la importación)
 
     # Segunda pasada: padres (pueden venir en el mismo archivo) y medidores.
     for row in session_data["rows"]:

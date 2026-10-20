@@ -13,6 +13,8 @@ from apps.audit import services as audit
 from apps.audit.models import AuditEvent
 from apps.organizations.models import Location
 from apps.organizations.services import check_quota
+from apps.webhooks.models import Event as WebhookEvent
+from apps.webhooks.services import emit_event
 
 from . import attributes as attribute_values
 from .models import (
@@ -76,6 +78,9 @@ def change_asset_status(
     if failure_event is not None:
         changes["failure_event"] = str(failure_event.pk)
     audit.record(action=AuditEvent.Action.TRANSITION, target=asset, actor=by, changes=changes)
+    emit_event(  # X-08
+        event_type=WebhookEvent.ASSET_STATUS_CHANGED, instance=asset, change={"from": previous, "to": status}
+    )
     return asset
 
 
@@ -214,6 +219,7 @@ def record_meter_reading(
         created_by=membership.user if membership else None,
         client_uuid=client_uuid,
     )
+    emit_event(event_type=WebhookEvent.METER_READING_CREATED, instance=reading)  # X-08
     audit.record(
         action=AuditEvent.Action.CREATE,
         target=reading,
@@ -540,6 +546,7 @@ def set_asset_attributes(*, membership, asset, values: dict) -> Asset:
             membership=membership,
             changes={"attributes": changes},
         )
+        emit_event(event_type=WebhookEvent.ASSET_UPDATED, instance=asset, change={"fields": ["attributes"]})
     return asset
 
 
@@ -710,6 +717,7 @@ def create_asset(
         membership=membership,
         changes={**audit.snapshot(asset, ASSET_FIELDS), "attributes": stored},
     )
+    emit_event(event_type=WebhookEvent.ASSET_CREATED, instance=asset)  # X-08
     # Planes por defecto de la clase (PM-04 CA1), igual que en la importación Excel.
     from apps.maintenance.services import assign_class_plans
 
@@ -769,4 +777,7 @@ def update_asset(
     changes = audit.diff(before, {**audit.snapshot(asset, ASSET_FIELDS), "attributes": stored})
     if changes:
         audit.record(action=AuditEvent.Action.UPDATE, target=asset, membership=membership, changes=changes)
+        emit_event(  # X-08
+            event_type=WebhookEvent.ASSET_UPDATED, instance=asset, change={"fields": sorted(changes)}
+        )
     return asset

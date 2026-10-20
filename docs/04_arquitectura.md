@@ -307,7 +307,8 @@ tener ingresos).
   - **Principal de servicio:** el token actúa como una membresía en memoria con
     rol planificador sobre toda la organización (sin alcance por sitio) y un
     usuario técnico propio; nunca administra equipo, auditoría, configuración ni
-    tokens. Alcance `read`: solo métodos GET; `write`: además escribe.
+    tokens. Alcances por grupo de recursos (`assets:read`, `inventory:write`,
+    `*:read`…; ADR-034): leer pide `<grupo>:read`, escribir `<grupo>:write`.
   - **Límite de tasa:** `TokenRateThrottle`, por token, `API_RATE_LIMIT`
     (por defecto `600/min`), sobre el caché en la base de datos.
   - **Endpoints:** `/api/v1/assets/` (lista, detalle, alta, PATCH),
@@ -325,13 +326,13 @@ tener ingresos).
     devuelve la OT actual (200); usarla en otra OT → 409 `conflict`.
     `POST /work-orders/{id}/checklist-items/{item_id}/answer/` usa
     `answer_checklist_item`; reenviar la misma respuesta devuelve el ítem sin
-    cambios (también con la OT ya completada). Ambos exigen alcance `write`.
+    cambios (también con la OT ya completada). Ambos exigen `work_orders:write` (ADR-034).
   - **Fotos desde la API (WO-03 CA2, AST-06):** `POST /work-orders/{id}/photos/`
     y `POST /work-orders/{id}/checklist-items/{item_id}/photos/` (multipart,
     campo `file` y `client_uuid` opcional) usan `add_work_order_photo` y
     `add_checklist_photo`: mismas validaciones, compresión, cupo, ruta
     `org/<organization_id>/` y auditoría que la web; solo OT visibles y abiertas,
-    permiso de ejecutar OT y alcance `write`. Responden 201 con metadatos (nunca
+    permiso de ejecutar OT y alcance `work_orders:write`. Responden 201 con metadatos (nunca
     una URL: el archivo se descarga por la web con URL firmada); reenviar el
     mismo `client_uuid` devuelve la misma foto (200) y usarlo en otro objeto →
     409. En un ítem «foto obligatoria» la foto es la respuesta; después,
@@ -1488,7 +1489,7 @@ lleva `{id, name, path}`; los decimales van como texto; consultas acotadas
      desactiva. Índices que empiezan por `organization_id`;
      `UNIQUE(organization_id, endpoint_id, event_id)`.
   2. **Eventos v1:** `work_order.created`, `work_order.completed`,
-     `work_request.created`. `apps.work.services` llama explícitamente a
+     `work_request.created` (F3 agrega más eventos: ver «Ampliación F3» abajo). `apps.work.services` llama explícitamente a
      `webhooks.services.emit_event` (sin signals) en `create_work_order`,
      `transition(... completed)`, `report_failure` y
      `report_anonymous_failure`; el evento se arma en
@@ -1526,12 +1527,56 @@ lleva `{id, name, path}`; los decimales van como texto; consultas acotadas
 - **Consecuencias:**
   - "Enviar prueba" (`webhook.test`) no reintenta ni cuenta para la
     desactivación.
-  - La tabla de entregas crece con el uso; depurar entregas antiguas queda
-    para cuando haga falta (el listado está paginado e indexado).
+  - La tabla de entregas crece con el uso; desde F3 se purgan las de más de
+    90 días (ver «Ampliación F3»).
   - Sin worker (demo) un receptor lento suma hasta 5 s a la petición que
     disparó el evento; en producción se activa `WEBHOOKS_USE_QUEUE`.
-- **Estado (2026-10):** aceptado e implementado (X-08). Fuera de v1: más
-  eventos, regenerar el secreto, reenviar a mano y ver el cuerpo enviado.
+- **Ampliación F3 (2026-10-20):**
+  1. **Eventos nuevos:** `work_order.status_changed` (cada transición de
+     `transition` y el cierre automático de `_close`, con `change: {from, to}`),
+     `asset.created`, `asset.updated` (con `change.fields`), `asset.status_changed`
+     (`change_asset_status`: manual, por OT, baja, reactivación),
+     `meter_reading.created` (`record_meter_reading`, también variables de
+     condición; un reenvío idempotente no emite), `condition_alert.opened`,
+     `.acknowledged`, `.normalized` y `.closed` (`_open_episode` y `_transition`
+     de `apps.condition`), `part.below_minimum` (en `_alert_crossings`, el mismo
+     cruce que el aviso `stock_low`: una vez por episodio) y
+     `stock_movement.created` (`_record`, todo movimiento). `work_order.completed`
+     se sigue emitiendo además de `status_changed` por compatibilidad.
+  2. **Mismo camino:** llamadas explícitas a `emit_event` desde los servicios
+     (sin signals); `data` con el serializador de la API v1 del recurso (una
+     consulta por modelo con `in_bulk`), `change` opcional en el cuerpo. Costos de
+     inventario visibles, como para el token de servicio.
+  3. **Módulos:** `EVENT_MODULES` asigna a cada evento su módulo (`work_orders`,
+     `requests`, `assets`, `inventory`, `condition`); sin él, el evento no se
+     ofrece en el formulario ni se envía, aunque un destino lo tenga guardado.
+     Editar un destino conserva los eventos ya suscritos que el plan ya no ofrece.
+  4. **Importaciones masivas:** `collect_events()` agrupa los eventos de
+     `apply_import` (Excel de activos) y `apply_reading_import` (CSV y
+     `/readings/bulk/`) y registra un solo `on_commit`. Con cola, el lote va al
+     worker en tareas `webhooks.dispatch_events` de hasta 500 eventos: la
+     importación no espera. Sin cola, se intentan las primeras 20 entregas
+     (`SYNC_DELIVERY_LIMIT`) y el resto queda `failed` («sin worker») para
+     reenviarlo. Una fila revertida no envía nada (su objeto ya no existe).
+  5. **Regenerar secreto:** `regenerate_secret` cambia `secret` y
+     `secret_rotated_at`; el anterior deja de valer de inmediato (sin ventana de
+     traslape: dos firmas `v1` romperían a receptores que leen la cabecera como
+     diccionario). Se audita sin el valor; el nuevo se muestra destacado en la
+     respuesta.
+  6. **Reenvío manual:** `redeliver` crea otra `WebhookDelivery` con el mismo
+     `payload` y `event_id`, `is_redelivery=True`, `redelivery_of` y
+     `created_by`; la unicidad pasa a `UNIQUE(organization, endpoint, event_id)
+     WHERE NOT is_redelivery`. Solo entregas `failed` y no de prueba; se audita.
+  7. **Detalle de entrega:** cuerpo JSON enviado y `response_body` (primeros
+     1.000 caracteres de la respuesta; `http_post` devuelve código y texto).
+  8. **Purga:** `purge_old_deliveries` borra las entregas terminadas de más de
+     90 días de la organización del contexto (las pendientes no); tarea periódica
+     `webhooks.enqueue_purge` (08:30 UTC, una tarea por organización con
+     `queueing_lock`) y comando `purge_webhook_deliveries`. Índice
+     `(organization, created_at)`.
+- **Estado (2026-10):** aceptado e implementado (X-08, ampliado en F3). Fuera:
+  eventos de planes, de asignación o reprogramación y de decisiones sobre
+  solicitudes; reintentos sin worker; ventana de traslape del secreto.
 
 ### ADR-031 · Roles personalizados: rol base + permisos elegidos, sin permisos de administración
 - **Contexto:** ORG-12 (F3, Profesional y Empresa). Las pymes piden roles como
@@ -1782,6 +1827,17 @@ lleva `{id, name, path}`; los decimales van como texto; consultas acotadas
      El aviso por QR sin cuenta se cierra. La PWA trata 402 como «reintentar»: el
      cambio queda en cola y sale al pagar. La misma regla rige en el borrado
      programado (cierra el pendiente de ADR-027).
+     **Interfaz coherente:** la comprobación de permisos de la interfaz
+     (`billing.access.can_act`, el filtro `|can` y los indicadores `can_*` de las
+     vistas) da por no concedidos los permisos de escritura (`WRITE_PERMS`: activos,
+     planes, OT, solicitudes, lecturas, inventario, condición, asistente, equipo y
+     tokens) mientras la organización esté en solo lectura; los de consulta y
+     `organization.manage` (Facturación, exportar, cancelar el borrado) siguen. Los
+     enlaces a páginas que se pueden consultar usan `|can_view` (permiso del rol sin
+     mirar la facturación) y lo que no pasa por permisos se oculta con la variable
+     de plantilla `read_only`. `has_perm` de los servicios no cambia: el bloqueo
+     real sigue siendo el middleware. Sin consultas extra (campos de la organización
+     del contexto). La PWA recibe `read_only` en `bootstrap` y muestra un aviso.
   9. **Organizaciones existentes:** `billing_exempt` (facturación manual) por defecto
      true —la demo y las creadas por el superadmin no se bloquean— y false en el
      autoregistro. La migración `organizations/0020` deja exentas las existentes
@@ -1800,3 +1856,43 @@ lleva `{id, name, path}`; los decimales van como texto; consultas acotadas
   con cada UF), bloquear con un estado `suspended` guardado (exige una tarea que lo
   ponga a tiempo; calcularlo es siempre exacto).
 - **Estado (2026-10):** aceptado e implementado (ORG-13).
+
+### ADR-034 · Alcances de token por recurso con comodines y migración de los tokens existentes
+- **Contexto:** X-05 pide alcances; hasta F3 un token era «solo lectura» o
+  «lectura y escritura» sobre toda la API. Una integración de BI o una planilla
+  de inventario no debería poder crear OT, y un token filtrado debería exponer lo
+  mínimo. Los tokens existentes no pueden dejar de funcionar.
+- **Decisión:**
+  1. **Grupos según los routers de la v1** (`apps/api/scopes.py`, `SCOPE_GROUPS`
+     por basename): `assets` (activos), `meters` (medidores y lecturas),
+     `work_orders` (OT y todas sus acciones: checklist, fotos, repuestos usados),
+     `requests` (solicitudes), `inventory` (repuestos, bodegas, stock,
+     movimientos) y `condition` (reglas y alertas). Cada grupo tiene `:read` y
+     `:write`; `*:read` y `*:write` valen para todos, también los futuros.
+  2. **Escribir incluye leer** el mismo grupo: menos casillas y ningún token que
+     escriba a ciegas.
+  3. **Modelo:** `ApiToken.scopes` (lista JSON) reemplaza a `scope`. La migración
+     `api/0003` convierte `read` → `["*:read"]` y `write` → `["*:read", "*:write"]`
+     (reversible): los tokens antiguos permiten exactamente lo mismo, también en
+     grupos que se agreguen. `create_token(scope=...)` sigue aceptando el atajo.
+  4. **Permiso:** `HasTokenScope` calcula el alcance pedido (`required_scope`:
+     basename del router + método seguro o no) y, sin él, responde 403
+     `insufficient_scope` con `details.required_scope`. Un endpoint fuera de los
+     grupos lee con cualquier token y escribe solo con `*:write`. El alcance se
+     suma al resto: módulo del plan (`PlanIncludesModule`), solo lectura por
+     impago (`OrganizationWritable`, 402) y permisos del rol de servicio.
+  5. **OpenAPI:** `ScopedAutoSchema` (módulo `apps/api/schema.py`, aparte para no
+     importar en círculo los ajustes de DRF) agrega `x-required-scope` y una línea
+     «Alcance requerido» a la descripción de cada operación. No se usa el campo
+     `security` con scopes: en OpenAPI 3.0 solo vale para OAuth2.
+  6. **Pantalla:** matriz de casillas (grupo × lectura/escritura, con la fila
+     «Todo») en `/settings/api-tokens/`; los grupos de módulos que el plan no
+     incluye no se ofrecen. La lista muestra los alcances legibles.
+- **Alternativas descartadas:** alcances por endpoint (demasiadas casillas para
+  una pyme), un alcance por permiso del rol (mezcla dos conceptos), dejar los
+  tokens antiguos con `scope` y una regla especial en el permiso (dos modelos de
+  alcance para siempre).
+- **Consecuencias:** un token nuevo con alcance angosto no ve grupos nuevos de la
+  API hasta que se le den; los tokens con «Todo» sí. Los alcances limitan
+  recursos, no sitios: el token sigue viendo toda la organización.
+- **Estado (2026-10):** aceptado e implementado (X-05, F3).

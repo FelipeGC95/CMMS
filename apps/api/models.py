@@ -17,12 +17,9 @@ class ApiToken(TenantModel):
     las OT, lecturas y la auditoría quedan atribuidas al token.
     """
 
-    class Scope(models.TextChoices):
-        READ = "read", _("Solo lectura")
-        WRITE = "write", _("Lectura y escritura")
-
     name = models.CharField(_("nombre"), max_length=80)
-    scope = models.CharField(_("alcance"), max_length=10, choices=Scope.choices, default=Scope.READ)
+    # Alcances por recurso (`assets:read`, `inventory:write`, `*:read`…; ver `apps.api.scopes`).
+    scopes = models.JSONField(_("alcances"), default=list)
     prefix = models.CharField(_("prefijo"), max_length=12, unique=True, editable=False)
     token_hash = models.CharField(_("hash del token"), max_length=64, unique=True, editable=False)
     service_user = models.OneToOneField(
@@ -59,6 +56,17 @@ class ApiToken(TenantModel):
     @property
     def is_usable(self) -> bool:
         return self.revoked_at is None and not self.is_expired
+
+    def allows(self, *, group: str, write: bool) -> bool:
+        from .scopes import allows
+
+        return allows(self.scopes, group=group, write=write)
+
+    @property
+    def scope_labels(self) -> list[str]:
+        from .scopes import scope_labels
+
+        return scope_labels(self.scopes)
 
 
 class ApiIdempotencyKey(TenantModel):
