@@ -11190,3 +11190,554 @@ msgstr ""
 
 msgid "Inicio de sesión único"
 msgstr ""
+
+msgid "La organización está en solo lectura por falta de pago: puedes ver y exportar tus datos, pero no crear ni editar. Un administrador puede pagar en Configuración → Facturación y se reactiva sola."
+msgstr ""
+
+msgid "La organización tiene la eliminación programada y está en solo lectura: puedes ver y exportar tus datos. Un administrador puede cancelar la eliminación en Configuración."
+msgstr ""
+
+msgid "Facturación"
+msgstr ""
+
+msgid "RUT"
+msgstr ""
+
+msgid "Ej.: 76.123.456-0"
+msgstr ""
+
+msgid "Razón social"
+msgstr ""
+
+msgid "Giro"
+msgstr ""
+
+msgid "Dirección"
+msgstr ""
+
+msgid "Correo de facturación"
+msgstr ""
+
+msgid "Recibe los avisos de cobro. En blanco, el de quien contrata."
+msgstr ""
+
+msgid "Anual"
+msgstr ""
+
+msgid "valor (CLP)"
+msgstr ""
+
+msgid "fuente"
+msgstr ""
+
+msgid "valor de la UF"
+msgstr ""
+
+msgid "valores de la UF"
+msgstr ""
+
+msgid "período"
+msgstr ""
+
+msgid "id de la suscripción en el proveedor"
+msgstr ""
+
+msgid "referencia externa"
+msgstr ""
+
+msgid "enlace de pago"
+msgstr ""
+
+msgid "monto por período (CLP)"
+msgstr ""
+
+msgid "monto por período (UF)"
+msgstr ""
+
+msgid "UF aplicada"
+msgstr ""
+
+msgid "monto actualizado el"
+msgstr ""
+
+msgid "próximo cobro"
+msgstr ""
+
+msgid "razón social"
+msgstr ""
+
+msgid "giro"
+msgstr ""
+
+msgid "dirección"
+msgstr ""
+
+msgid "correo de facturación"
+msgstr ""
+
+msgid "avisos enviados"
+msgstr ""
+
+msgid "cuenta de facturación"
+msgstr ""
+
+msgid "cuentas de facturación"
+msgstr ""
+
+msgid "id del pago en el proveedor"
+msgstr ""
+
+msgid "monto (CLP)"
+msgstr ""
+
+msgid "monto (UF)"
+msgstr ""
+
+msgid "fecha de pago"
+msgstr ""
+
+msgid "cubre hasta"
+msgstr ""
+
+msgid "pago"
+msgstr ""
+
+msgid "pagos"
+msgstr ""
+
+msgid "id del evento"
+msgstr ""
+
+msgid "id del recurso"
+msgstr ""
+
+msgid "evento del proveedor de pagos"
+msgstr ""
+
+msgid "eventos del proveedor de pagos"
+msgstr ""
+
+msgid "Sin suscripción"
+msgstr ""
+
+msgid "Pago por confirmar"
+msgstr ""
+
+msgid "Pausada"
+msgstr ""
+
+msgid "plan contratado"
+msgstr ""
+
+msgid "cambio de plan programado"
+msgstr ""
+
+msgid "Aprobado"
+msgstr ""
+
+msgid "Devuelto"
+msgstr ""
+
+msgid "Anulado"
+msgstr ""
+
+msgid "cuenta"
+msgstr ""
+
+msgid "Procesado"
+msgstr ""
+
+msgid "Ignorado"
+msgstr ""
+
+msgid "Error (se reintenta)"
+msgstr ""
+
+msgid "Escribe un RUT válido, p. ej. 76.123.456-0."
+msgstr ""
+
+msgid "El dígito verificador del RUT no corresponde."
+msgstr ""
+
+msgid "No tenemos el valor de la UF en este momento, así que no podemos calcular el cobro. Inténtalo más tarde."
+msgstr ""
+
+msgid "Elige un período válido."
+msgstr ""
+
+msgid "Ese plan no se contrata en línea. Pide una cotización."
+msgstr ""
+
+msgid "Ya tienes una suscripción activa: usa «Cambiar de plan»."
+msgstr ""
+
+msgid "El monto calculado no es válido. Escríbenos a soporte."
+msgstr ""
+
+msgid "No tienes una suscripción activa: elige un plan y págalo."
+msgstr ""
+
+msgid "No hay una suscripción activa que cancelar."
+msgstr ""
+
+msgid "Tu prueba de GALBUST CMMS termina mañana"
+msgstr ""
+
+#, python-format
+msgid "La prueba termina el %(date)s. Elige un plan en Facturación para seguir sin cortes."
+msgstr ""
+
+msgid "Paga en Facturación antes de esa fecha para seguir creando y editando."
+msgstr ""
+
+#, python-format
+msgid "El pago en línea aún no está activo. Escríbenos a %(email)s para contratar."
+msgstr ""
+
+msgid "Mercado Pago no respondió. Inténtalo de nuevo en unos minutos."
+msgstr ""
+
+msgid "Ya estás en ese plan."
+msgstr ""
+
+msgid "Tu prueba de GALBUST CMMS termina en una semana"
+msgstr ""
+
+#, python-format
+msgid "Tu organización quedará en solo lectura el %(date)s"
+msgstr ""
+
+msgid "Tu organización está en solo lectura"
+msgstr ""
+
+msgid "Puedes ver y exportar tus datos. Paga en Facturación y se reactiva sola."
+msgstr ""
+
+#, python-format
+msgid "El plan %(plan)s no tiene precio definido. Escríbenos a %(email)s."
+msgstr ""
+
+#, python-format
+msgid "GALBUST CMMS · Plan %(plan)s (%(period)s)"
+msgstr ""
+
+#, python-format
+msgid "%(label)s: usas %(used)s y el plan %(plan)s permite %(limit)s"
+msgstr ""
+
+#, python-format
+msgid "No puedes bajar al plan %(plan)s: %(problems)s. Reduce el uso y vuelve a intentarlo."
+msgstr ""
+
+msgid "No se pudo cobrar tu suscripción de GALBUST CMMS"
+msgstr ""
+
+#, python-format
+msgid "Mercado Pago rechazó el cobro y lo reintentará. Revisa tu medio de pago: tienes %(days)s días antes de que la organización quede en solo lectura."
+msgstr ""
+
+msgid "Volviste de Mercado Pago. Cuando confirme el pago, el plan se activa solo (puede tardar unos minutos)."
+msgstr ""
+
+msgid "Elige un plan y un período."
+msgstr ""
+
+msgid "Mercado Pago devolvió un enlace no válido."
+msgstr ""
+
+msgid "Elige un plan."
+msgstr ""
+
+msgid "Suscripción cancelada. Sigues con tu plan hasta el fin del período pagado."
+msgstr ""
+
+msgid "Datos de facturación guardados."
+msgstr ""
+
+#, python-format
+msgid "Cambio a %(plan)s programado para el fin del período pagado."
+msgstr ""
+
+#, python-format
+msgid "Tu plan ahora es %(plan)s."
+msgstr ""
+
+msgid "precio mensual (UF)"
+msgstr ""
+
+msgid "activos incluidos en el precio"
+msgstr ""
+
+msgid "activos por bloque adicional"
+msgstr ""
+
+msgid "precio por bloque adicional (UF)"
+msgstr ""
+
+msgid "meses cobrados en el pago anual"
+msgstr ""
+
+msgid "contratable en línea"
+msgstr ""
+
+msgid "descuento (%)"
+msgstr ""
+
+msgid "duración (meses)"
+msgstr ""
+
+msgid "cupón"
+msgstr ""
+
+msgid "cupones"
+msgstr ""
+
+msgid "facturación manual (exenta)"
+msgstr ""
+
+msgid "pagada hasta"
+msgstr ""
+
+msgid "pago pendiente desde"
+msgstr ""
+
+msgid "precio acordado (UF/mes)"
+msgstr ""
+
+msgid "cupón aplicado el"
+msgstr ""
+
+msgid "Aparece en Facturación con checkout. Empresa se cotiza: déjalo apagado."
+msgstr ""
+
+msgid "Sin cobro en línea: no se bloquea por fin de prueba ni por impago."
+msgstr ""
+
+msgid "Precio (ORG-13)"
+msgstr ""
+
+msgid "acceso por facturación"
+msgstr ""
+
+msgid "En UF por mes. Los cobros en curso se actualizan al nuevo precio en la tarea diaria. Empresa: precio de referencia («desde») y contratable solo con precio acordado."
+msgstr ""
+
+msgid "Facturación: prueba, pagos y solo lectura"
+msgstr ""
+
+msgid "Pago"
+msgstr ""
+
+msgid "La organización está en solo lectura por falta de pago: se puede ver y exportar, pero no crear ni editar. Al pagar se reactiva sola."
+msgstr ""
+
+msgid "La organización está en solo lectura por falta de pago: se puede ver y exportar, pero no crear ni editar. Avísale a un administrador."
+msgstr ""
+
+msgid "Pagar"
+msgstr ""
+
+#, python-format
+msgid "No pudimos cobrar tu suscripción. Revisa tu medio de pago: el %(date)s la organización queda en solo lectura."
+msgstr ""
+
+#, python-format
+msgid "Tu prueba terminó. Elige un plan antes del %(date)s o la organización queda en solo lectura."
+msgstr ""
+
+#, python-format
+msgid "Tu período pagado terminó. Paga antes del %(date)s o la organización queda en solo lectura."
+msgstr ""
+
+msgid "Ir a Facturación"
+msgstr ""
+
+#, python-format
+msgid "Tu prueba gratuita termina el %(date)s. Elige un plan para seguir sin cortes."
+msgstr ""
+
+msgid "Elegir plan"
+msgstr ""
+
+msgid "Tu plan"
+msgstr ""
+
+msgid "UF/mes"
+msgstr ""
+
+#, python-format
+msgid "≈ %(clp)s al mes con la UF de hoy"
+msgstr ""
+
+msgid "Estimado en pesos no disponible (sin valor de la UF)."
+msgstr ""
+
+#, python-format
+msgid "Anual: %(total)s UF (pagas %(months)s meses)"
+msgstr ""
+
+#, python-format
+msgid "Incluye %(included)s activos; +%(price)s UF/mes por cada %(block)s adicionales."
+msgstr ""
+
+#, python-format
+msgid "Incluye tu descuento de %(percent)s %%"
+msgstr ""
+
+#, python-format
+msgid "Cambiar a %(plan)s"
+msgstr ""
+
+msgid "Mantener este plan"
+msgstr ""
+
+#, python-format
+msgid "Anual (pagas %(months)s meses)"
+msgstr ""
+
+msgid "Contratar con Mercado Pago"
+msgstr ""
+
+#, python-format
+msgid "Hoy sumas %(blocks)s bloque."
+msgid_plural "Hoy sumas %(blocks)s bloques."
+msgstr[0] ""
+msgstr[1] ""
+msgstr[2] ""
+
+msgid "Facturación manual"
+msgstr ""
+
+msgid "Pago pendiente"
+msgstr ""
+
+#, python-format
+msgid "El pago en línea aún no está activo. Para contratar o cambiar de plan escríbenos a %(email)s."
+msgstr ""
+
+msgid "Cobro"
+msgstr ""
+
+msgid "Facturación manual: lo coordinamos contigo directamente."
+msgstr ""
+
+msgid "Prueba gratuita hasta"
+msgstr ""
+
+msgid "Solo lectura desde"
+msgstr ""
+
+msgid "Eliminación programada: solo lectura."
+msgstr ""
+
+msgid "Pagado hasta"
+msgstr ""
+
+msgid "Suscripción"
+msgstr ""
+
+msgid "Próximo cobro"
+msgstr ""
+
+#, python-format
+msgid "≈ %(clp)s con la UF de hoy"
+msgstr ""
+
+msgid "Cambio programado"
+msgstr ""
+
+#, python-format
+msgid "Pasas a %(plan)s al fin del período pagado."
+msgstr ""
+
+msgid "Descuento"
+msgstr ""
+
+msgid "UF"
+msgstr ""
+
+msgid "Sin valor guardado: no se puede calcular el cobro."
+msgstr ""
+
+msgid "Iniciaste un pago que Mercado Pago aún no confirma."
+msgstr ""
+
+msgid "Completar el pago"
+msgstr ""
+
+msgid "Cancelar la suscripción"
+msgstr ""
+
+msgid "No se renovará. Sigues con tu plan hasta el fin del período pagado; luego la organización queda en solo lectura (tus datos no se borran)."
+msgstr ""
+
+msgid "Cancelar suscripción"
+msgstr ""
+
+msgid "Cómo cobramos"
+msgstr ""
+
+msgid "Los precios están en UF; cada cobro se hace en pesos con la UF del día, redondeado al peso."
+msgstr ""
+
+msgid "Mercado Pago cobra solo cada mes o cada año. Subir de plan rige al instante; bajar, al fin del período pagado."
+msgstr ""
+
+#, python-format
+msgid "Si un cobro falla tienes %(days)s días para regularizarlo; luego la organización queda en solo lectura hasta pagar. Nunca borramos datos por falta de pago."
+msgstr ""
+
+msgid "Aún no emitimos boleta ni factura electrónica: Mercado Pago te envía el comprobante de cada pago."
+msgstr ""
+
+msgid "desde"
+msgstr ""
+
+msgid "Precio a medida según activos, sitios e integraciones: SSO, API y soporte prioritario."
+msgstr ""
+
+#, python-format
+msgid "Cotización plan %(plan)s · %(org)s"
+msgstr ""
+
+msgid "Cotizar"
+msgstr ""
+
+msgid "Datos de facturación"
+msgstr ""
+
+msgid "Guardar datos"
+msgstr ""
+
+msgid "Historial de pagos"
+msgstr ""
+
+msgid "N.º en Mercado Pago"
+msgstr ""
+
+msgid "Aún no hay pagos."
+msgstr ""
+
+msgid "Ir a Configuración"
+msgstr ""
+
+msgid "Facturación y plan"
+msgstr ""
+
+msgid "Tu prueba gratuita termina el 26 oct 2026. Elige un plan para seguir sin cortes."
+msgstr ""
+
+msgid "No pudimos cobrar tu suscripción. Revisa tu medio de pago."
+msgstr ""
+
+msgid "La organización está en solo lectura por falta de pago."
+msgstr ""
+
+msgid "Profesional"
+msgstr ""
+
+msgid "Básico"
+msgstr ""
+
+msgid "Tu plan, el próximo cobro, cambiar o cancelar, datos de facturación e historial de pagos."
+msgstr ""

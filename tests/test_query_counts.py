@@ -1819,3 +1819,34 @@ def test_sso_settings_does_not_grow_with_domains(
     assert _count(client, url) == few
     with django_assert_max_num_queries(20):
         assert client.get(url).status_code == 200
+
+
+def test_billing_page_does_not_grow_with_payments(client, tenant_a, django_assert_max_num_queries):
+    """Facturación (ORG-13): el historial de pagos va paginado y sin N+1."""
+    from apps.billing.models import BillingAccount, Payment
+    from apps.organizations.models import Plan
+
+    plan = Plan.objects.get(code="pro")
+    with tenant_context(tenant_a.org):
+        account = BillingAccount.objects.create(plan=plan)
+
+    def add(n):
+        with tenant_context(tenant_a.org):
+            for _ in range(n):
+                i = Payment.objects.count()
+                Payment.objects.create(
+                    account=account,
+                    provider_payment_id=f"qc-{i}",
+                    status="approved",
+                    amount_clp=1000,
+                    plan=plan,
+                )
+
+    login(client, tenant_a.admin)
+    url = reverse("billing")
+    add(1)
+    few = _count(client, url)
+    add(8)
+    assert _count(client, url) == few
+    with django_assert_max_num_queries(20):
+        assert client.get(url).status_code == 200

@@ -8,6 +8,8 @@ from django.shortcuts import render
 from django.views.decorators.cache import cache_control
 
 from apps.assets.models import Asset, Meter, MeterKind
+from apps.billing.access import Access, BillingStatus
+from apps.billing.models import Payment
 from apps.condition.charts import TrendPoint
 from apps.condition.models import ConditionAlert, ConditionRule
 from apps.condition.selectors import VariableCondition, VariableStatus
@@ -32,6 +34,9 @@ def design_system_view(request):
             "alert_statuses": [ConditionAlert(status=s) for s in ConditionAlert.Status.values],
             "variable_sample": _variable_sample(),
             "assistant_sample": _assistant_sample(),
+            # Facturación (ORG-13): estados de acceso y de pago.
+            "billing_statuses": [BillingStatus(access) for access in Access],
+            "payment_samples": [Payment(status=s) for s in Payment.Status.values],
             "variable_statuses": [
                 VariableCondition(meter=Meter(), status=s)
                 for s in (

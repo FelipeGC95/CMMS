@@ -510,6 +510,28 @@
   <p><span class="badge badge--warning">{% icon 'alert' %}{% translate "Anónima — requiere revisión" %}</span> <span class="badge badge--error">{% icon 'stop' %}{% translate "Reporta equipo detenido" %}</span></p>
 </section>
 
+<section class="card mb-4" aria-labelledby="ds-billing">
+  <h2 id="ds-billing">{% translate "Facturación" %}</h2>
+  <p class="row">{% for status in billing_statuses %}{% include "billing/_status_badge.html" %} {% endfor %}</p>
+  <p class="row">{% for payment in payment_samples %}{% include "billing/_payment_status.html" %} {% endfor %}</p>
+  <div class="alert alert--info action-banner" role="status">{% icon 'clock' %}<span>{% translate "Tu prueba gratuita termina el 26 oct 2026. Elige un plan para seguir sin cortes." %}</span><a class="btn btn--secondary" href="#ds-billing">{% translate "Elegir plan" %}</a></div>
+  <div class="alert alert--warning action-banner" role="status">{% icon 'alert' %}<span>{% translate "No pudimos cobrar tu suscripción. Revisa tu medio de pago." %}</span><a class="btn btn--secondary" href="#ds-billing">{% translate "Ir a Facturación" %}</a></div>
+  <div class="alert alert--error action-banner" role="status">{% icon 'stop' %}<span>{% translate "La organización está en solo lectura por falta de pago." %}</span><a class="btn btn--secondary" href="#ds-billing">{% translate "Pagar" %}</a></div>
+  <div class="plan-options">
+    <article class="plan-option plan-option--current">
+      <div class="plan-option__head"><h3>{% translate "Profesional" %}</h3><span class="badge badge--success">{% icon 'check' %}{% translate "Tu plan" %}</span></div>
+      <p class="plan-option__price"><span class="num">4</span> <span class="plan-option__unit">{% translate "UF/mes" %}</span></p>
+      <p class="muted">≈ $158.000</p>
+    </article>
+    <article class="plan-option">
+      <div class="plan-option__head"><h3>{% translate "Básico" %}</h3></div>
+      <p class="plan-option__price"><span class="num">1,5</span> <span class="plan-option__unit">{% translate "UF/mes" %}</span></p>
+      <p class="muted">≈ $59.250</p>
+      <button class="btn btn--primary btn--block" type="button">{% translate "Contratar con Mercado Pago" %}</button>
+    </article>
+  </div>
+</section>
+
 <section class="card mb-4" aria-labelledby="ds-sso">
   <h2 id="ds-sso">{% translate "Inicio de sesión único" %}</h2>
   <p class="auth__divider">{% translate "o" %}</p>
