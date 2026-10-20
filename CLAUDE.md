@@ -9,7 +9,9 @@ Documentación de diseño en `docs/` (leer antes de cambios grandes):
 01 visión · 02 requisitos (IDs `MOD-NN`) · 03 modelo de datos · 04 arquitectura
 y ADR · 05 roadmap · 06 sistema de diseño · 07 operación (variables de entorno,
 respaldos, checklist de producción) · 08 guía de la API v1 (qué resuelve
-cada endpoint, con ejemplos; actualizarla al cambiar `apps/api`). Si una decisión contradice un ADR,
+cada endpoint, con ejemplos; actualizarla al cambiar `apps/api`) · 09 costos
+de operación, decisiones abiertas (`D-NN`) y pendientes (`P-NN`): al cerrar
+uno, marcarlo ahí. Si una decisión contradice un ADR,
 se actualiza el ADR en el mismo cambio.
 
 ## Stack
