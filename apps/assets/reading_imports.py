@@ -409,7 +409,17 @@ class ReadingImportResult:
 
 
 def apply_reading_import(rows: list[dict], *, membership, source: str) -> ReadingImportResult:
-    """Guarda las filas válidas de una vista previa (en orden de fecha, cada una en su transacción)."""
+    """Guarda las filas válidas de una vista previa (en orden de fecha, cada una en su transacción).
+
+    Un `meter_reading.created` por lectura, despachados en un solo lote al final (X-08).
+    """
+    from apps.webhooks.services import collect_events
+
+    with collect_events():
+        return _apply_reading_import(rows, membership=membership, source=source)
+
+
+def _apply_reading_import(rows: list[dict], *, membership, source: str) -> ReadingImportResult:
     result = ReadingImportResult()
     meters = {
         str(m.pk): m

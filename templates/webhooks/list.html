@@ -4,11 +4,17 @@
 <div class="page-header">
   <div>
     <h1>{% translate "Webhooks" %}</h1>
-    <p class="muted">{% translate "Avisan al instante a otro sistema (ERP, chat, BI) cuando se crea o completa una OT o llega una solicitud." %} <a href="{% url 'api_docs' %}">{% translate "Documentación de la API" %}</a></p>
+    <p class="muted">{% translate "Avisan al instante a otro sistema (ERP, chat, BI) de lo que pasa en el CMMS: OT, solicitudes, activos, lecturas, alertas de condición e inventario." %} <a href="{% url 'api_docs' %}">{% translate "Documentación de la API" %}</a></p>
   </div>
 </div>
 
 <div class="grid grid--2">
+  {% if billing_status.read_only %}
+  <section class="card">
+    <h2>{% translate "Nuevo webhook" %}</h2>
+    <p class="muted">{% translate "La organización está en solo lectura: no se crean webhooks hasta regularizar el pago. Los activos siguen avisando." %}</p>
+  </section>
+  {% else %}
   <section class="card">
     <h2>{% translate "Nuevo webhook" %}</h2>
     <form method="post">
@@ -17,12 +23,14 @@
       <button class="btn btn--primary" type="submit">{% icon 'bell' %}{% translate "Crear webhook" %}</button>
     </form>
   </section>
+  {% endif %}
   <section class="card">
     <h2>{% translate "Cómo funciona" %}</h2>
     <ul class="stack">
       <li class="muted">{% translate "Cada evento llega como POST con JSON y la cabecera X-Galbust-Signature (HMAC-SHA256 con el secreto del webhook)." %}</li>
       <li class="muted">{% translate "Si tu sistema no responde 2xx en 5 segundos se reintenta hasta 5 veces." %}</li>
       <li class="muted">{% translate "Tras 5 eventos fallidos seguidos el webhook se desactiva y avisamos a los administradores." %}</li>
+      <li class="muted">{% translate "Una entrega fallida se puede reenviar a mano desde su detalle, con el mismo ID de evento. Las entregas de más de 90 días se borran solas." %}</li>
     </ul>
   </section>
 </div>

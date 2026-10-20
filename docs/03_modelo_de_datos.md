@@ -75,14 +75,24 @@ Tablas de django‑allauth para verificación de correo y MFA. El SSO (ORG-11) n
 `UNIQUE (organization_id)`. Se crea al confirmar el autoregistro con `started_at` vacío (el inicio lleva al asistente) o al abrirlo desde Configuración. Implementado como `onboarding.OnboardingState`.
 
 **`api_token`**
-`organization_id` · `name` · `prefix` (visible) · `token_hash` · `scope` (read, write) · `service_user_id` · `created_by_id` · `last_used_at` · `expires_at` · `revoked_at`.
+`organization_id` · `name` · `prefix` (visible) · `token_hash` · `scopes JSONB` (lista: `assets:read`, `inventory:write`, `*:read`…) · `service_user_id` · `created_by_id` · `last_used_at` · `expires_at` · `revoked_at`.
 > Implementado como `api.ApiToken` (X-05). El token completo (`gbt_<prefix>_<secreto>`)
 > se muestra una sola vez; se guarda su SHA-256 (`UNIQUE`) y el `prefix` (`UNIQUE`).
-> En vez de un arreglo de alcances hay un único `scope`: `read` (solo GET) o `write`.
+> Alcances por grupo de endpoints (`assets`, `meters`, `work_orders`, `requests`,
+> `inventory`, `condition`) con `:read` o `:write`, y `*:read` / `*:write` para todos
+> (ADR-034). La migración `api/0003` convirtió el `scope` anterior: `read` →
+> `["*:read"]`, `write` → `["*:read", "*:write"]`.
 > `service_user_id` (1:1) es un usuario técnico inactivo, sin clave ni membresía
 > (`api-<prefix>@api.galbust.invalid`), al que se atribuyen OT, lecturas y la
 > auditoría (`actor_type = api_token`). La búsqueda por hash usa `all_tenants`
 > porque la organización se deduce del token. Índice `(organization_id, created_at DESC)`.
+
+**`webhook_endpoint`** (X-08, ADR-030)
+`organization_id` · `name` · `url` (https pública) · `secret` (`whsec_…`, en claro: se necesita para firmar; nunca va a la auditoría ni a la exportación) · `secret_rotated_at` (última regeneración) · `events JSONB` (códigos de evento suscritos) · `is_active` · `consecutive_failures` · `disabled_at` (desactivado por fallas) · `created_by_id`. Índice `(organization_id, created_at DESC)`. Sin borrado físico: se desactiva.
+
+**`webhook_delivery`** (X-08, ADR-030)
+`organization_id` · `endpoint_id` · `event_id` (UUID del evento; idempotencia del receptor) · `event_type` · `payload JSONB` (cuerpo enviado) · `status` (pending, succeeded, failed) · `attempts` · `response_status` · `response_body` (primeros 1.000 caracteres de la respuesta) · `last_error` · `last_attempt_at` · `next_attempt_at` · `delivered_at` · `is_redelivery` · `redelivery_of_id` (entrega original de un reenvío manual; `SET NULL`) · `created_by_id` (quien reenvió).
+`UNIQUE (organization_id, endpoint_id, event_id) WHERE NOT is_redelivery` (un reenvío manual repite el `event_id`). Índices `(organization_id, endpoint_id, created_at DESC)` y `(organization_id, created_at)` (purga). Registro operativo: las entregas terminadas de más de 90 días se borran (docs/07, 3j).
 
 **`coupon`** (plataforma, sin tenant; ORG-13) — descuento que el superadmin aplica a una organización.
 `code` (único) · `name` · `percent_off` (1–100) · `duration_months` (null = mientras siga aplicado) · `is_active`.

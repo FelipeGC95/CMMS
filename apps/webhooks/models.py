@@ -8,12 +8,44 @@ from apps.core.models import TenantModel
 
 class Event(models.TextChoices):
     WORK_ORDER_CREATED = "work_order.created", _("OT creada")
+    WORK_ORDER_STATUS_CHANGED = "work_order.status_changed", _("OT cambió de estado")
     WORK_ORDER_COMPLETED = "work_order.completed", _("OT completada")
     WORK_REQUEST_CREATED = "work_request.created", _("Solicitud creada")
+    ASSET_CREATED = "asset.created", _("Activo creado")
+    ASSET_UPDATED = "asset.updated", _("Activo editado")
+    ASSET_STATUS_CHANGED = "asset.status_changed", _("Activo cambió de estado")
+    METER_READING_CREATED = "meter_reading.created", _("Lectura registrada")
+    CONDITION_ALERT_OPENED = "condition_alert.opened", _("Alerta de condición abierta")
+    CONDITION_ALERT_ACKNOWLEDGED = "condition_alert.acknowledged", _("Alerta de condición reconocida")
+    CONDITION_ALERT_NORMALIZED = "condition_alert.normalized", _("Alerta de condición normalizada")
+    CONDITION_ALERT_CLOSED = "condition_alert.closed", _("Alerta de condición cerrada")
+    PART_BELOW_MINIMUM = "part.below_minimum", _("Repuesto bajo mínimo")
+    STOCK_MOVEMENT_CREATED = "stock_movement.created", _("Movimiento de stock")
+
+
+# Módulo del plan que necesita cada evento, además de `api` (sin él no se ofrece ni se envía).
+EVENT_MODULES = {
+    Event.WORK_ORDER_CREATED: "work_orders",
+    Event.WORK_ORDER_STATUS_CHANGED: "work_orders",
+    Event.WORK_ORDER_COMPLETED: "work_orders",
+    Event.WORK_REQUEST_CREATED: "requests",
+    Event.ASSET_CREATED: "assets",
+    Event.ASSET_UPDATED: "assets",
+    Event.ASSET_STATUS_CHANGED: "assets",
+    Event.METER_READING_CREATED: "assets",
+    Event.CONDITION_ALERT_OPENED: "condition",
+    Event.CONDITION_ALERT_ACKNOWLEDGED: "condition",
+    Event.CONDITION_ALERT_NORMALIZED: "condition",
+    Event.CONDITION_ALERT_CLOSED: "condition",
+    Event.PART_BELOW_MINIMUM: "inventory",
+    Event.STOCK_MOVEMENT_CREATED: "inventory",
+}
 
 
 # Evento de "Enviar prueba": no se suscribe, solo se manda a pedido a un destino.
 TEST_EVENT = "webhook.test"
+# Lo que se guarda de la respuesta del receptor (para el detalle de la entrega).
+RESPONSE_BODY_LIMIT = 1000
 
 
 class WebhookEndpoint(TenantModel):
@@ -28,6 +60,7 @@ class WebhookEndpoint(TenantModel):
     secret = models.CharField(_("secreto"), max_length=80, editable=False)
     events = models.JSONField(_("eventos"), default=list)
     is_active = models.BooleanField(_("activo"), default=True)
+    secret_rotated_at = models.DateTimeField(_("secreto regenerado"), null=True, blank=True)
     consecutive_failures = models.PositiveIntegerField(_("entregas fallidas seguidas"), default=0)
     disabled_at = models.DateTimeField(_("desactivado automáticamente"), null=True, blank=True)
     created_by = models.ForeignKey(
@@ -53,7 +86,11 @@ class WebhookEndpoint(TenantModel):
 
 
 class WebhookDelivery(TenantModel):
-    """Un evento enviado (o por enviar) a un destino. Los reintentos reutilizan la fila."""
+    """Un evento enviado (o por enviar) a un destino. Los reintentos reutilizan la fila.
+
+    Reenviar a mano crea otra fila con el mismo `event_id` (idempotencia del receptor) y
+    `redelivery_of` apuntando a la original. Las de más de 90 días se purgan (docs/07).
+    """
 
     class Status(models.TextChoices):
         PENDING = "pending", _("Pendiente")
@@ -69,10 +106,28 @@ class WebhookDelivery(TenantModel):
     status = models.CharField(_("estado"), max_length=12, choices=Status.choices, default=Status.PENDING)
     attempts = models.PositiveSmallIntegerField(_("intentos"), default=0)
     response_status = models.PositiveSmallIntegerField(_("código HTTP"), null=True, blank=True)
+    response_body = models.CharField(_("respuesta"), max_length=RESPONSE_BODY_LIMIT, blank=True)
     last_error = models.CharField(_("último error"), max_length=300, blank=True)
     last_attempt_at = models.DateTimeField(_("último intento"), null=True, blank=True)
     next_attempt_at = models.DateTimeField(_("próximo intento"), null=True, blank=True)
     delivered_at = models.DateTimeField(_("entregado"), null=True, blank=True)
+    is_redelivery = models.BooleanField(_("reenvío manual"), default=False)
+    redelivery_of = models.ForeignKey(
+        "self",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="redeliveries",
+        verbose_name=_("reenvío de"),
+    )
+    created_by = models.ForeignKey(
+        "accounts.User",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+        verbose_name=_("reenviado por"),
+    )
 
     class Meta:
         verbose_name = _("entrega de webhook")
@@ -82,10 +137,14 @@ class WebhookDelivery(TenantModel):
             models.Index(
                 fields=["organization", "endpoint", "-created_at"], name="webhook_delivery_endpoint"
             ),
+            models.Index(fields=["organization", "created_at"], name="webhook_delivery_created"),
         ]
         constraints = [
+            # Un evento llega una vez por destino; los reenvíos manuales repiten el `event_id`.
             models.UniqueConstraint(
-                fields=["organization", "endpoint", "event_id"], name="uniq_webhook_delivery_event"
+                fields=["organization", "endpoint", "event_id"],
+                condition=models.Q(is_redelivery=False),
+                name="uniq_webhook_delivery_event",
             )
         ]
 

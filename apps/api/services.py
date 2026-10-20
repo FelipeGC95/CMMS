@@ -4,6 +4,7 @@ import datetime
 import hashlib
 import secrets
 
+from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.utils import timezone
 from django.utils.translation import gettext as _
@@ -40,11 +41,12 @@ from apps.work.services import (
 )
 
 from .models import ApiIdempotencyKey, ApiToken
+from .scopes import LEGACY_SCOPES, clean_scopes
 
 TOKEN_PREFIX = "gbt_"
 # Rol con que actúa un token: escribe como planificador (activos, lecturas, OT y
 # solicitudes), nunca administra equipo, auditoría, configuración ni otros tokens.
-# El alcance "read" además limita la API a métodos de lectura (framework.HasTokenScope).
+# Los alcances del token además limitan qué grupos de endpoints lee o escribe (framework.HasTokenScope).
 SERVICE_ROLE = Membership.Role.PLANNER
 # Actualizar "último uso" como mucho una vez por minuto: evita una escritura por petición.
 LAST_USED_RESOLUTION = datetime.timedelta(minutes=1)
@@ -54,12 +56,30 @@ def hash_token(raw: str) -> str:
     return hashlib.sha256(raw.encode()).hexdigest()
 
 
+class TokenError(ValidationError):
+    pass
+
+
 @transaction.atomic
 def create_token(
-    *, membership, name: str, scope: str, expires_at: datetime.datetime | None = None
+    *,
+    membership,
+    name: str,
+    scopes=None,
+    scope: str | None = None,
+    expires_at: datetime.datetime | None = None,
 ) -> tuple[ApiToken, str]:
-    """Crea el token y devuelve (token, valor completo). El valor no se vuelve a mostrar."""
+    """Crea el token y devuelve (token, valor completo). El valor no se vuelve a mostrar.
+
+    `scopes`: alcances por recurso (`apps.api.scopes`); `scope` ("read" o "write") es el
+    atajo del alcance general de antes (`*:read`, o `*:read` + `*:write`).
+    """
     require_perm(membership, Perm.API_TOKEN_MANAGE)
+    if scope is not None:
+        scopes = [*(scopes or ()), *LEGACY_SCOPES[scope]]
+    scopes = clean_scopes(scopes)
+    if not scopes:
+        raise TokenError(_("Elige al menos un alcance."))
     prefix = secrets.token_hex(4)
     raw = f"{TOKEN_PREFIX}{prefix}_{secrets.token_urlsafe(32)}"
     service_user = User.objects.create_user(
@@ -70,7 +90,7 @@ def create_token(
     )
     token = ApiToken.objects.create(
         name=name.strip(),
-        scope=scope,
+        scopes=scopes,
         prefix=prefix,
         token_hash=hash_token(raw),
         service_user=service_user,
@@ -81,7 +101,7 @@ def create_token(
         action=AuditEvent.Action.CREATE,
         target=token,
         membership=membership,
-        changes={"name": token.name, "scope": scope, "prefix": prefix, "expires_at": expires_at},
+        changes={"name": token.name, "scopes": scopes, "prefix": prefix, "expires_at": expires_at},
     )
     return token, raw
 

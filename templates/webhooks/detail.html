@@ -7,32 +7,59 @@
     <h1>{{ endpoint.name }}</h1>
     <p class="muted mono">{{ endpoint.url }}</p>
   </div>
+  {% if not billing_status.read_only %}
   <form method="post" action="{% url 'webhook_test' endpoint.pk %}">
     {% csrf_token %}
     <button class="btn btn--secondary" type="submit"{% if not endpoint.is_active %} disabled{% endif %}>{% icon 'play' %}{% translate "Enviar prueba" %}</button>
   </form>
+  {% endif %}
 </div>
+
+{% if new_secret %}
+<div class="alert alert--success" role="status">{% icon 'check' %}<span>
+  <strong>{% translate "Secreto regenerado. El anterior dejó de valer: actualízalo ahora en tu sistema." %}</strong><br>
+  <code class="mono secret-value">{{ new_secret }}</code>
+</span></div>
+{% endif %}
 
 {% if endpoint.disabled_at and not endpoint.is_active %}
 <div class="alert alert--error" role="alert">{% icon 'stop' %}<span>{% blocktranslate with when=endpoint.disabled_at|date:"d-m-Y H:i" failures=endpoint.consecutive_failures %}Desactivado el {{ when }} tras {{ failures }} eventos fallidos seguidos. Revisa la URL y vuelve a activarlo.{% endblocktranslate %}</span></div>
 {% endif %}
 
 <div class="grid grid--2">
+  {% if billing_status.read_only %}
+  <section class="card">
+    <h2>{% translate "Eventos" %}</h2>
+    <p>{{ endpoint.event_labels|join:", " }}</p>
+    <p class="muted">{% translate "La organización está en solo lectura: el webhook no se edita hasta regularizar el pago." %}</p>
+  </section>
+  {% else %}
   <section class="card">
     <h2>{% translate "Editar" %}</h2>
-    <form method="post">
+    <form method="post" action="{% url 'webhook_detail' endpoint.pk %}">
       {% csrf_token %}
       {% include "_form_fields.html" with form=form %}
       <button class="btn btn--primary" type="submit">{% icon 'check' %}{% translate "Guardar" %}</button>
     </form>
   </section>
+  {% endif %}
   <section class="card">
     <h2>{% translate "Secreto de firma" %}</h2>
     <p class="muted">{% translate "Úsalo en tu sistema para verificar la cabecera X-Galbust-Signature. No lo compartas." %}</p>
+    {% if not new_secret %}
     <details>
       <summary>{% translate "Mostrar secreto" %}</summary>
-      <code class="mono">{{ endpoint.secret }}</code>
+      <code class="mono secret-value">{{ endpoint.secret }}</code>
     </details>
+    {% endif %}
+    {% if endpoint.secret_rotated_at %}<p class="muted">{% blocktranslate with when=endpoint.secret_rotated_at|date:"d-m-Y H:i" %}Regenerado el {{ when }}.{% endblocktranslate %}</p>{% endif %}
+    {% if not billing_status.read_only %}
+    <form method="post" action="{% url 'webhook_secret' endpoint.pk %}" class="mt-4">
+      {% csrf_token %}
+      <p class="muted">{% translate "Si el secreto se filtró, genera uno nuevo: el anterior deja de valer de inmediato y las entregas siguientes se firman con el nuevo." %}</p>
+      <button class="btn btn--secondary" type="submit">{% icon 'key' %}{% translate "Regenerar secreto" %}</button>
+    </form>
+    {% endif %}
   </section>
 </div>
 
@@ -40,16 +67,17 @@
 {% if page.object_list %}
 <div class="card card--flush">
   <table class="table">
-    <thead><tr><th>{% translate "Evento" %}</th><th>{% translate "Fecha" %}</th><th>{% translate "Estado" %}</th><th>{% translate "Intentos" %}</th><th>{% translate "Código HTTP" %}</th><th>{% translate "Último error" %}</th></tr></thead>
+    <thead><tr><th>{% translate "Evento" %}</th><th>{% translate "Fecha" %}</th><th>{% translate "Estado" %}</th><th>{% translate "Intentos" %}</th><th>{% translate "Código HTTP" %}</th><th>{% translate "Último error" %}</th><th><span class="visually-hidden">{% translate "Detalle" %}</span></th></tr></thead>
     <tbody>
       {% for delivery in page.object_list %}
       <tr>
-        <td data-label="">{{ delivery.event_label }}<div class="muted mono">{{ delivery.event_type }}</div></td>
+        <td data-label="">{{ delivery.event_label }}<div class="muted mono">{{ delivery.event_type }}</div>{% if delivery.is_redelivery %}<div class="muted">{% translate "Reenvío manual" %}</div>{% endif %}</td>
         <td class="num" data-label="{% translate 'Fecha' %}">{{ delivery.created_at|date:"d-m-Y H:i" }}</td>
         <td data-label="{% translate 'Estado' %}">{% status_badge delivery %}{% if delivery.next_attempt_at %}<div class="muted">{% blocktranslate with when=delivery.next_attempt_at|date:"H:i" %}Reintento a las {{ when }}{% endblocktranslate %}</div>{% endif %}</td>
         <td class="num" data-label="{% translate 'Intentos' %}">{{ delivery.attempts }}</td>
         <td class="num" data-label="{% translate 'Código HTTP' %}">{{ delivery.response_status|default:"—" }}</td>
         <td data-label="{% translate 'Último error' %}">{{ delivery.last_error|default:"—" }}</td>
+        <td data-label=""><a class="btn btn--ghost" href="{% url 'webhook_delivery' endpoint.pk delivery.pk %}">{% translate "Ver detalle" %}</a></td>
       </tr>
       {% endfor %}
     </tbody>

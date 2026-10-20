@@ -72,7 +72,9 @@ Proveedor de correo (SMTP, ambos con plan gratuito para empezar):
     `python manage.py billing_daily` desde un cron diario;
   - lunes 09:00 UTC, `inventory.enqueue_reconciliation`: una tarea por
     organización activa que compara el stock con el libro de movimientos,
-    sin corregir (INV-14, sección 3e).
+    sin corregir (INV-14, sección 3e);
+  - 08:30 UTC, `webhooks.enqueue_purge`: una tarea por organización que borra
+    las entregas de webhook terminadas de más de 90 días (X-08, sección 3j).
 
   Además atiende las colas de tareas a pedido (`email`, `documents`,
   `notifications`, `assistant`…). El worker por defecto escucha todas; si los
@@ -383,6 +385,29 @@ organizaciones: admin → *Pagos* (solo lectura).
 
 **SII:** GALBUST aún no emite boleta ni factura electrónica; Mercado Pago envía su
 comprobante de cada pago. La puesta en marcha (pago único) se cobra por fuera.
+
+## 3j. Webhooks salientes: entregas y purga (X-08, ADR-030)
+
+- **Con worker** (`WEBHOOKS_USE_QUEUE=1`): cada entrega es una tarea
+  `webhooks.deliver` (cola `webhooks`) con hasta 5 intentos. Las importaciones
+  masivas (Excel de activos, CSV de lecturas, `/readings/bulk/`) encolan sus
+  eventos en tareas `webhooks.dispatch_events` de hasta 500 eventos: la
+  importación no espera los envíos. Sin worker se intentan solo las primeras 20
+  entregas del lote; el resto queda «fallida» y el administrador puede
+  reenviarla desde el detalle de la entrega.
+- **Purga:** las entregas entregadas o fallidas de más de **90 días** se borran
+  cada día a las 08:30 UTC (`webhooks.enqueue_purge`, una tarea
+  `webhooks.purge_deliveries` por organización). Las pendientes no se tocan. Sin
+  worker, programar un cron diario:
+  `python manage.py purge_webhook_deliveries` (opciones `--organization <slug>`
+  y `--days N`, por defecto 90). Es un registro operativo: se borra de verdad y
+  no hay respaldo aparte (los respaldos diarios de la base sí lo incluyen).
+- **Secreto filtrado:** el administrador usa «Regenerar secreto» en la pantalla
+  del webhook; el anterior deja de valer de inmediato (avisar al dueño del
+  sistema receptor antes). Queda en la auditoría sin el valor.
+- **Receptor caído:** tras 5 eventos fallidos seguidos el destino se desactiva y
+  se avisa a los administradores; al reactivarlo, las entregas fallidas que
+  importen se reenvían a mano (mismo `event_id`: el receptor no las duplica).
 
 ## 4. Checklist para activar producción
 
