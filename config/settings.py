@@ -236,7 +236,7 @@ REST_FRAMEWORK = {
     },
     "DEFAULT_PAGINATION_CLASS": "apps.api.framework.Pagination",
     "DEFAULT_RENDERER_CLASSES": ["rest_framework.renderers.JSONRenderer"],
-    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+    "DEFAULT_SCHEMA_CLASS": "apps.api.schema.ScopedAutoSchema",
     "EXCEPTION_HANDLER": "apps.api.exceptions.exception_handler",
     "UNAUTHENTICATED_USER": None,
 }

@@ -40,17 +40,20 @@ def test_token_screen_is_admin_only(client, tenant_a, role):
     member.save()
     login(client, member)
     assert client.get(reverse("api_token_list")).status_code == 403
-    assert client.post(reverse("api_token_list"), {"name": "x", "scope": "write"}).status_code == 403
+    assert client.post(reverse("api_token_list"), {"name": "x", "scopes": ["*:write"]}).status_code == 403
     assert client.post(reverse("api_token_revoke", args=[token.pk])).status_code == 403
 
 
 def test_admin_creates_token_shown_once_and_revokes(client, tenant_a):
     login(client, tenant_a.admin)
-    response = client.post(reverse("api_token_list"), {"name": "ERP", "scope": "read", "expires_in": "30"})
+    response = client.post(
+        reverse("api_token_list"),
+        {"name": "ERP", "scopes": ["assets:read", "inventory:write"], "expires_in": "30"},
+    )
     raw = response.context["raw_token"]
     assert raw and raw in response.content.decode()
     token = ApiToken.all_tenants.get()
-    assert token.expires_at is not None and token.scope == "read"
+    assert token.expires_at is not None and token.scopes == ["assets:read", "inventory:write"]
     assert raw not in client.get(reverse("api_token_list")).content.decode()
     assert reverse("api_token_list") in client.get(reverse("menu")).content.decode()
     client.post(reverse("api_token_revoke", args=[token.pk]))
@@ -67,7 +70,8 @@ def test_read_scope_cannot_write(tenant_a):
         "/api/v1/requests/", {"description": "x", "asset": str(tenant_a.asset.pk)}, format="json"
     )
     assert response.status_code == 403
-    assert response.json()["error"]["code"] == "permission_denied"
+    assert response.json()["error"]["code"] == "insufficient_scope"
+    assert response.json()["error"]["details"] == {"required_scope": "requests:write"}
     assert client.post("/api/v1/readings/bulk/", {"rows": []}, format="json").status_code == 403
 
 
@@ -131,7 +135,7 @@ def test_read_scope_cannot_complete_or_answer(tenant_a):
         item = WorkOrderChecklistItem.objects.create(work_order=wo, text="x", item_type="check")
     client = api_client(tenant_a, "read")
     response = client.post(f"/api/v1/work-orders/{wo.pk}/complete/", {"labor_minutes": 5}, format="json")
-    assert response.status_code == 403 and response.json()["error"]["code"] == "permission_denied"
+    assert response.status_code == 403 and response.json()["error"]["code"] == "insufficient_scope"
     url = f"/api/v1/work-orders/{wo.pk}/checklist-items/{item.pk}/answer/"
     assert client.post(url, {"result": "ok"}).status_code == 403
     with tenant_context(tenant_a.org):

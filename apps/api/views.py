@@ -13,8 +13,10 @@ from django.views.decorators.http import require_POST
 
 from apps.accounts.permissions import Perm
 from apps.core.decorators import membership_required
+from apps.organizations.modules import has_module
 
 from .models import ApiToken
+from .scopes import ALL, ALL_READ, READ, SCOPE_GROUPS, WRITE
 from .services import create_token, revoke_token
 
 EXPIRY_CHOICES = [
@@ -25,12 +27,44 @@ EXPIRY_CHOICES = [
 ]
 
 
+def _scope_choices():
+    groups = [(ALL, _("Todo (también lo que se agregue a la API)"))] + [
+        (g.key, g.label) for g in SCOPE_GROUPS
+    ]
+    return [(f"{key}:{mode}", f"{label} · {mode}") for key, label in groups for mode in (READ, WRITE)]
+
+
 class ApiTokenForm(forms.Form):
     name = forms.CharField(
         label=_("Nombre"), max_length=80, help_text=_("Para reconocerlo, p. ej. «ERP» o «Telemetría».")
     )
-    scope = forms.ChoiceField(label=_("Alcance"), choices=ApiToken.Scope.choices, initial=ApiToken.Scope.READ)
+    scopes = forms.MultipleChoiceField(
+        label=_("Alcances"),
+        choices=_scope_choices,
+        initial=[ALL_READ],
+        widget=forms.CheckboxSelectMultiple,
+        error_messages={"required": _("Elige al menos un alcance.")},
+    )
     expires_in = forms.ChoiceField(label=_("Vence"), choices=EXPIRY_CHOICES, required=False)
+
+
+def scope_rows(form, organization) -> list[dict]:
+    """Filas de la matriz de alcances: el grupo y sus casillas de lectura y escritura.
+
+    Los grupos de módulos que el plan no incluye no se ofrecen.
+    """
+    widgets = {widget.data["value"]: widget for widget in form["scopes"]}
+    groups = [(ALL, _("Todo"), _("Todos los recursos, también los que se agreguen a la API."))]
+    groups += [(g.key, g.label, "") for g in SCOPE_GROUPS if has_module(organization, g.module)]
+    return [
+        {
+            "label": label,
+            "help": help_text,
+            "read": widgets[f"{key}:{READ}"],
+            "write": widgets[f"{key}:{WRITE}"],
+        }
+        for key, label, help_text in groups
+    ]
 
 
 @membership_required(perm=Perm.API_TOKEN_MANAGE)
@@ -42,7 +76,7 @@ def api_token_list_view(request):
         _token, raw_token = create_token(
             membership=request.membership,
             name=form.cleaned_data["name"],
-            scope=form.cleaned_data["scope"],
+            scopes=form.cleaned_data["scopes"],
             expires_at=timezone.now() + datetime.timedelta(days=int(days)) if days else None,
         )
         form = ApiTokenForm()
@@ -51,7 +85,13 @@ def api_token_list_view(request):
     return render(
         request,
         "api/token_list.html",
-        {"form": form, "page": page, "raw_token": raw_token, "now": timezone.now()},
+        {
+            "form": form,
+            "scope_rows": scope_rows(form, request.organization),
+            "page": page,
+            "raw_token": raw_token,
+            "now": timezone.now(),
+        },
     )
 
 

@@ -16,23 +16,52 @@
 </span></div>
 {% endif %}
 
+{% if billing_status.read_only %}
+<p class="muted">{% translate "La organización está en solo lectura: no se crean ni revocan tokens hasta regularizar el pago. Los tokens vigentes siguen leyendo." %}</p>
+{% else %}
 <div class="grid grid--2">
   <section class="card">
     <h2>{% translate "Nuevo token" %}</h2>
     <form method="post">
       {% csrf_token %}
-      {% include "_form_fields.html" with form=form %}
+      {% for error in form.non_field_errors %}<div class="alert alert--error" role="alert">{% icon 'stop' %}<span>{{ error }}</span></div>{% endfor %}
+      <div class="field">
+        <label for="{{ form.name.id_for_label }}">{{ form.name.label }} *</label>
+        {{ form.name }}
+        <span class="help">{{ form.name.help_text }}</span>
+        {% for error in form.name.errors %}<span class="error">{% icon 'stop' %}{{ error }}</span>{% endfor %}
+      </div>
+      <fieldset class="scope-matrix">
+        <legend>{% translate "Alcances" %} *</legend>
+        <span class="help">{% translate "Qué puede leer o escribir el token. Escribir incluye leer." %}</span>
+        {% for row in scope_rows %}
+        <div class="scope-matrix__row">
+          <div class="scope-matrix__label">{{ row.label }}{% if row.help %}<span class="help">{{ row.help }}</span>{% endif %}</div>
+          <label class="check-group__option" for="{{ row.read.id_for_label }}">{{ row.read.tag }}<span>{% translate "Lectura" %}</span></label>
+          <label class="check-group__option" for="{{ row.write.id_for_label }}">{{ row.write.tag }}<span>{% translate "Escritura" %}</span></label>
+        </div>
+        {% endfor %}
+        {% for error in form.scopes.errors %}<span class="error">{% icon 'stop' %}{{ error }}</span>{% endfor %}
+      </fieldset>
+      <div class="field">
+        <label for="{{ form.expires_in.id_for_label }}">{{ form.expires_in.label }}</label>
+        {{ form.expires_in }}
+        {% for error in form.expires_in.errors %}<span class="error">{% icon 'stop' %}{{ error }}</span>{% endfor %}
+      </div>
       <button class="btn btn--primary" type="submit">{% icon 'key' %}{% translate "Crear token" %}</button>
     </form>
   </section>
   <section class="card">
     <h2>{% translate "Alcances" %}</h2>
     <ul class="stack">
-      <li><strong>{% translate "Solo lectura" %}</strong>: <span class="muted">{% translate "consulta activos, medidores, lecturas, OT y solicitudes." %}</span></li>
-      <li><strong>{% translate "Lectura y escritura" %}</strong>: <span class="muted">{% translate "además crea y edita activos, registra lecturas, crea OT, cambia su estado y crea solicitudes, con los permisos de un planificador." %}</span></li>
+      <li><strong>{% translate "Lectura" %}</strong>: <span class="muted">{% translate "consulta los recursos del grupo (GET)." %}</span></li>
+      <li><strong>{% translate "Escritura" %}</strong>: <span class="muted">{% translate "además crea y modifica (POST y PATCH), con los permisos de un planificador." %}</span></li>
+      <li><strong>{% translate "Todo" %}</strong>: <span class="muted">{% translate "vale para todos los grupos, también los que se agreguen a la API. Los tokens creados antes de los alcances por recurso quedaron así." %}</span></li>
+      <li class="muted">{% translate "Sin el alcance, la API responde 403 «insufficient_scope» e indica cuál falta." %}</li>
     </ul>
   </section>
 </div>
+{% endif %}
 
 <h2>{% translate "Tokens" %}</h2>
 {% if page.object_list %}
@@ -44,7 +73,7 @@
       <tr>
         <td data-label="">{{ token.name }}<div class="muted">{% blocktranslate with who=token.created_by|default:"—" when=token.created_at|date:"d-m-Y" %}Creado por {{ who }} el {{ when }}{% endblocktranslate %}</div></td>
         <td class="mono" data-label="{% translate 'Prefijo' %}">{{ "gbt_" }}{{ token.prefix }}…</td>
-        <td data-label="{% translate 'Alcance' %}">{{ token.get_scope_display }}</td>
+        <td data-label="{% translate 'Alcance' %}">{{ token.scope_labels|join:", " }}</td>
         <td class="num" data-label="{% translate 'Último uso' %}">{{ token.last_used_at|date:"d-m-Y H:i"|default:_("Nunca") }}</td>
         <td class="num" data-label="{% translate 'Vence' %}">{{ token.expires_at|date:"d-m-Y"|default:_("Nunca") }}</td>
         <td data-label="">
@@ -53,7 +82,7 @@
           {% else %}<span class="badge badge--success">{% icon 'check' %}{% translate "Activo" %}</span>{% endif %}
         </td>
         <td data-label="">
-          {% if not token.revoked_at %}
+          {% if not token.revoked_at and not billing_status.read_only %}
           <form method="post" action="{% url 'api_token_revoke' token.pk %}">
             {% csrf_token %}
             <button class="btn btn--ghost" type="submit">{% translate "Revocar" %}</button>
