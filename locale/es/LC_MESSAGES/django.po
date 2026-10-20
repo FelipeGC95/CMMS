@@ -11726,7 +11726,7 @@ msgstr ""
 msgid "Cualquiera avisa una falla desde el celular o escaneando el QR del equipo."
 msgstr ""
 
-msgid "Backlog, preventivo vs. correctivo, costos y Pareto de fallas, con exportación."
+msgid "Backlog, preventivo vs. correctivo, costos por activo y Pareto de fallas."
 msgstr ""
 
 msgid "Conecta tu ERP u otros sistemas con la API y avisos por webhook."

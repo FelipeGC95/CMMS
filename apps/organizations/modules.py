@@ -42,7 +42,7 @@ MODULE_DESCRIPTIONS = {
     "work_orders": gettext_lazy("Crea, asigna y cierra OT desde el computador o el teléfono."),
     "preventive": gettext_lazy("Planes por fecha o por uso que generan solos las OT a tiempo."),
     "requests": gettext_lazy("Cualquiera avisa una falla desde el celular o escaneando el QR del equipo."),
-    "kpis": gettext_lazy("Backlog, preventivo vs. correctivo, costos y Pareto de fallas, con exportación."),
+    "kpis": gettext_lazy("Backlog, preventivo vs. correctivo, costos por activo y Pareto de fallas."),
     "api": gettext_lazy("Conecta tu ERP u otros sistemas con la API y avisos por webhook."),
     "exports": gettext_lazy("Descarga listas en Excel y fichas de activos y OT en PDF."),
     "sso": gettext_lazy("Tu equipo entra con la cuenta de la empresa, sin otra contraseña."),
