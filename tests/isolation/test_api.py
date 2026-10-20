@@ -171,3 +171,20 @@ def test_csv_import_does_not_see_other_organization_assets(client, tenant_a, b_d
     csv.name = "l.csv"
     response = client.post(reverse("reading_import"), {"file": csv})
     assert response.context["counts"] == {"create": 0, "duplicate": 0, "error": 1}
+
+
+def test_scoped_token_of_a_never_reads_b(tenant_a, tenant_b):
+    """Un token con alcance de inventario de A no ve repuestos de B (alcance ≠ organización)."""
+    from rest_framework.test import APIClient
+
+    from apps.api.services import create_token
+    from apps.inventory.services import create_part
+
+    with tenant_context(tenant_b.org):
+        create_part(membership=tenant_b.admin, code="SECRETO-B", name="Repuesto de B")
+    with tenant_context(tenant_a.org):
+        _token, raw = create_token(membership=tenant_a.admin, name="ERP", scopes=["inventory:write"])
+    client = APIClient()
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {raw}")
+    assert client.get("/api/v1/parts/").json()["count"] == 0
+    assert client.get("/api/v1/parts/", {"code": "SECRETO-B"}).json()["count"] == 0

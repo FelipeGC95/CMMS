@@ -309,13 +309,7 @@ msgstr ""
 msgid "El token no tiene permiso para esta operación."
 msgstr ""
 
-msgid "Lectura y escritura"
-msgstr ""
-
 msgid "nombre"
-msgstr ""
-
-msgid "alcance"
 msgstr ""
 
 msgid "prefijo"
@@ -4193,14 +4187,6 @@ msgid "Crear token"
 msgstr ""
 
 msgid "Alcances"
-msgstr ""
-
-msgid "consulta activos, medidores, lecturas, OT y solicitudes."
-msgstr ""
-
-msgid ""
-"además crea y edita activos, registra lecturas, crea OT, cambia su estado y "
-"crea solicitudes, con los permisos de un planificador."
 msgstr ""
 
 msgid "Tokens"
@@ -10557,9 +10543,6 @@ msgstr ""
 msgid "%(count)s eventos seguidos sin respuesta correcta de %(url)s."
 msgstr ""
 
-msgid "Avisan al instante a otro sistema (ERP, chat, BI) cuando se crea o completa una OT o llega una solicitud."
-msgstr ""
-
 msgid "Nuevo webhook"
 msgstr ""
 
@@ -11740,4 +11723,188 @@ msgid "Básico"
 msgstr ""
 
 msgid "Tu plan, el próximo cobro, cambiar o cancelar, datos de facturación e historial de pagos."
+msgstr ""
+
+#, python-format
+msgid "%(group)s (lectura y escritura)"
+msgstr ""
+
+#, python-format
+msgid "%(group)s (lectura)"
+msgstr ""
+
+msgid "Activa el webhook antes de reenviar."
+msgstr ""
+
+msgid "Activa el webhook para reenviar."
+msgstr ""
+
+msgid "Activo cambió de estado"
+msgstr ""
+
+msgid "Activo creado"
+msgstr ""
+
+msgid "Activo editado"
+msgstr ""
+
+#, python-format
+msgid "Alcance requerido: `%(scope)s`."
+msgstr ""
+
+msgid "Alerta de condición abierta"
+msgstr ""
+
+msgid "Alerta de condición cerrada"
+msgstr ""
+
+msgid "Alerta de condición normalizada"
+msgstr ""
+
+msgid "Alerta de condición reconocida"
+msgstr ""
+
+msgid "Avisan al instante a otro sistema (ERP, chat, BI) de lo que pasa en el CMMS: OT, solicitudes, activos, lecturas, alertas de condición e inventario."
+msgstr ""
+
+msgid "Cuerpo enviado"
+msgstr ""
+
+msgid "El JSON firmado tal como se envió (sin espacios). Los reenvíos repiten el mismo ID de evento."
+msgstr ""
+
+#, python-format
+msgid "El token no tiene el alcance «%(scope)s» que pide esta operación."
+msgstr ""
+
+msgid "Elige al menos un alcance."
+msgstr ""
+
+msgid "Entrega"
+msgstr ""
+
+msgid "Entrega reenviada con el mismo ID de evento."
+msgstr ""
+
+msgid "Escritura"
+msgstr ""
+
+msgid "Integraciones: alcances de token y entregas de webhook"
+msgstr ""
+
+msgid "La organización está en solo lectura: el webhook no se edita hasta regularizar el pago."
+msgstr ""
+
+msgid "La organización está en solo lectura: no se crean ni revocan tokens hasta regularizar el pago. Los tokens vigentes siguen leyendo."
+msgstr ""
+
+msgid "La organización está en solo lectura: no se crean webhooks hasta regularizar el pago. Los activos siguen avisando."
+msgstr ""
+
+msgid "Lectura registrada"
+msgstr ""
+
+msgid "Medidores y lecturas"
+msgstr ""
+
+msgid "Movimiento de stock"
+msgstr ""
+
+#, python-format
+msgid "No se envió: sin worker solo se envían %(limit)s entregas por lote."
+msgstr ""
+
+msgid "OT cambió de estado"
+msgstr ""
+
+msgid "Otras entregas de este evento"
+msgstr ""
+
+#, python-format
+msgid "Por %(who)s"
+msgstr ""
+
+msgid "Primeros 1000 caracteres de lo que respondió tu sistema."
+msgstr ""
+
+msgid "Próximo intento"
+msgstr ""
+
+msgid "Qué puede leer o escribir el token. Escribir incluye leer."
+msgstr ""
+
+msgid "Reenviar"
+msgstr ""
+
+msgid "Reenvío manual"
+msgstr ""
+
+#, python-format
+msgid "Regenerado el %(when)s."
+msgstr ""
+
+msgid "Regenerar secreto"
+msgstr ""
+
+msgid "Respuesta del receptor"
+msgstr ""
+
+msgid "Secreto regenerado. El anterior dejó de valer: actualízalo ahora en tu sistema."
+msgstr ""
+
+msgid "Si el secreto se filtró, genera uno nuevo: el anterior deja de valer de inmediato y las entregas siguientes se firman con el nuevo."
+msgstr ""
+
+msgid "Sin el alcance, la API responde 403 «insufficient_scope» e indica cuál falta."
+msgstr ""
+
+msgid "Solo se reenvía una entrega fallida."
+msgstr ""
+
+msgid "Todo"
+msgstr ""
+
+msgid "Todo (también lo que se agregue a la API)"
+msgstr ""
+
+msgid "Todos los recursos, también los que se agreguen a la API."
+msgstr ""
+
+msgid "Una entrega fallida se puede reenviar a mano desde su detalle, con el mismo ID de evento. Las entregas de más de 90 días se borran solas."
+msgstr ""
+
+msgid "Una prueba no se reenvía: usa «Enviar prueba»."
+msgstr ""
+
+msgid "Ver detalle"
+msgstr ""
+
+msgid "Ver la original"
+msgstr ""
+
+msgid "además crea y modifica (POST y PATCH), con los permisos de un planificador."
+msgstr ""
+
+msgid "alcances"
+msgstr ""
+
+msgid "consulta los recursos del grupo (GET)."
+msgstr ""
+
+msgid "reenviado por"
+msgstr ""
+
+msgid "reenvío de"
+msgstr ""
+
+msgid "reenvío manual"
+msgstr ""
+
+msgid "secreto regenerado"
+msgstr ""
+
+msgid "vale para todos los grupos, también los que se agreguen a la API. Los tokens creados antes de los alcances por recurso quedaron así."
+msgstr ""
+
+msgid "Último intento"
 msgstr ""
