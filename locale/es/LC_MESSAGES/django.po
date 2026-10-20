@@ -11577,10 +11577,6 @@ msgid "Anual: %(total)s UF (pagas %(months)s meses)"
 msgstr ""
 
 #, python-format
-msgid "Incluye %(included)s activos; +%(price)s UF/mes por cada %(block)s adicionales."
-msgstr ""
-
-#, python-format
 msgid "Incluye tu descuento de %(percent)s %%"
 msgstr ""
 
@@ -11597,13 +11593,6 @@ msgstr ""
 
 msgid "Contratar con Mercado Pago"
 msgstr ""
-
-#, python-format
-msgid "Hoy sumas %(blocks)s bloque."
-msgid_plural "Hoy sumas %(blocks)s bloques."
-msgstr[0] ""
-msgstr[1] ""
-msgstr[2] ""
 
 msgid "Facturación manual"
 msgstr ""
@@ -11741,3 +11730,146 @@ msgstr ""
 
 msgid "Tu plan, el próximo cobro, cambiar o cancelar, datos de facturación e historial de pagos."
 msgstr ""
+
+msgid "Ficha de cada equipo con su historial, medidores y etiqueta QR."
+msgstr ""
+
+msgid "Crea, asigna y cierra OT desde el computador o el teléfono."
+msgstr ""
+
+msgid "Planes por fecha o por uso que generan solos las OT a tiempo."
+msgstr ""
+
+msgid "Cualquiera avisa una falla desde el celular o escaneando el QR del equipo."
+msgstr ""
+
+msgid "Backlog, preventivo vs. correctivo, costos y Pareto de fallas, con exportación."
+msgstr ""
+
+msgid "Conecta tu ERP u otros sistemas con la API y avisos por webhook."
+msgstr ""
+
+msgid "Descarga listas en Excel y fichas de activos y OT en PDF."
+msgstr ""
+
+msgid "Tu equipo entra con la cuenta de la empresa, sin otra contraseña."
+msgstr ""
+
+msgid "Repuestos, bodegas, stock y aviso de reposición, ligados a las OT."
+msgstr ""
+
+msgid "Avisa y crea la OT cuando una variable medida sale de rango."
+msgstr ""
+
+msgid "IA que orienta el diagnóstico con el historial y los manuales del equipo."
+msgstr ""
+
+msgid "Permisos a la medida de cada cargo de tu equipo."
+msgstr ""
+
+msgid "Indicadores básicos"
+msgstr ""
+
+msgid "Disponibilidad, MTBF, MTTR y cumplimiento del preventivo en el inicio."
+msgstr ""
+
+msgid "Modo sin conexión en terreno"
+msgstr ""
+
+msgid "Los técnicos trabajan las OT sin señal; se sincroniza al volver."
+msgstr ""
+
+msgid "Activos y códigos QR"
+msgstr ""
+
+msgid "Solicitudes y aviso por QR"
+msgstr ""
+
+msgid "API y webhooks"
+msgstr ""
+
+msgid "Asistente de diagnóstico con IA"
+msgstr ""
+
+msgid "Ilimitados"
+msgstr ""
+
+msgid "Ilimitado"
+msgstr ""
+
+msgid "No incluido"
+msgstr ""
+
+msgid "Ilimitadas"
+msgstr ""
+
+msgid "Tu prueba"
+msgstr ""
+
+msgid "Gratis"
+msgstr ""
+
+msgid "Asistente IA"
+msgstr ""
+
+msgid "Incluye"
+msgstr ""
+
+msgid "Qué incluye cada plan"
+msgstr ""
+
+msgid "Función"
+msgstr ""
+
+msgid "Precio mensual"
+msgstr ""
+
+msgid "Gratis durante la prueba"
+msgstr ""
+
+msgid "A medida"
+msgstr ""
+
+msgid "Conversaciones del asistente IA"
+msgstr ""
+
+msgid "Incluido"
+msgstr ""
+
+#, python-format
+msgid "Hasta %(count)s"
+msgstr ""
+
+#, python-format
+msgid "%(included)s incluidos; +%(price)s UF/mes cada %(block)s más"
+msgstr ""
+
+#, python-format
+msgid "%(count)s al mes"
+msgstr ""
+
+#, python-format
+msgid "Hasta el %(date)s. Luego elige un plan para seguir sin cortes."
+msgstr ""
+
+#, python-format
+msgid "Con este plan dejas de tener: %(modules)s."
+msgstr ""
+
+#, python-format
+msgid "Desde %(price)s UF, a medida"
+msgstr ""
+
+#, python-format
+msgid "Con tus activos de hoy sumas %(blocks)s bloque adicional."
+msgid_plural "Con tus activos de hoy sumas %(blocks)s bloques adicionales."
+msgstr[0] ""
+msgstr[1] ""
+msgstr[2] ""
+
+#, python-format
+msgid "No incluye (%(total)s función)"
+msgid_plural "No incluye (%(total)s funciones)"
+msgstr[0] ""
+msgstr[1] ""
+msgstr[2] ""

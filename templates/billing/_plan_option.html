@@ -1,15 +1,56 @@
 {% load i18n ui billing_tags %}
-{# Un plan contratable (ORG-13): precio mensual y anual en UF con su estimado en pesos. Recibe `option`, `overview`. #}
-<article class="plan-option{% if option.is_current %} plan-option--current{% endif %}">
+{# Un plan (ORG-13): precio, cupos y qué incluye y qué no, según `Plan.features`. Recibe `column` (selectors.PlanColumn), `overview` y `contact_email`. En escritorio (≥ 1100 px) cupos y funciones van en la tabla comparativa y la tarjeta deja precio y acción. #}
+<article class="plan-option{% if column.is_current %} plan-option--current{% endif %}">
   <div class="plan-option__head">
-    <h3>{{ option.plan.name }}</h3>
-    {% if option.is_current %}<span class="badge badge--success">{% icon 'check' %}{% translate "Tu plan" %}</span>{% endif %}
+    <h3>{{ column.plan.name }}</h3>
+    {% if column.is_current %}<span class="badge badge--success">{% icon 'check' %}{% if column.kind == "trial" %}{% translate "Tu prueba" %}{% else %}{% translate "Tu plan" %}{% endif %}</span>{% endif %}
   </div>
+  {% if column.kind == "trial" %}
+  <p class="plan-option__price">{% translate "Gratis" %}</p>
+  <p class="muted">{% blocktranslate with date=overview.status.ends_at|date:"j M Y" %}Hasta el {{ date }}. Luego elige un plan para seguir sin cortes.{% endblocktranslate %}</p>
+  {% elif column.kind == "quoted" %}
+  {% if column.plan.monthly_price_uf %}<p class="plan-option__price"><span class="plan-option__unit">{% translate "desde" %}</span> <span class="num">{{ column.plan.monthly_price_uf|uf }}</span> <span class="plan-option__unit">{% translate "UF/mes" %}</span></p>{% endif %}
+  <p class="muted">{% translate "Precio a medida según activos, sitios e integraciones: SSO, API y soporte prioritario." %}</p>
+  {% else %}{% with option=column.option %}
   <p class="plan-option__price"><span class="num">{{ option.monthly.total_uf|uf }}</span> <span class="plan-option__unit">{% translate "UF/mes" %}</span></p>
   <p class="muted">{% if option.monthly.amount_clp %}{% blocktranslate with clp=option.monthly.amount_clp|clp %}≈ {{ clp }} al mes con la UF de hoy{% endblocktranslate %}{% else %}{% translate "Estimado en pesos no disponible (sin valor de la UF)." %}{% endif %}</p>
   <p class="muted">{% blocktranslate with total=option.annual.total_uf|uf months=option.annual.months_charged %}Anual: {{ total }} UF (pagas {{ months }} meses){% endblocktranslate %}{% if option.annual.amount_clp %} · ≈ {{ option.annual.amount_clp|clp }}{% endif %}</p>
-  {% if option.plan.price_included_assets is not None and option.plan.price_block_uf %}<p class="muted">{% blocktranslate with included=option.plan.price_included_assets block=option.plan.price_block_assets price=option.plan.price_block_uf|uf %}Incluye {{ included }} activos; +{{ price }} UF/mes por cada {{ block }} adicionales.{% endblocktranslate %}{% if option.monthly.extra_blocks %} {% blocktranslate count blocks=option.monthly.extra_blocks %}Hoy sumas {{ blocks }} bloque.{% plural %}Hoy sumas {{ blocks }} bloques.{% endblocktranslate %}{% endif %}</p>{% endif %}
+  {% if option.monthly.extra_blocks %}<p class="muted">{% blocktranslate count blocks=option.monthly.extra_blocks %}Con tus activos de hoy sumas {{ blocks }} bloque adicional.{% plural %}Con tus activos de hoy sumas {{ blocks }} bloques adicionales.{% endblocktranslate %}</p>{% endif %}
   {% if option.monthly.discount_percent %}<p><span class="badge badge--info">{% icon 'info' %}{% blocktranslate with percent=option.monthly.discount_percent %}Incluye tu descuento de {{ percent }} %{% endblocktranslate %}</span></p>{% endif %}
+  {% endwith %}{% endif %}
+
+  <div class="plan-option__details">
+    <dl class="plan-quotas">
+      <dt>{% translate "Activos" %}</dt><dd>{% include "billing/_plan_quota.html" with quota="assets" %}</dd>
+      <dt>{% translate "Usuarios" %}</dt><dd>{% include "billing/_plan_quota.html" with quota="users" %}</dd>
+      <dt>{% translate "Almacenamiento" %}</dt><dd>{% include "billing/_plan_quota.html" with quota="storage" %}</dd>
+      <dt>{% translate "Asistente IA" %}</dt><dd>{% include "billing/_plan_quota.html" with quota="assistant" %}</dd>
+    </dl>
+    <p class="plan-option__subtitle">{% translate "Incluye" %}</p>
+    <ul class="plan-features">
+      {% for feature in column.included %}
+      <li class="plan-features__item plan-features__item--yes">{% icon 'check' %}<span><span class="plan-features__label">{{ feature.label }}</span> <span class="plan-features__desc">{{ feature.description }}</span></span></li>
+      {% endfor %}
+    </ul>
+    {% if column.excluded %}
+    <details class="plan-option__excluded">
+      <summary>{% blocktranslate count total=column.excluded|length %}No incluye ({{ total }} función){% plural %}No incluye ({{ total }} funciones){% endblocktranslate %}</summary>
+      <ul class="plan-features">
+        {% for feature in column.excluded %}
+        <li class="plan-features__item plan-features__item--no">{% icon 'x' %}<span class="plan-features__label">{{ feature.label }}</span></li>
+        {% endfor %}
+      </ul>
+    </details>
+    {% endif %}
+  </div>
+
+  {% if column.lost %}
+  <div class="alert alert--warning plan-option__loss" role="note">{% icon 'alert' %}<span>{% blocktranslate with modules=column.lost|join:", " %}Con este plan dejas de tener: {{ modules }}.{% endblocktranslate %}</span></div>
+  {% endif %}
+
+  {% if column.kind == "quoted" %}
+  <a class="btn btn--secondary btn--block" href="mailto:{{ contact_email }}?subject={% filter urlencode %}{% blocktranslate with org=organization.name plan=column.plan.name %}Cotización plan {{ plan }} · {{ org }}{% endblocktranslate %}{% endfilter %}">{% icon 'chat' %}{% translate "Cotizar" %}</a>
+  {% elif column.kind == "option" %}{% with option=column.option %}
   {% if overview.account.is_active_subscription %}
     {% if not option.is_current %}
     <form method="post" action="{% url 'billing_change' %}">
@@ -36,4 +77,5 @@
     <button class="btn btn--primary btn--block" type="submit"{% if not overview.online_payments %} disabled{% endif %}>{% translate "Contratar con Mercado Pago" %}</button>
   </form>
   {% endif %}
+  {% endwith %}{% endif %}
 </article>

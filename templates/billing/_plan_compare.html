@@ -1,0 +1,51 @@
+{% load i18n ui billing_tags %}
+{# Tabla comparativa de planes (ORG-13), solo en escritorio (≥ 1100 px): las mismas filas, en el mismo orden, para cada plan. Bajo 1100 px cada tarjeta muestra lo mismo. Recibe `overview`. #}
+{% if overview.columns %}
+<section class="plan-compare" aria-labelledby="compare-title">
+  <h3 id="compare-title">{% translate "Qué incluye cada plan" %}</h3>
+  <div class="card card--flush">
+    <table class="table plan-compare__table">
+      <thead>
+        <tr>
+          <th scope="col">{% translate "Función" %}</th>
+          {% for column in overview.columns %}
+          <th scope="col">{{ column.plan.name }}{% if column.is_current %} <span class="badge badge--success">{% icon 'check' %}{% if column.kind == "trial" %}{% translate "Tu prueba" %}{% else %}{% translate "Tu plan" %}{% endif %}</span>{% endif %}</th>
+          {% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <th scope="row">{% translate "Precio mensual" %}</th>
+          {% for column in overview.columns %}
+          <td data-label="{{ column.plan.name }}">{% if column.kind == "trial" %}{% translate "Gratis durante la prueba" %}{% elif column.kind == "quoted" %}{% if column.plan.monthly_price_uf %}{% blocktranslate with price=column.plan.monthly_price_uf|uf %}Desde {{ price }} UF, a medida{% endblocktranslate %}{% else %}{% translate "A medida" %}{% endif %}{% else %}<span class="num">{{ column.option.monthly.total_uf|uf }} {% translate "UF" %}</span>{% if column.option.monthly.amount_clp %} <span class="muted">≈ {{ column.option.monthly.amount_clp|clp }}</span>{% endif %}{% endif %}</td>
+          {% endfor %}
+        </tr>
+        <tr>
+          <th scope="row">{% translate "Activos" %}</th>
+          {% for column in overview.columns %}<td data-label="{{ column.plan.name }}">{% include "billing/_plan_quota.html" with quota="assets" %}</td>{% endfor %}
+        </tr>
+        <tr>
+          <th scope="row">{% translate "Usuarios" %}</th>
+          {% for column in overview.columns %}<td data-label="{{ column.plan.name }}">{% include "billing/_plan_quota.html" with quota="users" %}</td>{% endfor %}
+        </tr>
+        <tr>
+          <th scope="row">{% translate "Almacenamiento" %}</th>
+          {% for column in overview.columns %}<td data-label="{{ column.plan.name }}">{% include "billing/_plan_quota.html" with quota="storage" %}</td>{% endfor %}
+        </tr>
+        <tr>
+          <th scope="row">{% translate "Conversaciones del asistente IA" %}</th>
+          {% for column in overview.columns %}<td data-label="{{ column.plan.name }}">{% include "billing/_plan_quota.html" with quota="assistant" %}</td>{% endfor %}
+        </tr>
+        {% for feature, cells in overview.feature_rows %}
+        <tr>
+          <th scope="row"><span class="plan-features__label">{{ feature.label }}</span> <span class="plan-features__desc">{{ feature.description }}</span></th>
+          {% for column, included in cells %}
+          <td data-label="{{ column.plan.name }}">{% if included %}<span class="plan-compare__mark plan-compare__mark--yes">{% icon 'check' %}{% translate "Incluido" %}</span>{% else %}<span class="plan-compare__mark plan-compare__mark--no">{% icon 'x' %}{% translate "No incluido" %}</span>{% endif %}</td>
+          {% endfor %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endif %}

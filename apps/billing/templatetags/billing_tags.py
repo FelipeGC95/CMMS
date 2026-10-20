@@ -30,3 +30,14 @@ def uf(value) -> str:
         return ""
     text = f"{amount:,.2f}".rstrip("0").rstrip(".")
     return text.replace(",", "\u0000").replace(".", ",").replace("\u0000", ".")
+
+
+@register.filter
+def storage(megabytes) -> str:
+    """2048 → "2 GB"; 1536 → "1,5 GB"; 500 → "500 MB"; vacío si no hay cupo (ilimitado)."""
+    if megabytes in (None, ""):
+        return ""
+    megabytes = int(megabytes)
+    if megabytes < 1024:
+        return f"{megabytes} MB"
+    return f"{uf(Decimal(megabytes) / 1024)} GB"

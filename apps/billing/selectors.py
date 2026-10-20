@@ -7,9 +7,10 @@ from django.utils import timezone
 
 from apps.accounts.permissions import Perm, require_perm
 from apps.organizations.models import Plan
+from apps.organizations.modules import PlanFeature, modules_lost, plan_features, plan_includes
 
 from . import pricing, uf
-from .access import BillingStatus, billing_status
+from .access import Access, BillingStatus, billing_status
 from .gateway import is_configured
 from .models import BillingAccount, Payment, Period
 
@@ -47,6 +48,53 @@ class PlanOption:
 
 
 @dataclass
+class FeatureCell:
+    feature: PlanFeature
+    included: bool
+
+
+@dataclass
+class PlanColumn:
+    """Un plan en la comparación (tarjeta en móvil, columna en la tabla de escritorio).
+
+    `kind`: «trial» (la prueba en curso, de referencia), «option» (contratable, con `option`) o
+    «quoted» (se cotiza: Empresa sin precio acordado). `lost`: módulos del plan actual de la
+    organización que este plan no trae (se avisan antes de cambiarse a él).
+    """
+
+    plan: Plan
+    kind: str
+    cells: list[FeatureCell]
+    option: PlanOption | None = None
+    is_current: bool = False
+    lost: list[str] = field(default_factory=list)
+
+    @property
+    def included(self) -> list[PlanFeature]:
+        return [cell.feature for cell in self.cells if cell.included]
+
+    @property
+    def excluded(self) -> list[PlanFeature]:
+        return [cell.feature for cell in self.cells if not cell.included]
+
+    @property
+    def has_assistant(self) -> bool:
+        return plan_includes(self.plan, "assistant")
+
+
+def plan_column(plan, *, kind, rows, option=None, is_current=False, current_plan=None) -> PlanColumn:
+    """Qué trae `plan` según `Plan.features` (vacío = todo) en el orden de `rows`."""
+    return PlanColumn(
+        plan=plan,
+        kind=kind,
+        cells=[FeatureCell(row, plan_includes(plan, row.module)) for row in rows],
+        option=option,
+        is_current=is_current,
+        lost=[] if is_current or current_plan is None else modules_lost(current_plan, plan),
+    )
+
+
+@dataclass
 class BillingOverview:
     status: BillingStatus
     account: BillingAccount | None
@@ -57,6 +105,17 @@ class BillingOverview:
     quoted_plans: list[Plan] = field(default_factory=list)  # se cotizan (Empresa)
     online_payments: bool = False
     discount_percent: int = 0
+    # Comparación (mismas filas en el mismo orden para cada plan): prueba, contratables y cotizados.
+    features: list[PlanFeature] = field(default_factory=list)
+    columns: list[PlanColumn] = field(default_factory=list)
+
+    @property
+    def feature_rows(self) -> list[tuple[PlanFeature, list[tuple[PlanColumn, bool]]]]:
+        """Filas de la tabla comparativa: cada función con (plan, ¿incluida?) por columna."""
+        return [
+            (feature, [(column, column.cells[index].included) for column in self.columns])
+            for index, feature in enumerate(self.features)
+        ]
 
 
 def billing_overview(*, membership) -> BillingOverview:
@@ -99,8 +158,33 @@ def billing_overview(*, membership) -> BillingOverview:
         for plan in Plan.objects.filter(is_active=True, is_self_service=False).exclude(code="trial")
         if plan.pk not in purchasable
     ]
+    status = billing_status(organization, now=now)
+    rows = plan_features()
+    current_plan = organization.plan
+    columns = []
+    # La prueba va de referencia mientras dura y su plan no es uno de los que se venden.
+    offered = purchasable | {plan.pk for plan in quoted}
+    if (
+        status.access == Access.TRIAL
+        and not subscribed
+        and current_plan is not None
+        and current_plan.pk not in offered
+    ):
+        columns.append(plan_column(current_plan, kind="trial", rows=rows, is_current=True))
+    columns += [
+        plan_column(
+            option.plan,
+            kind="option",
+            rows=rows,
+            option=option,
+            is_current=option.is_current,
+            current_plan=current_plan,
+        )
+        for option in options
+    ]
+    columns += [plan_column(plan, kind="quoted", rows=rows, current_plan=current_plan) for plan in quoted]
     return BillingOverview(
-        status=billing_status(organization, now=now),
+        status=status,
         account=account,
         plan=organization.plan,
         uf_value=uf_row,
@@ -109,6 +193,8 @@ def billing_overview(*, membership) -> BillingOverview:
         quoted_plans=quoted,
         online_payments=is_configured(),
         discount_percent=discount,
+        features=rows,
+        columns=columns,
     )
 
 

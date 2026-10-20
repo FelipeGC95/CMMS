@@ -72,16 +72,9 @@
 
 <h2 class="mt-4">{% translate "Planes" %}</h2>
 <div class="plan-options">
-  {% for option in overview.options %}{% include "billing/_plan_option.html" %}{% endfor %}
-  {% for plan in overview.quoted_plans %}
-  <article class="plan-option">
-    <div class="plan-option__head"><h3>{{ plan.name }}</h3></div>
-    {% if plan.monthly_price_uf %}<p class="plan-option__price"><span class="plan-option__unit">{% translate "desde" %}</span> <span class="num">{{ plan.monthly_price_uf|uf }}</span> <span class="plan-option__unit">{% translate "UF/mes" %}</span></p>{% endif %}
-    <p class="muted">{% translate "Precio a medida según activos, sitios e integraciones: SSO, API y soporte prioritario." %}</p>
-    <a class="btn btn--secondary btn--block" href="mailto:{{ contact_email }}?subject={% filter urlencode %}{% blocktranslate with org=organization.name plan=plan.name %}Cotización plan {{ plan }} · {{ org }}{% endblocktranslate %}{% endfilter %}">{% icon 'chat' %}{% translate "Cotizar" %}</a>
-  </article>
-  {% endfor %}
+  {% for column in overview.columns %}{% include "billing/_plan_option.html" %}{% endfor %}
 </div>
+{% include "billing/_plan_compare.html" %}
 
 <section class="card mt-4" id="details" aria-labelledby="details-title">
   <h2 id="details-title">{% translate "Datos de facturación" %}</h2>

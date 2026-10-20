@@ -527,9 +527,39 @@
       <div class="plan-option__head"><h3>{% translate "Básico" %}</h3></div>
       <p class="plan-option__price"><span class="num">1,5</span> <span class="plan-option__unit">{% translate "UF/mes" %}</span></p>
       <p class="muted">≈ $59.250</p>
+      <div class="plan-option__details">
+        <dl class="plan-quotas">
+          <dt>{% translate "Activos" %}</dt><dd>{% blocktranslate with count=50 %}Hasta {{ count }}{% endblocktranslate %}</dd>
+          <dt>{% translate "Usuarios" %}</dt><dd>{% blocktranslate with count=10 %}Hasta {{ count }}{% endblocktranslate %}</dd>
+          <dt>{% translate "Almacenamiento" %}</dt><dd>2 GB</dd>
+          <dt>{% translate "Asistente IA" %}</dt><dd>{% translate "No incluido" %}</dd>
+        </dl>
+        <p class="plan-option__subtitle">{% translate "Incluye" %}</p>
+        <ul class="plan-features">
+          <li class="plan-features__item plan-features__item--yes">{% icon 'check' %}<span><span class="plan-features__label">{% translate "Activos y códigos QR" %}</span> <span class="plan-features__desc">{% translate "Ficha de cada equipo con su historial, medidores y etiqueta QR." %}</span></span></li>
+        </ul>
+        <details class="plan-option__excluded">
+          <summary>{% blocktranslate count total=1 %}No incluye ({{ total }} función){% plural %}No incluye ({{ total }} funciones){% endblocktranslate %}</summary>
+          <ul class="plan-features"><li class="plan-features__item plan-features__item--no">{% icon 'x' %}<span class="plan-features__label">{% translate "Inventario y repuestos" %}</span></li></ul>
+        </details>
+      </div>
+      <div class="alert alert--warning plan-option__loss" role="note">{% icon 'alert' %}<span>{% blocktranslate with modules="Inventario y repuestos" %}Con este plan dejas de tener: {{ modules }}.{% endblocktranslate %}</span></div>
       <button class="btn btn--primary btn--block" type="button">{% translate "Contratar con Mercado Pago" %}</button>
     </article>
   </div>
+  <section class="plan-compare" aria-labelledby="ds-compare-title">
+    <h3 id="ds-compare-title">{% translate "Qué incluye cada plan" %}</h3>
+    <div class="card card--flush">
+      <table class="table plan-compare__table">
+        <thead><tr><th scope="col">{% translate "Función" %}</th><th scope="col">{% translate "Básico" %}</th><th scope="col">{% translate "Profesional" %} <span class="badge badge--success">{% icon 'check' %}{% translate "Tu plan" %}</span></th></tr></thead>
+        <tbody>
+          <tr><th scope="row"><span class="plan-features__label">{% translate "Inventario y repuestos" %}</span> <span class="plan-features__desc">{% translate "Repuestos, bodegas, stock y aviso de reposición, ligados a las OT." %}</span></th>
+            <td data-label="{% translate 'Básico' %}"><span class="plan-compare__mark plan-compare__mark--no">{% icon 'x' %}{% translate "No incluido" %}</span></td>
+            <td data-label="{% translate 'Profesional' %}"><span class="plan-compare__mark plan-compare__mark--yes">{% icon 'check' %}{% translate "Incluido" %}</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
 </section>
 
 <section class="card mb-4" aria-labelledby="ds-sso">
