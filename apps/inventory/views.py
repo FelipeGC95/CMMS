@@ -11,6 +11,7 @@ from django.utils.translation import gettext as _
 from django.views.decorators.http import require_POST
 
 from apps.accounts.permissions import Perm, has_perm
+from apps.billing.access import can_act
 from apps.core.decorators import membership_required
 
 from . import services
@@ -35,8 +36,8 @@ PICK_NAME = re.compile(r"^[a-z_]{1,30}$")
 
 def _perms(membership) -> dict:
     return {
-        "can_manage": has_perm(membership, Perm.INVENTORY_MANAGE),
-        "can_move": has_perm(membership, Perm.INVENTORY_MOVE),
+        "can_manage": can_act(membership, Perm.INVENTORY_MANAGE),
+        "can_move": can_act(membership, Perm.INVENTORY_MOVE),
         "show_costs": has_perm(membership, Perm.INVENTORY_COST_VIEW),
     }
 
@@ -293,7 +294,7 @@ def warehouse_list_view(request):
     return render(
         request,
         "inventory/warehouse_list.html",
-        {"page": page, "can_manage": has_perm(request.membership, Perm.INVENTORY_MANAGE)},
+        {"page": page, "can_manage": can_act(request.membership, Perm.INVENTORY_MANAGE)},
     )
 
 

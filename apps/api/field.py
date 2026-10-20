@@ -10,6 +10,7 @@ from django.utils.translation import gettext as _
 from rest_framework.exceptions import ValidationError
 
 from apps.accounts.permissions import Perm, has_perm
+from apps.billing.access import is_read_only
 from apps.inventory.selectors import field_parts
 from apps.ui.templatetags.ui import work_order_status_label
 from apps.work.models import WorkOrder
@@ -61,6 +62,8 @@ def bootstrap(*, membership) -> dict:
         "execution_transitions": _execution_transitions(),
         "server_time": timezone.now(),
         "min_client_version": MIN_CLIENT_VERSION,
+        # Solo lectura por facturación (ORG-13): el teléfono muestra el aviso; la cola se envía al pagar.
+        "read_only": is_read_only(organization),
     }
 
 

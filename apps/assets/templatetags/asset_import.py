@@ -1,10 +1,11 @@
 from django import template
 
-from apps.accounts.permissions import Perm, has_perm
+from apps.accounts.permissions import Perm
+from apps.billing.access import can_act
 
 register = template.Library()
 
 
 @register.filter
 def can_import_assets(membership) -> bool:
-    return has_perm(membership, Perm.ASSET_MANAGE)
+    return can_act(membership, Perm.ASSET_MANAGE)

@@ -14,7 +14,8 @@
     </div>
   </div>
   <div class="page-actions">
-    {% if draft %}
+    {% if read_only %}
+    {% elif draft %}
     <a class="btn btn--primary" href="{% url 'plan_draft' plan.pk %}">{% icon 'wrench' %}{% translate "Seguir editando el borrador" %}</a>
     {% else %}
     <form method="post" action="{% url 'plan_draft_start' plan.pk %}">{% csrf_token %}
@@ -49,7 +50,7 @@
   <div class="stack">
     <section class="card" id="assignments" aria-labelledby="assign-title">
       <h2 id="assign-title">{% blocktranslate count n=page.paginator.count %}Asignado a {{ n }} activo{% plural %}Asignado a {{ n }} activos{% endblocktranslate %}</h2>
-      {% if version and plan.is_active %}
+      {% if version and plan.is_active and not read_only %}
       <div class="row mb-4">
         <a class="btn btn--primary" href="{% url 'plan_assign' plan.pk %}">{% icon 'box' %}{% translate "Asignar a activos" %}</a>
         {% if plan.asset_class %}
@@ -61,18 +62,18 @@
       {% endif %}
       {% if page.object_list %}
       <table class="table">
-        <thead><tr><th>{% translate "Activo" %}</th><th>{% translate "Próximo vencimiento" %}</th><th>{% translate "Última ejecución" %}</th><th><span class="visually-hidden">{% translate "Acción" %}</span></th></tr></thead>
+        <thead><tr><th>{% translate "Activo" %}</th><th>{% translate "Próximo vencimiento" %}</th><th>{% translate "Última ejecución" %}</th>{% if not read_only %}<th><span class="visually-hidden">{% translate "Acción" %}</span></th>{% endif %}</tr></thead>
         <tbody>
           {% for a in page.object_list %}
           <tr>
             <td data-label=""><a href="{% url 'asset_detail' a.asset.pk %}"><span class="mono">{{ a.asset.code }}</span> {{ a.asset.name }}</a>{% if a.asset.location %}<br><span class="muted">{{ a.asset.location.name }}</span>{% endif %}</td>
             <td data-label="{% translate 'Próximo vencimiento' %}">{% if a.next_due_on %}{{ a.next_due_on|date:"d M Y" }}{% endif %}{% if a.next_due_on and a.next_due_meter_value is not None %} · {% endif %}{% if a.next_due_meter_value is not None %}<span class="num">{{ a.next_due_meter_value|num }} {{ a.meter.unit }}</span>{% endif %}{% if not a.next_due_on and a.next_due_meter_value is None %}—{% endif %}</td>
             <td data-label="{% translate 'Última ejecución' %}">{{ a.last_done_on|date:"d M Y"|default:"—" }}</td>
-            <td data-label="">
+            {% if not read_only %}<td data-label="">
               <form method="post" action="{% url 'plan_assignment_deactivate' plan.pk a.pk %}">{% csrf_token %}
                 <button class="btn btn--ghost" type="submit">{% icon 'x' %}{% translate "Quitar" %}<span class="visually-hidden"> {{ a.asset.code }}</span></button>
               </form>
-            </td>
+            </td>{% endif %}
           </tr>
           {% endfor %}
         </tbody>

@@ -25,6 +25,7 @@ const view = document.getElementById("field-view");
 const status = document.getElementById("field-status");
 const syncRows = document.getElementById("field-sync-rows");
 const updateBanner = document.getElementById("field-update");
+const readOnlyBanner = document.getElementById("field-read-only");
 
 const app = {
   session: null,
@@ -98,6 +99,8 @@ async function render({ focus = true } = {}) {
   const { path, params } = route();
   const current = await summary();
   await updateSyncBar(current);
+  // Organización en solo lectura (ORG-13): aviso fijo; la cola trata el 402 como "reintentar".
+  if (readOnlyBanner) readOnlyBanner.hidden = !(session && session.bootstrap && session.bootstrap.read_only);
   const flash = takeFlash();
   let match;
   view.dataset.dirty = "";

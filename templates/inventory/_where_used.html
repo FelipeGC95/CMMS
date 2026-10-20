@@ -10,7 +10,7 @@
       <tbody>
         {% for use in where_used.plans %}
         <tr>
-          <td data-label="">{% if membership|can:"plan.manage" %}<a href="{% url 'plan_detail' use.plan.pk %}">{{ use.plan.name }}</a>{% else %}{{ use.plan.name }}{% endif %} <span class="muted mono">{{ use.plan.code }}</span></td>
+          <td data-label="">{% if membership|can_view:"plan.manage" %}<a href="{% url 'plan_detail' use.plan.pk %}">{{ use.plan.name }}</a>{% else %}{{ use.plan.name }}{% endif %} <span class="muted mono">{{ use.plan.code }}</span></td>
           <td data-label="{% translate 'Clase de activo' %}">{{ use.plan.asset_class.name|default:"—" }}</td>
           <td class="num" data-label="{% translate 'Por ejecución' %}">{{ use.quantity|num }} {{ part.unit }}</td>
         </tr>

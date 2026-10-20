@@ -1782,6 +1782,17 @@ lleva `{id, name, path}`; los decimales van como texto; consultas acotadas
      El aviso por QR sin cuenta se cierra. La PWA trata 402 como «reintentar»: el
      cambio queda en cola y sale al pagar. La misma regla rige en el borrado
      programado (cierra el pendiente de ADR-027).
+     **Interfaz coherente:** la comprobación de permisos de la interfaz
+     (`billing.access.can_act`, el filtro `|can` y los indicadores `can_*` de las
+     vistas) da por no concedidos los permisos de escritura (`WRITE_PERMS`: activos,
+     planes, OT, solicitudes, lecturas, inventario, condición, asistente, equipo y
+     tokens) mientras la organización esté en solo lectura; los de consulta y
+     `organization.manage` (Facturación, exportar, cancelar el borrado) siguen. Los
+     enlaces a páginas que se pueden consultar usan `|can_view` (permiso del rol sin
+     mirar la facturación) y lo que no pasa por permisos se oculta con la variable
+     de plantilla `read_only`. `has_perm` de los servicios no cambia: el bloqueo
+     real sigue siendo el middleware. Sin consultas extra (campos de la organización
+     del contexto). La PWA recibe `read_only` en `bootstrap` y muestra un aviso.
   9. **Organizaciones existentes:** `billing_exempt` (facturación manual) por defecto
      true —la demo y las creadas por el superadmin no se bloquean— y false en el
      autoregistro. La migración `organizations/0020` deja exentas las existentes

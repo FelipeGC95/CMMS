@@ -17,6 +17,7 @@ from django.views.decorators.http import require_POST
 
 from apps.accounts.permissions import Perm, PermissionDeniedError
 from apps.assets.selectors import visible_assets
+from apps.billing.access import is_read_only
 from apps.core.decorators import membership_required
 from apps.work.selectors import visible_work_orders
 
@@ -67,7 +68,10 @@ def _thread_context(request, conversation, form=None) -> dict:
         conversation.summary_status == AssistantConversation.SummaryStatus.PENDING
     )
     is_owner = conversation.started_by_id == membership.user_id and selectors.can_use(membership)
-    is_open = conversation.status == AssistantConversation.Status.OPEN
+    # En solo lectura (ORG-13) la conversación se consulta sin caja de pregunta ni acciones.
+    is_open = conversation.status == AssistantConversation.Status.OPEN and not is_read_only(
+        request.organization
+    )
     answered = any(
         m.role == AssistantMessage.Role.ASSISTANT and m.status == AssistantMessage.Status.DONE for m in turns
     )

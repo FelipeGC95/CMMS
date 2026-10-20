@@ -181,6 +181,7 @@ BOOTSTRAP_KEYS = {
     "execution_transitions",
     "server_time",
     "min_client_version",
+    "read_only",
 }
 WORK_ORDER_KEYS = {
     "id",
