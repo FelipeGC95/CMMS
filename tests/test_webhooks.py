@@ -25,7 +25,7 @@ PUBLIC_IP = "93.184.216.34"
 @pytest.fixture
 def network(monkeypatch):
     """DNS falso (todo resuelve a una IP pública) y cliente HTTP que registra cada envío."""
-    state = {"addresses": {}, "status": 200, "error": None, "calls": []}
+    state = {"addresses": {}, "status": 200, "body": "ok", "error": None, "calls": []}
 
     def resolve(host, port):
         return state["addresses"].get(host, [PUBLIC_IP])
@@ -34,7 +34,7 @@ def network(monkeypatch):
         state["calls"].append({"url": url, "address": address, "body": body, "headers": headers})
         if state["error"]:
             raise state["error"]
-        return state["status"]
+        return state["status"], state["body"]
 
     monkeypatch.setattr(services, "resolve_host", resolve)
     monkeypatch.setattr(services, "http_post", post)
@@ -90,7 +90,7 @@ def test_private_or_insecure_urls_are_rejected_on_save(tenant_a, network, url, a
 def test_create_requires_at_least_one_known_event(tenant_a, network):
     with pytest.raises(services.WebhookError), tenant_context(tenant_a.org):
         services.create_endpoint(
-            membership=tenant_a.admin, name="x", url="https://erp.example.com", events=["asset.created"]
+            membership=tenant_a.admin, name="x", url="https://erp.example.com", events=["asset.deleted"]
         )
 
 

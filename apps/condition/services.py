@@ -36,6 +36,8 @@ from apps.audit.models import AuditEvent
 from apps.core.tenancy import require_current_organization
 from apps.notifications.services import notify_condition_alert
 from apps.organizations.modules import ModuleNotIncludedError, has_module
+from apps.webhooks.models import Event as WebhookEvent
+from apps.webhooks.services import emit_event
 from apps.work.models import WorkOrder
 
 from .models import ConditionAlert, ConditionRule, ConditionState
@@ -297,6 +299,14 @@ def set_rule_active(*, membership, rule: ConditionRule, is_active: bool) -> Cond
 # --- Alertas (CBM-05) ----------------------------------------------------------------
 
 
+# Evento de webhook de cada estado al que pasa una alerta (X-08).
+ALERT_EVENTS = {
+    AlertStatus.ACKNOWLEDGED: WebhookEvent.CONDITION_ALERT_ACKNOWLEDGED,
+    AlertStatus.NORMALIZED: WebhookEvent.CONDITION_ALERT_NORMALIZED,
+    AlertStatus.CLOSED: WebhookEvent.CONDITION_ALERT_CLOSED,
+}
+
+
 def _transition(alert: ConditionAlert, *, to_status: str, actor=None, extra=None, **fields) -> None:
     from_status = alert.status
     now = timezone.now()
@@ -310,6 +320,8 @@ def _transition(alert: ConditionAlert, *, to_status: str, actor=None, extra=None
         actor=actor,
         changes={"status": [from_status, to_status], **(extra or {})},
     )
+    if event_type := ALERT_EVENTS.get(to_status):  # X-08
+        emit_event(event_type=event_type, instance=alert, change={"from": from_status, "to": to_status})
 
 
 def _normalize(alert: ConditionAlert, *, at, actor=None, reason="", value=None) -> None:
@@ -542,6 +554,7 @@ def _open_episode(rule: ConditionRule, *, reading: MeterReading) -> ConditionAle
         },
     )
     notify_condition_alert(alert=alert)
+    emit_event(event_type=WebhookEvent.CONDITION_ALERT_OPENED, instance=alert)  # X-08
     return alert
 
 
