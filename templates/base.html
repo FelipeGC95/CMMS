@@ -32,7 +32,7 @@
         <a href="{% url 'dashboard' %}" {% nav_current '/' %}>{% translate "Inicio" %}</a>
         {% if organization|has_module:"work_orders" %}<a href="{% url 'work_order_list' %}" {% nav_current '/work-orders/' %}>{% translate "Órdenes de trabajo" %}</a>{% endif %}
         {% if organization|has_module:"assets" %}<a href="{% url 'asset_list' %}" {% nav_current '/assets/' %}>{% translate "Activos" %}</a>{% endif %}
-        {% if membership|can:"work_order.manage" and organization|has_module:"requests" %}<a href="{% url 'request_list' %}" {% nav_current '/requests/' %}>{% translate "Solicitudes" %}</a>{% endif %}
+        {% if membership|can_view:"work_order.manage" and organization|has_module:"requests" %}<a href="{% url 'request_list' %}" {% nav_current '/requests/' %}>{% translate "Solicitudes" %}</a>{% endif %}
         {% if membership|can:"inventory.view" and organization|has_module:"inventory" %}<a href="{% url 'inventory_home' %}" {% nav_current '/inventory/' %}>{% translate "Inventario" %}</a>{% endif %}
         {# Catálogo de falla, ubicaciones, clases, equipo, auditoría y configuración viven en "Más", igual que en móvil. #}
         <a href="{% url 'menu' %}" {% nav_current '/menu/' '/report/' '/failure-codes/' '/team/' '/audit/' '/locations/' '/asset-classes/' '/settings/' '/plans/' '/reports/' '/condition/' '/assistant/' %}>{% translate "Más" %}</a>

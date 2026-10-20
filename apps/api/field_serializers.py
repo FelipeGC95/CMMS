@@ -71,6 +71,10 @@ class FieldBootstrapSerializer(serializers.Serializer):
     min_client_version = serializers.IntegerField(
         help_text="Versión mínima del cliente; uno anterior recibe 409 `upgrade_required`."
     )
+    read_only = serializers.BooleanField(
+        help_text="Organización en solo lectura (impago o borrado programado, ORG-13): las escrituras "
+        "responden 402 y quedan en la cola del teléfono hasta que se reactive."
+    )
 
 
 # --- snapshot --------------------------------------------------------------------

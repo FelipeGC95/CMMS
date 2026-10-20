@@ -13,7 +13,7 @@
     <p class="chat__status" role="status">{% icon 'clock' %}<span>{% translate "Preparando la nota de cierre…" %}</span></p>
     {% elif conversation.summary_status == "done" %}
     <p class="chat__text">{{ conversation.summary|linebreaksbr }}</p>
-    {% if conversation.work_order and conversation.work_order.is_open and is_owner %}
+    {% if conversation.work_order and conversation.work_order.is_open and is_owner and not read_only %}
     <p class="help muted">{% translate "Aparece pre-cargada en el comentario de cierre al completar la OT: ahí la puedes editar o descartar." %}</p>
     <a class="btn btn--secondary btn--lg" href="{% url 'work_order_detail' conversation.work_order.pk %}#complete-section">{% icon 'check' %}{% translate "Ir a completar la OT" %}</a>
     {% endif %}
@@ -23,7 +23,7 @@
   </section>
   {% endif %}
 
-  {% if is_owner and answered %}
+  {% if is_owner and answered and not read_only %}
   <section class="card chat-actions" aria-labelledby="helpful-title">
     <form method="post" action="{% url 'assistant_helpful' conversation.pk %}">
       {% csrf_token %}

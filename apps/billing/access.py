@@ -23,7 +23,7 @@ from django.utils import timezone
 from django.utils.translation import gettext as _
 from rest_framework import exceptions, permissions
 
-from apps.accounts.permissions import Perm, has_perm
+from apps.accounts.permissions import Perm, has_perm, organization_of
 
 TRIAL_WARNING_DAYS = 7
 
@@ -104,6 +104,45 @@ def billing_status(organization, *, now=None) -> BillingStatus:
     if now < grace_end:
         return BillingStatus(Access.GRACE, reason, grace_end)
     return BillingStatus(Access.READ_ONLY, reason)
+
+
+def is_read_only(organization) -> bool:
+    return organization is not None and billing_status(organization).read_only
+
+
+# Interfaz coherente con la solo lectura: estos permisos solo sirven para crear, editar o
+# ejecutar, así que en solo lectura la interfaz los da por no concedidos y oculta sus botones,
+# formularios y accesos. Los de consulta (ver inventario, costos, condición, auditoría,
+# conversaciones de todos) y `organization.manage` (Facturación, exportar, cancelar el borrado)
+# siguen vigentes. Los servicios no cambian: el bloqueo real es `ReadOnlyMiddleware`.
+WRITE_PERMS: frozenset[Perm] = frozenset(
+    {
+        Perm.ASSET_MANAGE,
+        Perm.PLAN_MANAGE,
+        Perm.WORK_ORDER_MANAGE,
+        Perm.WORK_ORDER_EXECUTE,
+        Perm.REQUEST_CREATE,
+        Perm.METER_READING_CREATE,
+        Perm.TEAM_MANAGE,
+        Perm.API_TOKEN_MANAGE,
+        Perm.INVENTORY_MOVE,
+        Perm.INVENTORY_MANAGE,
+        Perm.CONDITION_MANAGE,
+        Perm.ASSISTANT_USE,
+    }
+)
+
+
+def can_act(membership, perm: Perm) -> bool:
+    """Permiso para mostrar una acción: `has_perm` y, si es de escritura, que no haya solo lectura.
+
+    Para botones y formularios de la interfaz. Para la navegación a una página que se puede ver
+    (listas, fichas, configuración en modo consulta) se usa `has_perm`. Sin consultas extra: la
+    organización sale del contexto.
+    """
+    if not has_perm(membership, perm):
+        return False
+    return perm not in WRITE_PERMS or not is_read_only(organization_of(membership))
 
 
 def read_only_message(status: BillingStatus) -> str:

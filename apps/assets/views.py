@@ -23,7 +23,7 @@ from apps.attachments.models import TargetType
 from apps.attachments.selectors import attachments_for
 from apps.attachments.services import AttachmentError
 from apps.attachments.services import add_attachment as add_generic_attachment
-from apps.billing.access import billing_status
+from apps.billing.access import billing_status, can_act
 from apps.condition.selectors import asset_condition
 from apps.core.decorators import membership_required
 from apps.core.files import private_file_response
@@ -126,7 +126,7 @@ def asset_list_view(request):
             "statuses": Asset.Status.choices,
             "parent": parent,
             "incomplete": incomplete,
-            "can_manage": has_perm(request.membership, Perm.ASSET_MANAGE),
+            "can_manage": can_act(request.membership, Perm.ASSET_MANAGE),
             "labels_mode": labels_mode,
             "label_layouts": [(key, layout.label) for key, layout in LAYOUTS.items()],
             "default_layout": DEFAULT_LAYOUT,
@@ -153,7 +153,7 @@ def asset_detail_view(request, pk):
     ids = asset_scope_ids(membership=membership, asset=asset, include_components=include_components)
     done = work_order_list(membership=membership, scope="done").filter(asset_id__in=ids)
     attributes = active_attributes(asset.asset_class)
-    can_manage = has_perm(membership, Perm.ASSET_MANAGE)
+    can_manage = can_act(membership, Perm.ASSET_MANAGE)
     return render(
         request,
         "assets/detail.html",
@@ -165,7 +165,7 @@ def asset_detail_view(request, pk):
             "history": done[:HISTORY_LIMIT],
             "plans": active_assignments_for_asset(asset=asset),
             **_meter_sections(request, asset),
-            "can_read_meters": has_perm(membership, Perm.METER_READING_CREATE),
+            "can_read_meters": can_act(membership, Perm.METER_READING_CREATE),
             "can_manage": can_manage,
             "can_manage_plans": has_perm(membership, Perm.PLAN_MANAGE),
             "attribute_rows": attribute_rows(asset, attributes),

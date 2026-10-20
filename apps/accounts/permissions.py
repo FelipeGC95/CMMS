@@ -139,7 +139,7 @@ class PermissionDeniedError(PermissionError):
     pass
 
 
-def _organization_of(membership):
+def organization_of(membership):
     # El contexto ya trae la organización (con su plan): evita una consulta por membresía.
     current = get_current_organization()
     if current is not None and current.pk == membership.organization_id:
@@ -157,7 +157,7 @@ def active_custom_role(membership) -> CustomRole | None:
         return None
     from apps.organizations.modules import has_module  # modules importa este módulo
 
-    if not has_module(_organization_of(membership), CUSTOM_ROLES_MODULE):
+    if not has_module(organization_of(membership), CUSTOM_ROLES_MODULE):
         return None
     role = load_custom_role(membership)
     return role if role is not None and role.is_active else None

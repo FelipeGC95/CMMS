@@ -1895,3 +1895,26 @@ def test_api_token_and_delivery_screens_do_not_grow_with_rows(
     assert [_count(client, url) for url in urls] == few
     with django_assert_max_num_queries(20):
         assert client.get(urls[1]).status_code == 200
+
+
+@pytest.mark.parametrize(
+    "page", ["asset_list", "asset_detail", "work_order_detail", "work_order_board", "menu", "dashboard"]
+)
+def test_read_only_interface_adds_no_queries(client, tenant_a, page):
+    """Ocultar las acciones en solo lectura (ORG-13) usa campos de la organización: sin consultas."""
+    from apps.organizations.models import Organization, Plan
+    from tests.billing_utils import make_billable
+
+    Organization.objects.filter(pk=tenant_a.org.pk).update(plan=Plan.objects.get(code="pro"))
+    with tenant_context(tenant_a.org):
+        wo = create_work_order(work_type="corrective", title="x", asset=tenant_a.asset)
+    args = {"asset_detail": [tenant_a.asset.pk], "work_order_detail": [wo.pk]}.get(page, [])
+    url = reverse(page, args=args)
+    login(client, tenant_a.admin)
+    active = _count(client, url)
+    tenant_a.org.refresh_from_db()
+    make_billable(tenant_a.org)
+    Organization.objects.filter(pk=tenant_a.org.pk).update(
+        trial_ends_at=timezone.now() - datetime.timedelta(days=30), plan=Plan.objects.get(code="pro")
+    )
+    assert _count(client, url) <= active

@@ -19,7 +19,7 @@
         <th>{% translate "Descripción" %}</th>
         <th>{% translate "Detenido" %}</th>
         <th>{% translate "Solicitada por" %}</th>
-        <th>{% translate "Acciones" %}</th>
+        {% if not read_only %}<th>{% translate "Acciones" %}</th>{% endif %}
       </tr>
     </thead>
     <tbody>
@@ -30,7 +30,7 @@
         <td data-label="{% translate 'Descripción' %}">{{ req.description|truncatechars:120 }}{% if req.photo_id %} <a href="{% url 'request_photo' req.pk %}">{% icon 'camera' %}{% translate "Ver foto" %}</a>{% endif %}</td>
         <td data-label="{% translate 'Detenido' %}">{% if req.is_anonymous and req.asset_stopped %}<span class="badge badge--error">{% icon 'stop' %}{% translate "Reporta equipo detenido" %}</span>{% elif req.asset_stopped %}{% icon 'stop' %} {% translate "Sí" %}{% else %}—{% endif %}</td>
         <td data-label="{% translate 'Solicitada por' %}">{% if req.is_anonymous %}{{ req.anonymous_name }} <span class="badge badge--warning">{% icon 'alert' %}{% translate "Anónima — requiere revisión" %}</span>{% else %}{{ req.requested_by|default:_("Sistema") }}{% endif %}</td>
-        <td data-label="{% translate 'Acciones' %}">
+        {% if not read_only %}<td data-label="{% translate 'Acciones' %}">
           <div class="row">
             <form method="post" action="{% url 'request_accept' req.pk %}">
               {% csrf_token %}
@@ -47,7 +47,7 @@
             </details>
             <a class="btn btn--ghost" href="{% url 'request_merge' req.pk %}">{% icon 'box' %}{% translate "Fusionar" %}</a>
           </div>
-        </td>
+        </td>{% endif %}
       </tr>
       {% endfor %}
     </tbody>

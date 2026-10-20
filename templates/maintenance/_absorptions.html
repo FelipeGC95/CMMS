@@ -10,16 +10,16 @@
         <span class="list__title"><a href="{% url 'plan_detail' absorption.absorbed_plan.pk %}">{{ absorption.absorbed_plan.name }}</a></span>
         <span class="list__meta"><span class="mono">{{ absorption.absorbed_plan.code }}</span> · {{ absorption.absorbed_plan.frequency_label|default:"—" }}</span>
       </div>
-      <div class="checklist-order__actions">
+      {% if not read_only %}<div class="checklist-order__actions">
         <form method="post" action="{% url 'plan_absorption_remove' plan.pk absorption.pk %}">{% csrf_token %}<input type="hidden" name="next" value="{{ back }}">
           <button class="btn btn--danger btn--lg" type="submit">{% icon 'x' %}{% translate "Quitar" %}<span class="visually-hidden"> «{{ absorption.absorbed_plan.name }}»</span></button>
         </form>
-      </div>
+      </div>{% endif %}
     </li>
     {% endfor %}
   </ul>
   {% else %}<p class="empty">{% icon 'list' %} {% translate "No absorbe a ningún plan." %}</p>{% endif %}
-  {% if absorb_choices %}
+  {% if absorb_choices and not read_only %}
   <form method="post" action="{% url 'plan_absorption_add' plan.pk %}" class="mt-4">
     {% csrf_token %}<input type="hidden" name="next" value="{{ back }}">
     <div class="field">

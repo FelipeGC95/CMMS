@@ -12,7 +12,7 @@
     {% if can_manage %}<a class="btn btn--secondary btn--lg" href="{% url 'asset_edit' asset.pk %}">{% icon 'wrench' %}{% translate "Editar" %}</a>{% endif %}
     <a class="btn btn--ghost btn--lg" href="{% url 'asset_pdf' asset.pk %}">{% icon 'print' %}{% translate "PDF" %}</a>
     {% if not is_retired and organization|has_module:"assistant" and membership|can:"assistant.use" %}<a class="btn btn--secondary btn--lg" href="{% url 'assistant_start' %}?asset={{ asset.pk }}">{% icon 'chat' %}{% translate "Pedir ayuda" %}</a>{% endif %}
-    <a class="btn btn--primary btn--lg" href="{% url 'asset_report' asset.pk %}">{% icon 'megaphone' %}{% translate "Avisar falla" %}</a>
+    {% if not read_only %}<a class="btn btn--primary btn--lg" href="{% url 'asset_report' asset.pk %}">{% icon 'megaphone' %}{% translate "Avisar falla" %}</a>{% endif %}
   </div>
 </div>
 
@@ -99,7 +99,7 @@
       {% endfor %}
     </ul>
     {% else %}<p class="muted">{% translate "Sin planes asignados." %}</p>{% endif %}
-    {% if can_manage_plans and not is_retired %}<div class="row mt-2"><a class="btn btn--ghost" href="{% url 'asset_plan_assign' asset.pk %}">{% icon 'calendar' %}{% translate "Asignar plan" %}</a></div>{% endif %}
+    {% if can_manage_plans and not is_retired and not read_only %}<div class="row mt-2"><a class="btn btn--ghost" href="{% url 'asset_plan_assign' asset.pk %}">{% icon 'calendar' %}{% translate "Asignar plan" %}</a></div>{% endif %}
   </section>
 </div>
 

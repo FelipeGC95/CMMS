@@ -16,6 +16,7 @@ from django.views.decorators.http import require_POST
 from apps.accounts.permissions import Perm, PermissionDeniedError, has_perm
 from apps.attachments.models import Attachment, Purpose, TargetType
 from apps.attachments.selectors import attachments_for
+from apps.billing.access import can_act, is_read_only
 from apps.core.decorators import membership_required
 from apps.core.files import private_file_response
 from apps.inventory.selectors import visible_warehouses
@@ -256,11 +257,11 @@ def parts_context(request, work_order, *, planned=None):
     if not inventory_enabled(request):
         return {"inventory_enabled": False}
     can_use = (
-        has_perm(membership, Perm.WORK_ORDER_EXECUTE)
+        can_act(membership, Perm.WORK_ORDER_EXECUTE)
         and work_order.is_open
         and work_order.status not in COST_LOCKED_STATUSES
     )
-    can_reserve = has_perm(membership, Perm.WORK_ORDER_MANAGE) and work_order.status not in (
+    can_reserve = can_act(membership, Perm.WORK_ORDER_MANAGE) and work_order.status not in (
         WorkOrder.Status.COMPLETED,
         *WorkOrder.CLOSED_STATUSES,
     )
@@ -295,8 +296,10 @@ def _planned_form(request, work_order, planned, data=None):
 
 
 def _detail_context(request, work_order, complete_form=None, assignees_form=None, planned_form=None):
-    targets = allowed_transitions(work_order=work_order, membership=request.membership)
-    can_manage = has_perm(request.membership, Perm.WORK_ORDER_MANAGE)
+    # Solo lectura (ORG-13): sin transiciones ni formularios; se ve todo lo registrado.
+    read_only = is_read_only(request.organization)
+    targets = [] if read_only else allowed_transitions(work_order=work_order, membership=request.membership)
+    can_manage = can_act(request.membership, Perm.WORK_ORDER_MANAGE)
     can_assign = can_manage and work_order.status not in WorkOrder.CLOSED_STATUSES
     if can_assign and assignees_form is None:
         assignees_form = AssigneesForm(
@@ -305,11 +308,12 @@ def _detail_context(request, work_order, complete_form=None, assignees_form=None
         )
     attachments = list(attachments_for(target_type=TargetType.WORK_ORDER, target_id=work_order.pk))
     signatures = [a for a in attachments if a.purpose == Purpose.SIGNATURE]
-    can_execute = has_perm(request.membership, Perm.WORK_ORDER_EXECUTE) and work_order.is_open
+    executor = has_perm(request.membership, Perm.WORK_ORDER_EXECUTE) and work_order.is_open
+    can_execute = executor and not read_only
     pending_required = sum(1 for i in work_order.checklist.all() if i.required and not i.result)
     transitions = [s for s in targets if s != WorkOrder.Status.COMPLETED]
     parts = parts_context(request, work_order)
-    assistant = closing_assistant(request, work_order) if can_execute else None
+    assistant = closing_assistant(request, work_order) if executor else None
     use_summary = request.GET.get("summary") != "discard"
     if can_execute and planned_form is None and parts["inventory_enabled"]:
         planned_form = _planned_form(request, work_order, parts["planned_parts"])
@@ -434,8 +438,8 @@ def _checklist_item_response(request, item, error=None):
         {
             "item": _with_photos([item])[0],
             "error": error,
-            "can_execute": item.work_order.is_open,
-            "can_manage": has_perm(request.membership, Perm.WORK_ORDER_MANAGE),
+            "can_execute": item.work_order.is_open and not is_read_only(request.organization),
+            "can_manage": can_act(request.membership, Perm.WORK_ORDER_MANAGE),
         },
     )
 
@@ -1104,8 +1108,9 @@ def board_view(request):
     backlog_page = Paginator(
         unscheduled_backlog(membership=membership, location=location), BOARD_BACKLOG_PAGE
     ).get_page(request.GET.get("page"))
+    writable = not is_read_only(request.organization)  # solo lectura (ORG-13): nada se mueve
     for wo in [*work_orders, *backlog_page.object_list]:
-        wo.movable = wo.status in SCHEDULABLE
+        wo.movable = writable and wo.status in SCHEDULABLE
     for row in loads:
         row.visible = list(zip(context["visible_days"], row.days, strict=False))
     lanes_on = request.GET.get("lanes") == "1"

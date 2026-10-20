@@ -11907,4 +11907,11 @@ msgid "vale para todos los grupos, también los que se agreguen a la API. Los to
 msgstr ""
 
 msgid "Último intento"
+msgid "La organización está en solo lectura: puedes ver tus OT, pero lo que registres queda guardado en el teléfono y se envía cuando un administrador pague."
+msgstr ""
+
+msgid "Exportar planes (Excel)"
+msgstr ""
+
+msgid "Exportar (Excel)"
 msgstr ""

@@ -238,8 +238,10 @@ escribirle a nadie; y como dueño de GALBUST quiero cobrar en pesos un precio fi
   gracia y al quedar en solo lectura. Gracia de 7 días (`BILLING_GRACE_DAYS`); luego **solo
   lectura**: se ve y se exporta, no se crea ni se edita en la web, la API v1 (402
   `payment_required`) ni `/field/api/` (402; la PWA deja el cambio en cola y lo envía al
-  pagar). Los administradores siempre pueden entrar a Facturación y pagar. Al aprobarse un
-  pago se reactiva sola. Nunca se borran datos por impago. La misma solo lectura rige durante
+  pagar). La interfaz es coherente con la solo lectura: no muestra botones, formularios ni
+  accesos de crear, editar o ejecutar (solo ver, exportar Excel/PDF, imprimir etiquetas y, al
+  administrador, Facturación y «Pagar»); la PWA muestra un aviso. Los administradores siempre
+  pueden entrar a Facturación y pagar. Al aprobarse un pago se reactiva sola. Nunca se borran datos por impago. La misma solo lectura rige durante
   el borrado programado (X-04).
 - CA6: Webhook entrante `/billing/webhooks/mercadopago/`: valida la firma `x-signature`;
   siempre consulta el recurso a la API de Mercado Pago (no confía en el cuerpo); idempotente

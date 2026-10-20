@@ -25,7 +25,7 @@
         <th>{% translate "Código" %}</th>
         <th>{% translate "Nombre" %}</th>
         <th>{% translate "Estado" %}</th>
-        <th>{% translate "Acciones" %}</th>
+        {% if not read_only %}<th>{% translate "Acciones" %}</th>{% endif %}
       </tr>
     </thead>
     <tbody>
@@ -41,7 +41,7 @@
           <span class="badge badge--neutral">{% icon 'x' %}{% translate "Inactivo" %}</span>
           {% endif %}
         </td>
-        <td data-label="{% translate 'Acciones' %}">
+        {% if not read_only %}<td data-label="{% translate 'Acciones' %}">
           <div class="row">
             <details>
               <summary class="btn btn--ghost">{% icon 'wrench' %}{% translate "Renombrar" %}</summary>
@@ -61,7 +61,7 @@
               {% endif %}
             </form>
           </div>
-        </td>
+        </td>{% endif %}
       </tr>
       {% endfor %}
     </tbody>
@@ -72,7 +72,7 @@
 </div>
 {% include "_pagination.html" %}
 
-<section class="card mt-4" aria-labelledby="add-title">
+{% if not read_only %}<section class="card mt-4" aria-labelledby="add-title">
   <h2 id="add-title">{% translate "Agregar código" %}</h2>
   <form method="post" action="{% url 'failure_code_create' %}">
     {% csrf_token %}
@@ -87,5 +87,5 @@
     </div>
     <button class="btn btn--primary" type="submit">{% icon 'check' %}{% translate "Agregar" %}</button>
   </form>
-</section>
+</section>{% endif %}
 {% endblock %}
