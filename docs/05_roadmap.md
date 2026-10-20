@@ -274,9 +274,15 @@ KPIs ampliados están hechos.
   webhooks firmados e idempotentes, avisos, 7 días de gracia y solo lectura central con reactivación
   automática (ORG-13, ADR-033). Queda: SII, prorrateo, cambio de período con suscripción activa.
 - Traducción a inglés y portugués.
-- API ampliada, webhooks y tokens con más alcances. *Parcial (2026-10):* webhooks
-  salientes v1 hechos (OT creada y completada, solicitud creada; X-08, ADR-030);
-  quedan la API ampliada, más eventos y tokens con más alcances.
+- API ampliada, webhooks y tokens con más alcances. *Hecho (2026-10):* webhooks
+  salientes v1 (OT creada y completada, solicitud creada; X-08, ADR-030) y, en F3,
+  cambios de estado de OT, activos, lecturas, alertas de condición e inventario
+  (por módulo del plan, en lote en importaciones masivas), regenerar secreto,
+  reenvío manual, cuerpo y respuesta de cada entrega y purga a 90 días; tokens con
+  alcances por recurso (`assets:read`, `inventory:write`, `*:read`…; los antiguos
+  migrados sin cambio de comportamiento; ADR-034). Quedan: endpoints de
+  ubicaciones, clases, planes y gestión de solicitudes, y eventos de planes y
+  asignaciones.
 - Base de datos dedicada para el plan Empresa (si hay demanda).
 
 ## Riesgos del roadmap

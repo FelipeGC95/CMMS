@@ -403,7 +403,9 @@ def test_low_stock_alert_is_not_sent_if_rolled_back(in_a, part, wo, django_captu
     receive(in_a, part, 5)
     with django_capture_on_commit_callbacks(execute=False) as callbacks:
         issue(in_a, wo, part, 6)
-    assert len(callbacks) == 1
+    # El aviso queda para el commit (además de los webhooks del movimiento y del cruce, X-08).
+    notices = [c for c in callbacks if not c.__qualname__.startswith("emit_event")]
+    assert len(notices) == 1
     assert not Notification.objects.exists()
 
 
