@@ -78,6 +78,9 @@ jobs:
           DJANGO_DEBUG: "0"
           DJANGO_SECRET_KEY: ci-only-not-secret-0123456789-abcdefghijklmnopqrstuvwxyz-ABCDEFG
           DJANGO_ALLOWED_HOSTS: cmms.example.com
+          # Producción con correo configurado (core.W001/W002); no se envía nada.
+          EMAIL_HOST: smtp.example.com
+          BILLING_CONTACT_EMAIL: ventas@example.com
         run: uv run python manage.py check --deploy --fail-level WARNING
 
   # E2E de la PWA de terreno (X-06, ADR-011): servidor con seed_demo + Playwright chromium.
