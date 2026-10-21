@@ -62,6 +62,13 @@ DKIM y DMARC en el DNS) antes de enviar, o los correos rebotan o caen en spam.
 `DEBUG=0`, `manage.py check` (y cada `migrate` del arranque) avisa con
 `core.W001` si no hay SMTP y `core.W002` si falta `BILLING_CONTACT_EMAIL`.
 
+Si el servidor de correo falla (timeout, clave mala, puerto bloqueado), la app
+registra el error y sigue: recuperar clave y verificar correo muestran «No
+pudimos enviar el correo»; la invitación y la solicitud de registro quedan
+guardadas para reenviarlas. Un *timeout* desde Render con el SMTP probado desde
+otra red indica que Render bloquea el SMTP saliente (plan gratis): pasar el
+servicio web a un plan pagado o enviar por la API HTTP del proveedor.
+
 ## 2. Procesos
 
 - **Web:** `gunicorn config.wsgi:application`. Salud: `/healthz` (vida) y

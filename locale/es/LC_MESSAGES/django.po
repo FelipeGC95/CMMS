@@ -11069,6 +11069,9 @@ msgstr ""
 msgid "%(organization)s exige entrar con inicio de sesión único (SSO)."
 msgstr ""
 
+msgid "No pudimos enviar el correo. Inténtalo de nuevo en unos minutos."
+msgstr ""
+
 msgid "Entrar con SSO"
 msgstr ""
 

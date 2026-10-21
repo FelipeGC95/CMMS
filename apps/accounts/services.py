@@ -1,4 +1,5 @@
 import datetime
+import logging
 import secrets
 from decimal import Decimal
 
@@ -15,6 +16,7 @@ from django.utils.translation import gettext as _
 
 from apps.audit import services as audit
 from apps.audit.models import AuditEvent
+from apps.core.mail import MAIL_ERRORS
 from apps.core.middleware import SESSION_KEY
 from apps.core.tenancy import tenant_context
 from apps.organizations.models import Location, Organization, Plan
@@ -39,6 +41,8 @@ from .permissions import (
     require_perm,
 )
 from .selectors import hash_token, pending_invitations_qs
+
+logger = logging.getLogger(__name__)
 
 INVITATION_TTL = datetime.timedelta(days=7)
 
@@ -102,7 +106,10 @@ def _send_invitation_email(invitation, accept_url):
     }
     subject = render_to_string("accounts/email/invitation_subject.txt", context).strip()
     body = render_to_string("accounts/email/invitation_message.txt", context)
-    send_mail(subject, body, settings.DEFAULT_FROM_EMAIL, [invitation.email])
+    try:
+        send_mail(subject, body, settings.DEFAULT_FROM_EMAIL, [invitation.email])
+    except MAIL_ERRORS:  # la invitación queda pendiente y se puede reenviar
+        logger.exception("No se pudo enviar la invitación %s", invitation.pk)
 
 
 @transaction.atomic
@@ -507,7 +514,10 @@ def _unique_slug(name: str) -> str:
 def _send_signup_email(template: str, email: str, context: dict):
     subject = render_to_string(f"accounts/email/{template}_subject.txt", context).strip()
     body = render_to_string(f"accounts/email/{template}_message.txt", context)
-    send_mail(subject, body, settings.DEFAULT_FROM_EMAIL, [email])
+    try:
+        send_mail(subject, body, settings.DEFAULT_FROM_EMAIL, [email])
+    except MAIL_ERRORS:  # la solicitud queda guardada; registrarse de nuevo reenvía el enlace
+        logger.exception("No se pudo enviar el correo de registro %s", template)
 
 
 @transaction.atomic

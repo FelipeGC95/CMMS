@@ -3,12 +3,20 @@
 `QueuedEmailBackend` reemplaza a EMAIL_BACKEND sin cambiar a quienes llaman
 (`send_mail`, allauth): serializa cada mensaje y el worker lo envía con
 EMAIL_DELIVERY_BACKEND. Los mensajes con adjuntos se envían en el momento.
+
+`MAIL_ERRORS`: fallas del servidor de correo (rechazo, clave mala, timeout o puerto
+bloqueado). Quien envía las registra y sigue: un correo que no sale no debe
+convertirse en un error 500 ni revertir lo que ya se guardó.
 """
+
+import smtplib
 
 from django.conf import settings
 from django.core.mail import EmailMessage, EmailMultiAlternatives, get_connection
 from django.core.mail.backends.base import BaseEmailBackend
 from django.db import transaction
+
+MAIL_ERRORS = (smtplib.SMTPException, OSError)
 
 
 def serialize_message(message: EmailMessage) -> dict:
