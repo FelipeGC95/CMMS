@@ -63,7 +63,7 @@ services:
       - key: DEFAULT_FROM_EMAIL
         value: GALBUST CMMS <no-reply@galbust.com>
       - key: BILLING_CONTACT_EMAIL
-        sync: false # correo real que alguien lea; vacío = no se muestra
+        value: ventas@galbust.com
       # Sin proveedor de correo aún: se pide verificar pero no se bloquea el acceso.
       # Al configurar SMTP se quita y queda obligatoria.
       - key: ACCOUNT_EMAIL_VERIFICATION
