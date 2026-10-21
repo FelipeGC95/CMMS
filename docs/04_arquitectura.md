@@ -169,10 +169,12 @@ revés; los modelos no llaman servicios; las vistas HTML y la API llaman a
 
 Pipeline (GitHub Actions): ruff → verificación de migraciones faltantes →
 pytest (con Postgres de servicio) → `check --deploy` → pip-audit/gitleaks.
-Para cuidar los minutos de Actions (repo privado), corre una vez por push
-(sin `pull_request`), omite cambios solo de documentación (`docs/`, `*.md`,
-`Marca/`), cancela la corrida anterior de la misma rama y en las ramas prueba
-solo Python 3.13 (la versión de Render); `main` prueba 3.11 y 3.13.
+Para cuidar los minutos de Actions (repo privado), corre solo en los PR hacia
+`main` (prueba el merge con `main`, así que no se repite al integrar), omite
+cambios solo de documentación (`docs/`, `*.md`, `Marca/`), cancela la corrida
+anterior del mismo PR, prueba solo Python 3.13 (la versión de Render) y corre
+los tests en paralelo con `pytest-xdist` (una base de test por proceso).
+Python 3.11 se cubre con la suite local.
 
 Operación:
 

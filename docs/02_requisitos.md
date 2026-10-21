@@ -1364,7 +1364,7 @@ varias fotos o PDF por pregunta; compartir conversaciones entre técnicos.
 | NF-10 | Rendimiento | Listas paginadas siempre; sin N+1 (tests con `django_assert_max_num_queries`); p95 < 500 ms en páginas principales con 5.000 activos por organización. | Tests y datos sintéticos. |
 | NF-11 | Escala | Diseñado para cientos de organizaciones y miles de activos por organización; índices que empiezan por `organization_id`. | Revisión del modelo. |
 | NF-12 | Calidad | Tests unitarios, de servicios, de aislamiento y de permisos; cobertura ≥ 80 % en `services` y `selectors`. | CI. |
-| NF-13 | Calidad | Lint y formato (ruff), chequeo de migraciones, CI en cada push. | CI. |
+| NF-13 | Calidad | Lint y formato (ruff), chequeo de migraciones, CI en cada PR hacia `main`. | CI. |
 | NF-14 | Operación | Ambientes dev, staging y producción; despliegue automático a staging en `main` y manual a producción. | Pipeline. |
 | NF-15 | Operación | Monitoreo de errores (Sentry), logs estructurados, `/healthz` (vida) y `/readyz` (base de datos). | Staging. |
 | NF-16 | Accesibilidad | WCAG 2.2 AA: contraste, foco visible, navegación por teclado, etiquetas; objetivos táctiles ≥ 48 px en vistas de técnico. | Test automático de contraste de tokens + revisión manual. |

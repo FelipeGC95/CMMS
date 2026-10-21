@@ -154,9 +154,11 @@ plan preventivo = `maintenance_plan` · OT = `work_order` · solicitud =
 
 ## Minutos de GitHub Actions
 
-Con el repo privado el plan gratis trae 2.000 minutos al mes y cada corrida
-del CI tarda ~20 min (~40 en `main`, con dos versiones de Python). Para no
-agotarlos:
+Con el repo privado el plan gratis trae 2.000 minutos al mes. El CI corre
+**solo en PR hacia `main`** (no en cada push a una rama, ni de nuevo tras
+integrar), con Python 3.13 y tests en paralelo (`pytest -n auto`). Flujo: el
+trabajador verifica en local y sube su rama; el orquestador abre el PR,
+espera el CI verde (`gh pr checks <n> --watch`) e integra. Para no agotarlos:
 
 - Verificar en local antes de subir: `pytest` de lo afectado, `ruff check`,
   `ruff format --check` y `makemigrations --check`. El CI confirma; no se usa
@@ -170,9 +172,8 @@ agotarlos:
   infraestructura de GitHub.
 - Si el CI no arranca (el job muere en segundos por pago o límite de gasto),
   avisar al dueño y no integrar sin CI verde.
-- Pendiente para cuando el repo vuelva a privado: CI solo en PR y `main`, `main`
-  solo con Python 3.13 y tests en paralelo (`pytest-xdist`). Ver
-  `docs/09_costos_y_pendientes.md`.
+- Abrir el PR solo cuando la rama está lista: cada push a un PR abierto
+  vuelve a correr el CI.
 
 ## Definición de terminado
 

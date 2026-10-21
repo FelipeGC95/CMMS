@@ -1,30 +1,32 @@
 name: CI
 
-# Minutos de Actions (repo privado): cada push corre una vez (sin pull_request duplicado),
-# los cambios solo de documentación no corren, un push nuevo cancela la corrida anterior
-# de la misma rama y las ramas prueban solo la versión de producción (Render: 3.13);
-# main prueba además 3.11.
+# Minutos de Actions (repo privado, CLAUDE.md "Minutos de GitHub Actions"): corre solo en
+# los PR hacia main (prueba el merge con main, así que no se repite tras integrar); un push
+# a una rama sin PR no corre. Los cambios solo de documentación no corren, un push nuevo al
+# PR cancela la corrida anterior, se prueba solo la versión de producción (Render: 3.13) y
+# los tests van en paralelo (pytest-xdist).
 on:
-  push:
+  pull_request:
+    branches: [main]
     paths-ignore:
       - "docs/**"
       - "**/*.md"
       - "Marca/**"
   # Solo a mano (pestaña Actions → CI → Run workflow): el e2e de la PWA de terreno con
-  # Playwright. No corre en cada push porque los minutos de Actions son escasos.
+  # Playwright. No corre en cada PR porque los minutos de Actions son escasos.
   workflow_dispatch:
 
 concurrency:
   group: ci-${{ github.event_name }}-${{ github.ref }}
-  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+  cancel-in-progress: true
 
 jobs:
   test:
-    if: github.event_name == 'push'
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ${{ github.ref == 'refs/heads/main' && fromJSON('["3.11", "3.13"]') || fromJSON('["3.13"]') }}
+        python-version: ["3.13"]
     services:
       postgres:
         image: postgres:16
@@ -69,7 +71,8 @@ jobs:
       - name: Tests (PostgreSQL)
         env:
           REQUIRE_GETTEXT: "1"
-        run: uv run pytest
+        # Una base de test por proceso (test_cmms_gw0, …); cmms_app tiene CREATEDB.
+        run: uv run pytest -n auto
       - name: Chequeos de despliegue
         env:
           DJANGO_DEBUG: "0"
