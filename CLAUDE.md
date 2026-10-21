@@ -152,6 +152,28 @@ plan preventivo = `maintenance_plan` · OT = `work_order` · solicitud =
 - Los trabajadores no hacen merge a `main`; el orquestador verifica, actualiza
   la rama con `main` si hace falta y la integra.
 
+## Minutos de GitHub Actions
+
+Con el repo privado el plan gratis trae 2.000 minutos al mes y cada corrida
+del CI tarda ~20 min (~40 en `main`, con dos versiones de Python). Para no
+agotarlos:
+
+- Verificar en local antes de subir: `pytest` de lo afectado, `ruff check`,
+  `ruff format --check` y `makemigrations --check`. El CI confirma; no se usa
+  para descubrir errores.
+- Commits locales frecuentes, pero **un solo push por tarea**, cuando está
+  verificada (más uno si el CI pide corrección). Para no perder trabajo si un
+  agente se corta, se reanuda en su worktree en vez de subir avances parciales.
+- Cambios solo de documentación no disparan el CI (`paths-ignore`); juntar los
+  arreglos chicos en una rama en vez de varias.
+- No relanzar corridas sin un cambio de por medio, salvo fallas de
+  infraestructura de GitHub.
+- Si el CI no arranca (el job muere en segundos por pago o límite de gasto),
+  avisar al dueño y no integrar sin CI verde.
+- Pendiente para cuando el repo vuelva a privado: CI solo en PR y `main`, `main`
+  solo con Python 3.13 y tests en paralelo (`pytest-xdist`). Ver
+  `docs/09_costos_y_pendientes.md`.
+
 ## Definición de terminado
 
 Una tarea está terminada solo cuando:
