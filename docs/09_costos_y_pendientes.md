@@ -107,3 +107,4 @@ servidores.
 | P-07 | Ventana de traslape al regenerar el secreto de un webhook | X-08 | Abierto |
 | P-08 | Revisar las plantillas de rubro (marcadas como borrador) | MVP-1 | Abierto |
 | P-09 | Crear las cuentas de producción (Render pagado, R2, Sentry, correo, Mercado Pago) y seguir `docs/07_operacion.md` | MVP-1 / ORG-13 | Abierto |
+| P-10 | Abaratar el CI antes de volver el repo a privado: correr solo en PR y `main`, `main` solo con Python 3.13, tests en paralelo con `pytest-xdist` (meta: 150–250 min/semana) | D-06 | Abierto |
