@@ -79,6 +79,8 @@ drf-spectacular-sidecar==2026.9.1
     # via galbust-cmms
 et-xmlfile==2.0.0
     # via openpyxl
+execnet==2.1.2
+    # via pytest-xdist
 fido2==2.2.1
     # via django-allauth
 filelock==4.0.3
@@ -157,8 +159,11 @@ pyjwt==2.15.1
 pypdf==6.19.0
     # via galbust-cmms
 pytest==9.1.1
-    # via pytest-django
+    # via
+    #   pytest-django
+    #   pytest-xdist
 pytest-django==4.14.0
+pytest-xdist==3.8.0
 python-dateutil==2.9.0.post0
     # via
     #   botocore

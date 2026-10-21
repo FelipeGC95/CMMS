@@ -77,6 +77,7 @@ def test_page_cap(in_a, monkeypatch):
 @pytest.mark.parametrize(
     "data,content_type",
     [(b"no es un pdf", "application/pdf"), (pdf_bytes(["x"]), "image/jpeg")],
+    ids=["not-a-pdf", "pdf-as-jpeg"],  # el PDF lleva la hora: con ids fijos xdist recolecta igual
 )
 def test_only_pdf_manuals_are_accepted(in_a, data, content_type):
     with pytest.raises(services.AttachmentError):

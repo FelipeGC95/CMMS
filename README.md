@@ -109,4 +109,4 @@ uv run ruff format --check .
 La suite incluye aislamiento entre organizaciones (`tests/isolation/`),
 permisos por rol, reglas de OT y preventivos, KPIs con valores conocidos,
 consultas sin N+1 y contraste WCAG AA de los tokens de diseño. GitHub Actions
-la corre en cada push con código contra PostgreSQL 16 (ver docs/04, Pipeline).
+la corre en cada PR hacia `main` con código, contra PostgreSQL 16 (ver docs/04, Pipeline).
