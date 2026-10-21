@@ -282,10 +282,13 @@ EMAIL_BACKEND = os.environ.get(
     if os.environ.get("EMAIL_HOST")
     else "django.core.mail.backends.console.EmailBackend",
 )
-EMAIL_PORT = int(os.environ.get("EMAIL_PORT", "587"))
+# EMAIL_USE_SSL=1: SSL directo (puerto 465, el que anuncia cPanel); si no, STARTTLS en 587.
+# Django no admite los dos a la vez.
+EMAIL_USE_SSL = env_bool("EMAIL_USE_SSL", False)
+EMAIL_USE_TLS = env_bool("EMAIL_USE_TLS", not EMAIL_USE_SSL)
+EMAIL_PORT = int(os.environ.get("EMAIL_PORT", "465" if EMAIL_USE_SSL else "587"))
 EMAIL_HOST_USER = os.environ.get("EMAIL_HOST_USER", "")
 EMAIL_HOST_PASSWORD = os.environ.get("EMAIL_HOST_PASSWORD", "")
-EMAIL_USE_TLS = env_bool("EMAIL_USE_TLS", True)
 EMAIL_TIMEOUT = int(os.environ.get("EMAIL_TIMEOUT", "10"))
 # El dominio del remitente debe estar verificado en el proveedor (SPF y DKIM).
 DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL", "GALBUST CMMS <no-reply@galbust.com>")

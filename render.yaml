@@ -53,11 +53,14 @@ services:
         value: "1"
       # Correo (docs/07_operacion.md): sin EMAIL_HOST los correos solo van al log
       # y no llega ninguno (verificación, invitaciones, claves, notificaciones).
-      # Brevo: EMAIL_HOST=smtp-relay.brevo.com con el dominio galbust.com verificado.
+      # Buzón del hosting (cPanel): SSL directo en el puerto 465. La clave del
+      # buzón va solo en el panel de Render.
       - key: EMAIL_HOST
-        sync: false
+        value: mail.galbust.com
+      - key: EMAIL_USE_SSL
+        value: "1"
       - key: EMAIL_HOST_USER
-        sync: false
+        value: no-reply@galbust.com
       - key: EMAIL_HOST_PASSWORD
         sync: false
       - key: DEFAULT_FROM_EMAIL

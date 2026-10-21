@@ -18,7 +18,8 @@ lo único nuevo que expone es `/readyz`. Decisión en ADR-020
 | `SENTRY_RELEASE` | Versión; en Render se toma `RENDER_GIT_COMMIT`. | — |
 | `LOG_FORMAT=json` | Logs JSON por línea con `request_id` (cabecera `X-Request-ID`). | Texto plano. |
 | `LOG_LEVEL`, `PROCRASTINATE_LOG_LEVEL` | Nivel de logs general y de la cola (en el worker conviene `INFO`). | `INFO` / `WARNING`. |
-| `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD`, `EMAIL_USE_TLS` | SMTP del proveedor. Con `EMAIL_HOST` se usa SMTP. | Correos a la consola. |
+| `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD`, `EMAIL_USE_TLS` | SMTP del proveedor. Con `EMAIL_HOST` se usa SMTP. | Correos a la consola; STARTTLS en el puerto 587. |
+| `EMAIL_USE_SSL=1` | SSL directo en el puerto 465 (el que anuncia cPanel). Apaga `EMAIL_USE_TLS` y cambia el puerto por defecto a 465. | Apagado. |
 | `EMAIL_BACKEND` | Forzar otro backend (opcional). | Según `EMAIL_HOST`. |
 | `DEFAULT_FROM_EMAIL`, `SERVER_EMAIL` | Remitente (dominio verificado en el proveedor). | `GALBUST CMMS <no-reply@galbust.com>`. |
 | `EMAIL_USE_QUEUE=1` | Enviar correos desde el worker (reintentos). Requiere worker corriendo. | Envío sincrónico. |
@@ -51,6 +52,9 @@ Proveedor de correo (SMTP, ambos con plan gratuito para empezar):
   `EMAIL_HOST_USER` y `EMAIL_HOST_PASSWORD` = el *Server API token*.
 - **Brevo:** `EMAIL_HOST=smtp-relay.brevo.com`, `EMAIL_PORT=587`,
   `EMAIL_HOST_USER` = login SMTP, `EMAIL_HOST_PASSWORD` = clave SMTP.
+- **Buzón del hosting (cPanel, el actual):** `EMAIL_HOST=mail.galbust.com`,
+  `EMAIL_USE_SSL=1` (puerto 465), `EMAIL_HOST_USER=no-reply@galbust.com`,
+  `EMAIL_HOST_PASSWORD` = la clave del buzón.
 
 El dominio del remitente es `galbust.com`: verificarlo en el proveedor (SPF,
 DKIM y DMARC en el DNS) antes de enviar, o los correos rebotan o caen en spam.
