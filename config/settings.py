@@ -150,8 +150,9 @@ MERCADOPAGO_API_URL = os.environ.get("MERCADOPAGO_API_URL", "https://api.mercado
 UF_SOURCE_URL = os.environ.get("UF_SOURCE_URL", "https://mindicador.cl/api/uf")
 # Días con escritura tras el fin de la prueba o un pago rechazado; después, solo lectura.
 BILLING_GRACE_DAYS = int(os.environ.get("BILLING_GRACE_DAYS", "7"))
-# Contacto para cotizar el plan Empresa.
-BILLING_CONTACT_EMAIL = os.environ.get("BILLING_CONTACT_EMAIL", "ventas@galbust.cl")
+# Contacto para cotizar el plan Empresa. Sin valor no se muestra ningún correo: nunca una
+# dirección de ejemplo que nadie lee (docs/07_operacion.md).
+BILLING_CONTACT_EMAIL = os.environ.get("BILLING_CONTACT_EMAIL", "")
 # Borrado de organización (X-04): días de gracia antes de la purga.
 ORGANIZATION_DELETION_GRACE_DAYS = 30
 
@@ -286,7 +287,8 @@ EMAIL_HOST_USER = os.environ.get("EMAIL_HOST_USER", "")
 EMAIL_HOST_PASSWORD = os.environ.get("EMAIL_HOST_PASSWORD", "")
 EMAIL_USE_TLS = env_bool("EMAIL_USE_TLS", True)
 EMAIL_TIMEOUT = int(os.environ.get("EMAIL_TIMEOUT", "10"))
-DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL", "GALBUST CMMS <no-reply@galbust.cl>")
+# El dominio del remitente debe estar verificado en el proveedor (SPF y DKIM).
+DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL", "GALBUST CMMS <no-reply@galbust.com>")
 SERVER_EMAIL = os.environ.get("SERVER_EMAIL", DEFAULT_FROM_EMAIL)
 # EMAIL_USE_QUEUE=1: los correos se envían desde el worker (reintentos, sin bloquear la
 # petición). Apagado por defecto: envío sincrónico como siempre.

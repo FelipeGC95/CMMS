@@ -145,3 +145,15 @@ def test_storage_format():
     assert storage(1536) == "1,5 GB"
     assert storage(500) == "500 MB"
     assert storage(None) == ""
+
+
+def test_contact_email_only_when_configured(client, billable, settings):
+    login(client, billable.admin)
+    settings.BILLING_CONTACT_EMAIL = ""
+    body = client.get(reverse("billing")).content.decode()
+    assert "mailto:" not in body and "Cotizar" not in body
+    assert "Plan con precio a convenir." in body
+    assert "El pago en línea aún no está activo." in body
+    settings.BILLING_CONTACT_EMAIL = "contacto@galbust.com"
+    body = client.get(reverse("billing")).content.decode()
+    assert "mailto:contacto@galbust.com" in body and "escríbenos a contacto@galbust.com" in body

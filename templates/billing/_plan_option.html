@@ -49,7 +49,11 @@
   {% endif %}
 
   {% if column.kind == "quoted" %}
+  {% if contact_email %}
   <a class="btn btn--secondary btn--block" href="mailto:{{ contact_email }}?subject={% filter urlencode %}{% blocktranslate with org=organization.name plan=column.plan.name %}Cotización plan {{ plan }} · {{ org }}{% endblocktranslate %}{% endfilter %}">{% icon 'chat' %}{% translate "Cotizar" %}</a>
+  {% else %}
+  <p class="muted">{% translate "Plan con precio a convenir." %}</p>
+  {% endif %}
   {% elif column.kind == "option" %}{% with option=column.option %}
   {% if overview.account.is_active_subscription %}
     {% if not option.is_current %}

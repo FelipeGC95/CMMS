@@ -51,8 +51,21 @@ services:
       # X-Forwarded-For: la auditoría toma ese último valor (X-01).
       - key: AUDIT_TRUSTED_PROXIES
         value: "1"
+      # Correo (docs/07_operacion.md): sin EMAIL_HOST los correos solo van al log
+      # y no llega ninguno (verificación, invitaciones, claves, notificaciones).
+      # Brevo: EMAIL_HOST=smtp-relay.brevo.com con el dominio galbust.com verificado.
+      - key: EMAIL_HOST
+        sync: false
+      - key: EMAIL_HOST_USER
+        sync: false
+      - key: EMAIL_HOST_PASSWORD
+        sync: false
+      - key: DEFAULT_FROM_EMAIL
+        value: GALBUST CMMS <no-reply@galbust.com>
+      - key: BILLING_CONTACT_EMAIL
+        sync: false # correo real que alguien lea; vacío = no se muestra
       # Sin proveedor de correo aún: se pide verificar pero no se bloquea el acceso.
-      # Al configurar SMTP (EMAIL_BACKEND, EMAIL_HOST…) se quita y queda obligatoria.
+      # Al configurar SMTP se quita y queda obligatoria.
       - key: ACCOUNT_EMAIL_VERIFICATION
         value: optional
       - key: DEMO_PASSWORD

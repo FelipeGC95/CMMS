@@ -20,7 +20,7 @@ lo único nuevo que expone es `/readyz`. Decisión en ADR-020
 | `LOG_LEVEL`, `PROCRASTINATE_LOG_LEVEL` | Nivel de logs general y de la cola (en el worker conviene `INFO`). | `INFO` / `WARNING`. |
 | `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD`, `EMAIL_USE_TLS` | SMTP del proveedor. Con `EMAIL_HOST` se usa SMTP. | Correos a la consola. |
 | `EMAIL_BACKEND` | Forzar otro backend (opcional). | Según `EMAIL_HOST`. |
-| `DEFAULT_FROM_EMAIL`, `SERVER_EMAIL` | Remitente (dominio verificado en el proveedor). | `GALBUST CMMS <no-reply@galbust.cl>`. |
+| `DEFAULT_FROM_EMAIL`, `SERVER_EMAIL` | Remitente (dominio verificado en el proveedor). | `GALBUST CMMS <no-reply@galbust.com>`. |
 | `EMAIL_USE_QUEUE=1` | Enviar correos desde el worker (reintentos). Requiere worker corriendo. | Envío sincrónico. |
 | `DOCUMENT_TEXT_USE_QUEUE=1` | Extraer el texto de los manuales PDF en el worker. Requiere worker corriendo. | Extracción al subir, en la misma petición. |
 | `DATA_EXPORT_USE_QUEUE=1` | Armar la exportación completa (X-03) en el worker. Requiere worker corriendo. | Se arma al pedirla, en la misma petición. |
@@ -42,7 +42,7 @@ lo único nuevo que expone es `/readyz`. Decisión en ADR-020
 | `MERCADOPAGO_API_URL` | Base de la API (no hace falta cambiarla). | `https://api.mercadopago.com`. |
 | `UF_SOURCE_URL` | Fuente del valor diario de la UF (formato de mindicador.cl: `{"serie": [{"fecha", "valor"}]}`). | `https://mindicador.cl/api/uf`. |
 | `BILLING_GRACE_DAYS` | Días con escritura tras el fin de la prueba o un cobro rechazado. | `7`. |
-| `BILLING_CONTACT_EMAIL` | Correo del botón «Cotizar» (Empresa) y del aviso de pago no activo. | `ventas@galbust.cl`. |
+| `BILLING_CONTACT_EMAIL` | Correo del botón «Cotizar» (Empresa) y del aviso de pago no activo. Debe ser un buzón que alguien lea. | Vacío: no se muestra correo ni botón «Cotizar». |
 | `API_RATE_LIMIT`, `FIELD_API_RATE_LIMIT` | Límite de peticiones de la API v1 (por token) y de la API de terreno `/field/api/` (por persona; formato DRF, p. ej. `600/min`). Una sincronización envía un cambio por petición: subirlo si un técnico con muchos cambios recibe 429 (el teléfono reintenta solo). | `600/min` y `600/min`. |
 
 Proveedor de correo (SMTP, ambos con plan gratuito para empezar):
@@ -51,6 +51,12 @@ Proveedor de correo (SMTP, ambos con plan gratuito para empezar):
   `EMAIL_HOST_USER` y `EMAIL_HOST_PASSWORD` = el *Server API token*.
 - **Brevo:** `EMAIL_HOST=smtp-relay.brevo.com`, `EMAIL_PORT=587`,
   `EMAIL_HOST_USER` = login SMTP, `EMAIL_HOST_PASSWORD` = clave SMTP.
+
+El dominio del remitente es `galbust.com`: verificarlo en el proveedor (SPF,
+DKIM y DMARC en el DNS) antes de enviar, o los correos rebotan o caen en spam.
+`no-reply@` no necesita buzón; `BILLING_CONTACT_EMAIL` sí. En producción con
+`DEBUG=0`, `manage.py check` (y cada `migrate` del arranque) avisa con
+`core.W001` si no hay SMTP y `core.W002` si falta `BILLING_CONTACT_EMAIL`.
 
 ## 2. Procesos
 
