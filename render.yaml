@@ -1,8 +1,10 @@
-# Blueprint de Render: ambiente de DEMOSTRACIÓN de GALBUST CMMS en el plan gratuito.
+# Blueprint de Render: ambiente de DEMOSTRACIÓN de GALBUST CMMS.
 # Render → New → Blueprint → este repositorio. Ver docs/operacion/render.md.
 #
-# Limitaciones del plan gratis (aceptables para mostrar a prospectos):
-# - El servidor se duerme tras 15 min sin visitas (la primera visita tarda ~1 min).
+# Web en Starter (2026-10-21): el plan gratis bloquea el SMTP saliente y ningún
+# correo salía; Starter además no se duerme. Base todavía en el plan gratis.
+#
+# Limitaciones que quedan (aceptables para mostrar a prospectos):
 # - La base gratuita vence a los 30 días: se vuelve a crear y seed_demo recarga los datos.
 # - Sin disco: las fotos subidas se pierden al dormir o redesplegar.
 # - Sin cron ni preDeployCommand: migraciones, datos demo y preventivos corren al arrancar.
@@ -20,7 +22,7 @@ services:
   - type: web
     name: galbust-cmms
     runtime: python
-    plan: free
+    plan: starter
     region: ohio
     branch: main
     buildCommand: pip install -r requirements.txt && python manage.py collectstatic --noinput
