@@ -61,6 +61,18 @@ def test_admin_without_mfa_is_sent_to_setup(client, tenant_a):
     assert response.status_code == 204 and response["HX-Redirect"] == SETUP_URL
 
 
+def test_htmx_from_the_setup_page_does_not_reload_it(client, tenant_a):
+    """La campana del menú consulta al cargar: redirigir desde la página del QR la recargaba
+    cada segundo con un QR nuevo."""
+    login(client, tenant_a.admin)
+    response = client.get(
+        reverse("notification_badge"),
+        HTTP_HX_REQUEST="true",
+        HTTP_HX_CURRENT_URL=f"https://galbust-cmms.onrender.com{SETUP_URL}",
+    )
+    assert response.status_code == 204 and "HX-Redirect" not in response
+
+
 def test_setup_page_and_logout_stay_reachable(client, tenant_a):
     login(client, tenant_a.admin)
     # La activación pide haber ingresado hace poco: se simula con el ingreso por contraseña.

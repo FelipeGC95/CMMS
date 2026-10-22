@@ -18,9 +18,10 @@ lo único nuevo que expone es `/readyz`. Decisión en ADR-020
 | `SENTRY_RELEASE` | Versión; en Render se toma `RENDER_GIT_COMMIT`. | — |
 | `LOG_FORMAT=json` | Logs JSON por línea con `request_id` (cabecera `X-Request-ID`). | Texto plano. |
 | `LOG_LEVEL`, `PROCRASTINATE_LOG_LEVEL` | Nivel de logs general y de la cola (en el worker conviene `INFO`). | `INFO` / `WARNING`. |
-| `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD`, `EMAIL_USE_TLS` | SMTP del proveedor. Con `EMAIL_HOST` se usa SMTP. | Correos a la consola. |
+| `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD`, `EMAIL_USE_TLS` | SMTP del proveedor. Con `EMAIL_HOST` se usa SMTP. | Correos a la consola; STARTTLS en el puerto 587. |
+| `EMAIL_USE_SSL=1` | SSL directo en el puerto 465 (el que anuncia cPanel). Apaga `EMAIL_USE_TLS` y cambia el puerto por defecto a 465. | Apagado. |
 | `EMAIL_BACKEND` | Forzar otro backend (opcional). | Según `EMAIL_HOST`. |
-| `DEFAULT_FROM_EMAIL`, `SERVER_EMAIL` | Remitente (dominio verificado en el proveedor). | `GALBUST CMMS <no-reply@galbust.cl>`. |
+| `DEFAULT_FROM_EMAIL`, `SERVER_EMAIL` | Remitente (dominio verificado en el proveedor). | `GALBUST CMMS <no-reply@galbust.com>`. |
 | `EMAIL_USE_QUEUE=1` | Enviar correos desde el worker (reintentos). Requiere worker corriendo. | Envío sincrónico. |
 | `DOCUMENT_TEXT_USE_QUEUE=1` | Extraer el texto de los manuales PDF en el worker. Requiere worker corriendo. | Extracción al subir, en la misma petición. |
 | `DATA_EXPORT_USE_QUEUE=1` | Armar la exportación completa (X-03) en el worker. Requiere worker corriendo. | Se arma al pedirla, en la misma petición. |
@@ -42,7 +43,7 @@ lo único nuevo que expone es `/readyz`. Decisión en ADR-020
 | `MERCADOPAGO_API_URL` | Base de la API (no hace falta cambiarla). | `https://api.mercadopago.com`. |
 | `UF_SOURCE_URL` | Fuente del valor diario de la UF (formato de mindicador.cl: `{"serie": [{"fecha", "valor"}]}`). | `https://mindicador.cl/api/uf`. |
 | `BILLING_GRACE_DAYS` | Días con escritura tras el fin de la prueba o un cobro rechazado. | `7`. |
-| `BILLING_CONTACT_EMAIL` | Correo del botón «Cotizar» (Empresa) y del aviso de pago no activo. | `ventas@galbust.cl`. |
+| `BILLING_CONTACT_EMAIL` | Correo del botón «Cotizar» (Empresa) y del aviso de pago no activo. Debe ser un buzón que alguien lea. | Vacío: no se muestra correo ni botón «Cotizar». |
 | `API_RATE_LIMIT`, `FIELD_API_RATE_LIMIT` | Límite de peticiones de la API v1 (por token) y de la API de terreno `/field/api/` (por persona; formato DRF, p. ej. `600/min`). Una sincronización envía un cambio por petición: subirlo si un técnico con muchos cambios recibe 429 (el teléfono reintenta solo). | `600/min` y `600/min`. |
 
 Proveedor de correo (SMTP, ambos con plan gratuito para empezar):
@@ -51,6 +52,22 @@ Proveedor de correo (SMTP, ambos con plan gratuito para empezar):
   `EMAIL_HOST_USER` y `EMAIL_HOST_PASSWORD` = el *Server API token*.
 - **Brevo:** `EMAIL_HOST=smtp-relay.brevo.com`, `EMAIL_PORT=587`,
   `EMAIL_HOST_USER` = login SMTP, `EMAIL_HOST_PASSWORD` = clave SMTP.
+- **Buzón del hosting (cPanel, el actual):** `EMAIL_HOST=mail.galbust.com`,
+  `EMAIL_USE_SSL=1` (puerto 465), `EMAIL_HOST_USER=no-reply@galbust.com`,
+  `EMAIL_HOST_PASSWORD` = la clave del buzón.
+
+El dominio del remitente es `galbust.com`: verificarlo en el proveedor (SPF,
+DKIM y DMARC en el DNS) antes de enviar, o los correos rebotan o caen en spam.
+`no-reply@` no necesita buzón; `BILLING_CONTACT_EMAIL` sí. En producción con
+`DEBUG=0`, `manage.py check` (y cada `migrate` del arranque) avisa con
+`core.W001` si no hay SMTP y `core.W002` si falta `BILLING_CONTACT_EMAIL`.
+
+Si el servidor de correo falla (timeout, clave mala, puerto bloqueado), la app
+registra el error y sigue: recuperar clave y verificar correo muestran «No
+pudimos enviar el correo»; la invitación y la solicitud de registro quedan
+guardadas para reenviarlas. Un *timeout* desde Render con el SMTP probado desde
+otra red indica que Render bloquea el SMTP saliente (plan gratis): pasar el
+servicio web a un plan pagado o enviar por la API HTTP del proveedor.
 
 ## 2. Procesos
 

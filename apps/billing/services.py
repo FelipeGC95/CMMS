@@ -75,20 +75,26 @@ def quote_for(*, organization, plan, period, uf_value=None, now=None):
             now=now or timezone.now(),
         )
     except pricing.PriceUnavailable as error:
-        raise BillingError(
-            _("El plan %(plan)s no tiene precio definido. Escríbenos a %(email)s.")
-            % {"plan": plan.name, "email": settings.BILLING_CONTACT_EMAIL}
-        ) from error
+        message = _("El plan %(plan)s no tiene precio definido.") % {"plan": plan.name}
+        raise BillingError(_join(message, _contact_hint())) from error
 
 
 def _gateway_or_error():
     gateway = get_gateway()
     if gateway is None:
-        raise BillingError(
-            _("El pago en línea aún no está activo. Escríbenos a %(email)s para contratar.")
-            % {"email": settings.BILLING_CONTACT_EMAIL}
-        )
+        raise BillingError(_join(_("El pago en línea aún no está activo."), _contact_hint()))
     return gateway
+
+
+def _contact_hint():
+    """Cómo contactar a GALBUST, o "" si BILLING_CONTACT_EMAIL no está definido."""
+    if not settings.BILLING_CONTACT_EMAIL:
+        return ""
+    return _("Escríbenos a %(email)s para contratar.") % {"email": settings.BILLING_CONTACT_EMAIL}
+
+
+def _join(*parts):
+    return " ".join(str(part) for part in parts if part)
 
 
 def _uf_or_error():

@@ -1,8 +1,10 @@
-# Blueprint de Render: ambiente de DEMOSTRACIÓN de GALBUST CMMS en el plan gratuito.
+# Blueprint de Render: ambiente de DEMOSTRACIÓN de GALBUST CMMS.
 # Render → New → Blueprint → este repositorio. Ver docs/operacion/render.md.
 #
-# Limitaciones del plan gratis (aceptables para mostrar a prospectos):
-# - El servidor se duerme tras 15 min sin visitas (la primera visita tarda ~1 min).
+# Web en Starter (2026-10-21): el plan gratis bloquea el SMTP saliente y ningún
+# correo salía; Starter además no se duerme. Base todavía en el plan gratis.
+#
+# Limitaciones que quedan (aceptables para mostrar a prospectos):
 # - La base gratuita vence a los 30 días: se vuelve a crear y seed_demo recarga los datos.
 # - Sin disco: las fotos subidas se pierden al dormir o redesplegar.
 # - Sin cron ni preDeployCommand: migraciones, datos demo y preventivos corren al arrancar.
@@ -20,7 +22,7 @@ services:
   - type: web
     name: galbust-cmms
     runtime: python
-    plan: free
+    plan: starter
     region: ohio
     branch: main
     buildCommand: pip install -r requirements.txt && python manage.py collectstatic --noinput
@@ -51,8 +53,24 @@ services:
       # X-Forwarded-For: la auditoría toma ese último valor (X-01).
       - key: AUDIT_TRUSTED_PROXIES
         value: "1"
+      # Correo (docs/07_operacion.md): sin EMAIL_HOST los correos solo van al log
+      # y no llega ninguno (verificación, invitaciones, claves, notificaciones).
+      # Buzón del hosting (cPanel): SSL directo en el puerto 465. La clave del
+      # buzón va solo en el panel de Render.
+      - key: EMAIL_HOST
+        value: mail.galbust.com
+      - key: EMAIL_USE_SSL
+        value: "1"
+      - key: EMAIL_HOST_USER
+        value: no-reply@galbust.com
+      - key: EMAIL_HOST_PASSWORD
+        sync: false
+      - key: DEFAULT_FROM_EMAIL
+        value: GALBUST CMMS <no-reply@galbust.com>
+      - key: BILLING_CONTACT_EMAIL
+        value: ventas@galbust.com
       # Sin proveedor de correo aún: se pide verificar pero no se bloquea el acceso.
-      # Al configurar SMTP (EMAIL_BACKEND, EMAIL_HOST…) se quita y queda obligatoria.
+      # Al configurar SMTP se quita y queda obligatoria.
       - key: ACCOUNT_EMAIL_VERIFICATION
         value: optional
       - key: DEMO_PASSWORD

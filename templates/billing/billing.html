@@ -9,7 +9,7 @@
 </div>
 
 {% if not overview.online_payments and overview.status.access != "exempt" %}
-<div class="alert alert--info" role="status">{% icon 'info' %}<span>{% blocktranslate with email=contact_email %}El pago en línea aún no está activo. Para contratar o cambiar de plan escríbenos a {{ email }}.{% endblocktranslate %}</span></div>
+<div class="alert alert--info" role="status">{% icon 'info' %}<span>{% if contact_email %}{% blocktranslate with email=contact_email %}El pago en línea aún no está activo. Para contratar o cambiar de plan escríbenos a {{ email }}.{% endblocktranslate %}{% else %}{% translate "El pago en línea aún no está activo." %}{% endif %}</span></div>
 {% endif %}
 
 <div class="grid grid--2">

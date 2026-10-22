@@ -1,3 +1,5 @@
+import logging
+
 from allauth.account.adapter import DefaultAccountAdapter
 from allauth.mfa.adapter import DefaultMFAAdapter
 from django.contrib import messages
@@ -5,6 +7,10 @@ from django.shortcuts import redirect
 from django.urls import reverse
 from django.utils.http import urlencode
 from django.utils.translation import gettext
+
+from apps.core.mail import MAIL_ERRORS
+
+logger = logging.getLogger(__name__)
 
 
 class AccountAdapter(DefaultAccountAdapter):
@@ -17,6 +23,20 @@ class AccountAdapter(DefaultAccountAdapter):
 
     def is_open_for_signup(self, request):
         return False
+
+    def send_mail(self, template_prefix, email, context):
+        """Recuperar clave, verificar correo…: si el servidor de correo falla se registra y se
+        avisa en pantalla, en vez de un error 500."""
+        try:
+            super().send_mail(template_prefix, email, context)
+        except MAIL_ERRORS:
+            logger.exception("No se pudo enviar el correo %s", template_prefix)
+            if self.request is not None:
+                messages.error(
+                    self.request,
+                    gettext("No pudimos enviar el correo. Inténtalo de nuevo en unos minutos."),
+                    fail_silently=True,
+                )
 
     def pre_login(self, request, user, **kwargs):
         """«Exigir SSO» (ORG-11 CA7): con contraseña (o enlace de correo) no entra quien

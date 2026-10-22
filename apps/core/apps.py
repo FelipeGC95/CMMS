@@ -10,7 +10,7 @@ class CoreConfig(AppConfig):
         from django.db.backends.signals import connection_created
         from django.db.models.signals import post_migrate, pre_migrate
 
-        from . import rls
+        from . import checks, rls  # noqa: F401  (checks se registra al importarse)
 
         # Row-Level Security (ADR-026): variables de sesión y políticas.
         connection_created.connect(rls.on_connection_created, dispatch_uid="core_rls_connection")

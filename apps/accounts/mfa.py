@@ -4,6 +4,8 @@ La política vive en `Organization.mfa_policy`. Un usuario con varias organizaci
 cumple la de la organización que tiene abierta: al cambiar a otra, se evalúa la nueva.
 """
 
+from urllib.parse import urlsplit
+
 from allauth.mfa.models import Authenticator
 from allauth.mfa.utils import is_mfa_enabled
 from django.conf import settings
@@ -70,7 +72,12 @@ class MFARequiredMiddleware:
                 return JsonResponse({"error": error}, status=403)
             if request.headers.get("HX-Request"):
                 response = HttpResponse(status=204)
-                response["HX-Redirect"] = url
+                # Desde una página abierta (la misma configuración del QR) no se redirige: la
+                # campana del menú consulta al cargar y cada redirección recargaba la página
+                # con un QR nuevo, en un ciclo sin fin.
+                current_path = urlsplit(request.headers.get("HX-Current-URL", "")).path
+                if not current_path.startswith(ALLOWED_PREFIXES):
+                    response["HX-Redirect"] = url
                 return response
             return redirect(url)
         return self.get_response(request)

@@ -69,6 +69,19 @@ def test_checkout_amount_is_computed_on_the_server(billable, gateway):
         assert AuditEvent.objects.filter(target_id=str(account.pk), action="create").exists()
 
 
+def test_without_provider_the_message_names_the_contact_only_if_configured(billable, settings):
+    basic, _pro = plans()
+    settings.BILLING_CONTACT_EMAIL = ""
+    with tenant_context(billable.org):
+        store_uf()
+    with tenant_context(billable.org), pytest.raises(BillingError) as error:
+        services.start_checkout(membership=billable.admin, plan=basic, period=Period.MONTHLY)
+    assert error.value.messages == ["El pago en línea aún no está activo."]
+    settings.BILLING_CONTACT_EMAIL = "contacto@galbust.com"
+    with tenant_context(billable.org), pytest.raises(BillingError, match="contacto@galbust.com"):
+        services.start_checkout(membership=billable.admin, plan=basic, period=Period.MONTHLY)
+
+
 def test_checkout_without_provider_or_uf(billable, monkeypatch, settings):
     basic, _pro = plans()
     with tenant_context(billable.org), pytest.raises(BillingError, match="aún no está activo"):

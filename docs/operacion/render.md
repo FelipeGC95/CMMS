@@ -1,15 +1,18 @@
-# Despliegue en Render (demo en plan gratuito)
+# Despliegue en Render (demo)
 
 Todo el ambiente está descrito en [`render.yaml`](../../render.yaml) (un
-*Blueprint*): un servidor web y una base PostgreSQL 16, ambos en el **plan
-gratuito**. Render vuelve a desplegar solo cada vez que se sube un cambio a
-`main`.
+*Blueprint*): un servidor web en el plan **Starter** y una base PostgreSQL 16
+en el **plan gratuito**. Render vuelve a desplegar solo cada vez que se sube un
+cambio a `main`.
 
-## Qué implica el plan gratis
+El servidor web pasó a Starter el 2026-10-21 porque el plan gratis bloquea el
+SMTP saliente (puertos 25, 465 y 587): ningún correo salía y cada envío vencía
+por *timeout*. Con Starter el servidor tampoco se duerme.
+
+## Qué implica el plan gratis (base de datos y lo que queda)
 
 | Limitación | Efecto en la demo | Cómo se resuelve |
 |---|---|---|
-| El servidor se duerme tras 15 min sin visitas | La primera visita tarda ~1 minuto | Abre la demo unos minutos antes de presentarla |
 | La base gratuita vence a los 30 días | Render la elimina (avisa antes por correo) | Recrearla (ver abajo); los datos demo se cargan solos |
 | Sin disco persistente | Las fotos subidas se pierden al dormir o redesplegar | Aceptable en una demo en vivo |
 | Sin tareas programadas | — | Los preventivos del día se generan en cada arranque |
