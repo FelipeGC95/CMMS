@@ -11,11 +11,15 @@
 <div class="grid grid--2">
   <section class="card">
     <h2>{% translate "Nuevo rol" %}</h2>
+    {% if read_only %}
+    <p class="muted">{% translate "La organización está en solo lectura: no se crean ni editan roles hasta regularizar el pago." %}</p>
+    {% else %}
     <form method="post">
       {% csrf_token %}
       {% include "_form_fields.html" with form=form %}
       <button class="btn btn--primary" type="submit">{% icon 'key' %}{% translate "Crear rol" %}</button>
     </form>
+    {% endif %}
   </section>
   <section class="card">
     <h2>{% translate "Cómo funciona" %}</h2>

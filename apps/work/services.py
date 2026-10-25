@@ -279,6 +279,8 @@ def set_assignees(*, work_order: WorkOrder, membership, assigned_to=None, helper
         [*helpers, *([assigned_to] if assigned_to else [])], organization=membership.organization
     )
     before_lead = str(work_order.assigned_to) if work_order.assigned_to_id else ""
+    before_lead_id = work_order.assigned_to_id
+    before_helper_ids = sorted(str(user.pk) for user in work_order.helpers.all())
     before_users = {work_order.assigned_to_id, *(user.pk for user in work_order.helpers.all())}
     before_helpers = sorted(str(user) for user in work_order.helpers.all())
     work_order.assigned_to = assigned_to
@@ -297,7 +299,37 @@ def set_assignees(*, work_order: WorkOrder, membership, assigned_to=None, helper
         notify_assignment(
             work_order=work_order, users=[assigned_to, *helpers], previous=before_users, actor=membership.user
         )
+        _emit_assigned(work_order, before_lead_id=before_lead_id, before_helper_ids=before_helper_ids)
     return work_order
+
+
+def _emit_assigned(work_order: WorkOrder, *, before_lead_id, before_helper_ids: list[str]) -> None:
+    """X-08: `change` con los IDs de usuario que cambiaron (responsable y apoyo)."""
+    after_helper_ids = sorted(
+        str(pk)
+        for pk in WorkOrderHelper.objects.filter(work_order=work_order).values_list("user_id", flat=True)
+    )
+    change = {}
+    if before_lead_id != work_order.assigned_to_id:
+        change["assigned_to"] = {
+            "from": str(before_lead_id) if before_lead_id else None,
+            "to": str(work_order.assigned_to_id) if work_order.assigned_to_id else None,
+        }
+    if before_helper_ids != after_helper_ids:
+        change["helpers"] = {"from": before_helper_ids, "to": after_helper_ids}
+    if change:
+        emit_event(event_type=WebhookEvent.WORK_ORDER_ASSIGNED, instance=work_order, change=change)
+
+
+def _emit_rescheduled(work_order: WorkOrder, before) -> None:
+    emit_event(  # X-08: programada, movida de día o devuelta al backlog
+        event_type=WebhookEvent.WORK_ORDER_RESCHEDULED,
+        instance=work_order,
+        change={
+            "from": before.isoformat() if before else None,
+            "to": work_order.scheduled_for.isoformat() if work_order.scheduled_for else None,
+        },
+    )
 
 
 # --- Programación semanal (REQ-05) ------------------------------------------------
@@ -358,6 +390,7 @@ def schedule_work_order(
             changes={"scheduled_for": [before.isoformat() if before else "", scheduled_for.isoformat()]},
         )
         notify_scheduled(work_order=work_order, actor=membership.user)
+        _emit_rescheduled(work_order, before)
     return work_order
 
 
@@ -380,6 +413,7 @@ def unschedule_work_order(*, work_order: WorkOrder, membership) -> WorkOrder:
             actor=membership.user,
             changes={"scheduled_for": [before.isoformat(), ""]},
         )
+        _emit_rescheduled(work_order, before)
     return work_order
 
 
@@ -1845,6 +1879,12 @@ def accept_request(*, work_request: WorkRequest, membership) -> WorkRequest:
         actor=membership.user,
         changes=changes,
     )
+    # X-08: `data.work_order` trae la OT (creada al aceptar si el aviso era anónimo).
+    emit_event(
+        event_type=WebhookEvent.WORK_REQUEST_ACCEPTED,
+        instance=work_request,
+        change={"from": R.PENDING, "to": R.ACCEPTED},
+    )
     return work_request
 
 
@@ -1874,6 +1914,11 @@ def reject_request(*, work_request: WorkRequest, membership, reason: str) -> Wor
         changes={"status": [R.PENDING, R.REJECTED], "reason": work_request.rejection_reason},
     )
     notify_request_resolved(work_request=work_request, actor=membership.user)
+    emit_event(  # X-08
+        event_type=WebhookEvent.WORK_REQUEST_REJECTED,
+        instance=work_request,
+        change={"from": R.PENDING, "to": R.REJECTED, "reason": work_request.rejection_reason},
+    )
     return work_request
 
 
@@ -1910,6 +1955,11 @@ def merge_request(*, work_request: WorkRequest, into: WorkRequest, membership) -
         changes={"status": [R.PENDING, R.MERGED], "merged_into": into.number},
     )
     notify_request_resolved(work_request=work_request, actor=membership.user)
+    emit_event(  # X-08
+        event_type=WebhookEvent.WORK_REQUEST_MERGED,
+        instance=work_request,
+        change={"from": R.PENDING, "to": R.MERGED, "merged_into": str(into.pk)},
+    )
     return work_request
 
 

@@ -16,12 +16,17 @@
 <section class="card">
   <form method="post">
     {% csrf_token %}
+    <fieldset class="form-lock"{% if read_only %} disabled{% endif %}>
     {% include "_form_fields.html" with form=form %}
+    </fieldset>
+    {% if not read_only %}
     <p class="muted">{% translate "Al moverla, las ubicaciones y activos que contiene se mueven con ella." %}</p>
     <button class="btn btn--primary" type="submit">{% translate "Guardar" %}</button>
+    {% endif %}
   </form>
 </section>
 
+{% if not read_only %}
 <section class="card mt-4">
   <form method="post" action="{% url 'location_delete' location.pk %}">
     {% csrf_token %}
@@ -29,5 +34,6 @@
     <button class="btn btn--danger" type="submit">{% translate "Eliminar" %}</button>
   </form>
 </section>
+{% endif %}
 </div>
 {% endblock %}

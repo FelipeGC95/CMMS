@@ -280,9 +280,10 @@ KPIs ampliados están hechos.
   (por módulo del plan, en lote en importaciones masivas), regenerar secreto,
   reenvío manual, cuerpo y respuesta de cada entrega y purga a 90 días; tokens con
   alcances por recurso (`assets:read`, `inventory:write`, `*:read`…; los antiguos
-  migrados sin cambio de comportamiento; ADR-034). Quedan: endpoints de
-  ubicaciones, clases, planes y gestión de solicitudes, y eventos de planes y
-  asignaciones.
+  migrados sin cambio de comportamiento; ADR-034); eventos de planes,
+  asignación, reprogramación y decisiones sobre solicitudes y ventana de traslape
+  del secreto (2026-10-24). Quedan: endpoints de ubicaciones, clases, planes y
+  gestión de solicitudes.
 - Base de datos dedicada para el plan Empresa (si hay demanda).
 
 ## Riesgos del roadmap

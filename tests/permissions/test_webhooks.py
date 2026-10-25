@@ -92,11 +92,14 @@ def test_non_admins_cannot_rotate_redeliver_or_see_bodies(client, tenant_a, endp
     membership = _planner(tenant_a) if who == "planner" else getattr(tenant_a, who)
     login(client, membership)
     assert client.post(reverse("webhook_secret", args=[endpoint.pk])).status_code == 403
+    assert client.post(reverse("webhook_previous_secret", args=[endpoint.pk])).status_code == 403
     assert client.get(reverse("webhook_delivery", args=[endpoint.pk, delivery.pk])).status_code == 403
     assert client.post(reverse("webhook_redeliver", args=[endpoint.pk, delivery.pk])).status_code == 403
     with tenant_context(tenant_a.org):
         with pytest.raises(PermissionDeniedError):
             services.regenerate_secret(membership=membership, endpoint=endpoint)
+        with pytest.raises(PermissionDeniedError):
+            services.discard_previous_secret(membership=membership, endpoint=endpoint)
         with pytest.raises(PermissionDeniedError):
             services.redeliver(membership=membership, delivery=delivery)
         assert WebhookDelivery.objects.count() == 1
@@ -116,3 +119,4 @@ def test_read_only_billing_hides_write_actions(client, tenant_a, endpoint, monke
     assert 'name="url"' not in client.get(reverse("webhook_list")).content.decode()
     assert 'name="scopes"' not in client.get(reverse("api_token_list")).content.decode()
     assert client.post(reverse("webhook_secret", args=[endpoint.pk])).status_code == 402
+    assert client.post(reverse("webhook_previous_secret", args=[endpoint.pk])).status_code == 402

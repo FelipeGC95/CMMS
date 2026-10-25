@@ -1,5 +1,5 @@
 {% load i18n ui billing_tags %}
-{# Un plan (ORG-13): precio, cupos y qué incluye y qué no, según `Plan.features`. Recibe `column` (selectors.PlanColumn), `overview` y `contact_email`. En escritorio (≥ 1100 px) cupos y funciones van en la tabla comparativa y la tarjeta deja precio y acción. #}
+{# Un plan (ORG-13): precio, cupos y qué incluye y qué no, según `Plan.features`. Si trae todo lo de otro plan de la comparación (`builds_on`), lista solo lo que agrega (CA10). Recibe `column` (selectors.PlanColumn), `overview` y `contact_email`. En escritorio (≥ 1100 px) cupos y funciones van en la tabla comparativa y la tarjeta deja precio y acción. #}
 <article class="plan-option{% if column.is_current %} plan-option--current{% endif %}">
   <div class="plan-option__head">
     <h3>{{ column.plan.name }}</h3>
@@ -26,9 +26,13 @@
       <dt>{% translate "Almacenamiento" %}</dt><dd>{% include "billing/_plan_quota.html" with quota="storage" %}</dd>
       <dt>{% translate "Asistente IA" %}</dt><dd>{% include "billing/_plan_quota.html" with quota="assistant" %}</dd>
     </dl>
+    {% if column.builds_on %}
+    <p class="plan-option__subtitle">{% if column.added %}{% blocktranslate with plan=column.builds_on.plan.name %}Todo lo de {{ plan }}, más:{% endblocktranslate %}{% else %}{% blocktranslate with plan=column.builds_on.plan.name %}Las mismas funciones que {{ plan }}.{% endblocktranslate %}{% endif %}</p>
+    {% else %}
     <p class="plan-option__subtitle">{% translate "Incluye" %}</p>
+    {% endif %}
     <ul class="plan-features">
-      {% for feature in column.included %}
+      {% for feature in column.added %}
       <li class="plan-features__item plan-features__item--yes">{% icon 'check' %}<span><span class="plan-features__label">{{ feature.label }}</span> <span class="plan-features__desc">{{ feature.description }}</span></span></li>
       {% endfor %}
     </ul>

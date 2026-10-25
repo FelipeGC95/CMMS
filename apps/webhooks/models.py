@@ -1,6 +1,7 @@
 """Webhooks salientes (X-08, ADR-030): destinos por organización y registro de entregas."""
 
 from django.db import models
+from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
 from apps.core.models import TenantModel
@@ -10,7 +11,15 @@ class Event(models.TextChoices):
     WORK_ORDER_CREATED = "work_order.created", _("OT creada")
     WORK_ORDER_STATUS_CHANGED = "work_order.status_changed", _("OT cambió de estado")
     WORK_ORDER_COMPLETED = "work_order.completed", _("OT completada")
+    WORK_ORDER_ASSIGNED = "work_order.assigned", _("OT asignada o reasignada")
+    WORK_ORDER_RESCHEDULED = "work_order.rescheduled", _("OT programada o reprogramada")
     WORK_REQUEST_CREATED = "work_request.created", _("Solicitud creada")
+    WORK_REQUEST_ACCEPTED = "work_request.accepted", _("Solicitud aceptada")
+    WORK_REQUEST_REJECTED = "work_request.rejected", _("Solicitud rechazada")
+    WORK_REQUEST_MERGED = "work_request.merged", _("Solicitud fusionada")
+    PLAN_VERSION_PUBLISHED = "maintenance_plan.version_published", _("Versión de plan publicada")
+    PLAN_ACTIVATED = "maintenance_plan.activated", _("Plan activado")
+    PLAN_DEACTIVATED = "maintenance_plan.deactivated", _("Plan desactivado")
     ASSET_CREATED = "asset.created", _("Activo creado")
     ASSET_UPDATED = "asset.updated", _("Activo editado")
     ASSET_STATUS_CHANGED = "asset.status_changed", _("Activo cambió de estado")
@@ -28,7 +37,15 @@ EVENT_MODULES = {
     Event.WORK_ORDER_CREATED: "work_orders",
     Event.WORK_ORDER_STATUS_CHANGED: "work_orders",
     Event.WORK_ORDER_COMPLETED: "work_orders",
+    Event.WORK_ORDER_ASSIGNED: "work_orders",
+    Event.WORK_ORDER_RESCHEDULED: "work_orders",
     Event.WORK_REQUEST_CREATED: "requests",
+    Event.WORK_REQUEST_ACCEPTED: "requests",
+    Event.WORK_REQUEST_REJECTED: "requests",
+    Event.WORK_REQUEST_MERGED: "requests",
+    Event.PLAN_VERSION_PUBLISHED: "preventive",
+    Event.PLAN_ACTIVATED: "preventive",
+    Event.PLAN_DEACTIVATED: "preventive",
     Event.ASSET_CREATED: "assets",
     Event.ASSET_UPDATED: "assets",
     Event.ASSET_STATUS_CHANGED: "assets",
@@ -53,6 +70,8 @@ class WebhookEndpoint(TenantModel):
 
     El secreto se guarda en claro (se necesita para firmar); se muestra al crearlo o
     regenerarlo y solo a quien administra integraciones. Sin borrado físico: se desactiva.
+    Al regenerarlo, el anterior queda en `previous_secret` hasta `previous_secret_expires_at`
+    (ventana de traslape): mientras tanto cada entrega lleva las dos firmas.
     """
 
     name = models.CharField(_("nombre"), max_length=80)
@@ -61,6 +80,8 @@ class WebhookEndpoint(TenantModel):
     events = models.JSONField(_("eventos"), default=list)
     is_active = models.BooleanField(_("activo"), default=True)
     secret_rotated_at = models.DateTimeField(_("secreto regenerado"), null=True, blank=True)
+    previous_secret = models.CharField(_("secreto anterior"), max_length=80, blank=True, editable=False)
+    previous_secret_expires_at = models.DateTimeField(_("secreto anterior vale hasta"), null=True, blank=True)
     consecutive_failures = models.PositiveIntegerField(_("entregas fallidas seguidas"), default=0)
     disabled_at = models.DateTimeField(_("desactivado automáticamente"), null=True, blank=True)
     created_by = models.ForeignKey(
@@ -79,6 +100,11 @@ class WebhookEndpoint(TenantModel):
 
     def __str__(self):
         return self.name
+
+    def previous_secret_active(self, now=None) -> bool:
+        """¿El secreto anterior todavía firma? (ventana de traslape tras regenerar)."""
+        expires = self.previous_secret_expires_at
+        return bool(self.previous_secret) and expires is not None and expires > (now or timezone.now())
 
     def event_labels(self) -> list[str]:
         labels = dict(Event.choices)

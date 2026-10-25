@@ -37,6 +37,9 @@ class ApiToken(TenantModel):
         verbose_name=_("creado por"),
     )
     expires_at = models.DateTimeField(_("vence"), null=True, blank=True)
+    # Limitado por sitio (X-05, ADR-034): ve y toca solo los sitios de `sites` (y lo que cuelga
+    # de ellos), igual que una membresía con alcance. Falso = toda la organización.
+    restricted_to_sites = models.BooleanField(_("limitado a sitios"), default=False)
     last_used_at = models.DateTimeField(_("último uso"), null=True, blank=True)
     revoked_at = models.DateTimeField(_("revocado"), null=True, blank=True)
 
@@ -67,6 +70,24 @@ class ApiToken(TenantModel):
         from .scopes import scope_labels
 
         return scope_labels(self.scopes)
+
+
+class ApiTokenSite(TenantModel):
+    """Sitio al que se limita un token (X-05). El acceso incluye las ubicaciones hijas."""
+
+    token = models.ForeignKey(
+        ApiToken, on_delete=models.CASCADE, related_name="sites", verbose_name=_("token")
+    )
+    location = models.ForeignKey(
+        "organizations.Location", on_delete=models.CASCADE, related_name="+", verbose_name=_("sitio")
+    )
+
+    class Meta:
+        verbose_name = _("sitio del token")
+        verbose_name_plural = _("sitios del token")
+        constraints = [
+            models.UniqueConstraint(fields=["organization", "token", "location"], name="uniq_api_token_site"),
+        ]
 
 
 class ApiIdempotencyKey(TenantModel):

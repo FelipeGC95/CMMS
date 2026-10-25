@@ -1877,12 +1877,16 @@ def test_api_token_and_delivery_screens_do_not_grow_with_rows(
             payload=payload,
             status=WebhookDelivery.Status.FAILED,
         )
+        site = Location.objects.create(code="PLT", name="Planta", kind=Location.Kind.SITE)
 
     def add(n):
         with tenant_context(tenant_a.org):
             for i in range(n):
                 create_token(
-                    membership=tenant_a.admin, name=f"T{i}", scopes=["assets:read", "inventory:write"]
+                    membership=tenant_a.admin,
+                    name=f"T{i}",
+                    scopes=["assets:read", "inventory:write"],
+                    sites=[site] if i % 2 else [],  # P-05: los sitios del token, sin N+1
                 )
                 copy = webhooks.redeliver(membership=tenant_a.admin, delivery=original)
                 WebhookDelivery.objects.filter(pk=copy.pk).update(status=WebhookDelivery.Status.FAILED)

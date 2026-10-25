@@ -59,7 +59,9 @@ class PlanColumn:
 
     `kind`: «trial» (la prueba en curso, de referencia), «option» (contratable, con `option`) o
     «quoted» (se cotiza: Empresa sin precio acordado). `lost`: módulos del plan actual de la
-    organización que este plan no trae (se avisan antes de cambiarse a él).
+    organización que este plan no trae (se avisan antes de cambiarse a él). `builds_on`: plan
+    de la comparación cuyas funciones trae todas; la tarjeta de móvil dice «Todo lo de X, más:»
+    y lista solo `added` en vez de repetir la lista completa (ORG-13 CA10).
     """
 
     plan: Plan
@@ -68,6 +70,7 @@ class PlanColumn:
     option: PlanOption | None = None
     is_current: bool = False
     lost: list[str] = field(default_factory=list)
+    builds_on: "PlanColumn | None" = None
 
     @property
     def included(self) -> list[PlanFeature]:
@@ -76,6 +79,14 @@ class PlanColumn:
     @property
     def excluded(self) -> list[PlanFeature]:
         return [cell.feature for cell in self.cells if not cell.included]
+
+    @property
+    def added(self) -> list[PlanFeature]:
+        """Funciones que trae además de `builds_on` (todas si no se apoya en otro plan)."""
+        if self.builds_on is None:
+            return self.included
+        base = {feature.key for feature in self.builds_on.included}
+        return [feature for feature in self.included if feature.key not in base]
 
     @property
     def has_assistant(self) -> bool:
@@ -92,6 +103,23 @@ def plan_column(plan, *, kind, rows, option=None, is_current=False, current_plan
         is_current=is_current,
         lost=[] if is_current or current_plan is None else modules_lost(current_plan, plan),
     )
+
+
+def link_columns(columns: list[PlanColumn]) -> None:
+    """Fija `builds_on` de cada columna: el plan contratable o cotizado más completo cuyas
+    funciones trae todas. Los planes de venta solo se apoyan en uno anterior (van de menor a
+    mayor); la prueba, en cualquiera."""
+    for index, column in enumerate(columns):
+        mine = {feature.key for feature in column.included}
+        candidates = [
+            other
+            for position, other in enumerate(columns)
+            if other is not column
+            and other.kind != "trial"
+            and (column.kind == "trial" or position < index)
+            and {feature.key for feature in other.included} <= mine
+        ]
+        column.builds_on = max(candidates, key=lambda other: len(other.included), default=None)
 
 
 @dataclass
@@ -183,6 +211,7 @@ def billing_overview(*, membership) -> BillingOverview:
         for option in options
     ]
     columns += [plan_column(plan, kind="quoted", rows=rows, current_plan=current_plan) for plan in quoted]
+    link_columns(columns)
     return BillingOverview(
         status=status,
         account=account,

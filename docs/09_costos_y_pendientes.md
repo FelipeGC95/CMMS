@@ -100,11 +100,11 @@ servidores.
 |---|---|---|---|
 | P-01 | Traducción a inglés y portugués | F3 (X-07) | Abierto |
 | P-02 | Base de datos dedicada para el plan Empresa | F3, solo si hay demanda | Abierto |
-| P-03 | En solo lectura, ocultar también las acciones de las pantallas secundarias (ficha de ubicación y de clase, borrador de plan, equipo, tokens, webhooks, roles, SSO) y los botones de terreno | ORG-13 CA5 | Abierto |
-| P-04 | Eventos de webhook de planes preventivos, asignación o reprogramación de OT y decisiones sobre solicitudes | X-08 | Abierto |
-| P-05 | Tokens de API limitados por sitio | X-05 | Abierto |
-| P-06 | Compactar la comparación de planes a 360 px (hoy cada plan repite su lista completa) | ORG-13 CA10 | Abierto |
-| P-07 | Ventana de traslape al regenerar el secreto de un webhook | X-08 | Abierto |
+| P-03 | En solo lectura, ocultar también las acciones de las pantallas secundarias (ficha de ubicación y de clase, borrador de plan, equipo, tokens, webhooks, roles, SSO) y los botones de terreno | ORG-13 CA5 | **Cerrado** 2026-10-24: esas pantallas muestran los datos con el formulario deshabilitado (`form-lock`) y sin botones de escritura; `bootstrap` de la PWA entrega los permisos de escritura en falso (`can_act`) y el teléfono oculta ejecutar, solicitar y lecturas |
+| P-04 | Eventos de webhook de planes preventivos, asignación o reprogramación de OT y decisiones sobre solicitudes | X-08 | **Cerrado** 2026-10-24: `maintenance_plan.version_published`/`.activated`/`.deactivated`, `work_order.assigned`/`.rescheduled` y `work_request.accepted`/`.rejected`/`.merged`, desde los servicios y por módulo del plan (ADR-030, docs/08) |
+| P-05 | Tokens de API limitados por sitio | X-05 | **Cerrado** 2026-10-24: casillas de sitios al crear el token (`ApiTokenSite`); el principal del token usa el mismo alcance por sitio que una membresía en todos los selectores; los tokens sin sitios no cambian (ADR-034, docs/08) |
+| P-06 | Compactar la comparación de planes a 360 px (hoy cada plan repite su lista completa) | ORG-13 CA10 | **Cerrado** 2026-10-24: bajo 1100 px cada tarjeta dice «Todo lo de X, más:» y lista solo lo que agrega al plan que contiene (`PlanColumn.builds_on`/`added`); la tabla de escritorio no cambia |
+| P-07 | Ventana de traslape al regenerar el secreto de un webhook | X-08 | **Cerrado** 2026-10-24: el anterior sigue firmando 24 h (`t=…,v1=<anterior>,v1=<nuevo>`, la nueva al final), con opción de invalidarlo de inmediato o terminar la ventana; la purga diaria lo descarta (ADR-030, docs/08) |
 | P-08 | Revisar las plantillas de rubro (marcadas como borrador) | MVP-1 | Abierto |
 | P-09 | Crear las cuentas de producción (Render pagado, R2, Sentry, correo, Mercado Pago) y seguir `docs/07_operacion.md` | MVP-1 / ORG-13 | Abierto |
 | P-10 | Abaratar el CI antes de volver el repo a privado: correr solo en PR y `main`, `main` solo con Python 3.13, tests en paralelo con `pytest-xdist` (meta: 150–250 min/semana) | D-06 | **Cerrado** 2026-10-20: CI solo en PR hacia `main`, Python 3.13 y `pytest -n auto` (la suite pasó de ~20 a ~5 min en local) |

@@ -38,7 +38,7 @@ No hay sesión ni cookies, así que no aplica CSRF. Un token revocado, vencido, 
 | Aspecto | Comportamiento |
 | --- | --- |
 | Organización | La del token; no se elige ni se envía. Un id de otra empresa responde igual que uno inexistente (404 o error de validación). |
-| Rol efectivo | Planificador sobre toda la organización (sin restricción por sitio). |
+| Rol efectivo | Planificador sobre toda la organización o, si el token se limitó a sitios, solo sobre lo que cuelga de ellos (ver «Tokens limitados por sitio»). |
 | Alcances | Por grupo de recursos: `<grupo>:read` permite `GET`; `<grupo>:write` permite además `POST` y `PATCH` (escribir incluye leer). `*:read` y `*:write` valen para todos los grupos, también los que se agreguen. Sin el alcance → 403 `insufficient_scope` (ver abajo). |
 | Nunca puede | Administrar equipo, auditoría, configuración ni otros tokens. |
 | Autoría | Cada token tiene su propio usuario de servicio (`API · <nombre>`): la auditoría muestra qué integración hizo cada cambio. |
@@ -127,6 +127,16 @@ Cada token lleva una lista de alcances. Un alcance es `<grupo>:read` o `<grupo>:
 ```
 
 - En el esquema OpenAPI cada operación declara su alcance en `x-required-scope` (y al final de su descripción en `/api/docs/`).
+
+### Tokens limitados por sitio
+
+Al crear el token se pueden marcar uno o más **sitios** (ubicaciones de tipo sitio, activas). Sin marcar ninguno el token ve toda la organización, como todos los tokens creados antes. Limitado, se comporta como una persona con alcance por sitio:
+
+- Las listas y fichas (`/assets/`, `/meters/`, `/readings/`, `/work-orders/`, `/requests/`, `/warehouses/`, `/stock/`, `/stock-movements/`, `/condition-alerts/`…) muestran solo lo que está en esos sitios o en sus ubicaciones hijas; un id de otro sitio responde **404**, igual que uno de otra empresa.
+- Al escribir, `asset`, `location` y `warehouse` solo aceptan ids de sus sitios (400 si no). Un activo nuevo debe llevar `location` dentro de sus sitios.
+- El catálogo de repuestos (`/parts/`) es de la organización y se sigue viendo completo.
+- Los alcances siguen valiendo: un token limitado a «Planta Norte» con `assets:read` lee solo los activos de Planta Norte.
+- Los sitios de un token no se editan: para cambiarlos, crea otro token y revoca el anterior. Los webhooks no se limitan por sitio.
 
 - `/api/docs/`: Swagger UI para probar cada endpoint con un token.
 - `/api/schema/`: esquema OpenAPI 3 para generar clientes (Postman, openapi-generator).
@@ -268,7 +278,7 @@ Reenviar el mismo lote no duplica: las filas ya cargadas vuelven como duplicadas
 
 **Filtros de la lista:** `scope` (`open`, `overdue`, `done`, `all`), `status`, `work_type`, `asset`, `location`.
 
-**Crear:** `work_type` (`preventive`, `corrective`, `predictive`, `improvement`, `inspection`), `title` y **exactamente uno** entre `asset` y `location`. Opcionales: `description`, `priority` (1 urgente, 2 alta, 3 normal por defecto, 4 baja), `due_on`, `estimated_minutes`, `client_uuid`. El correlativo visible (`code`, p. ej. `OT-D-00042`) lo asigna el sistema.
+**Crear:** `work_type` (`preventive`, `corrective`, `predictive`, `improvement`, `inspection`), `title` y **exactamente uno** entre `asset` y `location`. Opcionales: `description`, `priority` (1 urgente, 2 alta, 3 normal por defecto, 4 baja), `due_on`, `estimated_minutes`, `client_uuid`. El correlativo visible (`code`, p. ej. `OT-D-00042`) lo asigna el sistema. La respuesta trae además `scheduled_for` (día en que el planificador la programó en el tablero semanal, o `null`; solo lectura).
 
 ```bash
 curl -X POST "$API/work-orders/" -H "Authorization: Bearer $T" \
@@ -593,7 +603,14 @@ El administrador elige los eventos de cada destino (los destinos creados antes c
 | `work_order.created` | `work_orders` | Se crea una OT (web, API, terreno, preventiva automática, aviso de falla, regla de condición). | Igual que `GET /work-orders/{id}/` | — |
 | `work_order.status_changed` | `work_orders` | Cada cambio de estado (ADR-008): planificar, programar, iniciar, pausar, reanudar, completar, cerrar (también el cierre automático), cancelar, reabrir. | Igual que `GET /work-orders/{id}/` | `{"from", "to"}` |
 | `work_order.completed` | `work_orders` | Una OT pasa a completada (se mantiene por compatibilidad; también sale `status_changed`). Si la organización no exige aprobación, `status` ya llega como `closed`. | Igual que `GET /work-orders/{id}/` | — |
+| `work_order.assigned` | `work_orders` | Cambia el responsable o los de apoyo de una OT (pantalla, tablero semanal). Sin cambio real no sale. | Igual que `GET /work-orders/{id}/` | `{"assigned_to": {"from", "to"}, "helpers": {"from": [...], "to": [...]}}` con IDs de usuario; solo lo que cambió |
+| `work_order.rescheduled` | `work_orders` | Se programa una OT para un día, se mueve de día o se devuelve al backlog (tablero semanal). | Igual que `GET /work-orders/{id}/` (con `scheduled_for`) | `{"from", "to"}` (fechas `YYYY-MM-DD` o `null`) |
 | `work_request.created` | `requests` | Llega una solicitud (aviso de falla, con o sin cuenta). | Igual que `GET /requests/{id}/` | — |
+| `work_request.accepted` | `requests` | El planificador acepta la solicitud. Un aviso anónimo se convierte en OT al aceptarlo: `data.work_order` trae su ID. | Igual que `GET /requests/{id}/` | `{"from", "to"}` |
+| `work_request.rejected` | `requests` | Se rechaza (su OT se cancela). | Igual que `GET /requests/{id}/` | `{"from", "to", "reason"}` |
+| `work_request.merged` | `requests` | Se fusiona con otra solicitud del mismo activo (su OT se cancela). | Igual que `GET /requests/{id}/` | `{"from", "to", "merged_into"}` |
+| `maintenance_plan.version_published` | `preventive` | Se publica una versión de un plan preventivo, también la versión 1 de un plan nuevo (plantillas de rubro e importación Excel, en un solo lote). | Plan: `id`, `code`, `name`, `asset_class`, `is_active`, `current_version`, `published_at`, `change_note`, `frequency`, `created_at`, `updated_at` | `{"version", "previous_version"}` |
+| `maintenance_plan.activated` / `.deactivated` | `preventive` | Se activa o desactiva un plan (deja o vuelve a generar OT). | Plan (como arriba) | — |
 | `asset.created` | `assets` | Alta de un activo (web, API o importación Excel). | Igual que `GET /assets/{id}/` | — |
 | `asset.updated` | `assets` | Se edita la ficha o sus atributos (solo si algo cambió; también la importación Excel). | Igual que `GET /assets/{id}/` | `{"fields": [...]}` (sin `change` en la importación) |
 | `asset.status_changed` | `assets` | Cambia el estado: manual, por una OT (detenido → en mantención → operativo), baja o reactivación. | Igual que `GET /assets/{id}/` | `{"from", "to"}` |
@@ -678,7 +695,15 @@ X-Galbust-Signature: t=1760700000,v1=5f2c…e9
 
 ### Verificar la firma
 
-`X-Galbust-Signature` trae `t` (segundos Unix del envío) y `v1`: HMAC-SHA256 en hexadecimal de `"<t>.<cuerpo crudo>"` con el secreto del webhook (`whsec_…`, visible solo para el administrador en la pantalla del webhook). **Regenerar secreto** (misma pantalla) crea uno nuevo que se muestra destacado; el anterior deja de valer de inmediato, sin ventana de traslape: actualiza tu sistema antes de que llegue el siguiente evento (los reintentos pendientes también se firman con el nuevo). Queda en la auditoría, sin el valor. Verifica sobre los bytes recibidos, antes de parsear el JSON, y rechaza firmas viejas:
+`X-Galbust-Signature` trae `t` (segundos Unix del envío) y `v1`: HMAC-SHA256 en hexadecimal de `"<t>.<cuerpo crudo>"` con el secreto del webhook (`whsec_…`, visible solo para el administrador en la pantalla del webhook). Verifica sobre los bytes recibidos, antes de parsear el JSON, y rechaza firmas viejas.
+
+**Regenerar secreto** (misma pantalla) crea uno nuevo que se muestra destacado. Durante **24 horas** el anterior sigue firmando: cada entrega (también los reintentos) lleva dos `v1` en la misma cabecera, primero la del secreto anterior y al final la del nuevo:
+
+```http
+X-Galbust-Signature: t=1760700000,v1=<firma con el secreto anterior>,v1=<firma con el secreto nuevo>
+```
+
+Acepta la entrega si **alguna** `v1` coincide con tu secreto (el ejemplo de abajo lo hace); así cambias el secreto en tu sistema cuando quieras dentro de esas 24 horas sin perder eventos. Si tu código lee la cabecera como diccionario se queda con la última `v1` (la del secreto nuevo): funciona, pero sin la ventana. Si el secreto se filtró, marca «El secreto se filtró» al regenerar (el anterior deja de valer de inmediato) o usa **Invalidar el anterior ahora**. Todo queda en la auditoría, sin los valores.
 
 ```python
 import hashlib
@@ -689,12 +714,13 @@ TOLERANCE_SECONDS = 300
 
 
 def verify(secret: str, body: bytes, header: str) -> bool:
-    parts = dict(item.split("=", 1) for item in header.split(","))
-    timestamp, received = parts.get("t", ""), parts.get("v1", "")
+    items = [item.split("=", 1) for item in header.split(",") if "=" in item]
+    timestamp = next((value for key, value in items if key == "t"), "")
+    received = [value for key, value in items if key == "v1"]  # una, o dos tras regenerar
     if not timestamp.isdigit() or abs(time.time() - int(timestamp)) > TOLERANCE_SECONDS:
         return False
     expected = hmac.new(secret.encode(), f"{timestamp}.".encode() + body, hashlib.sha256).hexdigest()
-    return hmac.compare_digest(expected, received)
+    return any(hmac.compare_digest(expected, value) for value in received)
 
 
 # Django: verify(SECRET, request.body, request.headers["X-Galbust-Signature"])
@@ -725,11 +751,9 @@ La v1 cubre el flujo del técnico y las integraciones de datos; la configuració
 | Gestionar solicitudes | No se aceptan, rechazan ni fusionan avisos por la API. | Web (bandeja del planificador). |
 | Descargar archivos | Los adjuntos devuelven solo metadatos, nunca una URL. | Descarga desde la web con URL firmada. |
 | Borrado | No hay `DELETE` en ningún recurso (sin borrado físico por diseño). | Cancelar una OT con `transition` a `cancelled`. |
-| Más eventos salientes | No hay eventos de planes preventivos, de asignación o reprogramación de OT, ni de solicitudes aceptadas, rechazadas o fusionadas. | Consultar `GET /work-orders/?scope=open` o `GET /requests/` cada cierto tiempo. |
 | Variables de condición | No se crean ni desactivan variables por la API (`GET /meters/` las lista). | Web (ficha del activo) o un ítem de medición del checklist enlazado a la variable. |
 | Bodegas, mínimos, reservas y devoluciones | Solo lectura de bodegas y stock; no se crean bodegas, no se fijan mínimos, no se reservan ni se devuelven repuestos por la API. | Web (`/inventory/` y el detalle de la OT). |
 | Token por usuario | El token actúa como integración (rol planificador), no como un técnico concreto. | Un token por app o integración, con nombre claro y solo los alcances que necesita. |
-| Alcances por sitio | Los alcances limitan recursos, no ubicaciones: el token ve toda la organización. | Un token por integración y, si hace falta, filtrar por `location` en las consultas. |
 
 ### Referencias
 

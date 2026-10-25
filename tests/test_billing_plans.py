@@ -157,3 +157,39 @@ def test_contact_email_only_when_configured(client, billable, settings):
     settings.BILLING_CONTACT_EMAIL = "contacto@galbust.com"
     body = client.get(reverse("billing")).content.decode()
     assert "mailto:contacto@galbust.com" in body and "escríbenos a contacto@galbust.com" in body
+
+
+def test_cards_list_only_what_each_plan_adds(billable):
+    """CA10: en móvil cada tarjeta dice «Todo lo de X, más:» y no repite la lista completa."""
+    overview = _overview(billable)
+    trial, basic, pro, enterprise = (
+        _column(overview, code) for code in ("trial", "basic", "pro", "enterprise")
+    )
+    assert basic.builds_on is None and basic.added == basic.included
+    assert pro.builds_on is basic
+    assert set(_keys(pro.added)) == set(_keys(pro.included)) - set(_keys(basic.included))
+    assert "assets" not in _keys(pro.added) and "inventory" in _keys(pro.added)
+    assert enterprise.builds_on is pro and _keys(enterprise.added) == ["sso"]
+    # La prueba (Básico + inventario y condición) se apoya en el plan más completo que contiene.
+    assert trial.builds_on is basic and _keys(trial.added) == ["inventory", "condition"]
+    Plan.objects.filter(code="trial").update(features=pro.plan.features)
+    billable.org.refresh_from_db()
+    trial = _column(_overview(billable), "trial")
+    assert trial.builds_on.plan.code == "pro" and trial.added == []
+
+
+def test_card_without_a_base_plan_lists_everything(billable):
+    """Un plan que no trae todo lo del anterior lista su contenido completo."""
+    Plan.objects.filter(code="pro").update(features=["assets", "inventory"])
+    pro = _column(_overview(billable), "pro")
+    assert pro.builds_on is None and _keys(pro.added) == _keys(pro.included)
+
+
+def test_page_shows_compact_cards(client, billable):
+    login(client, billable.admin)
+    body = client.get(reverse("billing")).content.decode()
+    assert "Todo lo de Básico, más:" in body
+    assert "Todo lo de Profesional, más:" in body
+    assert body.count("Todo lo de Básico, más:") == 2  # Profesional y la prueba
+    # «Activos y códigos QR» se lista una sola vez entre las tarjetas (en Básico) y una en la tabla.
+    assert body.count(f">{plan_features()[0].label}<") == 2

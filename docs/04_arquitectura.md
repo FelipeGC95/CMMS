@@ -1561,10 +1561,21 @@ lleva `{id, name, path}`; los decimales van como texto; consultas acotadas
      (`SYNC_DELIVERY_LIMIT`) y el resto queda `failed` («sin worker») para
      reenviarlo. Una fila revertida no envía nada (su objeto ya no existe).
   5. **Regenerar secreto:** `regenerate_secret` cambia `secret` y
-     `secret_rotated_at`; el anterior deja de valer de inmediato (sin ventana de
-     traslape: dos firmas `v1` romperían a receptores que leen la cabecera como
-     diccionario). Se audita sin el valor; el nuevo se muestra destacado en la
-     respuesta.
+     `secret_rotated_at`. Se audita sin el valor; el nuevo se muestra destacado en
+     la respuesta. **Ventana de traslape (2026-10-24, P-07):** el anterior queda en
+     `previous_secret` hasta `previous_secret_expires_at` (24 h, `SECRET_OVERLAP`) y
+     cada entrega lleva dos firmas en la misma cabecera, estilo Stripe:
+     `t=<unix>,v1=<anterior>,v1=<nuevo>`. La del secreto vigente va **al final**: un
+     receptor que lee la cabecera como diccionario se queda con la última, o sea se
+     comporta como antes (solo vale el nuevo), y uno que recorre todas las `v1`
+     acepta cualquiera de las dos mientras actualiza su secreto. Regenerar otra vez
+     dentro de la ventana descarta el más antiguo (solo se guarda uno anterior). Si
+     el secreto se filtró, el formulario permite invalidar el anterior de inmediato
+     (`keep_previous=False`) y «Invalidar el anterior ahora»
+     (`discard_previous_secret`) termina la ventana; ambos se auditan. Vencido ya no
+     firma (`previous_secret_active`); la purga diaria lo borra de la base
+     (`clear_expired_previous_secrets`). `previous_secret` no va a la exportación
+     X-03 ni a la auditoría (campos `secret`).
   6. **Reenvío manual:** `redeliver` crea otra `WebhookDelivery` con el mismo
      `payload` y `event_id`, `is_redelivery=True`, `redelivery_of` y
      `created_by`; la unicidad pasa a `UNIQUE(organization, endpoint, event_id)
@@ -1576,9 +1587,21 @@ lleva `{id, name, path}`; los decimales van como texto; consultas acotadas
      `webhooks.enqueue_purge` (08:30 UTC, una tarea por organización con
      `queueing_lock`) y comando `purge_webhook_deliveries`. Índice
      `(organization, created_at)`.
+  9. **Eventos de planificación (2026-10-24, P-04):** `work_order.assigned`
+     (`set_assignees`, con `change` de IDs de usuario solo de lo que cambió),
+     `work_order.rescheduled` (`schedule_work_order` y `unschedule_work_order`,
+     `change: {from, to}` en fechas; `WorkOrderSerializer` suma `scheduled_for`),
+     `work_request.accepted`, `.rejected` y `.merged` (`accept_request`,
+     `reject_request`, `merge_request`; aceptar un aviso anónimo crea su OT y va en
+     `data.work_order`), `maintenance_plan.version_published` (`publish_version` y
+     `bulk_create_published_plans` dentro de `collect_events`; `change: {version,
+     previous_version}`) y `maintenance_plan.activated`/`.deactivated`
+     (`update_plan` al cambiar `is_active`). Módulos `work_orders`, `requests` y
+     `preventive`; `data` del plan con `MaintenancePlanSerializer` (aún sin
+     endpoint de planes en la API).
 - **Estado (2026-10):** aceptado e implementado (X-08, ampliado en F3). Fuera:
-  eventos de planes, de asignación o reprogramación y de decisiones sobre
-  solicitudes; reintentos sin worker; ventana de traslape del secreto.
+  reintentos sin worker. La ventana de traslape del secreto (punto 5) y los
+  eventos de planificación (punto 9) entraron el 2026-10-24.
 
 ### ADR-031 · Roles personalizados: rol base + permisos elegidos, sin permisos de administración
 - **Contexto:** ORG-12 (F3, Profesional y Empresa). Las pymes piden roles como
@@ -1839,7 +1862,13 @@ lleva `{id, name, path}`; los decimales van como texto; consultas acotadas
      mirar la facturación) y lo que no pasa por permisos se oculta con la variable
      de plantilla `read_only`. `has_perm` de los servicios no cambia: el bloqueo
      real sigue siendo el middleware. Sin consultas extra (campos de la organización
-     del contexto). La PWA recibe `read_only` en `bootstrap` y muestra un aviso.
+     del contexto). Las pantallas secundarias (ficha de ubicación y de clase, borrador
+     de plan, equipo, miembro, roles, SSO, tokens y webhooks) muestran sus datos con
+     los formularios deshabilitados (`<fieldset class="form-lock" disabled>`) y sin
+     botones de guardar, quitar o probar. La PWA recibe `read_only` en `bootstrap`,
+     muestra un aviso y recibe en falso sus permisos de escritura (`execute`,
+     `request_create`, `reading_create` vía `can_act`), así oculta los botones de
+     ejecutar, solicitar y registrar lecturas; lo que ya estaba en cola sale al pagar.
   9. **Organizaciones existentes:** `billing_exempt` (facturación manual) por defecto
      true —la demo y las creadas por el superadmin no se bloquean— y false en el
      autoregistro. La migración `organizations/0020` deja exentas las existentes
@@ -1894,7 +1923,19 @@ lleva `{id, name, path}`; los decimales van como texto; consultas acotadas
   una pyme), un alcance por permiso del rol (mezcla dos conceptos), dejar los
   tokens antiguos con `scope` y una regla especial en el permiso (dos modelos de
   alcance para siempre).
+  7. **Sitios (2026-10-24, P-05):** un token puede limitarse a uno o más sitios
+     (`Location` de tipo `site`, activos): `ApiToken.restricted_to_sites` y la tabla
+     hija `ApiTokenSite` (`TenantModel`, `UNIQUE(organization, token, location)`).
+     `principal_for` marca la membresía en memoria con `restricted_to_locations` y
+     `accounts.scoping.allowed_location_ids` toma como raíces los sitios del token
+     (con sus descendientes): los selectores de la API aplican el mismo alcance que
+     a una membresía, sin código nuevo por endpoint. Los campos `location` de los
+     serializers usan `visible_locations` y el filtro `?location=` de OT también.
+     Los tokens existentes quedan sin restricción (`restricted_to_sites=False`, sin
+     cambio de comportamiento); el indicador evita una consulta por petición para
+     ellos. Los sitios se eligen al crear el token y no se editan (se crea otro).
 - **Consecuencias:** un token nuevo con alcance angosto no ve grupos nuevos de la
-  API hasta que se le den; los tokens con «Todo» sí. Los alcances limitan
-  recursos, no sitios: el token sigue viendo toda la organización.
-- **Estado (2026-10):** aceptado e implementado (X-05, F3).
+  API hasta que se le den; los tokens con «Todo» sí. Desde P-05 un token también
+  puede limitarse por sitio; el catálogo de repuestos y los webhooks siguen siendo
+  de toda la organización.
+- **Estado (2026-10):** aceptado e implementado (X-05, F3; sitios el 2026-10-24).

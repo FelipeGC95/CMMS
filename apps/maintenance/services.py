@@ -14,6 +14,8 @@ from apps.accounts.permissions import Perm, require_perm
 from apps.assets.models import MeterKind
 from apps.audit import services as audit
 from apps.audit.models import AuditEvent
+from apps.webhooks.models import Event as WebhookEvent
+from apps.webhooks.services import collect_events, emit_event
 
 from .models import (
     DEFAULT_HORIZON_DAYS,
@@ -176,7 +178,18 @@ def bulk_create_published_plans(*, organization, plans, by=None, change_note: st
     for plan, version in zip(records, versions, strict=True):
         plan.current_version = version
     MaintenancePlan.objects.bulk_update(records, ["current_version"])
+    with collect_events():  # X-08: un solo despacho para el lote
+        for plan in records:
+            _emit_published(plan, version=1, previous=None)
     return records
+
+
+def _emit_published(plan, *, version: int, previous: int | None) -> None:
+    emit_event(  # X-08
+        event_type=WebhookEvent.PLAN_VERSION_PUBLISHED,
+        instance=plan,
+        change={"version": version, "previous_version": previous},
+    )
 
 
 @transaction.atomic
@@ -248,6 +261,7 @@ def publish_version(*, version: PlanVersion, by=None, change_note: str = "") -> 
     version.save(update_fields=["status", "published_at", "published_by", "change_note", "updated_at"])
     plan.current_version = version
     plan.save(update_fields=["current_version", "updated_at"])
+    _emit_published(plan, version=version.number, previous=previous.number if previous is not None else None)
     audit.record(
         action=AuditEvent.Action.TRANSITION,
         target=version,
@@ -769,11 +783,17 @@ def update_plan(*, membership, plan: MaintenancePlan, code: str, name: str, asse
     if MaintenancePlan.objects.filter(code__iexact=code).exclude(pk=plan.pk).exists():
         raise ValidationError({"code": _("Ya existe un plan con ese código.")})
     before = audit.snapshot(plan, PLAN_FIELDS)
+    was_active = plan.is_active
     plan.code, plan.name, plan.asset_class, plan.is_active = code, name.strip(), asset_class, is_active
     plan.save(update_fields=["code", "name", "asset_class", "is_active", "updated_at"])
     changes = audit.diff(before, audit.snapshot(plan, PLAN_FIELDS))
     if changes:
         audit.record(action=AuditEvent.Action.UPDATE, target=plan, membership=membership, changes=changes)
+    if was_active != is_active:
+        emit_event(  # X-08
+            event_type=WebhookEvent.PLAN_ACTIVATED if is_active else WebhookEvent.PLAN_DEACTIVATED,
+            instance=plan,
+        )
     return plan
 
 

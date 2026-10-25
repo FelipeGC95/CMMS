@@ -13,12 +13,15 @@
   <p class="muted">{% blocktranslate count n=member_count %}Lo tiene {{ n }} persona activa.{% plural %}Lo tienen {{ n }} personas activas.{% endblocktranslate %} {% blocktranslate with added=added_count removed=removed_count %}Respecto del rol base: {{ added }} permisos agregados y {{ removed }} quitados.{% endblocktranslate %}</p>
   <form method="post">
     {% csrf_token %}
+    <fieldset class="form-lock"{% if read_only %} disabled{% endif %}>
     {% include "_form_fields.html" with form=form %}
+    </fieldset>
     <p class="help muted">{% translate "Equipo, auditoría, configuración, tokens de API y ver todas las conversaciones del asistente quedan solo para administradores." %}</p>
-    <button class="btn btn--primary" type="submit">{% translate "Guardar" %}</button>
+    {% if not read_only %}<button class="btn btn--primary" type="submit">{% translate "Guardar" %}</button>{% endif %}
   </form>
 </div>
 
+{% if not read_only %}
 <div class="card">
   <form method="post" action="{% url 'custom_role_active' role.pk %}">
     {% csrf_token %}
@@ -32,4 +35,5 @@
     {% endif %}
   </form>
 </div>
+{% endif %}
 {% endblock %}

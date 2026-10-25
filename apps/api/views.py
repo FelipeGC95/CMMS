@@ -5,6 +5,7 @@ import datetime
 from django import forms
 from django.contrib import messages
 from django.core.paginator import Paginator
+from django.db.models import Prefetch
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.utils.translation import gettext
@@ -13,11 +14,12 @@ from django.views.decorators.http import require_POST
 
 from apps.accounts.permissions import Perm
 from apps.core.decorators import membership_required
+from apps.organizations.models import Location
 from apps.organizations.modules import has_module
 
-from .models import ApiToken
+from .models import ApiToken, ApiTokenSite
 from .scopes import ALL, ALL_READ, READ, SCOPE_GROUPS, WRITE
-from .services import create_token, revoke_token
+from .services import TokenError, create_token, revoke_token
 
 EXPIRY_CHOICES = [
     ("", _("Nunca")),
@@ -46,6 +48,19 @@ class ApiTokenForm(forms.Form):
         error_messages={"required": _("Elige al menos un alcance.")},
     )
     expires_in = forms.ChoiceField(label=_("Vence"), choices=EXPIRY_CHOICES, required=False)
+    sites = forms.ModelMultipleChoiceField(
+        label=_("Sitios"),
+        # all_tenants: marcador vacío al importar (sin contexto); __init__ pone los sitios reales.
+        queryset=Location.all_tenants.none(),
+        required=False,
+        widget=forms.CheckboxSelectMultiple,
+        help_text=_("Sin marcar ninguno, el token ve toda la organización."),
+    )
+
+    def __init__(self, *args, sites=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        if sites is not None:
+            self.fields["sites"].queryset = sites
 
 
 def scope_rows(form, organization) -> list[dict]:
@@ -67,20 +82,40 @@ def scope_rows(form, organization) -> list[dict]:
     ]
 
 
+def _site_choices(membership):
+    from apps.organizations.selectors import visible_locations
+
+    return (
+        visible_locations(membership=membership)
+        .filter(kind=Location.Kind.SITE, is_active=True)
+        .order_by("code")
+    )
+
+
 @membership_required(perm=Perm.API_TOKEN_MANAGE)
 def api_token_list_view(request):
-    form = ApiTokenForm(request.POST or None)
+    sites = _site_choices(request.membership)
+    form = ApiTokenForm(request.POST or None, sites=sites)
     raw_token = None
     if request.method == "POST" and form.is_valid():
         days = form.cleaned_data["expires_in"]
-        _token, raw_token = create_token(
-            membership=request.membership,
-            name=form.cleaned_data["name"],
-            scopes=form.cleaned_data["scopes"],
-            expires_at=timezone.now() + datetime.timedelta(days=int(days)) if days else None,
-        )
-        form = ApiTokenForm()
-    tokens = ApiToken.objects.select_related("created_by").order_by("revoked_at", "-created_at")
+        try:
+            _token, raw_token = create_token(
+                membership=request.membership,
+                name=form.cleaned_data["name"],
+                scopes=form.cleaned_data["scopes"],
+                expires_at=timezone.now() + datetime.timedelta(days=int(days)) if days else None,
+                sites=form.cleaned_data["sites"],
+            )
+        except TokenError as error:
+            form.add_error("sites", error)
+        else:
+            form = ApiTokenForm(sites=sites)
+    tokens = (
+        ApiToken.objects.select_related("created_by")
+        .prefetch_related(Prefetch("sites", queryset=ApiTokenSite.objects.select_related("location")))
+        .order_by("revoked_at", "-created_at")
+    )
     page = Paginator(tokens, 25).get_page(request.GET.get("page"))
     return render(
         request,

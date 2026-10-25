@@ -12,8 +12,22 @@ from .models import Membership, MembershipLocation
 
 
 def is_scoped(membership: Membership) -> bool:
-    """El rol externo siempre está limitado; los demás, solo si se marcó en la membresía."""
+    """El rol externo siempre está limitado; los demás, solo si se marcó en la membresía.
+
+    El principal de un token de API (`api.services.principal_for`) lleva el mismo indicador
+    cuando el token está limitado a sitios (X-05).
+    """
     return membership.role == Membership.Role.EXTERNAL or membership.restricted_to_locations
+
+
+def _scope_roots(membership: Membership) -> set:
+    """Ubicaciones raíz del alcance: las de la membresía o, para un token, sus sitios."""
+    token = getattr(membership, "api_token", None)
+    if token is not None:
+        from apps.api.models import ApiTokenSite
+
+        return set(ApiTokenSite.objects.filter(token=token).values_list("location_id", flat=True))
+    return set(MembershipLocation.objects.filter(membership=membership).values_list("location_id", flat=True))
 
 
 def allowed_location_ids(membership: Membership | None) -> frozenset | None:
@@ -31,9 +45,7 @@ def allowed_location_ids(membership: Membership | None) -> frozenset | None:
     if cached is not None:
         return cached
 
-    roots = set(
-        MembershipLocation.objects.filter(membership=membership).values_list("location_id", flat=True)
-    )
+    roots = _scope_roots(membership)
     allowed = set(roots)
     if roots:
         children = defaultdict(list)

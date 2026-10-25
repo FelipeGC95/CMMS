@@ -240,7 +240,10 @@ escribirle a nadie; y como dueño de GALBUST quiero cobrar en pesos un precio fi
   `payment_required`) ni `/field/api/` (402; la PWA deja el cambio en cola y lo envía al
   pagar). La interfaz es coherente con la solo lectura: no muestra botones, formularios ni
   accesos de crear, editar o ejecutar (solo ver, exportar Excel/PDF, imprimir etiquetas y, al
-  administrador, Facturación y «Pagar»); la PWA muestra un aviso. Los administradores siempre
+  administrador, Facturación y «Pagar»), tampoco en las pantallas secundarias (ficha de
+  ubicación y de clase, borrador de plan, equipo, roles, SSO, tokens y webhooks: los datos se
+  ven con el formulario deshabilitado); la PWA muestra un aviso y oculta sus botones de
+  ejecutar, solicitar y registrar lecturas (lo que ya estaba en cola se envía al pagar). Los administradores siempre
   pueden entrar a Facturación y pagar. Al aprobarse un pago se reactiva sola. Nunca se borran datos por impago. La misma solo lectura rige durante
   el borrado programado (X-04).
 - CA6: Webhook entrante `/billing/webhooks/mercadopago/`: valida la firma `x-signature`;
@@ -269,7 +272,9 @@ escribirle a nadie; y como dueño de GALBUST quiero cobrar en pesos un precio fi
   `MODULE_DESCRIPTIONS`); dos filas se derivan: indicadores básicos (en el inicio de todos
   los planes) y modo sin conexión en terreno (va con `work_orders`). Desde 1100 px, tabla
   comparativa con las mismas filas en el mismo orden; bajo 1100 px, tarjetas con «Incluye»
-  y «No incluye» plegado (`<details>`). Un plan que no trae módulos del plan actual lo
+  y «No incluye» plegado (`<details>`); si un plan trae todo lo de otro de la comparación
+  (el anterior de venta, o cualquiera para la Prueba), la tarjeta dice «Todo lo de X, más:» y
+  lista solo lo que agrega, sin repetir la lista completa. Un plan que no trae módulos del plan actual lo
   avisa antes del botón («Con este plan dejas de tener: …»). El soporte no está modelado
   por plan y no se muestra como fila; no hay plan «Recomendado» (no hay dato que lo diga).
 - No cumplido / fuera de v1: boletas o facturas electrónicas del SII (Mercado Pago envía su
@@ -1143,8 +1148,12 @@ responde su checklist con las mismas reglas que la web (ADR-005).
   El esquema OpenAPI declara `x-required-scope` por operación.
 - ✔ Compatibilidad: los tokens «Solo lectura» y «Lectura y escritura» se
   migraron a `*:read` y `*:read` + `*:write`; permiten exactamente lo mismo.
-- No cumplido: alcances por sitio (el token ve toda la organización) y por
-  endpoint individual.
+- ✔ Tokens limitados por sitio (2026-10-24, ADR-034): al crearlo se marcan uno o
+  más sitios; el token ve y escribe solo lo que cuelga de ellos (mismo alcance que
+  una membresía por sitio; fuera de ellos 404 o 400). Sin sitios ve toda la
+  organización, como los tokens existentes.
+- No cumplido: alcances por endpoint individual; editar los sitios de un token
+  (se crea otro).
 
 **X-06 · Modo offline PWA (F2)**: ver [04_arquitectura.md](04_arquitectura.md), ADR-011.
 Como técnico quiero ejecutar mis OT sin señal y que lo hecho llegue solo al
@@ -1222,16 +1231,21 @@ consultar la API cada cierto tiempo. Implementado (2026-10, ADR-030).
 - CA8 ✔ Importaciones masivas: un evento por fila despachado en un solo lote al
   confirmar; con worker va a la cola y la importación no espera (sin worker,
   primeras 20 entregas y el resto queda para reenviar).
-- CA9 ✔ Regenerar el secreto (se muestra destacado; el anterior deja de valer
-  de inmediato; auditado sin el valor), reenviar a mano una entrega fallida
+- CA9 ✔ Regenerar el secreto (se muestra destacado; el anterior sigue firmando
+  24 h —cada entrega lleva dos firmas `v1`, la del nuevo al final— salvo que se
+  marque «se filtró», y la ventana se puede terminar antes; auditado sin el valor), reenviar a mano una entrega fallida
   (nueva entrega con el mismo `event_id`, auditada) y ver el cuerpo enviado con
   el código y la respuesta truncada (1.000 caracteres) en el detalle de la
   entrega. Solo lectura por impago oculta las acciones de escritura.
 - CA10 ✔ Purga diaria de entregas terminadas de más de 90 días (tarea
   Procrastinate y comando `purge_webhook_deliveries`, docs/07).
-- No cumplido / fuera: eventos de planes preventivos, de asignación o
-  reprogramación de OT y de decisiones sobre solicitudes; ventana de traslape al
-  regenerar el secreto; reintentos sin worker.
+- CA11 ✔ Eventos de planificación (2026-10-24): `work_order.assigned` (cambio de
+  responsable o apoyo), `work_order.rescheduled` (programar, mover de día o volver
+  al backlog), `work_request.accepted`, `.rejected` y `.merged`,
+  `maintenance_plan.version_published`, `.activated` y `.deactivated`; mismo camino
+  que los demás (servicios, al confirmar, módulo del plan) y ofrecidos en la
+  pantalla de webhooks.
+- No cumplido / fuera: reintentos sin worker.
 
 ## 10. Asistente de diagnóstico con IA (`AI`, F2)
 

@@ -53,6 +53,8 @@ SYNC_DELIVERY_LIMIT = 20
 BATCH_TASK_SIZE = 500
 # Antigüedad desde la que se purgan las entregas (tarea diaria y `purge_webhook_deliveries`).
 DELIVERY_RETENTION_DAYS = 90
+# Tras regenerar el secreto, el anterior sigue firmando este tiempo (ventana de traslape).
+SECRET_OVERLAP = datetime.timedelta(hours=24)
 
 
 class WebhookError(Exception):
@@ -136,6 +138,18 @@ def http_post(url: str, *, address: str, body: bytes, headers: dict) -> tuple[in
 def sign(secret: str, timestamp: int, body: bytes) -> str:
     """HMAC-SHA256 en hex de `"<timestamp>.<cuerpo>"` con el secreto del destino."""
     return hmac.new(secret.encode(), f"{timestamp}.".encode() + body, hashlib.sha256).hexdigest()
+
+
+def signature_header(endpoint: WebhookEndpoint, timestamp: int, body: bytes, *, now=None) -> str:
+    """`t=<unix>,v1=<hex>`; en la ventana de traslape, `t=…,v1=<anterior>,v1=<nuevo>`.
+
+    La firma del secreto vigente va siempre al final: un receptor que lee la cabecera como
+    diccionario se queda con ella (igual que sin traslape).
+    """
+    signatures = [sign(endpoint.secret, timestamp, body)]
+    if endpoint.previous_secret_active(now):
+        signatures.insert(0, sign(endpoint.previous_secret, timestamp, body))
+    return ",".join([f"t={timestamp}", *(f"v1={signature}" for signature in signatures)])
 
 
 def encode_payload(payload: dict) -> bytes:
@@ -275,6 +289,7 @@ def _sources():
     from apps.condition.models import ConditionAlert
     from apps.condition.selectors import ALERT_RELATED
     from apps.inventory.models import StockItem, StockMovement
+    from apps.maintenance.models import MaintenancePlan
     from apps.work.models import WorkOrder, WorkRequest
 
     return {
@@ -291,6 +306,8 @@ def _sources():
             StockMovement.objects.select_related("part", "warehouse"),
             s.StockMovementSerializer,
         ),
+        # El manager del plan ya trae `current_version`.
+        MaintenancePlan._meta.label: (MaintenancePlan.objects.all(), s.MaintenancePlanSerializer),
     }
 
 
@@ -437,24 +454,74 @@ def redeliver(*, membership, delivery: WebhookDelivery) -> WebhookDelivery:
 
 
 @transaction.atomic
-def regenerate_secret(*, membership, endpoint: WebhookEndpoint) -> str:
-    """Nuevo secreto de firma; el anterior deja de valer de inmediato (sin ventana de traslape).
+def regenerate_secret(*, membership, endpoint: WebhookEndpoint, keep_previous: bool = True) -> str:
+    """Nuevo secreto de firma. Las entregas siguientes, incluidos los reintentos pendientes,
+    se firman con el nuevo.
 
-    Las entregas siguientes, incluidos los reintentos pendientes, se firman con el nuevo.
-    Se audita sin el valor del secreto.
+    Con `keep_previous` el anterior sigue firmando `SECRET_OVERLAP` (24 h): cada entrega lleva
+    las dos firmas y el receptor actualiza su secreto sin perder eventos. Sin él (secreto
+    filtrado) el anterior deja de valer de inmediato. Regenerar de nuevo dentro de la ventana
+    descarta el más antiguo. Se audita sin el valor del secreto.
     """
     require_perm(membership, Perm.API_TOKEN_MANAGE)
     endpoint = WebhookEndpoint.objects.select_for_update().get(pk=endpoint.pk)
+    now = timezone.now()
+    if keep_previous:
+        endpoint.previous_secret = endpoint.secret
+        endpoint.previous_secret_expires_at = now + SECRET_OVERLAP
+    else:
+        endpoint.previous_secret, endpoint.previous_secret_expires_at = "", None
     endpoint.secret = SECRET_PREFIX + secrets.token_urlsafe(32)
-    endpoint.secret_rotated_at = timezone.now()
-    endpoint.save(update_fields=["secret", "secret_rotated_at", "updated_at"])
+    endpoint.secret_rotated_at = now
+    endpoint.save(
+        update_fields=[
+            "secret",
+            "secret_rotated_at",
+            "previous_secret",
+            "previous_secret_expires_at",
+            "updated_at",
+        ]
+    )
     audit.record(
         action=AuditEvent.Action.UPDATE,
         target=endpoint,
         membership=membership,
-        changes={"signature_rotated_at": endpoint.secret_rotated_at},
+        changes={
+            "signature_rotated_at": endpoint.secret_rotated_at,
+            "previous_signature_valid_until": endpoint.previous_secret_expires_at,
+        },
     )
     return endpoint.secret
+
+
+@transaction.atomic
+def discard_previous_secret(*, membership, endpoint: WebhookEndpoint) -> WebhookEndpoint:
+    """Termina la ventana de traslape ahora: el secreto anterior deja de firmar."""
+    require_perm(membership, Perm.API_TOKEN_MANAGE)
+    endpoint = WebhookEndpoint.objects.select_for_update().get(pk=endpoint.pk)
+    if not endpoint.previous_secret:
+        return endpoint
+    endpoint.previous_secret, endpoint.previous_secret_expires_at = "", None
+    endpoint.save(update_fields=["previous_secret", "previous_secret_expires_at", "updated_at"])
+    audit.record(
+        action=AuditEvent.Action.UPDATE,
+        target=endpoint,
+        membership=membership,
+        changes={"previous_signature_valid_until": None},
+    )
+    return endpoint
+
+
+def clear_expired_previous_secrets(*, now=None) -> int:
+    """Borra los secretos anteriores con la ventana vencida (organización del contexto).
+
+    Vencidos ya no firman (`previous_secret_active`); esto solo los saca de la base. Lo corre
+    la purga diaria.
+    """
+    require_current_organization()
+    return WebhookEndpoint.objects.filter(previous_secret_expires_at__lte=now or timezone.now()).update(
+        previous_secret="", previous_secret_expires_at=None
+    )
 
 
 def purge_old_deliveries(*, days: int = DELIVERY_RETENTION_DAYS, now=None) -> int:
@@ -511,7 +578,7 @@ def attempt_delivery(*, delivery: WebhookDelivery, now=None) -> int | None:
         "User-Agent": "GALBUST-CMMS-Webhooks/1",
         "X-Galbust-Event": delivery.event_type,
         "X-Galbust-Event-Id": str(delivery.event_id),
-        SIGNATURE_HEADER: f"t={timestamp},v1={sign(endpoint.secret, timestamp, body)}",
+        SIGNATURE_HEADER: signature_header(endpoint, timestamp, body, now=now),
     }
     code, text, error, retryable = None, "", "", True
     try:
