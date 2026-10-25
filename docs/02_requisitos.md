@@ -1235,8 +1235,13 @@ consultar la API cada cierto tiempo. Implementado (2026-10, ADR-030).
   entrega. Solo lectura por impago oculta las acciones de escritura.
 - CA10 ✔ Purga diaria de entregas terminadas de más de 90 días (tarea
   Procrastinate y comando `purge_webhook_deliveries`, docs/07).
-- No cumplido / fuera: eventos de planes preventivos, de asignación o
-  reprogramación de OT y de decisiones sobre solicitudes; reintentos sin worker.
+- CA11 ✔ Eventos de planificación (2026-10-24): `work_order.assigned` (cambio de
+  responsable o apoyo), `work_order.rescheduled` (programar, mover de día o volver
+  al backlog), `work_request.accepted`, `.rejected` y `.merged`,
+  `maintenance_plan.version_published`, `.activated` y `.deactivated`; mismo camino
+  que los demás (servicios, al confirmar, módulo del plan) y ofrecidos en la
+  pantalla de webhooks.
+- No cumplido / fuera: reintentos sin worker.
 
 ## 10. Asistente de diagnóstico con IA (`AI`, F2)
 

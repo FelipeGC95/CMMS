@@ -11,7 +11,15 @@ class Event(models.TextChoices):
     WORK_ORDER_CREATED = "work_order.created", _("OT creada")
     WORK_ORDER_STATUS_CHANGED = "work_order.status_changed", _("OT cambió de estado")
     WORK_ORDER_COMPLETED = "work_order.completed", _("OT completada")
+    WORK_ORDER_ASSIGNED = "work_order.assigned", _("OT asignada o reasignada")
+    WORK_ORDER_RESCHEDULED = "work_order.rescheduled", _("OT programada o reprogramada")
     WORK_REQUEST_CREATED = "work_request.created", _("Solicitud creada")
+    WORK_REQUEST_ACCEPTED = "work_request.accepted", _("Solicitud aceptada")
+    WORK_REQUEST_REJECTED = "work_request.rejected", _("Solicitud rechazada")
+    WORK_REQUEST_MERGED = "work_request.merged", _("Solicitud fusionada")
+    PLAN_VERSION_PUBLISHED = "maintenance_plan.version_published", _("Versión de plan publicada")
+    PLAN_ACTIVATED = "maintenance_plan.activated", _("Plan activado")
+    PLAN_DEACTIVATED = "maintenance_plan.deactivated", _("Plan desactivado")
     ASSET_CREATED = "asset.created", _("Activo creado")
     ASSET_UPDATED = "asset.updated", _("Activo editado")
     ASSET_STATUS_CHANGED = "asset.status_changed", _("Activo cambió de estado")
@@ -29,7 +37,15 @@ EVENT_MODULES = {
     Event.WORK_ORDER_CREATED: "work_orders",
     Event.WORK_ORDER_STATUS_CHANGED: "work_orders",
     Event.WORK_ORDER_COMPLETED: "work_orders",
+    Event.WORK_ORDER_ASSIGNED: "work_orders",
+    Event.WORK_ORDER_RESCHEDULED: "work_orders",
     Event.WORK_REQUEST_CREATED: "requests",
+    Event.WORK_REQUEST_ACCEPTED: "requests",
+    Event.WORK_REQUEST_REJECTED: "requests",
+    Event.WORK_REQUEST_MERGED: "requests",
+    Event.PLAN_VERSION_PUBLISHED: "preventive",
+    Event.PLAN_ACTIVATED: "preventive",
+    Event.PLAN_DEACTIVATED: "preventive",
     Event.ASSET_CREATED: "assets",
     Event.ASSET_UPDATED: "assets",
     Event.ASSET_STATUS_CHANGED: "assets",

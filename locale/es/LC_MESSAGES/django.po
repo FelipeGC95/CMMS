@@ -12100,3 +12100,27 @@ msgstr ""
 
 msgid "secreto anterior vale hasta"
 msgstr ""
+
+msgid "OT asignada o reasignada"
+msgstr ""
+
+msgid "OT programada o reprogramada"
+msgstr ""
+
+msgid "Plan activado"
+msgstr ""
+
+msgid "Plan desactivado"
+msgstr ""
+
+msgid "Solicitud aceptada"
+msgstr ""
+
+msgid "Solicitud fusionada"
+msgstr ""
+
+msgid "Solicitud rechazada"
+msgstr ""
+
+msgid "Versión de plan publicada"
+msgstr ""

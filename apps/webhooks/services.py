@@ -289,6 +289,7 @@ def _sources():
     from apps.condition.models import ConditionAlert
     from apps.condition.selectors import ALERT_RELATED
     from apps.inventory.models import StockItem, StockMovement
+    from apps.maintenance.models import MaintenancePlan
     from apps.work.models import WorkOrder, WorkRequest
 
     return {
@@ -305,6 +306,8 @@ def _sources():
             StockMovement.objects.select_related("part", "warehouse"),
             s.StockMovementSerializer,
         ),
+        # El manager del plan ya trae `current_version`.
+        MaintenancePlan._meta.label: (MaintenancePlan.objects.all(), s.MaintenancePlanSerializer),
     }
 
 

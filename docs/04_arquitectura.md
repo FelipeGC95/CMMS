@@ -1587,10 +1587,21 @@ lleva `{id, name, path}`; los decimales van como texto; consultas acotadas
      `webhooks.enqueue_purge` (08:30 UTC, una tarea por organización con
      `queueing_lock`) y comando `purge_webhook_deliveries`. Índice
      `(organization, created_at)`.
+  9. **Eventos de planificación (2026-10-24, P-04):** `work_order.assigned`
+     (`set_assignees`, con `change` de IDs de usuario solo de lo que cambió),
+     `work_order.rescheduled` (`schedule_work_order` y `unschedule_work_order`,
+     `change: {from, to}` en fechas; `WorkOrderSerializer` suma `scheduled_for`),
+     `work_request.accepted`, `.rejected` y `.merged` (`accept_request`,
+     `reject_request`, `merge_request`; aceptar un aviso anónimo crea su OT y va en
+     `data.work_order`), `maintenance_plan.version_published` (`publish_version` y
+     `bulk_create_published_plans` dentro de `collect_events`; `change: {version,
+     previous_version}`) y `maintenance_plan.activated`/`.deactivated`
+     (`update_plan` al cambiar `is_active`). Módulos `work_orders`, `requests` y
+     `preventive`; `data` del plan con `MaintenancePlanSerializer` (aún sin
+     endpoint de planes en la API).
 - **Estado (2026-10):** aceptado e implementado (X-08, ampliado en F3). Fuera:
-  eventos de planes, de asignación o reprogramación y de decisiones sobre
-  solicitudes; reintentos sin worker. La ventana de traslape del secreto entró el
-  2026-10-24 (punto 5).
+  reintentos sin worker. La ventana de traslape del secreto (punto 5) y los
+  eventos de planificación (punto 9) entraron el 2026-10-24.
 
 ### ADR-031 · Roles personalizados: rol base + permisos elegidos, sin permisos de administración
 - **Contexto:** ORG-12 (F3, Profesional y Empresa). Las pymes piden roles como

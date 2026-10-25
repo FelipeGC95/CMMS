@@ -22,6 +22,7 @@ from apps.attachments.models import Attachment
 from apps.condition.models import ConditionAlert, ConditionRule
 from apps.inventory.models import Part, StockItem, StockMovement, Warehouse
 from apps.inventory.selectors import warehouse_scope
+from apps.maintenance.models import MaintenancePlan
 from apps.organizations.models import Location
 from apps.work.models import FailureEvent, PartUsage, WorkOrder, WorkOrderChecklistItem, WorkRequest
 
@@ -199,12 +200,41 @@ class WorkOrderSerializer(serializers.ModelSerializer):
             "location",
             "assigned_to",
             "due_on",
+            "scheduled_for",
             "estimated_minutes",
             "started_at",
             "completed_at",
             "closed_at",
             "total_cost",
             "client_uuid",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = fields
+
+
+class MaintenancePlanSerializer(serializers.ModelSerializer):
+    """Plan preventivo con su versión vigente (cuerpo de los webhooks `maintenance_plan.*`)."""
+
+    current_version = serializers.IntegerField(source="current_version.number", read_only=True, default=None)
+    published_at = serializers.DateTimeField(
+        source="current_version.published_at", read_only=True, default=None
+    )
+    change_note = serializers.CharField(source="current_version.change_note", read_only=True, default="")
+    frequency = serializers.CharField(source="frequency_label", read_only=True, default="")
+
+    class Meta:
+        model = MaintenancePlan
+        fields = [
+            "id",
+            "code",
+            "name",
+            "asset_class",
+            "is_active",
+            "current_version",
+            "published_at",
+            "change_note",
+            "frequency",
             "created_at",
             "updated_at",
         ]

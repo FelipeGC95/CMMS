@@ -268,7 +268,7 @@ Reenviar el mismo lote no duplica: las filas ya cargadas vuelven como duplicadas
 
 **Filtros de la lista:** `scope` (`open`, `overdue`, `done`, `all`), `status`, `work_type`, `asset`, `location`.
 
-**Crear:** `work_type` (`preventive`, `corrective`, `predictive`, `improvement`, `inspection`), `title` y **exactamente uno** entre `asset` y `location`. Opcionales: `description`, `priority` (1 urgente, 2 alta, 3 normal por defecto, 4 baja), `due_on`, `estimated_minutes`, `client_uuid`. El correlativo visible (`code`, p. ej. `OT-D-00042`) lo asigna el sistema.
+**Crear:** `work_type` (`preventive`, `corrective`, `predictive`, `improvement`, `inspection`), `title` y **exactamente uno** entre `asset` y `location`. Opcionales: `description`, `priority` (1 urgente, 2 alta, 3 normal por defecto, 4 baja), `due_on`, `estimated_minutes`, `client_uuid`. El correlativo visible (`code`, p. ej. `OT-D-00042`) lo asigna el sistema. La respuesta trae además `scheduled_for` (día en que el planificador la programó en el tablero semanal, o `null`; solo lectura).
 
 ```bash
 curl -X POST "$API/work-orders/" -H "Authorization: Bearer $T" \
@@ -593,7 +593,14 @@ El administrador elige los eventos de cada destino (los destinos creados antes c
 | `work_order.created` | `work_orders` | Se crea una OT (web, API, terreno, preventiva automática, aviso de falla, regla de condición). | Igual que `GET /work-orders/{id}/` | — |
 | `work_order.status_changed` | `work_orders` | Cada cambio de estado (ADR-008): planificar, programar, iniciar, pausar, reanudar, completar, cerrar (también el cierre automático), cancelar, reabrir. | Igual que `GET /work-orders/{id}/` | `{"from", "to"}` |
 | `work_order.completed` | `work_orders` | Una OT pasa a completada (se mantiene por compatibilidad; también sale `status_changed`). Si la organización no exige aprobación, `status` ya llega como `closed`. | Igual que `GET /work-orders/{id}/` | — |
+| `work_order.assigned` | `work_orders` | Cambia el responsable o los de apoyo de una OT (pantalla, tablero semanal). Sin cambio real no sale. | Igual que `GET /work-orders/{id}/` | `{"assigned_to": {"from", "to"}, "helpers": {"from": [...], "to": [...]}}` con IDs de usuario; solo lo que cambió |
+| `work_order.rescheduled` | `work_orders` | Se programa una OT para un día, se mueve de día o se devuelve al backlog (tablero semanal). | Igual que `GET /work-orders/{id}/` (con `scheduled_for`) | `{"from", "to"}` (fechas `YYYY-MM-DD` o `null`) |
 | `work_request.created` | `requests` | Llega una solicitud (aviso de falla, con o sin cuenta). | Igual que `GET /requests/{id}/` | — |
+| `work_request.accepted` | `requests` | El planificador acepta la solicitud. Un aviso anónimo se convierte en OT al aceptarlo: `data.work_order` trae su ID. | Igual que `GET /requests/{id}/` | `{"from", "to"}` |
+| `work_request.rejected` | `requests` | Se rechaza (su OT se cancela). | Igual que `GET /requests/{id}/` | `{"from", "to", "reason"}` |
+| `work_request.merged` | `requests` | Se fusiona con otra solicitud del mismo activo (su OT se cancela). | Igual que `GET /requests/{id}/` | `{"from", "to", "merged_into"}` |
+| `maintenance_plan.version_published` | `preventive` | Se publica una versión de un plan preventivo, también la versión 1 de un plan nuevo (plantillas de rubro e importación Excel, en un solo lote). | Plan: `id`, `code`, `name`, `asset_class`, `is_active`, `current_version`, `published_at`, `change_note`, `frequency`, `created_at`, `updated_at` | `{"version", "previous_version"}` |
+| `maintenance_plan.activated` / `.deactivated` | `preventive` | Se activa o desactiva un plan (deja o vuelve a generar OT). | Plan (como arriba) | — |
 | `asset.created` | `assets` | Alta de un activo (web, API o importación Excel). | Igual que `GET /assets/{id}/` | — |
 | `asset.updated` | `assets` | Se edita la ficha o sus atributos (solo si algo cambió; también la importación Excel). | Igual que `GET /assets/{id}/` | `{"fields": [...]}` (sin `change` en la importación) |
 | `asset.status_changed` | `assets` | Cambia el estado: manual, por una OT (detenido → en mantención → operativo), baja o reactivación. | Igual que `GET /assets/{id}/` | `{"from", "to"}` |
@@ -734,7 +741,6 @@ La v1 cubre el flujo del técnico y las integraciones de datos; la configuració
 | Gestionar solicitudes | No se aceptan, rechazan ni fusionan avisos por la API. | Web (bandeja del planificador). |
 | Descargar archivos | Los adjuntos devuelven solo metadatos, nunca una URL. | Descarga desde la web con URL firmada. |
 | Borrado | No hay `DELETE` en ningún recurso (sin borrado físico por diseño). | Cancelar una OT con `transition` a `cancelled`. |
-| Más eventos salientes | No hay eventos de planes preventivos, de asignación o reprogramación de OT, ni de solicitudes aceptadas, rechazadas o fusionadas. | Consultar `GET /work-orders/?scope=open` o `GET /requests/` cada cierto tiempo. |
 | Variables de condición | No se crean ni desactivan variables por la API (`GET /meters/` las lista). | Web (ficha del activo) o un ítem de medición del checklist enlazado a la variable. |
 | Bodegas, mínimos, reservas y devoluciones | Solo lectura de bodegas y stock; no se crean bodegas, no se fijan mínimos, no se reservan ni se devuelven repuestos por la API. | Web (`/inventory/` y el detalle de la OT). |
 | Token por usuario | El token actúa como integración (rol planificador), no como un técnico concreto. | Un token por app o integración, con nombre claro y solo los alcances que necesita. |
