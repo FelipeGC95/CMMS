@@ -10,7 +10,7 @@ Fuentes: estudio de mercado y monetización (2026-10-14), `docs/04_arquitectura.
 Supuestos: UF ≈ $41.000 CLP y USD 1 ≈ $950 CLP. Son precios de lista
 aproximados: **confirmarlos al contratar**.
 
-Última revisión: 2026-10-20.
+Última revisión: 2026-10-22.
 
 ## 1. Infraestructura (USD al mes)
 
@@ -68,7 +68,7 @@ agota el cupo. El costo real por organización y mes está en el admin
 | Ítem | Costo |
 |---|---|
 | Contador | $60.000–100.000/mes |
-| Puesta en marcha por cliente | ~6–8 h del fundador; se propone cobrarla aparte (4–10 UF) |
+| Puesta en marcha y asesoría por cliente | Desde ~6–8 h del fundador; crece con la información que falte levantar. Se cobra aparte, cotizada, desde $600.000 (D-03) |
 | Inversión inicial (textos legales, dominio, etiquetas QR, revisión de plantillas) | ~$560.000 mínimo · ~$1,66 M recomendado |
 
 ## 5. Margen por cliente (estimado)
@@ -88,7 +88,7 @@ servidores.
 |---|---|---|---|
 | D-01 | Modelo y cupo del asistente IA en Profesional | Mantener Opus y 100 conv.; pasar a Sonnet; bajar el cupo | Abierta |
 | D-02 | Confirmar la comisión real de Mercado Pago para suscripciones en Chile | Revisar en la cuenta al crearla | Abierta |
-| D-03 | ¿Se cobra la puesta en marcha? ¿Cuánto y cómo (hoy se cobra por fuera)? | 4 UF Básico · 10 UF Profesional · cotizada Empresa | Abierta |
+| D-03 | ¿Se cobra la puesta en marcha? ¿Cuánto y cómo (hoy se cobra por fuera)? | 4 UF Básico · 10 UF Profesional · cotizada Empresa | **Cerrado** 2026-10-22: se cobra aparte como asesoría, sin precio fijo ni por plan. Se cotiza según la información que ya tenga la empresa (inventario de activos, planes, historial) y el trabajo que demande; parte en $600.000 CLP (~15 UF). Pago único, fuera de Mercado Pago |
 | D-04 | Plan de Render al pasar a producción: worker o cron | Worker (USD 7) recomendado | Abierta |
 | D-05 | Facturación electrónica automática (SII) | Manual por ahora · emisor (OpenFactura, Bsale, Haulmer) | Abierta |
 | D-06 | ¿El repositorio sigue público? Expone código y precios; ahorra el CI | Público · privado con presupuesto de Actions | Abierta |
