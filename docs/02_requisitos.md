@@ -272,7 +272,9 @@ escribirle a nadie; y como dueño de GALBUST quiero cobrar en pesos un precio fi
   `MODULE_DESCRIPTIONS`); dos filas se derivan: indicadores básicos (en el inicio de todos
   los planes) y modo sin conexión en terreno (va con `work_orders`). Desde 1100 px, tabla
   comparativa con las mismas filas en el mismo orden; bajo 1100 px, tarjetas con «Incluye»
-  y «No incluye» plegado (`<details>`). Un plan que no trae módulos del plan actual lo
+  y «No incluye» plegado (`<details>`); si un plan trae todo lo de otro de la comparación
+  (el anterior de venta, o cualquiera para la Prueba), la tarjeta dice «Todo lo de X, más:» y
+  lista solo lo que agrega, sin repetir la lista completa. Un plan que no trae módulos del plan actual lo
   avisa antes del botón («Con este plan dejas de tener: …»). El soporte no está modelado
   por plan y no se muestra como fila; no hay plan «Recomendado» (no hay dato que lo diga).
 - No cumplido / fuera de v1: boletas o facturas electrónicas del SII (Mercado Pago envía su

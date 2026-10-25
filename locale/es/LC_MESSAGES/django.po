@@ -12069,3 +12069,11 @@ msgstr ""
 
 msgid "La organización está en solo lectura: puedes ver tus OT, pero no registrar avances. Lo que ya estaba guardado en el teléfono se envía cuando un administrador pague."
 msgstr ""
+
+#, python-format
+msgid "Las mismas funciones que %(plan)s."
+msgstr ""
+
+#, python-format
+msgid "Todo lo de %(plan)s, más:"
+msgstr ""
