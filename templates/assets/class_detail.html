@@ -16,7 +16,7 @@
     <tbody>
       {% for attribute in attributes %}
       <tr>
-        <td data-label=""><a href="{% url 'attribute_edit' asset_class.pk attribute.pk %}">{{ attribute.label }}</a></td>
+        <td data-label="">{% if read_only %}{{ attribute.label }}{% else %}<a href="{% url 'attribute_edit' asset_class.pk attribute.pk %}">{{ attribute.label }}</a>{% endif %}</td>
         <td data-label="{% translate 'Tipo' %}">{{ attribute.get_data_type_display }}</td>
         <td data-label="{% translate 'Unidad / opciones' %}">{% if attribute.choices %}{{ attribute.choices|join:", " }}{% else %}{{ attribute.unit|default:"—" }}{% endif %}</td>
         <td data-label="{% translate 'Obligatorio' %}">{% if attribute.required %}{% translate "Sí" %}{% else %}{% translate "No" %}{% endif %}</td>
@@ -29,6 +29,7 @@
   </table>
 </section>
 
+{% if not read_only %}
 <div class="grid grid--2 mt-4">
   <section class="card">
     <h2>{% translate "Agregar atributo" %}</h2>
@@ -50,6 +51,7 @@
     </form>
   </section>
 </div>
+{% endif %}
 
 {% include "attachments/_manuals.html" with target=asset_class kind="class" %}
 {% endblock %}

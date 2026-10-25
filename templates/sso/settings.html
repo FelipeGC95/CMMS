@@ -21,8 +21,11 @@
     <h2 id="provider-title">{% translate "Proveedor de identidad (OIDC)" %}</h2>
     <form method="post" action="{% url 'sso_settings' %}">
       {% csrf_token %}
+      <fieldset class="form-lock"{% if read_only %} disabled{% endif %}>
       {% include "_form_fields.html" with form=form %}
-      <button class="btn btn--primary" type="submit">{% translate "Guardar" %}</button>
+      </fieldset>
+      {% if read_only %}<p class="muted">{% translate "La organización está en solo lectura: el SSO sigue funcionando, pero no se cambia hasta regularizar el pago." %}</p>
+      {% else %}<button class="btn btn--primary" type="submit">{% translate "Guardar" %}</button>{% endif %}
     </form>
     {% if configuration %}
     <h3 class="mt-4">{% translate "Probar conexión" %}</h3>
@@ -32,10 +35,10 @@
       <span class="muted">{% blocktranslate with when=configuration.last_tested_at|date:"d-m-Y H:i" %}Última prueba: {{ when }}{% endblocktranslate %}</span></p>
     {% if configuration.last_test_error %}<p class="muted">{{ configuration.last_test_error }}</p>{% endif %}
     {% endif %}
-    <form method="post" action="{% url 'sso_test' %}">
+    {% if not read_only %}<form method="post" action="{% url 'sso_test' %}">
       {% csrf_token %}
       <button class="btn btn--secondary" type="submit">{% icon 'sync' %}{% translate "Probar conexión" %}</button>
-    </form>
+    </form>{% endif %}
     {% endif %}
   </section>
 
@@ -56,11 +59,11 @@
 <section class="card mt-4" id="domains" aria-labelledby="domains-title">
   <h2 id="domains-title">{% translate "Dominios de correo" %}</h2>
   <p class="muted">{% translate "Solo los correos de un dominio verificado entran por SSO. Para verificarlo, crea en el DNS del dominio el registro TXT que se muestra y pulsa «Verificar». Un dominio verificado es de una sola organización." %}</p>
-  <form method="post" action="{% url 'sso_domain_add' %}" class="inline-form">
+  {% if not read_only %}<form method="post" action="{% url 'sso_domain_add' %}" class="inline-form">
     {% csrf_token %}
     {% include "_form_fields.html" with form=domain_form %}
     <button class="btn btn--primary" type="submit">{% translate "Agregar dominio" %}</button>
-  </form>
+  </form>{% endif %}
   {% if page.object_list %}
   <table class="table mt-4">
     <thead><tr><th>{% translate "Dominio" %}</th><th>{% translate "Estado" %}</th><th>{% translate "Registro TXT" %}</th><th>{% translate "Acciones" %}</th></tr></thead>
@@ -82,12 +85,12 @@
           {% endif %}
         </td>
         <td data-label="">
-          <div class="row">
+          {% if not read_only %}<div class="row">
             {% if not domain.is_verified %}
             <form method="post" action="{% url 'sso_domain_verify' domain.pk %}">{% csrf_token %}<button class="btn btn--primary" type="submit">{% icon 'check' %}{% translate "Verificar" %}</button></form>
             {% endif %}
             <form method="post" action="{% url 'sso_domain_remove' domain.pk %}">{% csrf_token %}<button class="btn btn--ghost" type="submit">{% icon 'x' %}{% translate "Quitar" %}</button></form>
-          </div>
+          </div>{% endif %}
         </td>
       </tr>
       {% endfor %}

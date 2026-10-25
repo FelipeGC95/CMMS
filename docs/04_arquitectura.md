@@ -1839,7 +1839,13 @@ lleva `{id, name, path}`; los decimales van como texto; consultas acotadas
      mirar la facturación) y lo que no pasa por permisos se oculta con la variable
      de plantilla `read_only`. `has_perm` de los servicios no cambia: el bloqueo
      real sigue siendo el middleware. Sin consultas extra (campos de la organización
-     del contexto). La PWA recibe `read_only` en `bootstrap` y muestra un aviso.
+     del contexto). Las pantallas secundarias (ficha de ubicación y de clase, borrador
+     de plan, equipo, miembro, roles, SSO, tokens y webhooks) muestran sus datos con
+     los formularios deshabilitados (`<fieldset class="form-lock" disabled>`) y sin
+     botones de guardar, quitar o probar. La PWA recibe `read_only` en `bootstrap`,
+     muestra un aviso y recibe en falso sus permisos de escritura (`execute`,
+     `request_create`, `reading_create` vía `can_act`), así oculta los botones de
+     ejecutar, solicitar y registrar lecturas; lo que ya estaba en cola sale al pagar.
   9. **Organizaciones existentes:** `billing_exempt` (facturación manual) por defecto
      true —la demo y las creadas por el superadmin no se bloquean— y false en el
      autoregistro. La migración `organizations/0020` deja exentas las existentes

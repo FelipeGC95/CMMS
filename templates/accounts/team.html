@@ -10,6 +10,12 @@
 </div>
 
 <div class="grid grid--2">
+  {% if read_only %}
+  <section class="card">
+    <h2>{% translate "Invitar por correo" %}</h2>
+    <p class="muted">{% translate "La organización está en solo lectura: no se invita ni se cambian roles hasta regularizar el pago." %}</p>
+  </section>
+  {% else %}
   <section class="card">
     <h2>{% translate "Invitar por correo" %}</h2>
     <p class="muted">{% translate "Le llega un enlace válido por 7 días. Si ya tiene cuenta, se suma con la misma." %}</p>
@@ -28,6 +34,7 @@
       <button class="btn btn--primary" type="submit">{% translate "Enviar invitación" %}</button>
     </form>
   </section>
+  {% endif %}
 
   <section class="card{% if invitations %} card--flush{% endif %}">
     {% if invitations %}
@@ -41,10 +48,10 @@
           <td data-label="{% translate 'Rol' %}">{{ invitation.role_label }}</td>
           <td data-label="{% translate 'Vence' %}" class="num">{{ invitation.expires_at|date:"d-m-Y" }}</td>
           <td data-label="">
-            <form method="post" action="{% url 'invitation_revoke' invitation.pk %}">
+            {% if not read_only %}<form method="post" action="{% url 'invitation_revoke' invitation.pk %}">
               {% csrf_token %}
               <button class="btn btn--ghost" type="submit">{% translate "Revocar" %}</button>
-            </form>
+            </form>{% endif %}
           </td>
         </tr>
         {% endfor %}

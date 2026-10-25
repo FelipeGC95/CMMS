@@ -13,6 +13,7 @@
   <form method="post">
     {% csrf_token %}
     {% for error in form.non_field_errors %}<div class="alert alert--error" role="alert">{% icon 'stop' %}<span>{{ error }}</span></div>{% endfor %}
+    <fieldset class="form-lock"{% if read_only %} disabled{% endif %}>
     <div class="field">
       <label for="{{ form.role.id_for_label }}">{{ form.role.label }}</label>
       {{ form.role }}
@@ -37,10 +38,12 @@
       <span class="help">{{ form.weekly_capacity_hours.help_text }}</span>
       {% for error in form.weekly_capacity_hours.errors %}<span class="error">{% icon 'stop' %}{{ error }}</span>{% endfor %}
     </div>
-    <button class="btn btn--primary" type="submit">{% translate "Guardar" %}</button>
+    </fieldset>
+    {% if not read_only %}<button class="btn btn--primary" type="submit">{% translate "Guardar" %}</button>{% endif %}
   </form>
 </div>
 
+{% if not read_only %}
 <div class="card">
   <form method="post" action="{% url 'member_active' target.pk %}">
     {% csrf_token %}
@@ -54,4 +57,5 @@
     {% endif %}
   </form>
 </div>
+{% endif %}
 {% endblock %}

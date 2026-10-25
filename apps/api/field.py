@@ -9,8 +9,8 @@ from django.utils import timezone
 from django.utils.translation import gettext as _
 from rest_framework.exceptions import ValidationError
 
-from apps.accounts.permissions import Perm, has_perm
-from apps.billing.access import is_read_only
+from apps.accounts.permissions import Perm
+from apps.billing.access import can_act, is_read_only
 from apps.inventory.selectors import field_parts
 from apps.ui.templatetags.ui import work_order_status_label
 from apps.work.models import WorkOrder
@@ -52,17 +52,20 @@ def bootstrap(*, membership) -> dict:
         "user": membership.user,
         "organization": organization,
         "role": membership.role,
+        # En solo lectura (ORG-13 CA5) los permisos de escritura se dan por no concedidos: el
+        # teléfono oculta los botones de ejecutar, solicitar y registrar lecturas.
         "permissions": {
-            "execute": has_perm(membership, Perm.WORK_ORDER_EXECUTE),
-            "request_create": has_perm(membership, Perm.REQUEST_CREATE),
-            "reading_create": has_perm(membership, Perm.METER_READING_CREATE),
+            "execute": can_act(membership, Perm.WORK_ORDER_EXECUTE),
+            "request_create": can_act(membership, Perm.REQUEST_CREATE),
+            "reading_create": can_act(membership, Perm.METER_READING_CREATE),
         },
         "horizon_days": FIELD_DEFAULT_DAYS,
         "status_labels": {status: str(work_order_status_label(status)) for status in S.values},
         "execution_transitions": _execution_transitions(),
         "server_time": timezone.now(),
         "min_client_version": MIN_CLIENT_VERSION,
-        # Solo lectura por facturación (ORG-13): el teléfono muestra el aviso; la cola se envía al pagar.
+        # Solo lectura por facturación (ORG-13): el teléfono muestra el aviso; lo que ya estaba en
+        # cola se envía al pagar.
         "read_only": is_read_only(organization),
     }
 

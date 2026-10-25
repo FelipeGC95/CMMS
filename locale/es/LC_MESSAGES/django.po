@@ -12047,11 +12047,25 @@ msgid "vale para todos los grupos, también los que se agreguen a la API. Los to
 msgstr ""
 
 msgid "Último intento"
-msgid "La organización está en solo lectura: puedes ver tus OT, pero lo que registres queda guardado en el teléfono y se envía cuando un administrador pague."
 msgstr ""
 
 msgid "Exportar planes (Excel)"
 msgstr ""
 
 msgid "Exportar (Excel)"
+msgstr ""
+
+msgid "Formulario bloqueado (solo lectura)"
+msgstr ""
+
+msgid "La organización está en solo lectura: el SSO sigue funcionando, pero no se cambia hasta regularizar el pago."
+msgstr ""
+
+msgid "La organización está en solo lectura: no se crean ni editan roles hasta regularizar el pago."
+msgstr ""
+
+msgid "La organización está en solo lectura: no se invita ni se cambian roles hasta regularizar el pago."
+msgstr ""
+
+msgid "La organización está en solo lectura: puedes ver tus OT, pero no registrar avances. Lo que ya estaba guardado en el teléfono se envía cuando un administrador pague."
 msgstr ""

@@ -240,7 +240,10 @@ escribirle a nadie; y como dueño de GALBUST quiero cobrar en pesos un precio fi
   `payment_required`) ni `/field/api/` (402; la PWA deja el cambio en cola y lo envía al
   pagar). La interfaz es coherente con la solo lectura: no muestra botones, formularios ni
   accesos de crear, editar o ejecutar (solo ver, exportar Excel/PDF, imprimir etiquetas y, al
-  administrador, Facturación y «Pagar»); la PWA muestra un aviso. Los administradores siempre
+  administrador, Facturación y «Pagar»), tampoco en las pantallas secundarias (ficha de
+  ubicación y de clase, borrador de plan, equipo, roles, SSO, tokens y webhooks: los datos se
+  ven con el formulario deshabilitado); la PWA muestra un aviso y oculta sus botones de
+  ejecutar, solicitar y registrar lecturas (lo que ya estaba en cola se envía al pagar). Los administradores siempre
   pueden entrar a Facturación y pagar. Al aprobarse un pago se reactiva sola. Nunca se borran datos por impago. La misma solo lectura rige durante
   el borrado programado (X-04).
 - CA6: Webhook entrante `/billing/webhooks/mercadopago/`: valida la firma `x-signature`;
