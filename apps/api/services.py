@@ -22,6 +22,7 @@ from apps.condition.services import create_rule
 from apps.inventory import services as inventory
 from apps.inventory.models import StockMovement
 from apps.inventory.services import InventoryError
+from apps.organizations.models import Location
 from apps.work.models import LaborEntry, PartUsage, WorkOrder, WorkOrderChecklistItem
 from apps.work.services import (
     ERROR_CANCELLED,
@@ -40,7 +41,7 @@ from apps.work.services import (
     transition,
 )
 
-from .models import ApiIdempotencyKey, ApiToken
+from .models import ApiIdempotencyKey, ApiToken, ApiTokenSite
 from .scopes import LEGACY_SCOPES, clean_scopes
 
 TOKEN_PREFIX = "gbt_"
@@ -68,11 +69,13 @@ def create_token(
     scopes=None,
     scope: str | None = None,
     expires_at: datetime.datetime | None = None,
+    sites=(),
 ) -> tuple[ApiToken, str]:
     """Crea el token y devuelve (token, valor completo). El valor no se vuelve a mostrar.
 
     `scopes`: alcances por recurso (`apps.api.scopes`); `scope` ("read" o "write") es el
-    atajo del alcance general de antes (`*:read`, o `*:read` + `*:write`).
+    atajo del alcance general de antes (`*:read`, o `*:read` + `*:write`). `sites`:
+    ubicaciones de tipo sitio a las que se limita (vacío = toda la organización).
     """
     require_perm(membership, Perm.API_TOKEN_MANAGE)
     if scope is not None:
@@ -80,6 +83,7 @@ def create_token(
     scopes = clean_scopes(scopes)
     if not scopes:
         raise TokenError(_("Elige al menos un alcance."))
+    sites = _clean_sites(membership, sites)
     prefix = secrets.token_hex(4)
     raw = f"{TOKEN_PREFIX}{prefix}_{secrets.token_urlsafe(32)}"
     service_user = User.objects.create_user(
@@ -96,14 +100,33 @@ def create_token(
         service_user=service_user,
         created_by=membership.user,
         expires_at=expires_at,
+        restricted_to_sites=bool(sites),
     )
-    audit.record(
-        action=AuditEvent.Action.CREATE,
-        target=token,
-        membership=membership,
-        changes={"name": token.name, "scopes": scopes, "prefix": prefix, "expires_at": expires_at},
+    ApiTokenSite.objects.bulk_create(
+        [ApiTokenSite(organization=token.organization, token=token, location=site) for site in sites]
     )
+    changes = {"name": token.name, "scopes": scopes, "prefix": prefix, "expires_at": expires_at}
+    if sites:
+        changes["sites"] = [site.code for site in sites]
+    audit.record(action=AuditEvent.Action.CREATE, target=token, membership=membership, changes=changes)
     return token, raw
+
+
+def _clean_sites(membership, sites) -> list[Location]:
+    """Sitios activos de la organización (del contexto) que quien crea el token puede ver."""
+    from apps.organizations.selectors import visible_locations
+
+    wanted = {site.pk for site in sites}
+    if not wanted:
+        return []
+    valid = list(
+        visible_locations(membership=membership)
+        .filter(pk__in=wanted, kind=Location.Kind.SITE, is_active=True)
+        .order_by("code")
+    )
+    if len(valid) != len(wanted):
+        raise TokenError(_("Elige sitios activos de la organización."))
+    return valid
 
 
 @transaction.atomic
@@ -144,13 +167,14 @@ def authenticate_token(raw: str) -> ApiToken | None:
 def principal_for(token: ApiToken) -> Membership:
     """Membresía en memoria (no se guarda) con que el token llama a los servicios.
 
-    Toda la organización (sin alcance por sitio) y los permisos de SERVICE_ROLE.
+    Permisos de SERVICE_ROLE y toda la organización, o solo los sitios del token si está
+    limitado (`accounts.scoping` lee sus sitios: los mismos selectores que una membresía).
     """
     principal = Membership(
         user=token.service_user,
         organization=token.organization,
         role=SERVICE_ROLE,
-        restricted_to_locations=False,
+        restricted_to_locations=token.restricted_to_sites,
     )
     principal.api_token = token
     return principal

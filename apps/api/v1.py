@@ -25,7 +25,7 @@ from apps.inventory import services as inventory_services
 from apps.inventory.models import Part, StockItem, StockMovement, Warehouse
 from apps.inventory.selectors import visible_warehouses, warehouse_scope
 from apps.organizations.models import Location
-from apps.organizations.selectors import descendant_ids
+from apps.organizations.selectors import descendant_ids, visible_locations
 from apps.work import services as work_services
 from apps.work.forms import CompleteWorkOrderForm, decode_signature
 from apps.work.models import WorkOrder, WorkRequest
@@ -467,7 +467,7 @@ class WorkOrderViewSet(WorkOrderActionsMixin, mixins.ListModelMixin, mixins.Retr
             if asset is None:
                 return WorkOrder.objects.none()
         if location_id := _uuid(self.request, "location"):
-            location = Location.objects.filter(pk=location_id).first()
+            location = visible_locations(membership=self.membership).filter(pk=location_id).first()
             if location is None:
                 return WorkOrder.objects.none()
         return work_order_list(

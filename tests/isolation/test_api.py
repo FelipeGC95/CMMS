@@ -188,3 +188,21 @@ def test_scoped_token_of_a_never_reads_b(tenant_a, tenant_b):
     client.credentials(HTTP_AUTHORIZATION=f"Bearer {raw}")
     assert client.get("/api/v1/parts/").json()["count"] == 0
     assert client.get("/api/v1/parts/", {"code": "SECRETO-B"}).json()["count"] == 0
+
+
+def test_site_restriction_never_crosses_organizations(tenant_a, tenant_b, b_data):
+    """P-05: un token de A no se limita a un sitio de B, y los sitios de un token no se ven desde B."""
+    from apps.api.models import ApiTokenSite
+    from apps.api.services import TokenError, create_token
+
+    with tenant_context(tenant_b.org):
+        Location.objects.filter(pk=b_data["location"]).update(kind=Location.Kind.SITE)
+        site_b = Location.objects.get(pk=b_data["location"])
+    with tenant_context(tenant_a.org):
+        with pytest.raises(TokenError):
+            create_token(membership=tenant_a.admin, name="X", scopes=["*:read"], sites=[site_b])
+        site_a = Location.objects.create(code="SA", name="Planta A", kind=Location.Kind.SITE)
+        create_token(membership=tenant_a.admin, name="A", scopes=["*:read"], sites=[site_a])
+        assert ApiTokenSite.objects.count() == 1
+    with tenant_context(tenant_b.org):
+        assert ApiTokenSite.objects.count() == 0

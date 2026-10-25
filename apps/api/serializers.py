@@ -23,7 +23,6 @@ from apps.condition.models import ConditionAlert, ConditionRule
 from apps.inventory.models import Part, StockItem, StockMovement, Warehouse
 from apps.inventory.selectors import warehouse_scope
 from apps.maintenance.models import MaintenancePlan
-from apps.organizations.models import Location
 from apps.work.models import FailureEvent, PartUsage, WorkOrder, WorkOrderChecklistItem, WorkRequest
 
 
@@ -40,6 +39,13 @@ class TenantPK(serializers.PrimaryKeyRelatedField):
 
     def get_queryset(self):
         return self._get_queryset(self.context["request"].auth)
+
+
+def _locations(membership):
+    """Ubicaciones elegibles: todas, o las de los sitios del token si está limitado (X-05)."""
+    from apps.organizations.selectors import visible_locations
+
+    return visible_locations(membership=membership)
 
 
 def _assets(membership):
@@ -83,7 +89,7 @@ class AssetWriteSerializer(serializers.Serializer):
     code = serializers.CharField(max_length=30)
     name = serializers.CharField(max_length=150)
     asset_class = TenantPK(lambda m: AssetClass.objects.filter(is_active=True))
-    location = TenantPK(lambda m: Location.objects.all(), required=False, allow_null=True)
+    location = TenantPK(_locations, required=False, allow_null=True)
     parent = TenantPK(_assets, required=False, allow_null=True)
     criticality = serializers.ChoiceField(Asset.Criticality.choices, required=False)
     manufacturer = serializers.CharField(max_length=100, required=False, allow_blank=True)
@@ -247,7 +253,7 @@ class WorkOrderCreateSerializer(serializers.Serializer):
     description = serializers.CharField(required=False, allow_blank=True, default="")
     priority = serializers.ChoiceField(WorkOrder.Priority.choices, default=WorkOrder.Priority.NORMAL)
     asset = TenantPK(_assets, required=False, allow_null=True)
-    location = TenantPK(lambda m: Location.objects.all(), required=False, allow_null=True)
+    location = TenantPK(_locations, required=False, allow_null=True)
     due_on = serializers.DateField(required=False, allow_null=True)
     estimated_minutes = serializers.IntegerField(required=False, allow_null=True, min_value=1)
     client_uuid = serializers.UUIDField(required=False, allow_null=True)
@@ -297,7 +303,7 @@ class WorkRequestSerializer(serializers.ModelSerializer):
 class WorkRequestCreateSerializer(serializers.Serializer):
     description = serializers.CharField()
     asset = TenantPK(_assets, required=False, allow_null=True)
-    location = TenantPK(lambda m: Location.objects.all(), required=False, allow_null=True)
+    location = TenantPK(_locations, required=False, allow_null=True)
     asset_stopped = serializers.BooleanField(required=False, default=False)
     client_uuid = serializers.UUIDField(required=False, allow_null=True)
 

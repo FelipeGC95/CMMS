@@ -38,7 +38,7 @@ No hay sesión ni cookies, así que no aplica CSRF. Un token revocado, vencido, 
 | Aspecto | Comportamiento |
 | --- | --- |
 | Organización | La del token; no se elige ni se envía. Un id de otra empresa responde igual que uno inexistente (404 o error de validación). |
-| Rol efectivo | Planificador sobre toda la organización (sin restricción por sitio). |
+| Rol efectivo | Planificador sobre toda la organización o, si el token se limitó a sitios, solo sobre lo que cuelga de ellos (ver «Tokens limitados por sitio»). |
 | Alcances | Por grupo de recursos: `<grupo>:read` permite `GET`; `<grupo>:write` permite además `POST` y `PATCH` (escribir incluye leer). `*:read` y `*:write` valen para todos los grupos, también los que se agreguen. Sin el alcance → 403 `insufficient_scope` (ver abajo). |
 | Nunca puede | Administrar equipo, auditoría, configuración ni otros tokens. |
 | Autoría | Cada token tiene su propio usuario de servicio (`API · <nombre>`): la auditoría muestra qué integración hizo cada cambio. |
@@ -127,6 +127,16 @@ Cada token lleva una lista de alcances. Un alcance es `<grupo>:read` o `<grupo>:
 ```
 
 - En el esquema OpenAPI cada operación declara su alcance en `x-required-scope` (y al final de su descripción en `/api/docs/`).
+
+### Tokens limitados por sitio
+
+Al crear el token se pueden marcar uno o más **sitios** (ubicaciones de tipo sitio, activas). Sin marcar ninguno el token ve toda la organización, como todos los tokens creados antes. Limitado, se comporta como una persona con alcance por sitio:
+
+- Las listas y fichas (`/assets/`, `/meters/`, `/readings/`, `/work-orders/`, `/requests/`, `/warehouses/`, `/stock/`, `/stock-movements/`, `/condition-alerts/`…) muestran solo lo que está en esos sitios o en sus ubicaciones hijas; un id de otro sitio responde **404**, igual que uno de otra empresa.
+- Al escribir, `asset`, `location` y `warehouse` solo aceptan ids de sus sitios (400 si no). Un activo nuevo debe llevar `location` dentro de sus sitios.
+- El catálogo de repuestos (`/parts/`) es de la organización y se sigue viendo completo.
+- Los alcances siguen valiendo: un token limitado a «Planta Norte» con `assets:read` lee solo los activos de Planta Norte.
+- Los sitios de un token no se editan: para cambiarlos, crea otro token y revoca el anterior. Los webhooks no se limitan por sitio.
 
 - `/api/docs/`: Swagger UI para probar cada endpoint con un token.
 - `/api/schema/`: esquema OpenAPI 3 para generar clientes (Postman, openapi-generator).
@@ -744,7 +754,6 @@ La v1 cubre el flujo del técnico y las integraciones de datos; la configuració
 | Variables de condición | No se crean ni desactivan variables por la API (`GET /meters/` las lista). | Web (ficha del activo) o un ítem de medición del checklist enlazado a la variable. |
 | Bodegas, mínimos, reservas y devoluciones | Solo lectura de bodegas y stock; no se crean bodegas, no se fijan mínimos, no se reservan ni se devuelven repuestos por la API. | Web (`/inventory/` y el detalle de la OT). |
 | Token por usuario | El token actúa como integración (rol planificador), no como un técnico concreto. | Un token por app o integración, con nombre claro y solo los alcances que necesita. |
-| Alcances por sitio | Los alcances limitan recursos, no ubicaciones: el token ve toda la organización. | Un token por integración y, si hace falta, filtrar por `location` en las consultas. |
 
 ### Referencias
 

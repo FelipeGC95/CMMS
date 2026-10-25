@@ -4166,11 +4166,6 @@ msgstr ""
 msgid "Tokens de API"
 msgstr ""
 
-msgid ""
-"Para conectar otros sistemas (ERP, telemetría) con la API REST. Cada token "
-"actúa sobre toda la organización."
-msgstr ""
-
 msgid "Documentación de la API"
 msgstr ""
 
@@ -12123,4 +12118,34 @@ msgid "Solicitud rechazada"
 msgstr ""
 
 msgid "Versión de plan publicada"
+msgstr ""
+
+msgid "Elige sitios activos de la organización."
+msgstr ""
+
+msgid "Ninguno"
+msgstr ""
+
+msgid "Sin marcar ninguno, el token ve toda la organización."
+msgstr ""
+
+msgid "limitado a sitios"
+msgstr ""
+
+msgid "limitan el token a lo que está en esos sitios (activos, OT, solicitudes, bodegas), como el alcance por sitio de una persona."
+msgstr ""
+
+msgid "sitio"
+msgstr ""
+
+msgid "sitio del token"
+msgstr ""
+
+msgid "sitios del token"
+msgstr ""
+
+msgid "token"
+msgstr ""
+
+msgid "Para conectar otros sistemas (ERP, telemetría) con la API REST. Cada token actúa sobre toda la organización o solo sobre los sitios que marques."
 msgstr ""

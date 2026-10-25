@@ -1923,7 +1923,19 @@ lleva `{id, name, path}`; los decimales van como texto; consultas acotadas
   una pyme), un alcance por permiso del rol (mezcla dos conceptos), dejar los
   tokens antiguos con `scope` y una regla especial en el permiso (dos modelos de
   alcance para siempre).
+  7. **Sitios (2026-10-24, P-05):** un token puede limitarse a uno o más sitios
+     (`Location` de tipo `site`, activos): `ApiToken.restricted_to_sites` y la tabla
+     hija `ApiTokenSite` (`TenantModel`, `UNIQUE(organization, token, location)`).
+     `principal_for` marca la membresía en memoria con `restricted_to_locations` y
+     `accounts.scoping.allowed_location_ids` toma como raíces los sitios del token
+     (con sus descendientes): los selectores de la API aplican el mismo alcance que
+     a una membresía, sin código nuevo por endpoint. Los campos `location` de los
+     serializers usan `visible_locations` y el filtro `?location=` de OT también.
+     Los tokens existentes quedan sin restricción (`restricted_to_sites=False`, sin
+     cambio de comportamiento); el indicador evita una consulta por petición para
+     ellos. Los sitios se eligen al crear el token y no se editan (se crea otro).
 - **Consecuencias:** un token nuevo con alcance angosto no ve grupos nuevos de la
-  API hasta que se le den; los tokens con «Todo» sí. Los alcances limitan
-  recursos, no sitios: el token sigue viendo toda la organización.
-- **Estado (2026-10):** aceptado e implementado (X-05, F3).
+  API hasta que se le den; los tokens con «Todo» sí. Desde P-05 un token también
+  puede limitarse por sitio; el catálogo de repuestos y los webhooks siguen siendo
+  de toda la organización.
+- **Estado (2026-10):** aceptado e implementado (X-05, F3; sitios el 2026-10-24).

@@ -4,7 +4,7 @@
 <div class="page-header">
   <div>
     <h1>{% translate "Tokens de API" %}</h1>
-    <p class="muted">{% translate "Para conectar otros sistemas (ERP, telemetría) con la API REST. Cada token actúa sobre toda la organización." %} <a href="{% url 'api_docs' %}">{% translate "Documentación de la API" %}</a></p>
+    <p class="muted">{% translate "Para conectar otros sistemas (ERP, telemetría) con la API REST. Cada token actúa sobre toda la organización o solo sobre los sitios que marques." %} <a href="{% url 'api_docs' %}">{% translate "Documentación de la API" %}</a></p>
   </div>
 </div>
 
@@ -48,6 +48,16 @@
         {{ form.expires_in }}
         {% for error in form.expires_in.errors %}<span class="error">{% icon 'stop' %}{{ error }}</span>{% endfor %}
       </div>
+      {% if form.sites.field.queryset %}
+      <fieldset class="check-group">
+        <legend>{{ form.sites.label }}</legend>
+        <span class="help">{{ form.sites.help_text }}</span>
+        <div class="check-group__options">
+          {% for option in form.sites %}<label class="check-group__option" for="{{ option.id_for_label }}">{{ option.tag }}<span>{{ option.choice_label }}</span></label>{% endfor %}
+        </div>
+        {% for error in form.sites.errors %}<span class="error">{% icon 'stop' %}{{ error }}</span>{% endfor %}
+      </fieldset>
+      {% endif %}
       <button class="btn btn--primary" type="submit">{% icon 'key' %}{% translate "Crear token" %}</button>
     </form>
   </section>
@@ -58,6 +68,7 @@
       <li><strong>{% translate "Escritura" %}</strong>: <span class="muted">{% translate "además crea y modifica (POST y PATCH), con los permisos de un planificador." %}</span></li>
       <li><strong>{% translate "Todo" %}</strong>: <span class="muted">{% translate "vale para todos los grupos, también los que se agreguen a la API. Los tokens creados antes de los alcances por recurso quedaron así." %}</span></li>
       <li class="muted">{% translate "Sin el alcance, la API responde 403 «insufficient_scope» e indica cuál falta." %}</li>
+      <li><strong>{% translate "Sitios" %}</strong>: <span class="muted">{% translate "limitan el token a lo que está en esos sitios (activos, OT, solicitudes, bodegas), como el alcance por sitio de una persona." %}</span></li>
     </ul>
   </section>
 </div>
@@ -67,13 +78,14 @@
 {% if page.object_list %}
 <div class="card card--flush">
   <table class="table">
-    <thead><tr><th>{% translate "Nombre" %}</th><th>{% translate "Prefijo" %}</th><th>{% translate "Alcance" %}</th><th>{% translate "Último uso" %}</th><th>{% translate "Vence" %}</th><th>{% translate "Estado" %}</th><th><span class="visually-hidden">{% translate "Acción" %}</span></th></tr></thead>
+    <thead><tr><th>{% translate "Nombre" %}</th><th>{% translate "Prefijo" %}</th><th>{% translate "Alcance" %}</th><th>{% translate "Sitios" %}</th><th>{% translate "Último uso" %}</th><th>{% translate "Vence" %}</th><th>{% translate "Estado" %}</th><th><span class="visually-hidden">{% translate "Acción" %}</span></th></tr></thead>
     <tbody>
       {% for token in page.object_list %}
       <tr>
         <td data-label="">{{ token.name }}<div class="muted">{% blocktranslate with who=token.created_by|default:"—" when=token.created_at|date:"d-m-Y" %}Creado por {{ who }} el {{ when }}{% endblocktranslate %}</div></td>
         <td class="mono" data-label="{% translate 'Prefijo' %}">{{ "gbt_" }}{{ token.prefix }}…</td>
         <td data-label="{% translate 'Alcance' %}">{{ token.scope_labels|join:", " }}</td>
+        <td data-label="{% translate 'Sitios' %}">{% if token.restricted_to_sites %}{% for site in token.sites.all %}{{ site.location.name }}{% if not forloop.last %}, {% endif %}{% empty %}{% translate "Ninguno" %}{% endfor %}{% else %}{% translate "Toda la organización" %}{% endif %}</td>
         <td class="num" data-label="{% translate 'Último uso' %}">{{ token.last_used_at|date:"d-m-Y H:i"|default:_("Nunca") }}</td>
         <td class="num" data-label="{% translate 'Vence' %}">{{ token.expires_at|date:"d-m-Y"|default:_("Nunca") }}</td>
         <td data-label="">

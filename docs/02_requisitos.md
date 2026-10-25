@@ -1148,8 +1148,12 @@ responde su checklist con las mismas reglas que la web (ADR-005).
   El esquema OpenAPI declara `x-required-scope` por operación.
 - ✔ Compatibilidad: los tokens «Solo lectura» y «Lectura y escritura» se
   migraron a `*:read` y `*:read` + `*:write`; permiten exactamente lo mismo.
-- No cumplido: alcances por sitio (el token ve toda la organización) y por
-  endpoint individual.
+- ✔ Tokens limitados por sitio (2026-10-24, ADR-034): al crearlo se marcan uno o
+  más sitios; el token ve y escribe solo lo que cuelga de ellos (mismo alcance que
+  una membresía por sitio; fuera de ellos 404 o 400). Sin sitios ve toda la
+  organización, como los tokens existentes.
+- No cumplido: alcances por endpoint individual; editar los sitios de un token
+  (se crea otro).
 
 **X-06 · Modo offline PWA (F2)**: ver [04_arquitectura.md](04_arquitectura.md), ADR-011.
 Como técnico quiero ejecutar mis OT sin señal y que lo hecho llegue solo al
