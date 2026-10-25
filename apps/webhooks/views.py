@@ -104,7 +104,11 @@ def _render_detail(request, endpoint, form, new_secret=None):
 def webhook_secret_view(request, pk):
     """Regenera el secreto y responde con el detalle mostrando el nuevo (como al crear un token)."""
     endpoint = selectors.get_endpoint(membership=request.membership, pk=pk)
-    new_secret = services.regenerate_secret(membership=request.membership, endpoint=endpoint)
+    new_secret = services.regenerate_secret(
+        membership=request.membership,
+        endpoint=endpoint,
+        keep_previous=request.POST.get("revoke_previous") != "1",
+    )
     endpoint.refresh_from_db()
     form = WebhookEditForm(
         initial={
@@ -117,6 +121,16 @@ def webhook_secret_view(request, pk):
         keep=endpoint.events,
     )
     return _render_detail(request, endpoint, form, new_secret=new_secret)
+
+
+@require_POST
+@membership_required(perm=Perm.API_TOKEN_MANAGE)
+def webhook_previous_secret_view(request, pk):
+    """Termina la ventana de traslape: el secreto anterior deja de firmar de inmediato."""
+    endpoint = selectors.get_endpoint(membership=request.membership, pk=pk)
+    services.discard_previous_secret(membership=request.membership, endpoint=endpoint)
+    messages.success(request, gettext("El secreto anterior dejó de valer."))
+    return redirect("webhook_detail", pk=endpoint.pk)
 
 
 @membership_required(perm=Perm.API_TOKEN_MANAGE)

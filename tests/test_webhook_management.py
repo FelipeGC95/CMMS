@@ -53,40 +53,139 @@ def failed(tenant_a, endpoint, network, django_capture_on_commit_callbacks):
         return WebhookDelivery.objects.select_related("endpoint").get()
 
 
+def _signatures(call):
+    """(t, [v1, …]) de la cabecera, leída como lista (puede traer dos `v1`)."""
+    items = [item.split("=", 1) for item in call["headers"]["X-Galbust-Signature"].split(",")]
+    return dict(items)["t"], [value for key, value in items if key == "v1"]
+
+
 def _verify(secret, call):
-    parts = dict(item.split("=", 1) for item in call["headers"]["X-Galbust-Signature"].split(","))
-    expected = hmac.new(secret.encode(), f"{parts['t']}.".encode() + call["body"], hashlib.sha256).hexdigest()
-    return hmac.compare_digest(parts["v1"], expected)
+    """Como el ejemplo de docs/08: acepta si alguna `v1` coincide."""
+    timestamp, received = _signatures(call)
+    expected = hmac.new(secret.encode(), f"{timestamp}.".encode() + call["body"], hashlib.sha256).hexdigest()
+    return any(hmac.compare_digest(value, expected) for value in received)
+
+
+def _send(tenant, network, capture):
+    network["status"] = 200
+    with tenant_context(tenant.org):
+        with capture(execute=True):
+            create_work_order(work_type="corrective", title="Fuga", asset=tenant.asset)
+    return network["calls"][-1]
 
 
 # --- Regenerar el secreto -----------------------------------------------------------------------
 
 
-def test_regenerate_secret_invalidates_the_old_one_and_audits(
+def test_without_rotation_there_is_a_single_signature(
     tenant_a, endpoint, network, django_capture_on_commit_callbacks
+):
+    call = _send(tenant_a, network, django_capture_on_commit_callbacks)
+    assert len(_signatures(call)[1]) == 1 and _verify(endpoint.secret, call)
+
+
+def test_regenerate_keeps_the_old_secret_signing_for_24_hours(
+    tenant_a, endpoint, network, django_capture_on_commit_callbacks
+):
+    """P-07: en la ventana de traslape cada entrega lleva dos `v1`: la anterior y, al final, la nueva."""
+    old = endpoint.secret
+    with tenant_context(tenant_a.org):
+        new = services.regenerate_secret(membership=tenant_a.admin, endpoint=endpoint)
+        endpoint.refresh_from_db()
+        event = AuditEvent.objects.get(action=AuditEvent.Action.UPDATE, target_id=str(endpoint.pk))
+    assert new != old and new.startswith("whsec_")
+    assert endpoint.previous_secret == old
+    window = endpoint.previous_secret_expires_at - endpoint.secret_rotated_at
+    assert window == services.SECRET_OVERLAP == datetime.timedelta(hours=24)
+    assert "signature_rotated_at" in event.changes and "previous_signature_valid_until" in event.changes
+    assert new not in json.dumps(event.changes) and old not in json.dumps(event.changes)
+
+    call = _send(tenant_a, network, django_capture_on_commit_callbacks)
+    _timestamp, signatures = _signatures(call)
+    assert len(signatures) == 2 and _verify(new, call) and _verify(old, call)
+    # Leída como diccionario (último `v1`) la cabecera da la firma del secreto nuevo.
+    parts = dict(item.split("=", 1) for item in call["headers"]["X-Galbust-Signature"].split(","))
+    assert _verify(new, {**call, "headers": {"X-Galbust-Signature": f"t={parts['t']},v1={parts['v1']}"}})
+
+
+def test_old_secret_stops_signing_when_the_window_ends(
+    tenant_a, endpoint, network, django_capture_on_commit_callbacks, monkeypatch
 ):
     old = endpoint.secret
     with tenant_context(tenant_a.org):
         new = services.regenerate_secret(membership=tenant_a.admin, endpoint=endpoint)
-        assert new != old and new.startswith("whsec_")
-        event = AuditEvent.objects.get(action=AuditEvent.Action.UPDATE, target_id=str(endpoint.pk))
-        network["status"] = 200
-        with django_capture_on_commit_callbacks(execute=True):
-            create_work_order(work_type="corrective", title="Fuga", asset=tenant_a.asset)
-    assert "signature_rotated_at" in event.changes and new not in json.dumps(event.changes)
-    call = network["calls"][0]
+    later = timezone.now() + services.SECRET_OVERLAP + datetime.timedelta(seconds=1)
+    monkeypatch.setattr(timezone, "now", lambda: later)
+    call = _send(tenant_a, network, django_capture_on_commit_callbacks)
+    assert _signatures(call)[1] and _verify(new, call) and not _verify(old, call)
+    # La purga diaria lo saca de la base.
+    with tenant_context(tenant_a.org):
+        assert services.clear_expired_previous_secrets() == 1
+        endpoint.refresh_from_db()
+    assert endpoint.previous_secret == "" and endpoint.previous_secret_expires_at is None
+
+
+def test_regenerate_twice_keeps_only_the_latest_previous(tenant_a, endpoint):
+    first = endpoint.secret
+    with tenant_context(tenant_a.org):
+        second = services.regenerate_secret(membership=tenant_a.admin, endpoint=endpoint)
+        services.regenerate_secret(membership=tenant_a.admin, endpoint=endpoint)
+        endpoint.refresh_from_db()
+    assert endpoint.previous_secret == second != first
+
+
+def test_leaked_secret_is_invalidated_at_once(
+    tenant_a, endpoint, network, django_capture_on_commit_callbacks
+):
+    old = endpoint.secret
+    with tenant_context(tenant_a.org):
+        new = services.regenerate_secret(membership=tenant_a.admin, endpoint=endpoint, keep_previous=False)
+        endpoint.refresh_from_db()
+    assert endpoint.previous_secret == "" and endpoint.previous_secret_expires_at is None
+    call = _send(tenant_a, network, django_capture_on_commit_callbacks)
     assert _verify(new, call) and not _verify(old, call)
 
 
-def test_regenerate_view_shows_the_new_secret_once(client, tenant_a, endpoint):
+def test_discard_previous_secret_ends_the_window(
+    tenant_a, endpoint, network, django_capture_on_commit_callbacks
+):
+    old = endpoint.secret
+    with tenant_context(tenant_a.org):
+        services.regenerate_secret(membership=tenant_a.admin, endpoint=endpoint)
+        services.discard_previous_secret(membership=tenant_a.admin, endpoint=endpoint)
+        endpoint.refresh_from_db()
+        audited = AuditEvent.objects.filter(
+            action=AuditEvent.Action.UPDATE, target_id=str(endpoint.pk)
+        ).count()
+    assert endpoint.previous_secret == "" and audited == 2
+    assert not _verify(old, _send(tenant_a, network, django_capture_on_commit_callbacks))
+
+
+def test_regenerate_view_shows_the_new_secret_and_the_window(client, tenant_a, endpoint):
     login(client, tenant_a.admin)
     response = client.post(reverse("webhook_secret", args=[endpoint.pk]))
     with tenant_context(tenant_a.org):
         endpoint.refresh_from_db()
     html = response.content.decode()
     assert response.status_code == 200 and endpoint.secret in html
-    assert "El anterior dejó de valer" in html
-    assert endpoint.secret_rotated_at is not None
+    assert "cada entrega lleva también la firma del anterior" in html
+    assert reverse("webhook_previous_secret", args=[endpoint.pk]) in html
+    assert endpoint.secret_rotated_at is not None and endpoint.previous_secret
+
+    response = client.post(reverse("webhook_previous_secret", args=[endpoint.pk]), follow=True)
+    with tenant_context(tenant_a.org):
+        endpoint.refresh_from_db()
+    assert "El secreto anterior dejó de valer." in response.content.decode()
+    assert endpoint.previous_secret == ""
+
+
+def test_regenerate_view_can_revoke_the_old_secret_at_once(client, tenant_a, endpoint):
+    login(client, tenant_a.admin)
+    response = client.post(reverse("webhook_secret", args=[endpoint.pk]), {"revoke_previous": "1"})
+    with tenant_context(tenant_a.org):
+        endpoint.refresh_from_db()
+    assert "El anterior dejó de valer" in response.content.decode()
+    assert endpoint.previous_secret == ""
 
 
 # --- Reenviar ---------------------------------------------------------------------------------

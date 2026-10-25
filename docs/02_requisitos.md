@@ -1227,16 +1227,16 @@ consultar la API cada cierto tiempo. Implementado (2026-10, ADR-030).
 - CA8 ✔ Importaciones masivas: un evento por fila despachado en un solo lote al
   confirmar; con worker va a la cola y la importación no espera (sin worker,
   primeras 20 entregas y el resto queda para reenviar).
-- CA9 ✔ Regenerar el secreto (se muestra destacado; el anterior deja de valer
-  de inmediato; auditado sin el valor), reenviar a mano una entrega fallida
+- CA9 ✔ Regenerar el secreto (se muestra destacado; el anterior sigue firmando
+  24 h —cada entrega lleva dos firmas `v1`, la del nuevo al final— salvo que se
+  marque «se filtró», y la ventana se puede terminar antes; auditado sin el valor), reenviar a mano una entrega fallida
   (nueva entrega con el mismo `event_id`, auditada) y ver el cuerpo enviado con
   el código y la respuesta truncada (1.000 caracteres) en el detalle de la
   entrega. Solo lectura por impago oculta las acciones de escritura.
 - CA10 ✔ Purga diaria de entregas terminadas de más de 90 días (tarea
   Procrastinate y comando `purge_webhook_deliveries`, docs/07).
 - No cumplido / fuera: eventos de planes preventivos, de asignación o
-  reprogramación de OT y de decisiones sobre solicitudes; ventana de traslape al
-  regenerar el secreto; reintentos sin worker.
+  reprogramación de OT y de decisiones sobre solicitudes; reintentos sin worker.
 
 ## 10. Asistente de diagnóstico con IA (`AI`, F2)
 

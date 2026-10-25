@@ -678,7 +678,15 @@ X-Galbust-Signature: t=1760700000,v1=5f2c…e9
 
 ### Verificar la firma
 
-`X-Galbust-Signature` trae `t` (segundos Unix del envío) y `v1`: HMAC-SHA256 en hexadecimal de `"<t>.<cuerpo crudo>"` con el secreto del webhook (`whsec_…`, visible solo para el administrador en la pantalla del webhook). **Regenerar secreto** (misma pantalla) crea uno nuevo que se muestra destacado; el anterior deja de valer de inmediato, sin ventana de traslape: actualiza tu sistema antes de que llegue el siguiente evento (los reintentos pendientes también se firman con el nuevo). Queda en la auditoría, sin el valor. Verifica sobre los bytes recibidos, antes de parsear el JSON, y rechaza firmas viejas:
+`X-Galbust-Signature` trae `t` (segundos Unix del envío) y `v1`: HMAC-SHA256 en hexadecimal de `"<t>.<cuerpo crudo>"` con el secreto del webhook (`whsec_…`, visible solo para el administrador en la pantalla del webhook). Verifica sobre los bytes recibidos, antes de parsear el JSON, y rechaza firmas viejas.
+
+**Regenerar secreto** (misma pantalla) crea uno nuevo que se muestra destacado. Durante **24 horas** el anterior sigue firmando: cada entrega (también los reintentos) lleva dos `v1` en la misma cabecera, primero la del secreto anterior y al final la del nuevo:
+
+```http
+X-Galbust-Signature: t=1760700000,v1=<firma con el secreto anterior>,v1=<firma con el secreto nuevo>
+```
+
+Acepta la entrega si **alguna** `v1` coincide con tu secreto (el ejemplo de abajo lo hace); así cambias el secreto en tu sistema cuando quieras dentro de esas 24 horas sin perder eventos. Si tu código lee la cabecera como diccionario se queda con la última `v1` (la del secreto nuevo): funciona, pero sin la ventana. Si el secreto se filtró, marca «El secreto se filtró» al regenerar (el anterior deja de valer de inmediato) o usa **Invalidar el anterior ahora**. Todo queda en la auditoría, sin los valores.
 
 ```python
 import hashlib
@@ -689,12 +697,13 @@ TOLERANCE_SECONDS = 300
 
 
 def verify(secret: str, body: bytes, header: str) -> bool:
-    parts = dict(item.split("=", 1) for item in header.split(","))
-    timestamp, received = parts.get("t", ""), parts.get("v1", "")
+    items = [item.split("=", 1) for item in header.split(",") if "=" in item]
+    timestamp = next((value for key, value in items if key == "t"), "")
+    received = [value for key, value in items if key == "v1"]  # una, o dos tras regenerar
     if not timestamp.isdigit() or abs(time.time() - int(timestamp)) > TOLERANCE_SECONDS:
         return False
     expected = hmac.new(secret.encode(), f"{timestamp}.".encode() + body, hashlib.sha256).hexdigest()
-    return hmac.compare_digest(expected, received)
+    return any(hmac.compare_digest(expected, value) for value in received)
 
 
 # Django: verify(SECRET, request.body, request.headers["X-Galbust-Signature"])

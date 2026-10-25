@@ -3,7 +3,8 @@
 Envoltorios delgados sobre los servicios: `deliver_webhook` (un intento de entrega; los
 reintentos con backoff los programa el servicio, así que la tarea no reintenta por su
 cuenta), `dispatch_events_task` (lote de eventos de una importación masiva) y la purga
-diaria de entregas antiguas. Las dos primeras solo se encolan con `WEBHOOKS_USE_QUEUE`.
+diaria de entregas antiguas (que también descarta los secretos anteriores vencidos). Las
+dos primeras solo se encolan con `WEBHOOKS_USE_QUEUE`.
 """
 
 import logging
@@ -49,6 +50,7 @@ def purge_organization_deliveries(*, organization_id: str) -> int:
     if organization is None:
         return 0
     with tenant_context(organization):
+        services.clear_expired_previous_secrets()
         return services.purge_old_deliveries()
 
 

@@ -17,7 +17,7 @@
 
 {% if new_secret %}
 <div class="alert alert--success" role="status">{% icon 'check' %}<span>
-  <strong>{% translate "Secreto regenerado. El anterior dejó de valer: actualízalo ahora en tu sistema." %}</strong><br>
+  <strong>{% if endpoint.previous_secret_active %}{% blocktranslate with until=endpoint.previous_secret_expires_at|date:"d-m-Y H:i" %}Secreto regenerado. Hasta el {{ until }} cada entrega lleva también la firma del anterior: actualízalo en tu sistema antes.{% endblocktranslate %}{% else %}{% translate "Secreto regenerado. El anterior dejó de valer: actualízalo ahora en tu sistema." %}{% endif %}</strong><br>
   <code class="mono secret-value">{{ new_secret }}</code>
 </span></div>
 {% endif %}
@@ -53,10 +53,20 @@
     </details>
     {% endif %}
     {% if endpoint.secret_rotated_at %}<p class="muted">{% blocktranslate with when=endpoint.secret_rotated_at|date:"d-m-Y H:i" %}Regenerado el {{ when }}.{% endblocktranslate %}</p>{% endif %}
+    {% if endpoint.previous_secret_active %}
+    <div class="alert alert--info" role="status">{% icon 'clock' %}<span>{% blocktranslate with until=endpoint.previous_secret_expires_at|date:"d-m-Y H:i" %}Ventana de traslape: hasta el {{ until }} las entregas llevan dos firmas v1, la del secreto anterior y la del nuevo.{% endblocktranslate %}</span></div>
+    {% if not billing_status.read_only %}
+    <form method="post" action="{% url 'webhook_previous_secret' endpoint.pk %}">
+      {% csrf_token %}
+      <button class="btn btn--ghost" type="submit">{% icon 'x' %}{% translate "Invalidar el anterior ahora" %}</button>
+    </form>
+    {% endif %}
+    {% endif %}
     {% if not billing_status.read_only %}
     <form method="post" action="{% url 'webhook_secret' endpoint.pk %}" class="mt-4">
       {% csrf_token %}
-      <p class="muted">{% translate "Si el secreto se filtró, genera uno nuevo: el anterior deja de valer de inmediato y las entregas siguientes se firman con el nuevo." %}</p>
+      <p class="muted">{% translate "Al generar uno nuevo, el anterior sigue firmando 24 horas (cada entrega lleva las dos firmas) para que actualices tu sistema sin perder eventos." %}</p>
+      <div class="field field--check"><input type="checkbox" id="revoke-previous" name="revoke_previous" value="1"><label for="revoke-previous">{% translate "El secreto se filtró: invalidar el anterior de inmediato" %}</label></div>
       <button class="btn btn--secondary" type="submit">{% icon 'key' %}{% translate "Regenerar secreto" %}</button>
     </form>
     {% endif %}

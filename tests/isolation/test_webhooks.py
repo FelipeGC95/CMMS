@@ -89,6 +89,7 @@ def test_admin_of_a_cannot_see_redeliver_or_rotate_b(client, tenant_a, tenant_b,
         assert client.get(url).status_code == 404
         assert client.post(reverse("webhook_redeliver", args=[endpoint_pk, delivery_b.pk])).status_code == 404
     assert client.post(reverse("webhook_secret", args=[endpoint_b.pk])).status_code == 404
+    assert client.post(reverse("webhook_previous_secret", args=[endpoint_b.pk])).status_code == 404
     with tenant_context(tenant_b.org):
         assert WebhookDelivery.objects.count() == 1
         endpoint_b.refresh_from_db()

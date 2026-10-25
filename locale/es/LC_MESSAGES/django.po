@@ -11992,9 +11992,6 @@ msgstr ""
 msgid "Secreto regenerado. El anterior dejó de valer: actualízalo ahora en tu sistema."
 msgstr ""
 
-msgid "Si el secreto se filtró, genera uno nuevo: el anterior deja de valer de inmediato y las entregas siguientes se firman con el nuevo."
-msgstr ""
-
 msgid "Sin el alcance, la API responde 403 «insufficient_scope» e indica cuál falta."
 msgstr ""
 
@@ -12076,4 +12073,30 @@ msgstr ""
 
 #, python-format
 msgid "Todo lo de %(plan)s, más:"
+msgstr ""
+
+msgid "Al generar uno nuevo, el anterior sigue firmando 24 horas (cada entrega lleva las dos firmas) para que actualices tu sistema sin perder eventos."
+msgstr ""
+
+msgid "El secreto anterior dejó de valer."
+msgstr ""
+
+msgid "El secreto se filtró: invalidar el anterior de inmediato"
+msgstr ""
+
+msgid "Invalidar el anterior ahora"
+msgstr ""
+
+#, python-format
+msgid "Secreto regenerado. Hasta el %(until)s cada entrega lleva también la firma del anterior: actualízalo en tu sistema antes."
+msgstr ""
+
+#, python-format
+msgid "Ventana de traslape: hasta el %(until)s las entregas llevan dos firmas v1, la del secreto anterior y la del nuevo."
+msgstr ""
+
+msgid "secreto anterior"
+msgstr ""
+
+msgid "secreto anterior vale hasta"
 msgstr ""

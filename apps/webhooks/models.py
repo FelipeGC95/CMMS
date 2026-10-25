@@ -1,6 +1,7 @@
 """Webhooks salientes (X-08, ADR-030): destinos por organización y registro de entregas."""
 
 from django.db import models
+from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
 from apps.core.models import TenantModel
@@ -53,6 +54,8 @@ class WebhookEndpoint(TenantModel):
 
     El secreto se guarda en claro (se necesita para firmar); se muestra al crearlo o
     regenerarlo y solo a quien administra integraciones. Sin borrado físico: se desactiva.
+    Al regenerarlo, el anterior queda en `previous_secret` hasta `previous_secret_expires_at`
+    (ventana de traslape): mientras tanto cada entrega lleva las dos firmas.
     """
 
     name = models.CharField(_("nombre"), max_length=80)
@@ -61,6 +64,8 @@ class WebhookEndpoint(TenantModel):
     events = models.JSONField(_("eventos"), default=list)
     is_active = models.BooleanField(_("activo"), default=True)
     secret_rotated_at = models.DateTimeField(_("secreto regenerado"), null=True, blank=True)
+    previous_secret = models.CharField(_("secreto anterior"), max_length=80, blank=True, editable=False)
+    previous_secret_expires_at = models.DateTimeField(_("secreto anterior vale hasta"), null=True, blank=True)
     consecutive_failures = models.PositiveIntegerField(_("entregas fallidas seguidas"), default=0)
     disabled_at = models.DateTimeField(_("desactivado automáticamente"), null=True, blank=True)
     created_by = models.ForeignKey(
@@ -79,6 +84,11 @@ class WebhookEndpoint(TenantModel):
 
     def __str__(self):
         return self.name
+
+    def previous_secret_active(self, now=None) -> bool:
+        """¿El secreto anterior todavía firma? (ventana de traslape tras regenerar)."""
+        expires = self.previous_secret_expires_at
+        return bool(self.previous_secret) and expires is not None and expires > (now or timezone.now())
 
     def event_labels(self) -> list[str]:
         labels = dict(Event.choices)

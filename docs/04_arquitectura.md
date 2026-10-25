@@ -1561,10 +1561,21 @@ lleva `{id, name, path}`; los decimales van como texto; consultas acotadas
      (`SYNC_DELIVERY_LIMIT`) y el resto queda `failed` («sin worker») para
      reenviarlo. Una fila revertida no envía nada (su objeto ya no existe).
   5. **Regenerar secreto:** `regenerate_secret` cambia `secret` y
-     `secret_rotated_at`; el anterior deja de valer de inmediato (sin ventana de
-     traslape: dos firmas `v1` romperían a receptores que leen la cabecera como
-     diccionario). Se audita sin el valor; el nuevo se muestra destacado en la
-     respuesta.
+     `secret_rotated_at`. Se audita sin el valor; el nuevo se muestra destacado en
+     la respuesta. **Ventana de traslape (2026-10-24, P-07):** el anterior queda en
+     `previous_secret` hasta `previous_secret_expires_at` (24 h, `SECRET_OVERLAP`) y
+     cada entrega lleva dos firmas en la misma cabecera, estilo Stripe:
+     `t=<unix>,v1=<anterior>,v1=<nuevo>`. La del secreto vigente va **al final**: un
+     receptor que lee la cabecera como diccionario se queda con la última, o sea se
+     comporta como antes (solo vale el nuevo), y uno que recorre todas las `v1`
+     acepta cualquiera de las dos mientras actualiza su secreto. Regenerar otra vez
+     dentro de la ventana descarta el más antiguo (solo se guarda uno anterior). Si
+     el secreto se filtró, el formulario permite invalidar el anterior de inmediato
+     (`keep_previous=False`) y «Invalidar el anterior ahora»
+     (`discard_previous_secret`) termina la ventana; ambos se auditan. Vencido ya no
+     firma (`previous_secret_active`); la purga diaria lo borra de la base
+     (`clear_expired_previous_secrets`). `previous_secret` no va a la exportación
+     X-03 ni a la auditoría (campos `secret`).
   6. **Reenvío manual:** `redeliver` crea otra `WebhookDelivery` con el mismo
      `payload` y `event_id`, `is_redelivery=True`, `redelivery_of` y
      `created_by`; la unicidad pasa a `UNIQUE(organization, endpoint, event_id)
@@ -1578,7 +1589,8 @@ lleva `{id, name, path}`; los decimales van como texto; consultas acotadas
      `(organization, created_at)`.
 - **Estado (2026-10):** aceptado e implementado (X-08, ampliado en F3). Fuera:
   eventos de planes, de asignación o reprogramación y de decisiones sobre
-  solicitudes; reintentos sin worker; ventana de traslape del secreto.
+  solicitudes; reintentos sin worker. La ventana de traslape del secreto entró el
+  2026-10-24 (punto 5).
 
 ### ADR-031 · Roles personalizados: rol base + permisos elegidos, sin permisos de administración
 - **Contexto:** ORG-12 (F3, Profesional y Empresa). Las pymes piden roles como
