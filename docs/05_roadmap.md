@@ -273,7 +273,8 @@ KPIs ampliados están hechos.
   `/settings/billing/` (contratar, subir, bajar programado, cancelar, datos de facturación, historial),
   webhooks firmados e idempotentes, avisos, 7 días de gracia y solo lectura central con reactivación
   automática (ORG-13, ADR-033). Queda: SII, prorrateo, cambio de período con suscripción activa.
-- Traducción a inglés y portugués.
+- Traducción a inglés y portugués. *Postergada (2026-10-29):* el foco es Chile;
+  se retoma si llega un cliente fuera de Chile (P-01).
 - API ampliada, webhooks y tokens con más alcances. *Hecho (2026-10):* webhooks
   salientes v1 (OT creada y completada, solicitud creada; X-08, ADR-030) y, en F3,
   cambios de estado de OT, activos, lecturas, alertas de condición e inventario
