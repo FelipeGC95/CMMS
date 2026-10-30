@@ -38,13 +38,34 @@ envVarGroups:
       - key: R2_SECRET_ACCESS_KEY
         sync: false
       - key: EMAIL_HOST
-        sync: false # smtp.postmarkapp.com o smtp-relay.brevo.com
+        sync: false # mail.galbust.com (cPanel), smtp.postmarkapp.com o smtp-relay.brevo.com
+      - key: EMAIL_USE_SSL
+        sync: false # "1" con cPanel (puerto 465); vacío con Postmark o Brevo (587)
       - key: EMAIL_HOST_USER
         sync: false
       - key: EMAIL_HOST_PASSWORD
         sync: false
       - key: DEFAULT_FROM_EMAIL
+        value: GALBUST CMMS <no-reply@galbust.com>
+      # Con worker, las tareas lentas salen de la petición y tienen reintentos.
+      - key: EMAIL_USE_QUEUE
+        value: "1"
+      - key: DOCUMENT_TEXT_USE_QUEUE
+        value: "1"
+      - key: DATA_EXPORT_USE_QUEUE
+        value: "1"
+      - key: WEBHOOKS_USE_QUEUE
+        value: "1"
+      # Cobro (ORG-13, ADR-033): las dos claves de Mercado Pago o ninguna.
+      - key: MERCADOPAGO_ACCESS_TOKEN
         sync: false
+      - key: MERCADOPAGO_WEBHOOK_SECRET
+        sync: false
+      - key: BILLING_CONTACT_EMAIL
+        value: ventas@galbust.com
+      # SSO (ORG-11, ADR-032): cifra los secretos OIDC; no rotarla sin avisar (§3h).
+      - key: SSO_SECRET_KEY
+        generateValue: true
       # Asistente de diagnóstico (AI, ADR-018): sin la clave se muestra y avisa
       # "no configurado". Los turnos corren en el worker (cola `assistant`).
       - key: ANTHROPIC_API_KEY

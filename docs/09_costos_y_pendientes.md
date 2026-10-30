@@ -89,7 +89,7 @@ servidores.
 | D-01 | Modelo y cupo del asistente IA en Profesional | Mantener Opus y 100 conv.; pasar a Sonnet; bajar el cupo | Abierta |
 | D-02 | Confirmar la comisión real de Mercado Pago para suscripciones en Chile | Revisar en la cuenta al crearla | Abierta |
 | D-03 | ¿Se cobra la puesta en marcha? ¿Cuánto y cómo (hoy se cobra por fuera)? | 4 UF Básico · 10 UF Profesional · cotizada Empresa | **Cerrado** 2026-10-22: se cobra aparte como asesoría, sin precio fijo ni por plan. Se cotiza según la información que ya tenga la empresa (inventario de activos, planes, historial) y el trabajo que demande; parte en $600.000 CLP (~15 UF). Pago único, fuera de Mercado Pago |
-| D-04 | Plan de Render al pasar a producción: worker o cron | Worker (USD 7) recomendado | Abierta |
+| D-04 | Plan de Render al pasar a producción: worker o cron | Worker (USD 7) recomendado | **Cerrada** 2026-10-29: worker. Producción va en un Blueprint aparte (`render.production.example.yaml`: web + worker + Postgres pagado) y la demo sigue en `render.yaml` |
 | D-05 | Facturación electrónica automática (SII) | Manual por ahora · emisor (OpenFactura, Bsale, Haulmer) | Abierta |
 | D-06 | ¿El repositorio sigue público? Expone código y precios; ahorra el CI | Público · privado con presupuesto de Actions | Abierta |
 | D-07 | Validar con credenciales `TEST-` que Mercado Pago permite actualizar el monto de la suscripción cada mes (riesgo de ADR-033) | Prueba en sandbox antes de cobrar | Abierta |
@@ -98,7 +98,7 @@ servidores.
 
 | ID | Pendiente | Origen | Estado |
 |---|---|---|---|
-| P-01 | Traducción a inglés y portugués | F3 (X-07) | Abierto |
+| P-01 | Traducción a inglés y portugués | F3 (X-07) | **Postergado** 2026-10-29: el foco es Chile; se retoma si llega un cliente fuera de Chile |
 | P-02 | Base de datos dedicada para el plan Empresa | F3, solo si hay demanda | Abierto |
 | P-03 | En solo lectura, ocultar también las acciones de las pantallas secundarias (ficha de ubicación y de clase, borrador de plan, equipo, tokens, webhooks, roles, SSO) y los botones de terreno | ORG-13 CA5 | **Cerrado** 2026-10-24: esas pantallas muestran los datos con el formulario deshabilitado (`form-lock`) y sin botones de escritura; `bootstrap` de la PWA entrega los permisos de escritura en falso (`can_act`) y el teléfono oculta ejecutar, solicitar y lecturas |
 | P-04 | Eventos de webhook de planes preventivos, asignación o reprogramación de OT y decisiones sobre solicitudes | X-08 | **Cerrado** 2026-10-24: `maintenance_plan.version_published`/`.activated`/`.deactivated`, `work_order.assigned`/`.rescheduled` y `work_request.accepted`/`.rejected`/`.merged`, desde los servicios y por módulo del plan (ADR-030, docs/08) |
