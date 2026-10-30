@@ -4,6 +4,7 @@ from django.urls import reverse
 
 from apps.core.tenancy import tenant_context
 from apps.maintenance.models import MaintenancePlan
+from apps.maintenance.templates_library import load_template
 from tests.conftest import login
 
 
@@ -36,7 +37,11 @@ def test_preview_writes_nothing_and_confirm_applies(client, tenant_a):
     assert "no se creó nada" in response.content.decode()
 
 
-def test_draft_mark_is_only_for_platform_admins(client, tenant_a):
+def test_draft_mark_is_only_for_platform_admins(client, tenant_a, monkeypatch):
+    # Las cuatro están revisadas (P-08): se simula una versión nueva en borrador.
+    data = load_template("food")
+    monkeypatch.setitem(data, "review_status", "draft")
+    monkeypatch.setitem(data, "review_note", "Borrador — revisar antes del piloto")
     login(client, tenant_a.admin)
     url = reverse("industry_template", args=["food"])
     assert "Borrador — revisar antes del piloto" not in client.get(url).content.decode()
@@ -44,6 +49,13 @@ def test_draft_mark_is_only_for_platform_admins(client, tenant_a):
     tenant_a.admin.user.save(update_fields=["is_staff"])
     assert "Borrador — revisar antes del piloto" in client.get(url).content.decode()
     assert "Borrador — revisar antes del piloto" in client.get(reverse("industry_templates")).content.decode()
+
+
+def test_reviewed_templates_show_no_draft_mark(client, tenant_a):
+    tenant_a.admin.user.is_staff = True
+    tenant_a.admin.user.save(update_fields=["is_staff"])
+    login(client, tenant_a.admin)
+    assert "Borrador" not in client.get(reverse("industry_templates")).content.decode()
 
 
 def test_unknown_industry_is_404(client, tenant_a):

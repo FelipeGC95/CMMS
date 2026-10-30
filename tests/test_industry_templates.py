@@ -24,9 +24,8 @@ def test_template_file_is_valid(industry):
     # Tamaño revisable: 5 a 8 clases, 1 a 3 planes por clase.
     assert 5 <= len(data["asset_classes"]) <= 8
     assert all(1 <= len(c["plans"]) <= 3 for c in data["asset_classes"])
-    # Todo es borrador hasta que el dueño lo revise.
-    assert data["review_status"] == "draft"
-    assert data["review_note"] == "Borrador — revisar antes del piloto"
+    # Revisadas por el dueño antes del piloto (P-08).
+    assert data["review_status"] == "reviewed"
 
 
 def test_class_and_plan_codes_are_unique_across_the_library():
@@ -80,7 +79,7 @@ def test_validation_reports_bad_content():
 def test_available_templates_lists_the_four_industries():
     rows = available_templates()
     assert [r["industry"] for r in rows] == list(INDUSTRIES)
-    assert all(r["is_draft"] and r["classes"] and r["plans"] and r["failure_codes"] for r in rows)
+    assert all(not r["is_draft"] and r["classes"] and r["plans"] and r["failure_codes"] for r in rows)
 
 
 def test_apply_copies_classes_attributes_failures_and_published_plans(tenant_a):

@@ -3,8 +3,8 @@
   "name": "Alimentos y agroindustria",
   "description": "Líneas de proceso, cámaras y equipos de frío, envasadoras, pasteurizadores, balanzas y detectores de metales, con inspecciones sanitarias.",
   "version": 1,
-  "review_status": "draft",
-  "review_note": "Borrador — revisar antes del piloto",
+  "review_status": "reviewed",
+  "review_note": "Revisada por GALBUST (2026-10-30)",
   "asset_classes": [
     {
       "code": "LINEA-PROC",
