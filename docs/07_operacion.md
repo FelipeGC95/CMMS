@@ -101,6 +101,39 @@ servicio web a un plan pagado o enviar por la API HTTP del proveedor.
 - **Migraciones:** `python manage.py migrate` en el *pre-deploy command*.
 - Diagnóstico de la cola: `python manage.py procrastinate healthchecks`.
 
+## 2b. Sin worker: tareas diarias con GitHub Actions
+
+Mientras no se paga el worker (primera versión con la web Starter y una base
+gratuita, p. ej. Neon), `.github/workflows/scheduled-jobs.yml` corre una vez al
+día (10:00 UTC) los comandos equivalentes a las periódicas: respaldo, OT
+preventivas, `billing_daily`, `send_due_notifications`, `purge_organizations`,
+`purge_webhook_deliveries` y, los lunes, `inventory_reconcile`. Ocupa ~2 minutos
+diarios (≈60 de los 2.000 mensuales). Si un paso falla, la corrida queda en rojo
+y GitHub avisa por correo; los demás pasos corren igual.
+
+Activarlo: GitHub → Settings → Secrets and variables → Actions.
+
+- **Secretos** (los mismos valores que el servicio web de Render):
+  `DATABASE_URL` (la URL **externa** y directa, no la interna de Render ni la
+  *pooled* de Neon), `DJANGO_SECRET_KEY`, `SITE_URL` (p. ej.
+  `https://galbust-cmms.onrender.com`, para los enlaces de los correos),
+  `R2_BUCKET`, `R2_ENDPOINT_URL`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`,
+  `EMAIL_HOST`, `EMAIL_USE_SSL`, `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD` y,
+  si hay cobro, `MERCADOPAGO_ACCESS_TOKEN` y `MERCADOPAGO_WEBHOOK_SECRET`;
+  `SENTRY_DSN` opcional.
+- **Variable** `PG_MAJOR`: versión mayor de la base (17 por defecto); se instala
+  ese `pg_dump`. Restaurar con `pg_restore` de la misma versión o más nueva.
+- Sin `DATABASE_URL` el workflow no hace nada; sin R2 se omite el respaldo.
+- Probar: Actions → Tareas diarias → *Run workflow* (corre también la
+  reconciliación de inventario).
+
+Limitaciones frente al worker: las OT preventivas se generan una vez al día (y
+en cada arranque del servicio de demo), no cada hora; los correos y webhooks
+salen dentro de la petición, sin reintentos (dejar vacías las variables
+`*_USE_QUEUE`). GitHub pausa las programaciones de un repositorio sin actividad
+por 60 días. Al contratar el worker (§4), desactivar el workflow (Actions →
+Tareas diarias → *Disable workflow*) para no duplicar avisos ni cobros.
+
 ## 3. Respaldos (NF-09)
 
 - Además de los respaldos gestionados de Render Postgres, `python manage.py

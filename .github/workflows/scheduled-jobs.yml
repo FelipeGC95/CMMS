@@ -1,0 +1,107 @@
+name: Tareas diarias
+
+# Reemplazo gratuito del worker de Procrastinate mientras no se paga uno (D-04,
+# docs/07_operacion.md §2b): una corrida al día contra la base de producción con
+# los mismos comandos que el worker ejecuta como tareas periódicas. ~2 minutos
+# por día (≈60 de los 2.000 minutos al mes). Sin el secreto DATABASE_URL no hace
+# nada, así que se puede dejar activo antes de configurar.
+#
+# Con worker (render.production.example.yaml) este workflow se desactiva:
+# Actions → Tareas diarias → Disable workflow.
+on:
+  schedule:
+    # 10:00 UTC = 07:00 en Chile (verano) / 06:00 (invierno). Actions puede
+    # atrasar la corrida unos minutos en horas de alta demanda.
+    - cron: "0 10 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: scheduled-jobs
+  cancel-in-progress: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      # Las mismas variables que el servicio web de Render; las que no estén
+      # definidas como secretos quedan vacías y esa parte se omite (sin R2 no hay
+      # respaldo, sin EMAIL_HOST los avisos solo van al log).
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      DJANGO_DEBUG: "0"
+      DJANGO_SECRET_KEY: ${{ secrets.DJANGO_SECRET_KEY }}
+      SITE_URL: ${{ secrets.SITE_URL }}
+      SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+      SENTRY_ENVIRONMENT: production
+      R2_BUCKET: ${{ secrets.R2_BUCKET }}
+      R2_ENDPOINT_URL: ${{ secrets.R2_ENDPOINT_URL }}
+      R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+      R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+      EMAIL_HOST: ${{ secrets.EMAIL_HOST }}
+      EMAIL_USE_SSL: ${{ secrets.EMAIL_USE_SSL }}
+      EMAIL_HOST_USER: ${{ secrets.EMAIL_HOST_USER }}
+      EMAIL_HOST_PASSWORD: ${{ secrets.EMAIL_HOST_PASSWORD }}
+      DEFAULT_FROM_EMAIL: GALBUST CMMS <no-reply@galbust.com>
+      BILLING_CONTACT_EMAIL: ventas@galbust.com
+      MERCADOPAGO_ACCESS_TOKEN: ${{ secrets.MERCADOPAGO_ACCESS_TOKEN }}
+      MERCADOPAGO_WEBHOOK_SECRET: ${{ secrets.MERCADOPAGO_WEBHOOK_SECRET }}
+      # pg_dump debe ser de la versión mayor de la base o más nueva (§3). Neon
+      # muestra la versión en Settings; se cambia con la variable PG_MAJOR del repo.
+      PG_MAJOR: ${{ vars.PG_MAJOR || '17' }}
+    steps:
+      - name: Configuración
+        id: cfg
+        run: |
+          if [ -z "$DATABASE_URL" ]; then
+            echo "::notice::Sin el secreto DATABASE_URL: no se ejecuta nada."
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/checkout@v4
+        if: steps.cfg.outputs.enabled == 'true'
+      - uses: astral-sh/setup-uv@v6
+        if: steps.cfg.outputs.enabled == 'true'
+        with:
+          python-version: "3.13"
+          enable-cache: true
+      - name: Dependencias
+        if: steps.cfg.outputs.enabled == 'true'
+        run: uv sync --locked --no-dev
+      - name: pg_dump ${{ env.PG_MAJOR }}
+        if: steps.cfg.outputs.enabled == 'true' && env.R2_BUCKET != ''
+        run: |
+          sudo apt-get install -y --no-install-recommends postgresql-common
+          sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
+          sudo apt-get install -y --no-install-recommends "postgresql-client-$PG_MAJOR"
+          echo "/usr/lib/postgresql/$PG_MAJOR/bin" >> "$GITHUB_PATH"
+
+      # Cada paso corre aunque falle el anterior; si alguno falla, la corrida
+      # queda en rojo y GitHub avisa por correo al dueño del repositorio.
+      # El respaldo va primero: así queda una copia antes de cualquier purga.
+      - name: Respaldo (NF-09)
+        if: ${{ !cancelled() && steps.cfg.outputs.enabled == 'true' && env.R2_BUCKET != '' }}
+        run: uv run --no-sync python manage.py backup_database
+      - name: OT preventivas (PM-05)
+        if: ${{ !cancelled() && steps.cfg.outputs.enabled == 'true' }}
+        run: uv run --no-sync python manage.py generate_preventive_work_orders
+      - name: Facturación diaria (ORG-13)
+        if: ${{ !cancelled() && steps.cfg.outputs.enabled == 'true' }}
+        run: uv run --no-sync python manage.py billing_daily
+      - name: Avisos de vencimiento
+        if: ${{ !cancelled() && steps.cfg.outputs.enabled == 'true' }}
+        run: uv run --no-sync python manage.py send_due_notifications
+      - name: Purga de organizaciones (X-04)
+        if: ${{ !cancelled() && steps.cfg.outputs.enabled == 'true' }}
+        run: uv run --no-sync python manage.py purge_organizations
+      - name: Purga de entregas de webhook (X-08)
+        if: ${{ !cancelled() && steps.cfg.outputs.enabled == 'true' }}
+        run: uv run --no-sync python manage.py purge_webhook_deliveries
+      - name: Reconciliación de inventario (INV-14, lunes)
+        if: ${{ !cancelled() && steps.cfg.outputs.enabled == 'true' }}
+        run: |
+          if [ "$(date -u +%u)" = "1" ] || [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then
+            uv run --no-sync python manage.py inventory_reconcile
+          else
+            echo "Solo los lunes."
+          fi
