@@ -17,6 +17,7 @@ lo único nuevo que expone es `/readyz`. Decisión en ADR-020
 | `SENTRY_TRACES_SAMPLE_RATE` | Muestreo de rendimiento (0–1). | `0`. |
 | `SENTRY_RELEASE` | Versión; en Render se toma `RENDER_GIT_COMMIT`. | — |
 | `LOG_FORMAT=json` | Logs JSON por línea con `request_id` (cabecera `X-Request-ID`). | Texto plano. |
+| `AUDIT_TRUSTED_PROXIES` | Proxies delante de la app: la IP del cliente (auditoría y límite de intentos de login) es `X-Forwarded-For[-N]`. `1` con Render solo; `2` con el proxy de Cloudflare (nube naranja) delante de Render. Verificar comparando la IP de un login en `/audit/` con la propia. Quien entre directo por `*.onrender.com` puede falsear su IP con `2`. | `0`: `REMOTE_ADDR`. |
 | `LOG_LEVEL`, `PROCRASTINATE_LOG_LEVEL` | Nivel de logs general y de la cola (en el worker conviene `INFO`). | `INFO` / `WARNING`. |
 | `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD`, `EMAIL_USE_TLS` | SMTP del proveedor. Con `EMAIL_HOST` se usa SMTP. | Correos a la consola; STARTTLS en el puerto 587. |
 | `EMAIL_USE_SSL=1` | SSL directo en el puerto 465 (el que anuncia cPanel). Apaga `EMAIL_USE_TLS` y cambia el puerto por defecto a 465. | Apagado. |

@@ -22,7 +22,7 @@ envVarGroups:
       - key: DJANGO_ALLOWED_HOSTS
         sync: false # dominio definitivo, ej. app.galbust.cl
       - key: AUDIT_TRUSTED_PROXIES
-        value: "1"
+        value: "2" # Cloudflare (proxy) + Render; "1" si el dominio va en DNS only
       - key: LOG_FORMAT
         value: json
       - key: SENTRY_DSN

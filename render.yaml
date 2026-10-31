@@ -49,10 +49,12 @@ services:
           property: connectionString
       - key: DJANGO_SECRET_KEY
         generateValue: true
-      # Render pone un proxy delante y agrega la IP real del cliente al final de
-      # X-Forwarded-For: la auditoría toma ese último valor (X-01).
+      # app.galbust.com pasa por el proxy de Cloudflare (2026-10-31) y luego por el
+      # de Render: cada uno agrega a X-Forwarded-For la IP que se le conectó, así que
+      # el cliente es el penúltimo valor (X-01; docs/07_operacion.md §1). Con "1" la
+      # auditoría y el límite de intentos de login verían IPs de Cloudflare.
       - key: AUDIT_TRUSTED_PROXIES
-        value: "1"
+        value: "2"
       # Correo (docs/07_operacion.md): sin EMAIL_HOST los correos solo van al log
       # y no llega ninguno (verificación, invitaciones, claves, notificaciones).
       # Buzón del hosting (cPanel): SSL directo en el puerto 465. La clave del
