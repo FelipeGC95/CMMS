@@ -2,21 +2,17 @@
 # Render → New → Blueprint → este repositorio. Ver docs/operacion/render.md.
 #
 # Web en Starter (2026-10-21): el plan gratis bloquea el SMTP saliente y ningún
-# correo salía; Starter además no se duerme. Base todavía en el plan gratis.
+# correo salía; Starter además no se duerme.
 #
-# Limitaciones que quedan (aceptables para mostrar a prospectos):
-# - La base gratuita vence a los 30 días: se vuelve a crear y seed_demo recarga los datos.
-# - Sin disco: las fotos subidas se pierden al dormir o redesplegar.
-# - Sin cron ni preDeployCommand: migraciones, datos demo y preventivos corren al arrancar.
-# Para un piloto con datos reales se pasa a planes pagados (ver la guía).
-
-databases:
-  - name: cmms-db
-    plan: free
-    region: ohio
-    postgresMajorVersion: "16"
-    databaseName: cmms
-    user: cmms
+# Base en Neon (2026-10-30, docs/07_operacion.md §2b), no en Render: la base gratis
+# de Render vencía a los 30 días. DATABASE_URL va solo en el panel (sync: false).
+# No volver a declarar una base aquí con fromDatabase: cada cambio de este archivo
+# sincroniza el Blueprint y esa referencia pisa la URL de Neon (pasó con 8b3229b).
+#
+# Limitaciones que quedan (aceptables para la primera versión):
+# - Fotos y archivos en R2; sin worker: las tareas diarias corren en GitHub Actions.
+# - Sin preDeployCommand: migraciones, datos demo y preventivos corren al arrancar.
+# Producción con worker y base pagada: render.production.example.yaml.
 
 services:
   - type: web
@@ -43,12 +39,16 @@ services:
         value: "3.13.7"
       - key: DJANGO_DEBUG
         value: "0"
+      # URL directa de Neon (sin -pooler): RLS por conexión y pg_dump lo necesitan.
       - key: DATABASE_URL
-        fromDatabase:
-          name: cmms-db
-          property: connectionString
+        sync: false
       - key: DJANGO_SECRET_KEY
         generateValue: true
+      # Dominio propio (Cloudflare → Render); Render agrega solo galbust-cmms.onrender.com.
+      - key: DJANGO_ALLOWED_HOSTS
+        value: app.galbust.com
+      - key: SITE_URL
+        value: https://app.galbust.com
       # app.galbust.com pasa por el proxy de Cloudflare (2026-10-31) y luego por el
       # de Render: cada uno agrega a X-Forwarded-For la IP que se le conectó, así que
       # el cliente es el penúltimo valor (X-01; docs/07_operacion.md §1). Con "1" la

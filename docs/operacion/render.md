@@ -55,15 +55,21 @@ gunicorn.
 - **Actualizaciones:** cada push o merge a `main` despliega solo.
 - **Logs y errores:** pestaña *Logs* del servicio.
 - **Reiniciar los datos demo** (por ejemplo, antes de otra presentación):
-  recrea la base como se explica en la sección siguiente.
+  `seed_demo --reset` desde el *Shell* del servicio (sección siguiente).
 
-## Cuando la base gratuita vence (cada 30 días)
+## Base de datos (Neon desde 2026-10-30)
 
-1. En Render abre `cmms-db` → *Settings → Delete Database*.
-2. Abre el Blueprint → **Manual Sync**: Render vuelve a crear `cmms-db` y
-   conecta el servicio.
-3. En `galbust-cmms` → **Manual Deploy → Deploy latest commit**. Al arrancar,
-   `seed_demo` recarga los datos de ejemplo.
+La base ya no está en Render: `render.yaml` no declara `databases` y
+`DATABASE_URL` es `sync: false`, así que su valor (URL **directa** de Neon,
+sin `-pooler`) vive solo en el panel de `galbust-cmms` → *Environment* y en
+los secretos de GitHub del workflow *Tareas diarias* (docs/07_operacion.md §2b).
+
+- No agregar de nuevo una base con `fromDatabase` al blueprint: cada cambio de
+  `render.yaml` sincroniza el Blueprint y esa referencia reemplaza la URL de
+  Neon (el deploy de `8b3229b` falló así, con *failed to resolve host*).
+- Si un deploy falla con *failed to resolve host*: revisar `DATABASE_URL` en el
+  panel, pegar la URL de Neon y guardar (redespliega solo).
+- Reiniciar los datos demo: `seed_demo --reset` desde el *Shell* del servicio.
 
 ## Pasar al plan pagado (piloto con datos reales)
 
