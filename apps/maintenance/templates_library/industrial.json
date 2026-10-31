@@ -3,8 +3,8 @@
   "name": "Planta industrial",
   "description": "Compresores, bombas, calderas, motores eléctricos, reductores, correas transportadoras y tableros eléctricos.",
   "version": 1,
-  "review_status": "draft",
-  "review_note": "Borrador — revisar antes del piloto",
+  "review_status": "reviewed",
+  "review_note": "Revisada por GALBUST (2026-10-30)",
   "asset_classes": [
     {
       "code": "COMP-TORN",

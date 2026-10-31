@@ -3,8 +3,8 @@
   "name": "Edificios e instalaciones",
   "description": "Climatización, ascensores, generadores, sistemas contra incendio y detección de incendio.",
   "version": 1,
-  "review_status": "draft",
-  "review_note": "Borrador — revisar antes del piloto",
+  "review_status": "reviewed",
+  "review_note": "Revisada por GALBUST (2026-10-30)",
   "asset_classes": [
     {
       "code": "CLIMA-SPLIT",
